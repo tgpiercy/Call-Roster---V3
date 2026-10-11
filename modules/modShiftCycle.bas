@@ -15,7 +15,7 @@ Option Explicit
 '                (they'd be working straight through)
 ' ====================================================================
 
-Public Const ROT_VERSION As String = "Shift cycle v20 (Oct 9)"
+Public Const ROT_VERSION As String = "Shift cycle v21 (Oct 11)"
 
 Private Const ROT_ANCHOR As Date = #12/28/2025#
 Private Const ROT_DAYS As String = "BDDAACCCBBDDAAACCBBDDDAACCBB"     ' crew on days, cycle day 1..28
@@ -99,4 +99,66 @@ End Function
 ' One-line summary for the pop-ups, e.g. "On: D days, C nights | Off: A/B"
 Public Function RotationSummary(ByVal d As Date) As String
     RotationSummary = "On: " & DaysCrew(d) & " days, " & NightsCrew(d) & " nights  |  Off: " & CrewsOff(d)
+End Function
+
+
+' ====================================================================
+'  DAYLIGHT SAVING NIGHTS (v21)
+'  Clocks go back on the first Sunday in November at 2 AM: the night
+'  shift that STARTS the Saturday before works 13 hours. Clocks go
+'  forward on the second Sunday in March: that Saturday's night shift
+'  works 11 hours. Worked out by rule for any year (like modHolidays).
+'  Day shifts are never affected. DST_USE_ACTUAL_HOURS (modOvertimeEntry)
+'  decides whether the forms default to the actual hours or just warn.
+' ====================================================================
+Public Function DstFallBack(ByVal y As Long) As Date          ' the Saturday night of 13 h
+    DstFallBack = NthSunday(y, 11, 1) - 1
+End Function
+
+Public Function DstSpringForward(ByVal y As Long) As Date     ' the Saturday night of 11 h
+    DstSpringForward = NthSunday(y, 3, 2) - 1
+End Function
+
+Private Function NthSunday(ByVal y As Long, ByVal m As Long, ByVal n As Long) As Date
+    Dim d As Date: d = DateSerial(y, m, 1)
+    d = d + ((8 - Weekday(d, vbSunday)) Mod 7)        ' first Sunday
+    NthSunday = d + 7 * (n - 1)
+End Function
+
+' Actual length of the night shift starting on date d: 13, 11 or 12
+Public Function DstNightHours(ByVal d As Date) As Double
+    Dim k As Date: k = Int(d)
+    If k = DstFallBack(Year(k)) Then
+        DstNightHours = 13
+    ElseIf k = DstSpringForward(Year(k)) Then
+        DstNightHours = 11
+    Else
+        DstNightHours = 12
+    End If
+End Function
+
+' True when the night starting on d is a clock-change night
+Public Function IsDstNight(ByVal d As Date) As Boolean
+    IsDstNight = (DstNightHours(d) <> 12)
+End Function
+
+' One-line warning for the forms ("" when d is not a change night)
+Public Function DstNote(ByVal d As Date) As String
+    Dim h As Double: h = DstNightHours(d)
+    If h = 12 Then Exit Function
+    Dim way As String: way = IIf(h > 12, "clocks go back", "clocks go forward")
+    If DST_USE_ACTUAL_HOURS Then
+        DstNote = "DST night: " & h & " h (" & way & ")"
+    Else
+        DstNote = "DST night: " & way & " - actual shift is " & h & " h, 12 h kept"
+    End If
+End Function
+
+' Hours the forms should default to for a shift on d: the actual DST
+' hours for a change night (when the setting is on), else the usual
+Public Function DefaultShiftHours(ByVal d As Date, ByVal isNight As Boolean, ByVal usual As Double) As Double
+    DefaultShiftHours = usual
+    If isNight And DST_USE_ACTUAL_HOURS Then
+        If IsDstNight(d) Then DefaultShiftHours = DstNightHours(d)
+    End If
 End Function

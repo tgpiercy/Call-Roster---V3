@@ -34,6 +34,11 @@ Public Const CREW_ALL As String = "All not scheduled"   ' crew picker default: e
 ' Callout form rule
 Public Const CALLOUT_INCLUDE_DAYS As Boolean = True        ' DAYS employees appear for every shift
 
+' Clock-change nights (v21): True = New Posting / Log Call-Out default Hours to the
+' actual 13 h (fall back) or 11 h (spring forward); False = keep 12 and only warn
+Public Const DST_USE_ACTUAL_HOURS As Boolean = True
+Public Const USUAL_SHIFT_HOURS As Double = 12
+
 Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\2026\"
 Public Const PUBLISH_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\"
 Public Const PUBLISH_FILE As String = "Call Out Roster - Member View.xlsx"

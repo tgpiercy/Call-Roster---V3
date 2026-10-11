@@ -28,6 +28,7 @@ Private WithEvents mShiftCb As MSForms.ComboBox
 Private mIds As Variant
 Private mNewCtls As Collection          ' controls hidden in Load-only mode
 Private mAutoCloses As String           ' closing date we filled in (cleared once you type your own)
+Private mAutoHours As String            ' hours we filled in (12, or 13 / 11 on a DST night) - v21
 
 Private Const LBL_L As Long = 14
 Private Const BOX_L As Long = 118
@@ -161,8 +162,11 @@ Private Sub UserForm_Initialize()
     AddLabel "hintReason", "pick or type", HINT_L, RowTop(5) + 3, 120
 
     Set o = AddCtl("Forms.TextBox.1", "txtHours", BOX_L, RowTop(6), 60, 20)
-    o.Text = "12"
+    mAutoHours = CStr(USUAL_SHIFT_HOURS)
+    o.Text = mAutoHours
     AddRow 6, "Hours", o
+    Set o = AddLabel("hintHours", "", BOX_L + 66, RowTop(6) + 3, 210)    ' DST warning (v21)
+    o.ForeColor = RGB(190, 30, 30)
 
     Set o = AddCtl("Forms.TextBox.1", "txtPos", BOX_L, RowTop(7), 60, 20)
     o.Text = "1"
@@ -204,6 +208,8 @@ Private Sub UserForm_Initialize()
         C(CStr(h)).Font.Size = 8
         C(CStr(h)).ForeColor = RGB(120, 120, 120)
     Next h
+    C("hintHours").Font.Size = 8
+    C("hintHours").Font.Bold = True
     mCreate.Default = True
 End Sub
 
@@ -216,7 +222,7 @@ Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As Stri
     mDate.Text = Format$(d, "mm/dd/yyyy")
     mShiftCb.Value = shiftLbl                 ' crew fills in from the rotation
     C("cboReason").Text = reason
-    If hrs > 0 Then C("txtHours").Text = CStr(hrs)
+    If hrs > 0 Then C("txtHours").Text = CStr(hrs): mAutoHours = ""   ' hours came from the calendar line
     C("txtPos").Text = "1"
     Me.Caption = "New Posting - from the calendar"
     C("lblNewHdr").Caption = "NEW POSTING  -  " & note
@@ -287,8 +293,28 @@ Private Sub mShiftCb_Change()
     AutoCrew
 End Sub
 
+' v21: on a clock-change night the Hours box defaults to the actual 13 / 11
+' (DST_USE_ACTUAL_HOURS) with a warning. Only touches hours we filled in
+' ourselves - anything typed by hand is left alone.
+Private Sub AutoHours()
+    Dim hintTxt As String, want As String
+    want = CStr(USUAL_SHIFT_HOURS)
+    If IsDate(Trim$(mDate.Text)) And mShiftCb.ListIndex >= 0 Then
+        If IsNightShift(mShiftCb.Text) Then
+            hintTxt = DstNote(CDate(Trim$(mDate.Text)))
+            want = CStr(DefaultShiftHours(CDate(Trim$(mDate.Text)), True, USUAL_SHIFT_HOURS))
+        End If
+    End If
+    C("hintHours").Caption = hintTxt
+    If mAutoHours <> "" And Trim$(C("txtHours").Text) = mAutoHours Then
+        mAutoHours = want
+        C("txtHours").Text = want
+    End If
+End Sub
+
 ' date + Days/Nights -> crew from the rotation (can still be changed)
 Private Sub AutoCrew()
+    AutoHours
     Dim t As String: t = Trim$(mDate.Text)
     If Not IsDate(t) Then
         C("hintCrew").Caption = "fills in from the rotation"

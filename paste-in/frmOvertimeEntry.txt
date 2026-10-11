@@ -21,6 +21,7 @@ Private mCurrent As Long
 ' inputs captured at LOAD LIST - Submit always uses these
 Private mDept As String, mShift As String, mDate As Date, mHours As Double, mShiftLbl As String
 Private mKronosOk As Boolean     ' v20: stale-Kronos warning answered once per session
+Private mAutoHours As String     ' v21: hours we filled in for a DST night ("" = none / typed by hand)
 
 
 ' ================================================================
@@ -202,11 +203,33 @@ Private Sub AutoCrew()
         C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "   - pick Days / Nights"
         Exit Sub
     End If
-    Dim note As String, crew As String
-    crew = AvailableCrew(d, IsNightShift(C("cmbDN").Text), note)
+    Dim note As String, crew As String, night As Boolean
+    night = IsNightShift(C("cmbDN").Text)
+    crew = AvailableCrew(d, night, note)
     If C("cmbShift").Value = "" Then C("cmbShift").Value = CREW_ALL
-    C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "   ->  crews off: " & crew & _
-                          IIf(note <> "", "  (" & note & ")", "") & "   (list = everyone free that shift)"
+    ' v21: clock-change night -> default the hours (13 / 11) and say so
+    Dim dst As String
+    If night Then dst = DstNote(d)
+    Dim want As String
+    If night And IsDstNight(d) Then want = CStr(DefaultShiftHours(d, True, USUAL_SHIFT_HOURS))
+    If Trim$(C("txtHours").Value) = "" Or (mAutoHours <> "" And Trim$(C("txtHours").Value) = mAutoHours) Then
+        If want <> "" And want <> CStr(USUAL_SHIFT_HOURS) Then
+            C("txtHours").Value = want: mAutoHours = want
+        ElseIf mAutoHours <> "" Then
+            C("txtHours").Value = "": mAutoHours = ""           ' no longer a DST night - back to blank
+        End If
+    End If
+    If dst <> "" Then
+        C("lblRot").Font.Size = 8
+        C("lblRot").ForeColor = RGB(190, 30, 30)
+        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  off: " & crew & _
+                              IIf(note <> "", "  (" & note & ")", "") & "   |   " & dst
+    Else
+        C("lblRot").Font.Size = 8.5
+        C("lblRot").ForeColor = RGB(30, 56, 100)
+        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "   ->  crews off: " & crew & _
+                              IIf(note <> "", "  (" & note & ")", "") & "   (list = everyone free that shift)"
+    End If
 End Sub
 
 
@@ -504,7 +527,8 @@ Private Sub ResetForm()
     lstEmployees.Clear
     C("cmbDept").Value = "": C("cmbShift").Value = CREW_ALL: C("cmbDN").Value = ""
     C("cmbReason").Value = ""
-    C("txtHours").Value = "": C("txtDate").Value = Format$(Date, "MM/DD/YYYY")
+    C("txtHours").Value = "": mAutoHours = ""
+    C("txtDate").Value = Format$(Date, "MM/DD/YYYY")
     C("lblCurrent").Caption = "Load a list to begin"
     C("lblPhone").Caption = ""
     C("lblProgress").Caption = "": C("lblStatus").Caption = ""

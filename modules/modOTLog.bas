@@ -270,11 +270,16 @@ Public Sub AddAdjustment()
     Dim ps As Date: ps = PeriodStartFor(d)
     If Not ConfirmPeriod(ps) Then Exit Sub
 
+    ' v21: the type is required (Leave return / Unit move / New hire / Correction / Other)
+    Dim adjType As String: adjType = AskAdjustmentType(nm)
+    If adjType = "" Then Exit Sub
+
     Dim why As String: why = AskRequired("Reason for the adjustment (kept in the audit log):", "Adjustment - " & nm)
     If why = "" Then Exit Sub
 
     If MsgBox("Add " & Format$(CDbl(hrs), "0.##") & " hrs to " & nm & vbNewLine & _
               "Pay period starting " & Format$(ps, "mmm d, yyyy") & vbNewLine & _
+              "Type: " & adjType & vbNewLine & _
               "Reason: " & why, vbOKCancel + vbQuestion, "Confirm adjustment") <> vbOK Then Exit Sub
 
     Dim data() As Variant: ReDim data(1 To 1, 1 To L_NCOLS)
@@ -282,6 +287,7 @@ Public Sub AddAdjustment()
     data(1, L_REF) = refId
     data(1, L_TYPE) = "Adjustment"
     data(1, L_DATE) = d
+    data(1, L_TASK) = adjType                      ' Reason column: the adjustment type (v21)
     data(1, L_EMP) = nm
     data(1, L_REASON) = why
     data(1, L_CHARGED) = CDbl(hrs)
@@ -615,6 +621,27 @@ Private Function CleanVal(ByVal x As Variant) As Variant
     Else
         CleanVal = x
     End If
+End Function
+
+' Numbered pick of the adjustment type (v21). Returns "" if cancelled.
+Private Function AskAdjustmentType(ByVal nm As String) As String
+    Dim types As Variant: types = AdjustmentTypes()
+    Dim i As Long, menu As String
+    For i = LBound(types) To UBound(types)
+        menu = menu & "  " & (i - LBound(types) + 1) & " = " & types(i) & vbNewLine
+    Next i
+    Dim a As Variant, k As Long
+    Do
+        a = Application.InputBox(Prompt:="Type of adjustment - enter the number:" & vbNewLine & vbNewLine & menu, _
+                                 Title:="Adjustment - " & nm, Default:=4, Type:=1)
+        If VarType(a) = vbBoolean Then Exit Function
+        k = CLng(Val(a))
+        If k >= 1 And k <= UBound(types) - LBound(types) + 1 Then
+            AskAdjustmentType = CStr(types(LBound(types) + k - 1))
+            Exit Function
+        End If
+        MsgBox "Enter a number from 1 to " & (UBound(types) - LBound(types) + 1) & ".", vbExclamation
+    Loop
 End Function
 
 ' InputBox that insists on a non-blank answer. Returns "" if cancelled.

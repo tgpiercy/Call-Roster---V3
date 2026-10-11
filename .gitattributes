@@ -1,0 +1,9 @@
+# The VBA editor needs CRLF and ANSI; keep these files CRLF on every checkout
+*.bas  text eol=crlf
+*.cls  text eol=crlf
+*.frm  text eol=crlf
+paste-in/*.txt text eol=crlf
+# Everything else: normal text
+*.md   text
+*.py   text
+*.csv  text

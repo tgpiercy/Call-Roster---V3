@@ -1,0 +1,18 @@
+# Never commit data: workbooks, Kronos exports, posting PDFs, plant CSVs
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.csv
+*.pdf
+!tests/cases.csv
+# Built zips
+dist/
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+# Editor / OS
+.vscode/
+Thumbs.db
+desktop.ini

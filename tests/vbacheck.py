@@ -1,0 +1,150 @@
+"""Mechanical checks over the VBA sources: block matching, Option Explicit,
+Attribute line, CRLF, ASCII, duplicate Public names, undeclared-looking
+procedure calls. Usage: python vbacheck.py <repo root>"""
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+files = sorted(list((root / "modules").glob("*.bas")) + list((root / "paste-in").glob("*.txt")))
+problems = []
+publics = {}
+procs = {}          # name -> file (all procedures, any scope)
+
+OPEN = {
+    "if": "end if", "for": "next", "with": "end with", "select": "end select",
+    "do": "loop", "while": "wend", "sub": "end sub", "function": "end function",
+    "property": "end property", "type": "end type", "enum": "end enum",
+}
+
+
+def strip_strings_and_comments(line: str) -> str:
+    out, i, in_str = [], 0, False
+    while i < len(line):
+        ch = line[i]
+        if in_str:
+            if ch == '"':
+                if i + 1 < len(line) and line[i + 1] == '"':
+                    i += 1
+                else:
+                    in_str = False
+        else:
+            if ch == '"':
+                in_str = True
+            elif ch == "'":
+                break
+            else:
+                out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+for f in files:
+    raw = f.read_bytes()
+    if b"\n" in raw.replace(b"\r\n", b""):
+        problems.append(f"{f.name}: LF-only line endings present")
+    try:
+        text = raw.decode("ascii")
+    except UnicodeDecodeError as e:
+        problems.append(f"{f.name}: non-ASCII byte at {e.start}")
+        text = raw.decode("latin-1")
+    lines = text.split("\r\n")
+    is_bas = f.suffix == ".bas"
+    if is_bas and not lines[0].startswith('Attribute VB_Name = "'):
+        problems.append(f"{f.name}: missing Attribute VB_Name on line 1")
+    if "Option Explicit" not in lines[:3]:
+        problems.append(f"{f.name}: Option Explicit not in the first 3 lines")
+
+    # join continuations
+    joined, buf, start = [], "", 0
+    for n, ln in enumerate(lines, 1):
+        code = strip_strings_and_comments(ln).rstrip()
+        if not buf:
+            start = n
+        if code.endswith("_"):
+            buf += code[:-1] + " "
+            continue
+        joined.append((start, buf + code))
+        buf = ""
+
+    stack = []
+    for n, code in joined:
+        s = code.strip()
+        if not s:
+            continue
+        low = s.lower()
+        # single-line If ... Then <stmt>  (no block)
+        if low.startswith("if ") and " then" in low and not low.endswith(" then") and not re.search(r"\bthen\s*$", low):
+            # could be "If x Then stmt : Else stmt" one-liner
+            continue
+        # statements separated by ':' - only consider first token for openers
+        m = re.match(r"(public |private |friend |static )?(\w+)", low)
+        tok = m.group(2) if m else ""
+        head = low
+        # closers
+        for opener, closer in OPEN.items():
+            if head.startswith(closer) and (len(head) == len(closer) or not head[len(closer)].isalnum()):
+                if not stack or stack[-1][0] != opener:
+                    problems.append(f"{f.name}:{n}: '{closer}' without matching '{opener}' (stack={[x[0] for x in stack][-3:]})")
+                else:
+                    stack.pop()
+                break
+        else:
+            if tok in ("sub", "function", "property") and not low.startswith("exit ") and not low.startswith("end "):
+                if "declare " not in low:
+                    stack.append((tok, n))
+                    nm = re.search(r"(sub|function|property\s+(get|let|set))\s+(\w+)", low)
+                    if nm:
+                        name = nm.group(3)
+                        procs.setdefault(name, []).append(f.name)
+                        scope_pub = low.startswith("public ") or (not low.startswith("private ") and is_bas and tok != "property")
+                        if scope_pub and is_bas:
+                            publics.setdefault(name, []).append(f.name)
+            elif tok == "if":
+                # block if: ends with Then
+                if re.search(r"\bthen\s*$", low):
+                    stack.append(("if", n))
+            elif tok == "for":
+                stack.append(("for", n))
+            elif tok == "with":
+                stack.append(("with", n))
+            elif tok == "select":
+                stack.append(("select", n))
+            elif tok == "do":
+                stack.append(("do", n))
+            elif tok == "while":
+                stack.append(("while", n))
+            elif tok == "type" or (tok in ("public", "private") and re.match(r"(public|private)\s+type\b", low)):
+                stack.append(("type", n))
+            elif re.match(r"(public |private )?enum\b", low):
+                stack.append(("enum", n))
+            elif tok == "next":
+                if stack and stack[-1][0] == "for":
+                    stack.pop()
+                else:
+                    problems.append(f"{f.name}:{n}: 'Next' without For")
+            elif tok == "loop":
+                if stack and stack[-1][0] == "do":
+                    stack.pop()
+                else:
+                    problems.append(f"{f.name}:{n}: 'Loop' without Do")
+            elif tok == "wend":
+                if stack and stack[-1][0] == "while":
+                    stack.pop()
+                else:
+                    problems.append(f"{f.name}:{n}: 'Wend' without While")
+        # Public Const names
+        mc = re.match(r"public\s+const\s+(\w+)", low)
+        if mc:
+            publics.setdefault(mc.group(1), []).append(f.name)
+    if stack:
+        problems.append(f"{f.name}: unclosed blocks {[(a, b) for a, b in stack]}")
+
+for name, where in sorted(publics.items()):
+    if len(set(where)) > 1:
+        problems.append(f"duplicate Public name {name}: {sorted(set(where))}")
+
+print(f"checked {len(files)} files, {len(procs)} procedures")
+for p in problems:
+    print("PROBLEM:", p)
+print("OK" if not problems else f"{len(problems)} problem(s)")

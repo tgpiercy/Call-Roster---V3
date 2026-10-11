@@ -32,6 +32,7 @@ Public Const DS_LOG As String = "dLog"
 Private Const ROSTER_FIXED As Long = 7        ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional
 Private Const CAL_MONTHS_BACK As Long = 1
 Private Const CAL_MONTHS_AHEAD As Long = 3
+Private Const CAP_ROWS As Long = 60000      ' tables are sized once (ReDim Preserve cannot grow the first dimension)
 
 
 ' ---------------- when it was last published ----------------
@@ -124,6 +125,7 @@ Public Sub PublishMembers()
     If why = "" Then why = PrivateDataIn(plist, DS_PLIST)
     If why = "" Then why = PrivateDataIn(lg, DS_LOG)
     If why = "" Then why = LeaveCodesIn(cal)
+    If why = "" Then why = OrderSelfCheck(roster)
     If why <> "" Then
         Application.StatusBar = False
         Application.ScreenUpdating = True
@@ -154,10 +156,13 @@ Public Sub PublishMembers()
     WriteTable wb, DS_PLIST, plist
     WriteTable wb, DS_LOG, lg
 
-    ' the members' own code draws Home and the Roster (so the file reads right even with macros off)
+    ' the members' own code draws Home and the Roster (so the file reads right even with macros off);
+    ' it is saved on the Roster, A-Z, so a macros-off open lands on something useful
     On Error Resume Next
     Application.Run "'" & wb.Name & "'!MemberRefreshAll"
     redrawn = (Err.Number = 0)
+    Err.Clear
+    wb.Worksheets("Roster").Activate
     Err.Clear
     On Error GoTo WriteFailed
 
@@ -206,9 +211,13 @@ Public Sub PublishMembers()
 
 Failed:
     em = Err.Description
+    On Error Resume Next
+    EndSwitchBatch
     Application.StatusBar = False
     Application.ScreenUpdating = True
-    MsgBox "NOT published - couldn't work out the members' data: " & em & vbNewLine & "Nothing was opened or written.", vbCritical, "Member View"
+    MsgBox "NOT published - couldn't work out the members' data: " & em & vbNewLine & vbNewLine & _
+           "Nothing was opened or written. Run SystemCheck, then try again; if it happens twice, send me this message.", _
+           vbCritical, "Member View"
     Exit Sub
 OpenFailed:
     em = Err.Description
@@ -216,7 +225,9 @@ OpenFailed:
     Application.EnableEvents = evWas
     Application.StatusBar = False
     Application.ScreenUpdating = True
-    MsgBox "NOT published - the template couldn't be opened: " & em & vbNewLine & MemberTemplatePath(), vbCritical, "Member View"
+    MsgBox "NOT published - the template couldn't be opened: " & em & vbNewLine & MemberTemplatePath() & vbNewLine & vbNewLine & _
+           "If the template is open in Excel, close it and publish again. If it's missing, rebuild it (M1 install notes, part B).", _
+           vbCritical, "Member View"
     Exit Sub
 WriteFailed:
     em = Err.Description
@@ -229,9 +240,40 @@ WriteFailed:
     ThisWorkbook.Activate
     Application.StatusBar = False
     Application.ScreenUpdating = True
-    MsgBox "NOT published - stopped while filling the template: " & em & vbNewLine & _
-           "The template was opened read-only and closed without saving; the members' file is unchanged.", vbCritical, "Member View"
+    MsgBox "NOT published - stopped while filling the template: " & em & vbNewLine & vbNewLine & _
+           "The template was opened read-only and closed without saving, so the members' file is unchanged. " & _
+           "If the message mentions data sheets, open the template and run BuildMemberTemplate again; otherwise send me this message.", _
+           vbCritical, "Member View"
 End Sub
+
+' The call positions in dRoster must be the master's own call order. Re-run
+' it for the first unit with people and compare (cheap; catches a wiring slip).
+Private Function OrderSelfCheck(ByRef roster As Variant) As String
+    Dim depts As Variant: depts = DeptList()
+    Dim u As Long, recs() As EmpRec, n As Long, i As Long, r As Long, posCol As Long, found As Boolean
+    For u = 0 To UBound(depts)
+        n = LoadEligible(CStr(depts(u)), "ALL", recs)
+        If n > 0 Then
+            posCol = ROSTER_FIXED + 2 * u + 2
+            For i = 1 To n
+                found = False
+                For r = 2 To UBound(roster, 1)
+                    If StrComp(SafeStr(roster(r, 1)), recs(i).EmpName, vbTextCompare) = 0 Then
+                        found = True
+                        If NumOr0(roster(r, posCol)) <> i Then
+                            OrderSelfCheck = DS_ROSTER & ": " & recs(i).EmpName & " is #" & i & " in " & depts(u) & _
+                                             " call order but the table says #" & SafeStr(roster(r, posCol))
+                            Exit Function
+                        End If
+                        Exit For
+                    End If
+                Next r
+                If Not found Then OrderSelfCheck = DS_ROSTER & ": " & recs(i).EmpName & " missing": Exit Function
+            Next i
+            Exit Function                              ' one unit is enough
+        End If
+    Next u
+End Function
 
 
 ' ====================================================================
@@ -243,8 +285,11 @@ Private Function BuildMeta() As Variant
     Dim yFrom As Variant, yTo As Variant
     yFrom = ws.Cells(PStartRow(), C_PERIOD1).Value
     yTo = ws.Cells(PEndRow(), C_PERIODN).Value
-    Dim a(1 To 13, 1 To 2) As Variant
+    Dim a(1 To 16, 1 To 2) As Variant
     a(1, 1) = "Key": a(1, 2) = "Value"
+    a(14, 1) = "Posting close time": a(14, 2) = POSTING_CLOSE_TIME
+    a(15, 1) = "Crews": a(15, 2) = Join(ShiftList(), "|")
+    a(16, 1) = "Pay period days": a(16, 2) = 14
     a(2, 1) = "Published at": a(2, 2) = Now
     a(3, 1) = "Published by": a(3, 2) = CurrentUser()
     a(4, 1) = "Master version": a(4, 2) = EXPECTED_RELEASE & " M1  (" & CORE_VERSION & ")"
@@ -317,7 +362,7 @@ End Function
 ' Unit, Date, Shift, Rank, Name, Total, Provisional, Code - everyone free, in call order
 Private Function BuildNext(ByRef nN As Long) As Variant
     Dim depts As Variant: depts = DeptList()
-    Dim cap As Long: cap = 4096
+    Dim cap As Long: cap = CAP_ROWS
     Dim out() As Variant: ReDim out(1 To cap, 1 To 8)
     out(1, 1) = "Unit": out(1, 2) = "Date": out(1, 3) = "Shift": out(1, 4) = "Rank"
     out(1, 5) = "Name": out(1, 6) = "Total": out(1, 7) = "Provisional": out(1, 8) = "Code"
@@ -337,7 +382,6 @@ Private Function BuildNext(ByRef nN As Long) As Variant
                     m = FilterNotFree(recs, n, d, CStr(sh), removed, True)
                     For i = 1 To m
                         k = k + 1
-                        If k > cap Then cap = cap + 2048: ReDim Preserve out(1 To cap, 1 To 8)
                         out(k, 1) = depts(u): out(k, 2) = d: out(k, 3) = CStr(sh): out(k, 4) = i
                         out(k, 5) = recs(i).EmpName: out(k, 6) = recs(i).TotalHrs
                         out(k, 7) = recs(i).ProvHrs: out(k, 8) = recs(i).DeptCode
@@ -359,7 +403,7 @@ Private Function BuildCal(ByRef nC As Long) As Variant
     Dim d0 As Date, d1 As Date
     d0 = DateSerial(Year(Date), Month(Date) - CAL_MONTHS_BACK, 1)
     d1 = DateSerial(Year(Date), Month(Date) + CAL_MONTHS_AHEAD + 1, 1) - 1
-    Dim cap As Long: cap = 4096
+    Dim cap As Long: cap = CAP_ROWS
     Dim out() As Variant: ReDim out(1 To cap, 1 To 7)
     out(1, 1) = "Date": out(1, 2) = "Shift": out(1, 3) = "Unit": out(1, 4) = "Left"
     out(1, 5) = "Right": out(1, 6) = "Type": out(1, 7) = "Open"
@@ -370,7 +414,6 @@ Private Function BuildCal(ByRef nC As Long) As Variant
         hl = HolidayLabel(d)
         If hl <> "" Then
             k = k + 1
-            If k > cap Then cap = cap + 2048: ReDim Preserve out(1 To cap, 1 To 7)
             out(k, 1) = d: out(k, 2) = "": out(k, 3) = "*": out(k, 4) = hl: out(k, 5) = "": out(k, 6) = "HOL": out(k, 7) = False
         End If
         For u = 0 To UBound(depts)
@@ -378,7 +421,6 @@ Private Function BuildCal(ByRef nC As Long) As Variant
                 n = SlotsFor(d, CStr(sh), CStr(depts(u)), slots, True)
                 For i = 1 To n
                     k = k + 1
-                    If k > cap Then cap = cap + 2048: ReDim Preserve out(1 To cap, 1 To 7)
                     out(k, 1) = d: out(k, 2) = CStr(sh): out(k, 3) = depts(u)
                     out(k, 4) = slots(i).LeftText: out(k, 5) = slots(i).RightText
                     out(k, 6) = PublicType(slots(i).TypeCode): out(k, 7) = slots(i).IsOpen
@@ -403,8 +445,8 @@ End Function
 Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist As Variant, ByRef nPL As Long)
     Dim ids As Variant, choices As Variant
     choices = OpenPostingChoices(ids)
-    Dim capP As Long: capP = 64
-    Dim capL As Long: capL = 1024
+    Dim capP As Long: capP = CAP_ROWS
+    Dim capL As Long: capL = CAP_ROWS
     Dim p() As Variant: ReDim p(1 To capP, 1 To 8)
     Dim l() As Variant: ReDim l(1 To capL, 1 To 4)
     p(1, 1) = "Posting ID": p(1, 2) = "Unit": p(1, 3) = "Date": p(1, 4) = "Shift"
@@ -417,14 +459,12 @@ Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist A
         For i = LBound(ids) To UBound(ids)
             pr = blank                              ' LoadPosting leaves pr untouched when the id isn't found
             n = LoadPosting(CStr(ids(i)), pr, lst)
-            If pr.ID <> "" And n > 0 Then
+            If pr.ID <> "" Then                     ' a posting with an empty list still shows (as "list not published")
                 kP = kP + 1
-                If kP > capP Then capP = capP + 64: ReDim Preserve p(1 To capP, 1 To 8)
                 p(kP, 1) = pr.ID: p(kP, 2) = pr.Unit: p(kP, 3) = pr.ShiftDate: p(kP, 4) = pr.ShiftLbl
                 p(kP, 5) = pr.Hours: p(kP, 6) = pr.Positions: p(kP, 7) = pr.Reason: p(kP, 8) = pr.ClosesOn
                 For j = 1 To n
                     kL = kL + 1
-                    If kL > capL Then capL = capL + 1024: ReDim Preserve l(1 To capL, 1 To 4)
                     l(kL, 1) = pr.ID: l(kL, 2) = lst(j).Rank: l(kL, 3) = lst(j).EmpName: l(kL, 4) = lst(j).TotalHrs
                 Next j
             End If
@@ -444,7 +484,7 @@ Private Function BuildLog(ByRef nL As Long) As Variant
     yFrom = NumOr0(ws.Cells(PStartRow(), C_PERIOD1).Value2)
     yTo = NumOr0(ws.Cells(PEndRow(), C_PERIODN).Value2)
     Dim nCols As Long: nCols = IIf(PUBLISH_REASONS, 11, 10)
-    Dim cap As Long: cap = 1024
+    Dim cap As Long: cap = CAP_ROWS
     Dim out() As Variant: ReDim out(1 To cap, 1 To nCols)
     out(1, 1) = "Shift Date": out(1, 2) = "Ref ID": out(1, 3) = "Type": out(1, 4) = "Unit": out(1, 5) = "Shift"
     out(1, 6) = "Hours": out(1, 7) = "Employee": out(1, 8) = "Outcome": out(1, 9) = "Hours Charged": out(1, 10) = "Period Start"
@@ -459,7 +499,6 @@ Private Function BuildLog(ByRef nL As Long) As Variant
                     sd = NumOr0(v(r, L_DATE))
                     If (yFrom = 0 Or sd >= yFrom) And (yTo = 0 Or sd <= yTo) Then
                         k = k + 1
-                        If k > cap Then cap = cap + 1024: ReDim Preserve out(1 To cap, 1 To nCols)
                         out(k, 1) = v(r, L_DATE): out(k, 2) = SafeStr(v(r, L_REF)): out(k, 3) = SafeStr(v(r, L_TYPE))
                         out(k, 4) = SafeStr(v(r, L_DEPT)): out(k, 5) = SafeStr(v(r, L_SHIFTLBL)): out(k, 6) = NumOr0(v(r, L_BASEHRS))
                         out(k, 7) = SafeStr(v(r, L_EMP)): out(k, 8) = SafeStr(v(r, L_OUTCOME))
@@ -493,7 +532,7 @@ End Function
 ' ====================================================================
 Private Function PrivateDataIn(ByRef a As Variant, ByVal tableName As String) As String
     If Not IsArray(a) Then Exit Function
-    Dim i As Long, j As Long, s As String, digits As Long, p As Long
+    Dim i As Long, j As Long, s As String
     For i = 2 To UBound(a, 1)
         For j = 1 To UBound(a, 2)
             If VarType(a(i, j)) = vbString Then
@@ -502,17 +541,42 @@ Private Function PrivateDataIn(ByRef a As Variant, ByVal tableName As String) As
                     PrivateDataIn = tableName & " row " & i & ": looks like an email (" & Left$(s, 40) & ")"
                     Exit Function
                 End If
-                digits = 0
-                For p = 1 To Len(s)
-                    If Mid$(s, p, 1) Like "#" Then digits = digits + 1
-                Next p
-                If digits >= 7 And Len(s) <= 24 Then
+                If LongestDigitRun(s) >= 7 Then
                     PrivateDataIn = tableName & " row " & i & ": looks like a phone number (" & Left$(s, 40) & ")"
                     Exit Function
                 End If
             End If
         Next j
     Next i
+End Function
+
+' Longest run of digits once phone separators (space - ( ) .) are removed.
+' Times like "07:00-15:00" keep their colons, so they stay short runs;
+' dates written yyyy-mm-dd are blanked first so they don't count.
+Private Function LongestDigitRun(ByVal s As String) As Long
+    Dim p As Long
+    p = 1
+    Do While p <= Len(s) - 9
+        If Mid$(s, p, 10) Like "####-##-##" Then
+            s = Left$(s, p - 1) & "          " & Mid$(s, p + 10)
+            p = p + 10
+        Else
+            p = p + 1
+        End If
+    Loop
+    Dim t As String, ch As String, run As Long, best As Long
+    For p = 1 To Len(s)
+        ch = Mid$(s, p, 1)
+        If ch Like "#" Then
+            run = run + 1
+            If run > best Then best = run
+        ElseIf ch = " " Or ch = "-" Or ch = "(" Or ch = ")" Or ch = "." Then
+            ' separators inside a phone number: keep counting
+        Else
+            run = 0
+        End If
+    Next p
+    LongestDigitRun = best
 End Function
 
 Private Function LeaveCodesIn(ByRef cal As Variant) As String

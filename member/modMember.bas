@@ -101,7 +101,11 @@ Private Function Num(ByVal x As Variant) As Double
 End Function
 
 Private Function Dt(ByVal x As Variant) As Date
-    If IsDate(x) Then Dt = CDate(x) ElseIf IsNumeric(x) And Not IsEmpty(x) Then Dt = CDate(CDbl(x))
+    If IsDate(x) Then
+        Dt = CDate(x)
+    ElseIf IsNumeric(x) And Not IsEmpty(x) Then
+        Dt = CDate(CDbl(x))
+    End If
 End Function
 
 Private Function UnitList() As Variant

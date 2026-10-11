@@ -2799,7 +2799,7 @@ Public Sub DrawNeeds()
     pubAt = MembersPublishedAt()
     If pubAt = 0 Then
         pubTxt = "never published - click Member View on the roster"
-    ElseIf Int(Date) - Int(pubAt) > MEMBERS_STALE_DAYS Then
+    ElseIf Int(Date) - Int(pubAt) >= MEMBERS_STALE_DAYS Then
         pubTxt = "last published " & Format$(pubAt, "ddd mmm d, h:mm AM/PM") & " (" & (Int(Date) - Int(pubAt)) & " days ago)"
     End If
     If pubTxt <> "" Then
@@ -3163,7 +3163,7 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         Exit Sub
     End If
     If Left$(keyTxt, 2) = "M:" Then              ' M1: publish the members' file
-        PublishMemberView
+        If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
         Exit Sub
     End If
     ShowLineMenu keyTxt
@@ -3182,7 +3182,7 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
         Exit Sub
     End If
     If Left$(keyTxt, 2) = "M:" Then
-        PublishMemberView
+        If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
         Exit Sub
     End If
     ShowLineMenu keyTxt

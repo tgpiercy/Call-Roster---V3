@@ -314,33 +314,38 @@ End Function
 ' ---------------- lookups ----------------
 ' SS ID if empName WORKS a switch on d / shiftLbl ("" if not)
 Public Function SwitchWorkingOn(ByVal empName As String, ByVal d As Date, ByVal shiftLbl As String) As String
-    Dim v As Variant: v = SwitchData()
-    If Not IsArray(v) Then Exit Function
-    Dim i As Long
-    For i = 1 To UBound(v, 1)
-        If UCase$(SafeStr(v(i, SW_STATUS))) <> "VOID" Then
-            If StrComp(Trim$(SafeStr(v(i, SW_WORKS))), Trim$(empName), vbTextCompare) = 0 Then
-                If IsDate(v(i, SW_DATE)) Then
-                    If Int(CDate(v(i, SW_DATE))) = Int(d) And _
-                       (shiftLbl = "" Or StrComp(SafeStr(v(i, SW_SHIFT)), shiftLbl, vbTextCompare) = 0) Then
-                        SwitchWorkingOn = SafeStr(v(i, SW_ID)): Exit Function
-                    End If
-                End If
-            End If
-        End If
-    Next i
+    If mBatch Then
+        SwitchWorkingOn = MatchSwitch(mBatchRows, SW_WORKS, empName, d, shiftLbl)   ' no copy of the rows per call
+    Else
+        Dim v As Variant: v = SwitchData()
+        SwitchWorkingOn = MatchSwitch(v, SW_WORKS, empName, d, shiftLbl)
+    End If
 End Function
 
 ' SS ID if empName GAVE UP a shift (any shift) on date d ("" if not)
 Public Function SwitchOffOn(ByVal empName As String, ByVal d As Date) As String
-    Dim v As Variant: v = SwitchData()
+    If mBatch Then
+        SwitchOffOn = MatchSwitch(mBatchRows, SW_OFF, empName, d, "")
+    Else
+        Dim v As Variant: v = SwitchData()
+        SwitchOffOn = MatchSwitch(v, SW_OFF, empName, d, "")
+    End If
+End Function
+
+' first non-void row where column nameCol is empName on date d (and shiftLbl, if given)
+Private Function MatchSwitch(ByRef v As Variant, ByVal nameCol As Long, ByVal empName As String, _
+                             ByVal d As Date, ByVal shiftLbl As String) As String
     If Not IsArray(v) Then Exit Function
     Dim i As Long
     For i = 1 To UBound(v, 1)
-        If UCase$(SafeStr(v(i, SW_STATUS))) <> "VOID" And IsDate(v(i, SW_DATE)) Then
-            If Int(CDate(v(i, SW_DATE))) = Int(d) And _
-               StrComp(Trim$(SafeStr(v(i, SW_OFF))), Trim$(empName), vbTextCompare) = 0 Then
-                SwitchOffOn = SafeStr(v(i, SW_ID)): Exit Function
+        If UCase$(SafeStr(v(i, SW_STATUS))) <> "VOID" Then
+            If StrComp(Trim$(SafeStr(v(i, nameCol))), Trim$(empName), vbTextCompare) = 0 Then
+                If IsDate(v(i, SW_DATE)) Then
+                    If Int(CDate(v(i, SW_DATE))) = Int(d) And _
+                       (shiftLbl = "" Or StrComp(SafeStr(v(i, SW_SHIFT)), shiftLbl, vbTextCompare) = 0) Then
+                        MatchSwitch = SafeStr(v(i, SW_ID)): Exit Function
+                    End If
+                End If
             End If
         End If
     Next i

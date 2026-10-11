@@ -16,7 +16,7 @@ Option Explicit
 ' ====================================================================
 
 ' ---------------- configuration ----------------
-Public Const POST_VERSION As String = "Postings v20 (Oct 9)"
+Public Const POST_VERSION As String = "Postings v21 (Oct 11)"
 Public Const POSTINGS_SHEET As String = "Postings"
 Public Const PT_TABLE As String = "tblPostings"
 Public Const PL_TABLE As String = "tblPostingList"
@@ -224,13 +224,18 @@ End Sub
 ' How many would be listed. With a date + shift, only people free that day count;
 ' notFree gets the summary of who's left off.
 Public Function EligibleCount(ByVal unit As String, ByVal crew As String, Optional ByVal d As Variant, _
-                              Optional ByVal shiftLbl As String = "", Optional ByRef notFree As String) As Long
+                              Optional ByVal shiftLbl As String = "", Optional ByRef notFree As String, _
+                              Optional ByRef nProv As Long) As Long
+    nProv = 0
     If DeptCol(unit) = 0 Then Exit Function
-    Dim recs() As EmpRec, n As Long
+    Dim recs() As EmpRec, n As Long, i As Long
     n = LoadEligible(unit, CrewFilter(crew), recs, DeptPostingMaxGrade(unit), True)
     If n > 0 And Not IsMissing(d) And shiftLbl <> "" Then
         If IsDate(d) Then n = FilterNotFree(recs, n, CDate(d), shiftLbl, notFree)
     End If
+    For i = 1 To n
+        If recs(i).ProvHrs > 0 Then nProv = nProv + 1      ' v21: totals that include provisional accepted OT
+    Next i
     EligibleCount = n
 End Function
 
@@ -638,7 +643,7 @@ Private Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef 
             .Merge
             .Value = "Sign-up closes " & Format$(p.ClosesOn, "dddd, mmmm d") & " @ " & POSTING_CLOSE_TIME & _
                      ".  Listed in call order.  Hours are each person's total overtime hours as of " & _
-                     Format$(p.PostedOn, "mmmm d, yyyy") & "."
+                     Format$(p.PostedOn, "mmmm d, yyyy") & ", including accepted overtime not yet in Kronos."
             .WrapText = True
             .Font.Size = 9: .Font.Color = greyTxt
             .HorizontalAlignment = xlLeft

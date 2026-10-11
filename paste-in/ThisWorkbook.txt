@@ -1,5 +1,5 @@
 Option Explicit
-' @version v20 (Oct 9)
+' @version v21 (Oct 11)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object
@@ -11,6 +11,7 @@ Private Sub Workbook_Open()
     Application.ScreenUpdating = False
     ProtectAll
     ApplyView IsAdmin()
+    EnsureDataThrough                  ' v21: the provisional-OT formulas need the data-through name
     HolidaysOnOpen                     ' v20: this year's and next year's holidays listed (admins)
     CalOnOpen                          ' calendar: this month, fresh needs-attention box
     RosterSheet().Activate
@@ -22,7 +23,7 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v20 (Oct 9)"
+    CodeVersion = "ThisWorkbook v21 (Oct 11)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the

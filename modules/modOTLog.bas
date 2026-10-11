@@ -26,6 +26,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
     If lastRow < R_FIRST Then summary = "No employees found on the roster.": Exit Function
 
     Dim calcMode As XlCalculation: calcMode = Application.Calculation
+    EnsureDataThrough                     ' v21: the provisional formulas need the data-through name
 
     ' repair any period formulas that were stored as text by an earlier run
     Dim rr As Long, cc As Long
@@ -141,16 +142,17 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
             End If
             WritePeriodRow ws, r
             ws.Cells(r, C_REFUSED).Formula = "=SUM(" & pf & r & ":" & pl & r & ")"
-            ws.Cells(r, C_TOTAL).Formula = "=" & ColLetter(C_WORKED) & r & "+" & ColLetter(C_REFUSED) & r
             ws.Cells(r, C_REFUSED).Locked = True
-            ws.Cells(r, C_TOTAL).Locked = True
+            WriteTotalRow ws, r                   ' v21: C = provisional, G = H + I + C
         End If
     Next r
     Application.Calculation = calcMode
     Application.Calculate
 
-    ' ---- 4. verify: period totals, Refused (I) and Total (G) unchanged ----
-    Dim afterSum As Double, mism As String, k As Long
+    ' ---- 4. verify: period totals and Refused (I) unchanged; Total (G) =
+    '      Worked + Refused + Provisional (G itself may grow by the
+    '      provisional hours the first time v21 writes it) ----
+    Dim afterSum As Double, mism As String, k As Long, expG As Double, provTot As Double
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
         If nm <> "" Then
@@ -160,12 +162,17 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
                 v = ws.Cells(r, c).Value2
                 If IsRealNumber(v) Then afterSum = afterSum + CDbl(v)
             Next c
+            expG = NumOr0(ws.Cells(r, C_WORKED).Value2) + NumOr0(ws.Cells(r, C_REFUSED).Value2) + NumOr0(ws.Cells(r, C_PROV).Value2)
+            provTot = provTot + NumOr0(ws.Cells(r, C_PROV).Value2)
             If Abs(afterSum - before(k)) > 0.0001 Then
                 mism = mism & "  " & nm & ": periods were " & before(k) & ", now " & afterSum & vbNewLine
             ElseIf Not SameNumber(oldI(k), ws.Cells(r, C_REFUSED).Value2) Then
                 mism = mism & "  " & nm & ": Refused (I) was " & SafeStr(oldI(k)) & ", now " & SafeStr(ws.Cells(r, C_REFUSED).Value) & vbNewLine
-            ElseIf Not SameNumber(oldG(k), ws.Cells(r, C_TOTAL).Value2) Then
-                mism = mism & "  " & nm & ": Total (G) was " & SafeStr(oldG(k)) & ", now " & SafeStr(ws.Cells(r, C_TOTAL).Value) & vbNewLine
+            ElseIf IsError(ws.Cells(r, C_PROV).Value2) Or IsError(ws.Cells(r, C_TOTAL).Value2) Then
+                mism = mism & "  " & nm & ": Provisional (C) or Total (G) shows an error" & vbNewLine
+            ElseIf Not SameNumber(expG, ws.Cells(r, C_TOTAL).Value2) Then
+                mism = mism & "  " & nm & ": Total (G) is " & SafeStr(ws.Cells(r, C_TOTAL).Value) & ", expected " & expG & _
+                       " (Worked + Refused + Provisional); was " & SafeStr(oldG(k)) & vbNewLine
             End If
         End If
     Next r
@@ -182,10 +189,14 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
     If n > 0 Then
         summary = n & " pay-period value(s) moved into the OT Log as '" & entryType & _
                   "' (" & refId & "), net " & Format$(total, "#,##0.##") & " hrs." & vbNewLine & _
-                  "Every employee's period, Refused and Total hours were checked and are unchanged."
+                  "Every employee's period and Refused hours were checked and are unchanged; " & _
+                  "Total = Worked + Refused + Provisional on every row."
     Else
-        summary = "No typed values found. Formulas refreshed for all " & nRows & " roster rows."
+        summary = "No typed values found. Formulas refreshed for all " & nRows & " roster rows " & _
+                  "(Total = Worked + Refused + Provisional on every row)."
     End If
+    summary = summary & vbNewLine & "Provisional accepted OT (not yet in Kronos, data through " & _
+              Format$(EnsureDataThrough(), "mmm d") & "): " & Format$(provTot, "#,##0.##") & " hrs in total."
     ConvertRosterToFormulas = True
 End Function
 

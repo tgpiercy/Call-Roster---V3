@@ -18,7 +18,7 @@ Option Explicit
 ' ====================================================================
 
 Private Const STATUS_CELL As String = "D3"      ' status (3 lines, plain text) - in the frozen names column
-Public Const UI_VERSION As String = "Roster UI v20 (Oct 9)"
+Public Const UI_VERSION As String = "Roster UI v21 (Oct 11)"
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
 Private Const LIGHT As Long = 15787486          ' RGB(222, 229, 240)
@@ -109,8 +109,9 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
     Dim ps As Date: ps = PeriodStartFor(Date)
     Dim txt As String
     Dim kTxt As String: kTxt = KronosStatusText()        ' v20: how old the worked hours are
+    Dim dt As Date: dt = KronosDataThrough()             ' v21: provisional OT counts after this date
     txt = "Pay period: " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & vbLf & _
-          kTxt & vbLf & _
+          kTxt & IIf(dt > 0, "  |  data through " & Format$(dt, "mmm d"), "") & vbLf & _
           "Log: " & Format$(n, "#,##0") & "  |  View: " & viewTxt
     If txt = Replace(cur, vbCr, "") Then Exit Sub
 
@@ -509,7 +510,17 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     fc.SetFirstPriority
 
     ' ---------- columns ----------
-    ws.Columns("C").Hidden = True                 ' duplicate of Total Hours
+    ' C = provisional accepted OT (v21): a hidden helper that Total Hours adds in
+    With ws.Cells(2, C_PROV)
+        .Value = "PROV"
+        .Interior.Color = NAVY
+        .Font.Color = vbWhite
+        .Font.Bold = True
+        .Font.Size = 8
+    End With
+    ws.Range(ws.Cells(R_FIRST, C_PROV), ws.Cells(lastRow, C_PROV)).NumberFormat = PERIOD_FMT
+    ws.Columns(C_PROV).ColumnWidth = 7
+    ws.Columns(C_PROV).Hidden = True
     ws.Columns(C_EMAIL).ColumnWidth = 26           ' EMAIL (ApplyView hides it for non-admins)
     ws.Columns(C_NAME).ColumnWidth = 26
     ws.Columns(C_SHIFT).ColumnWidth = 6.5

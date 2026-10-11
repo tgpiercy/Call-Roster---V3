@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v20 (Oct 9)"
+Public Const CORE_VERSION As String = "Core v21 (Oct 11)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -41,6 +41,7 @@ Public Const PUBLISH_REASONS As Boolean = False   ' False = leave Reason/Note co
 Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
+Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)
 
 ' --------------------------------------------------------------------
 '  ROSTER LAYOUT (CALL IN_JAN)
@@ -49,10 +50,11 @@ Public Const R_HDR As Long = 4          ' sort / filter header row (row just abo
 Public Const PERIOD_FMT As String = "General;-General;"   ' hides zeros; NO text (@) section
 ' Pay-period START and END dates live in rows 2 and 4 - see PStartRow / PEndRow
 Public Const R_FIRST As Long = 5        ' first employee row
+Public Const C_PROV As Long = 3         ' C  (hidden) provisional accepted OT not yet in Kronos (v21)
 Public Const C_NAME As Long = 4         ' D
 Public Const C_SHIFT As Long = 5        ' E
 Public Const C_PHONE As Long = 6        ' F
-Public Const C_TOTAL As Long = 7        ' G  = Worked + Refused
+Public Const C_TOTAL As Long = 7        ' G  = Worked + Refused + Provisional (v21)
 Public Const C_WORKED As Long = 8       ' H  (from Kronos)
 Public Const C_REFUSED As Long = 9      ' I  = SUM(period columns)
 Public Const C_SENIORITY As Long = 10   ' J
@@ -96,6 +98,7 @@ Public Type EmpRec
     EmpName As String
     EmpRow As Long
     TotalHrs As Double
+    ProvHrs As Double           ' part of TotalHrs that is provisional accepted OT (v21)
     Seniority As Double
     DeptCode As String
     Grade As Double
@@ -309,6 +312,7 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                         .DeptCode = code
                         .Grade = g
                         .TotalHrs = NumOr0(v(i, C_TOTAL))
+                        .ProvHrs = NumOr0(v(i, C_PROV))
                         .Seniority = SeniorityKey(v(i, C_SENIORITY))
                         .Phone = Trim$(SafeStr(v(i, C_PHONE)))
                         .EmpShift = Trim$(SafeStr(v(i, C_SHIFT)))
@@ -471,6 +475,70 @@ Public Function PeriodFormula(ByVal r As Long) As String
         LOG_TABLE & "[[Period Start]:[Period Start]]," & ColLetter(C_PERIOD1) & "$" & PStartRow() & "," & _
         LOG_TABLE & "[[Status]:[Status]],""<>VOID"")"
 End Function
+
+' --------------------------------------------------------------------
+'  PROVISIONAL ACCEPTED OT (v21)
+'  An Accepted call-out or Awarded posting counts in Total Hours from the
+'  moment it is logged, until Kronos covers the shift. Kronos data runs
+'  through the day before the file was saved (KronosDataThrough, a hidden
+'  workbook name the import keeps up to date). A shift is covered once it
+'  has fully ended by the end of that day:
+'     day shift on D    covered when D     <= data-through
+'     night shift on D  covered when D + 1 <= data-through
+'  Only rows whose shift date falls inside this roster's year count, the
+'  row's shift Hours (not x 1.75), non-void only.
+' --------------------------------------------------------------------
+Public Function ProvisionalCovered(ByVal shiftDate As Date, ByVal isNight As Boolean, ByVal dataThrough As Date) As Boolean
+    Dim endsOn As Date: endsOn = Int(shiftDate)
+    If isNight Then endsOn = endsOn + 1
+    ProvisionalCovered = (endsOn <= Int(dataThrough))
+End Function
+
+' One roster row's provisional formula (column C). Four SUMIFS over the
+' log: Accepted / Awarded x day rows (Shift <> Nights) / night rows.
+Public Function ProvFormula(ByVal r As Long) As String
+    Dim yearFrom As String, yearTo As String
+    yearFrom = "$" & ColLetter(C_PERIOD1) & "$" & PStartRow()
+    yearTo = "$" & ColLetter(C_PERIODN) & "$" & PEndRow()
+    ProvFormula = "=" & ProvSumIfs(r, "Accepted", False, yearFrom, yearTo) & _
+                  "+" & ProvSumIfs(r, "Accepted", True, yearFrom, yearTo) & _
+                  "+" & ProvSumIfs(r, "Awarded", False, yearFrom, yearTo) & _
+                  "+" & ProvSumIfs(r, "Awarded", True, yearFrom, yearTo)
+End Function
+
+Private Function ProvSumIfs(ByVal r As Long, ByVal outcome As String, ByVal nights As Boolean, _
+                            ByVal yearFrom As String, ByVal yearTo As String) As String
+    Dim dateCol As String: dateCol = LOG_TABLE & "[[Shift Date]:[Shift Date]]"
+    ProvSumIfs = "SUMIFS(" & LOG_TABLE & "[[Hours]:[Hours]]," & _
+        LOG_TABLE & "[[Employee]:[Employee]],$" & ColLetter(C_NAME) & r & "," & _
+        LOG_TABLE & "[[Status]:[Status]],""<>VOID""," & _
+        LOG_TABLE & "[[Outcome]:[Outcome]],""" & outcome & """," & _
+        dateCol & ","">=""&" & yearFrom & "," & _
+        dateCol & ",""<=""&" & yearTo & "," & _
+        LOG_TABLE & "[[Shift]:[Shift]],""" & IIf(nights, "Nights", "<>Nights") & """," & _
+        dateCol & ","">""&" & IIf(nights, "(" & PROV_NAME & "-1)", PROV_NAME) & ")"
+End Function
+
+' Total Hours (column G) = Worked + Refused + Provisional
+Public Function TotalFormula(ByVal r As Long) As String
+    TotalFormula = "=" & ColLetter(C_WORKED) & r & "+" & ColLetter(C_REFUSED) & r & "+" & ColLetter(C_PROV) & r
+End Function
+
+' Writes one row's provisional (C) and total (G) formulas. Sheet must be unprotected.
+Public Sub WriteTotalRow(ByVal ws As Worksheet, ByVal r As Long)
+    With ws.Cells(r, C_PROV)
+        .NumberFormat = "General"
+        .Formula = ProvFormula(r)
+        .NumberFormat = PERIOD_FMT
+        .Locked = True
+    End With
+    With ws.Cells(r, C_TOTAL)
+        .NumberFormat = "General"
+        .Formula = TotalFormula(r)
+        .NumberFormat = "#,##0"
+        .Locked = True
+    End With
+End Sub
 
 Public Function IsOurFormula(ByVal cel As Range) As Boolean
     If cel.HasFormula Then

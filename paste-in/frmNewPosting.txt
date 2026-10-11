@@ -1,5 +1,5 @@
 Option Explicit
-' @version v20 (Oct 9)
+' @version v21 (Oct 11)
 
 ' ================================================================
 ' NEW OVERTIME POSTING  /  LOAD POSTING
@@ -334,10 +334,10 @@ End Sub
 
 Private Sub UpdateEligible()
     If mUnit.ListIndex < 0 Or mCrew.ListIndex < 0 Then Exit Sub
-    Dim n As Long, notFree As String, haveDay As Boolean
+    Dim n As Long, notFree As String, haveDay As Boolean, nProv As Long
     haveDay = IsDate(Trim$(mDate.Text)) And mShiftCb.ListIndex >= 0
     If haveDay Then
-        n = EligibleCount(mUnit.Text, mCrew.Text, CDate(Trim$(mDate.Text)), mShiftCb.Text, notFree)
+        n = EligibleCount(mUnit.Text, mCrew.Text, CDate(Trim$(mDate.Text)), mShiftCb.Text, notFree, nProv)
     Else
         n = EligibleCount(mUnit.Text, mCrew.Text)
     End If
@@ -346,7 +346,9 @@ Private Sub UpdateEligible()
             .Caption = "No one free to sign up for " & mUnit.Text & IIf(haveDay, " that shift.", ".")
             .ForeColor = RGB(190, 30, 30)
         ElseIf haveDay Then
-            .Caption = n & " free to sign up (call order, hours as of now)." & IIf(notFree <> "", "  Left off: " & notFree, "")
+            .Caption = n & " free to sign up (call order, hours as of now" & _
+                       IIf(nProv > 0, "; " & nProv & " include accepted OT not yet in Kronos", "") & ")." & _
+                       IIf(notFree <> "", "  Left off: " & notFree, "")
             .ForeColor = RGB(0, 110, 60)
         Else
             .Caption = n & " with the code - pick the date and shift to drop anyone scheduled."

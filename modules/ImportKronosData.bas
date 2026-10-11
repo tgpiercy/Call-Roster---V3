@@ -15,11 +15,18 @@ Option Explicit
 '     the hidden Hours History sheet (needed later for the leave return
 '     top-up and provisional accepted OT).
 '   - Also lists Kronos names that aren't on the roster.
+'  v21 (Oct 11):
+'   - Each snapshot row records the "Data Through" date: the Kronos data
+'     runs through the day BEFORE the file was saved. The latest value is
+'     kept as the hidden name KronosDataThrough, which the roster's
+'     provisional-OT formulas (column C) read: accepted / awarded shifts
+'     that have ended by that date are in Kronos, so they stop counting.
 ' ====================================================================
 
-Public Const KR_VERSION As String = "Kronos import v20 (Oct 9)"
+Public Const KR_VERSION As String = "Kronos import v21 (Oct 11)"
 Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
+Private Const HH_NCOLS As Long = 7          ' v21: + Data Through
 
 Sub SyncKronosData()
     If Not RequireAdmin() Then Exit Sub
@@ -125,8 +132,12 @@ Sub SyncKronosData()
     If fileDate = 0 Then fileDate = stamp
     SetDateName "KronosImportedAt", stamp
     SetDateName "KronosFileDate", fileDate
+    ' v21: the data covers everything through the day before the file was saved
+    Dim through As Date: through = DataThroughFor(fileDate)
+    SetDateName PROV_NAME, through
     Dim histId As String
-    If histN > 0 Then histId = AppendHoursHistory(stamp, fileDate, histName, histHrs, histN)
+    If histN > 0 Then histId = AppendHoursHistory(stamp, fileDate, through, histName, histHrs, histN)
+    Application.CalculateFull                 ' provisional (C) and Total (G) pick up the new date
     Application.ScreenUpdating = True
     wsDest.Activate
     On Error Resume Next
@@ -145,8 +156,10 @@ Sub SyncKronosData()
 
     Dim msg As String
     msg = "Kronos import complete. " & found & " names matched (green)." & vbNewLine & _
-          "Kronos file saved " & Format$(fileDate, "ddd mmm d, h:mm AM/PM") & "." & _
-          IIf(histId <> "", "  Snapshot " & histId & " added to Hours History.", "")
+          "Kronos file saved " & Format$(fileDate, "ddd mmm d, h:mm AM/PM") & ", data through " & _
+          Format$(through, "ddd mmm d") & "." & vbNewLine & _
+          "Accepted / awarded shifts that ended by then now count from Kronos instead of as provisional." & _
+          IIf(histId <> "", vbNewLine & "Snapshot " & histId & " added to Hours History.", "")
     If missing <> "" Then msg = msg & vbNewLine & vbNewLine & _
         "On the roster but not found in Kronos - Worked Hours NOT updated:" & vbNewLine & missing
     If extra <> "" Then msg = msg & vbNewLine & _
@@ -183,6 +196,44 @@ End Function
 
 Public Function KronosImportedAt() As Date
     KronosImportedAt = GetDateName("KronosImportedAt")
+End Function
+
+' ---- data-through date (v21) ----
+' The Kronos data runs through the day before the file was saved.
+Public Function DataThroughFor(ByVal fileDate As Date) As Date
+    DataThroughFor = Int(fileDate) - 1
+End Function
+
+' Last date the imported Kronos data covers (0 = not known)
+Public Function KronosDataThrough() As Date
+    KronosDataThrough = GetDateName(PROV_NAME)
+End Function
+
+' Makes sure the hidden name the provisional formulas read exists, and
+' returns its value. Before the first v21 import it is worked out from the
+' v20 Kronos file date; with no import at all, yesterday (so nothing that
+' has already ended is counted twice). Safe to call any time.
+Public Function EnsureDataThrough() As Date
+    Dim d As Date: d = KronosDataThrough()
+    If d = 0 Then
+        If KronosDataDate() > 0 Then
+            d = DataThroughFor(KronosDataDate())
+        Else
+            d = Date - 1
+        End If
+        If Not ThisWorkbook.ReadOnly Then SetDateName PROV_NAME, d
+    End If
+    EnsureDataThrough = d
+End Function
+
+' Status-line / SystemCheck text, e.g. "Provisional OT: Kronos data through Oct 9"
+Public Function DataThroughText() As String
+    Dim d As Date: d = KronosDataThrough()
+    If d = 0 Then
+        DataThroughText = "Provisional OT: data-through date not set (run Import Kronos)"
+    Else
+        DataThroughText = "Provisional OT: Kronos data through " & Format$(d, "mmm d")
+    End If
 End Function
 
 ' Days since the Kronos data was saved; -1 = never imported (v20)
@@ -247,8 +298,8 @@ Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As L
             ws.Tab.Color = RGB(96, 125, 139)
         End If
         ws.Unprotect Password:=SHEET_PASSWORD
-        ws.Range("A1:F1").Value = Array("Import ID", "Imported At", "Kronos File Date", "Employee", "Worked Hours", "Imported By")
-        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1:F2"), , xlYes)
+        ws.Range("A1:G1").Value = Array("Import ID", "Imported At", "Kronos File Date", "Employee", "Worked Hours", "Imported By", "Data Through")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1:G2"), , xlYes)
         lo.Name = HH_TABLE
         lo.TableStyle = "TableStyleLight9"
         ws.Columns("A").ColumnWidth = 10
@@ -256,16 +307,36 @@ Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As L
         ws.Columns("D").ColumnWidth = 24
         ws.Columns("E").ColumnWidth = 12
         ws.Columns("F").ColumnWidth = 12
+        ws.Columns("G").ColumnWidth = 13
         ProtectSheet ws
     End If
+    If Not lo Is Nothing Then EnsureHoursHistoryColumns lo
     Set HoursHistoryTable = lo
 End Function
 
+' v21: a v20 table has 6 columns - add "Data Through" on the end (once)
+Private Sub EnsureHoursHistoryColumns(ByVal lo As ListObject)
+    If lo.ListColumns.Count >= HH_NCOLS Then Exit Sub
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    On Error Resume Next
+    ws.Unprotect Password:=SHEET_PASSWORD
+    lo.ListColumns.Add.Name = "Data Through"
+    ws.Columns(HH_NCOLS).ColumnWidth = 13
+    ProtectSheet ws
+    On Error GoTo 0
+End Sub
+
 ' Appends the snapshot; returns its Import ID ("KR-0007") or "" on failure
-Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date, histName() As String, _
-                                    histHrs() As Double, ByVal n As Long) As String
+Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date, ByVal through As Date, _
+                                    histName() As String, histHrs() As Double, ByVal n As Long) As String
     Dim lo As ListObject: Set lo = HoursHistoryTable(True)
     If lo Is Nothing Then Exit Function
+    If lo.ListColumns.Count < HH_NCOLS Then
+        MsgBox "Worked hours were imported, but the Hours History sheet couldn't be given its Data Through column." & _
+               vbNewLine & "Is the file read-only?", vbExclamation
+        Exit Function
+    End If
     Dim ws As Worksheet: Set ws = lo.Parent
 
     ' next Import ID
@@ -285,7 +356,7 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
     End If
     Dim id As String: id = "KR-" & Format$(mx + 1, "0000")
 
-    Dim outA() As Variant: ReDim outA(1 To n, 1 To 6)
+    Dim outA() As Variant: ReDim outA(1 To n, 1 To HH_NCOLS)
     For i = 1 To n
         outA(i, 1) = id
         outA(i, 2) = stamp
@@ -293,16 +364,18 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
         outA(i, 4) = histName(i)
         outA(i, 5) = histHrs(i)
         outA(i, 6) = CurrentUser()
+        outA(i, 7) = through
     Next i
 
     Dim em As String
     On Error GoTo Fail
     ws.Unprotect Password:=SHEET_PASSWORD
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
-    With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, 6)
+    With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, HH_NCOLS)
         .Value = outA
         .Columns(2).NumberFormat = "mmm d, yyyy h:mm"
         .Columns(3).NumberFormat = "mmm d, yyyy h:mm"
+        .Columns(7).NumberFormat = "mmm d, yyyy"
     End With
     ProtectSheet ws
     AppendHoursHistory = id

@@ -172,9 +172,18 @@ End Sub
 '  IMPORT DATE / STALE CHECK (v20)
 ' ====================================================================
 Private Sub SetDateName(ByVal nmName As String, ByVal d As Date)
+    Dim ref As String: ref = "=" & Replace(Format$(CDbl(d), "0.00000"), ",", ".")
+    Dim nmObj As Name
     On Error Resume Next
-    ThisWorkbook.Names(nmName).Delete
-    ThisWorkbook.Names.Add Name:=nmName, RefersTo:="=" & Replace(Format$(CDbl(d), "0.00000"), ",", "."), Visible:=False
+    Set nmObj = ThisWorkbook.Names(nmName)
+    On Error GoTo 0
+    On Error Resume Next
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=nmName, RefersTo:=ref, Visible:=False
+    Else
+        nmObj.RefersTo = ref                  ' in place: a formula that reads the name never sees it missing
+        nmObj.Visible = False
+    End If
     On Error GoTo 0
 End Sub
 

@@ -35,6 +35,8 @@ Public Sub GradeSheetChanged(ByVal Sh As Object, ByVal Target As Range)
     If Not Sh Is ws Then Exit Sub
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Sub
+    ' a Home Unit filled in by hand: Needs Attention's list is out of date
+    If Not Application.Intersect(Target, ws.Range(ws.Cells(R_FIRST, C_HOME), ws.Cells(lastRow, C_HOME))) Is Nothing Then MarkCalDirty
     Dim hit As Range
     Set hit = Application.Intersect(Target, ws.Range(ws.Cells(R_FIRST, UnitColFirst()), ws.Cells(lastRow, UnitColLast())))
     If hit Is Nothing Then Exit Sub

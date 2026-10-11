@@ -222,7 +222,14 @@ Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As Stri
     mDate.Text = Format$(d, "mm/dd/yyyy")
     mShiftCb.Value = shiftLbl                 ' crew fills in from the rotation
     C("cboReason").Text = reason
-    If hrs > 0 Then C("txtHours").Text = CStr(hrs): mAutoHours = ""   ' hours came from the calendar line
+    ' a full shift keeps the auto value (13 / 11 on a DST night, else 12);
+    ' partial hours from the calendar line are typed in and left alone
+    If hrs > 0 And hrs <> USUAL_SHIFT_HOURS Then
+        C("txtHours").Text = CStr(hrs): mAutoHours = ""
+    ElseIf hrs = USUAL_SHIFT_HOURS Then
+        mAutoHours = CStr(USUAL_SHIFT_HOURS): C("txtHours").Text = mAutoHours
+        AutoHours
+    End If
     C("txtPos").Text = "1"
     Me.Caption = "New Posting - from the calendar"
     C("lblNewHdr").Caption = "NEW POSTING  -  " & note

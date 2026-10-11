@@ -89,20 +89,20 @@ Private Function RunCase(f() As String) As String
     i1 = f(2): i2 = f(3): i3 = f(4): i4 = f(5): i5 = f(6)
     Select Case f(0)
         Case "rotation"
-            RunCase = DaysCrew(P(i1)) & "/" & NightsCrew(P(i1))
+            RunCase = DaysCrew(ParseD(i1)) & "/" & NightsCrew(ParseD(i1))
         Case "crewshift"
-            RunCase = CrewShiftOn(i1, P(i2))
+            RunCase = CrewShiftOn(i1, ParseD(i2))
             If RunCase = "" Then RunCase = "off"
         Case "avail"
-            RunCase = AvailableCrew(P(i1), (i2 = "N"))
+            RunCase = AvailableCrew(ParseD(i1), (i2 = "N"))
         Case "holiday"
-            RunCase = F(HolidayDate(i1, CLng(i2)))
+            RunCase = FmtD(HolidayDate(i1, CLng(i2)))
         Case "holoff"
             RunCase = CaseHolOff(i1, i2)
         Case "dst"
-            RunCase = F(IIf(i2 = "fall", DstFallBack(CLng(i1)), DstSpringForward(CLng(i1))))
+            RunCase = FmtD(IIf(i2 = "fall", DstFallBack(CLng(i1)), DstSpringForward(CLng(i1))))
         Case "dsthours"
-            RunCase = NumText(DstNightHours(P(i1)))
+            RunCase = NumText(DstNightHours(ParseD(i1)))
         Case "callorder"
             RunCase = CaseCallOrder(i1)
         Case "callout"
@@ -110,11 +110,11 @@ Private Function RunCase(f() As String) As String
         Case "posting"
             RunCase = CasePosting(i1, CDbl(i2), i3)
         Case "eligibility"
-            RunCase = CaseEligibility(i1, P(i2), i3, i4)
+            RunCase = CaseEligibility(i1, ParseD(i2), i3, i4)
         Case "prov"
-            RunCase = IIf(ProvisionalCovered(P(i1), (i2 = "N"), P(i3)), "covered", "counts")
+            RunCase = IIf(ProvisionalCovered(ParseD(i1), (i2 = "N"), ParseD(i3)), "covered", "counts")
         Case "provcount"
-            RunCase = IIf(ProvisionalCounts(i1, i2, P(i3), (i4 = "N"), P(i5), ST_YEAR_FROM, ST_YEAR_TO), "counts", "no")
+            RunCase = IIf(ProvisionalCounts(i1, i2, ParseD(i3), (i4 = "N"), ParseD(i5), ST_YEAR_FROM, ST_YEAR_TO), "counts", "no")
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -133,14 +133,14 @@ Private Function CaseHolOff(ByVal dTxt As String, ByVal fixture As String) As St
         r(1, 2) = CStr(p(0))
         r(1, 3) = HolidayDate(CStr(p(0)), CLng(p(1)))
         r(1, 4) = Format$(r(1, 3), "ddd")
-        r(1, 5) = P(CStr(p(2)))
+        r(1, 5) = ParseD(CStr(p(2)))
         r(1, 6) = ""
         rows = r
     Else
         rows = Empty
     End If
     SetTestHolidays rows
-    CaseHolOff = IIf(DaysHolidayOff(P(dTxt)), "off", "on")
+    CaseHolOff = IIf(DaysHolidayOff(ParseD(dTxt)), "off", "on")
     ClearTestHolidays
 End Function
 
@@ -158,7 +158,7 @@ Private Function CaseCallOrder(ByVal spec As String) As String
         If CStr(p(3)) = "" Then
             recs(i).Seniority = SeniorityKey(Empty)
         Else
-            recs(i).Seniority = SeniorityKey(P(CStr(p(3))))
+            recs(i).Seniority = SeniorityKey(ParseD(CStr(p(3))))
         End If
     Next i
     SortEmpRecs recs, n
@@ -254,12 +254,12 @@ End Function
 
 
 ' ---------------- helpers ----------------
-Private Function P(ByVal s As String) As Date         ' "yyyy-mm-dd" -> date
-    P = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
+Private Function ParseD(ByVal s As String) As Date         ' "yyyy-mm-dd" -> date
+    ParseD = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
 End Function
 
-Private Function F(ByVal d As Date) As String         ' date -> "yyyy-mm-dd"
-    F = Format$(d, "yyyy-mm-dd")
+Private Function FmtD(ByVal d As Date) As String         ' date -> "yyyy-mm-dd"
+    FmtD = Format$(d, "yyyy-mm-dd")
 End Function
 
 Private Function NumText(ByVal x As Double) As String ' 21 -> "21", 22.75 -> "22.75"

@@ -431,6 +431,9 @@ Public Sub RenameEmployee()
     ws.Cells(r, C_NAME).Value = newName
     ProtectSheet ws
     Application.Calculate
+    On Error Resume Next
+    RefreshGradeSnapshot                   ' v21: the grade-change log keys on the name
+    On Error GoTo 0
     SaveIfWritable
     MsgBox "Renamed to " & newName & ". " & cnt & " log row(s) updated.", vbInformation
 End Sub
@@ -633,7 +636,7 @@ Private Function AskAdjustmentType(ByVal nm As String) As String
     Dim a As Variant, k As Long
     Do
         a = Application.InputBox(Prompt:="Type of adjustment - enter the number:" & vbNewLine & vbNewLine & menu, _
-                                 Title:="Adjustment - " & nm, Default:=4, Type:=1)
+                                 Title:="Adjustment - " & nm, Type:=1)
         If VarType(a) = vbBoolean Then Exit Function
         k = CLng(Val(a))
         If k >= 1 And k <= UBound(types) - LBound(types) + 1 Then

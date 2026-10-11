@@ -396,8 +396,7 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ws.Rows(3).RowHeight = 34                 ' status: 3 lines (v20)
     ws.Rows(4).RowHeight = 17
 
-    ' row 2, B:S - column titles (B = Home Unit from v21)
-    If UCase$(Trim$(SafeStr(ws.Cells(2, C_HOME).Value))) <> "HOME UNIT" Then ws.Cells(2, C_HOME).Value = "HOME UNIT"
+    ' row 2, B:S - column titles (B = Home Unit from v21; SetupHomeUnit writes the title)
     With ws.Range(ws.Cells(2, C_HOME), ws.Cells(2, 19))
         .Interior.Color = NAVY
         .Font.Color = vbWhite

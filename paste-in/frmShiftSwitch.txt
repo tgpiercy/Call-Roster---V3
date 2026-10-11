@@ -1,0 +1,764 @@
+Option Explicit
+' @version v20 (Oct 9)
+
+' ================================================================
+' SHIFT SWITCH (S/S)
+' One person works another's shift on one date. The bottom list shows
+' switches still OWED a payback. Click one and the form fills in the
+' reverse switch (people swapped, same unit, "Payback for" set) - just
+' enter the payback date and save. Once paid back it leaves the list.
+' Two-way swap: tick it and enter the payback date to log both halves
+' at once (also for a same-day days <-> nights swap between sister crews).
+' Hard stops: nobody booked off (vac / training / leave) or already on a
+' switch that day. Shift-rotation checks are warnings only.
+'
+' Every control is built in code below. Anything drawn on the form in
+' the designer is hidden automatically.
+'
+' v20 (Oct 9, 2026):
+'  - A date typed without a year ("Jan 5") that is more than 90 days ago
+'    means next year. Dates more than ~13 months away read as unfinished.
+'  - Lists only rebuild when the date actually changes.
+'  - Changing the unit clears the two names picked for the old unit.
+'  - Two-way swap no longer shows a pre-picked "Payback for".
+'  - The payback hint shows booked off / already on a switch before Save.
+'  - Voiding an owed switch clears the form it filled in.
+'  - Enter no longer saves; click SAVE SWITCH.
+'  - Uses PersonFlag's kind code instead of matching its wording.
+'  - DAYS workers: the shift fills in, and stat holidays count as off.
+' ================================================================
+
+Private WithEvents mDate As MSForms.TextBox
+Private WithEvents mOff As MSForms.ComboBox
+Private WithEvents mUnit As MSForms.ComboBox
+Private mRefilling As Boolean        ' True while the name lists are rebuilt
+Private WithEvents mWorks As MSForms.ComboBox
+Private WithEvents mShift As MSForms.ComboBox
+Private WithEvents mSave As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+Private WithEvents mVoid As MSForms.CommandButton
+Private WithEvents mClear As MSForms.CommandButton
+Private WithEvents mList As MSForms.ListBox
+Private WithEvents mShowAll As MSForms.CheckBox
+Private WithEvents mTwoWay As MSForms.CheckBox
+Private WithEvents mPayDate As MSForms.TextBox
+
+Private mPayIds As Variant
+Private mListIds As Variant
+Private mAutoShift As Boolean
+Private mFilling As Boolean          ' True while a click on the list fills the form
+Private mWantPay As String           ' payback ID to pre-select after a list click
+Private mLastDateKey As String       ' last date the name lists were built for
+
+Private Const LBL_L As Long = 14
+Private Const BOX_L As Long = 120
+Private Const FORM_W As Long = 520
+Private Const INNER_W As Long = 480  ' FORM_W - margins
+Private Const ROW_H As Long = 26
+
+
+' ================================================================
+' CONTROL HELPERS (runtime names start "ss_")
+' ================================================================
+Private Function C(ByVal nm As String) As Object
+    Set C = Me.Controls("ss_" & nm)
+End Function
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single) As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "ss_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, _
+                          ByVal W As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Sub FillCombo(ByVal cb As Object, ByVal items As Variant)
+    Dim i As Long
+    cb.Clear
+    If Not IsArray(items) Then Exit Sub
+    For i = LBound(items) To UBound(items)
+        cb.AddItem CStr(items(i))
+    Next i
+End Sub
+
+
+' ================================================================
+' BUILD
+' ================================================================
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False
+        old.Enabled = False
+    Next old
+
+    Me.Caption = "Shift Switch"
+    Me.Width = FORM_W
+
+    Dim o As Object, t As Single
+    Set o = AddLabel("hdr", "LOG A SHIFT SWITCH", LBL_L, 8, 300)
+    o.Font.Bold = True: o.ForeColor = RGB(180, 100, 0)
+    Set mClear = AddCtl("Forms.CommandButton.1", "cmdClear", LBL_L + INNER_W - 90, 5, 90, 20)
+    mClear.Caption = "Clear form"
+
+    t = 32
+    AddLabel "lDate", "Shift date", LBL_L, t + 3, 100
+    Set mDate = AddCtl("Forms.TextBox.1", "txtDate", BOX_L, t, 110, 20)
+    AddLabel "hDate", "e.g. Oct 12 or 10/12/2026", BOX_L + 118, t + 3, 240
+
+    t = t + ROW_H
+    AddLabel "lUnit", "Unit", LBL_L, t + 3, 100
+    Set mUnit = AddCtl("Forms.ComboBox.1", "cboUnit", BOX_L, t, 160, 20)
+    mUnit.Style = 2: FillCombo mUnit, DeptList()
+
+    t = t + ROW_H
+    AddLabel "lOff", "Gives up shift", LBL_L, t + 3, 100
+    Set mOff = AddCtl("Forms.ComboBox.1", "cboOff", BOX_L, t, 220, 20)
+    mOff.Style = 2: mOff.ListRows = 20
+    AddLabel "hOff", "", BOX_L, t + 22, INNER_W - (BOX_L - LBL_L)
+
+    t = t + ROW_H + 14
+    AddLabel "lWorks", "Works the shift", LBL_L, t + 3, 100
+    Set mWorks = AddCtl("Forms.ComboBox.1", "cboWorks", BOX_L, t, 220, 20)
+    mWorks.Style = 2: mWorks.ListRows = 20
+    AddLabel "hWorks", "", BOX_L, t + 22, INNER_W - (BOX_L - LBL_L)
+
+    t = t + ROW_H + 14
+    AddLabel "lShift", "Shift", LBL_L, t + 3, 100
+    Set mShift = AddCtl("Forms.ComboBox.1", "cboShift", BOX_L, t, 90, 20)
+    mShift.Style = 2: FillCombo mShift, Array("Days", "Nights")
+    AddLabel "hShift", "", BOX_L + 98, t + 3, 260
+
+    t = t + ROW_H
+    AddLabel "lPay", "Payback for", LBL_L, t + 3, 100
+    Set o = AddCtl("Forms.ComboBox.1", "cboPay", BOX_L, t, INNER_W - (BOX_L - LBL_L), 20)
+    o.Style = 2
+
+    t = t + ROW_H
+    AddLabel "lTwo", "Two-way swap", LBL_L, t + 3, 100
+    Set mTwoWay = AddCtl("Forms.CheckBox.1", "chkTwo", BOX_L, t, 150, 20)
+    mTwoWay.Caption = "log the payback now, on"
+    Set mPayDate = AddCtl("Forms.TextBox.1", "txtPayDate", BOX_L + 152, t, 100, 20)
+    mPayDate.Enabled = False
+    AddLabel "hPay", "", BOX_L, t + 22, INNER_W - (BOX_L - LBL_L)   ' hint on its own line - no spill
+
+    t = t + ROW_H + 14
+    AddLabel "lNote", "Note (optional)", LBL_L, t + 3, 100
+    AddCtl "Forms.TextBox.1", "txtNote", BOX_L, t, INNER_W - (BOX_L - LBL_L), 20
+
+    t = t + ROW_H + 6
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, t, 320, 30)
+    mSave.Caption = "SAVE SWITCH"
+    mSave.Font.Bold = True: mSave.Font.Size = 11
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 330, t, INNER_W - 330, 30)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+
+    ' ---- owed list ----
+    t = t + 42
+    AddCtl "Forms.Label.1", "rule", LBL_L, t, INNER_W, 1
+    t = t + 7
+    Set o = AddLabel("hdr2", "OWED - click one to log its payback", LBL_L, t, 300)
+    o.Font.Bold = True: o.ForeColor = RGB(30, 56, 100)
+    Set mShowAll = AddCtl("Forms.CheckBox.1", "chkAll", LBL_L + INNER_W - 170, t - 2, 170, 18)
+    mShowAll.Caption = "Show all recent (paid / void)"
+    t = t + 18
+    Set mList = AddCtl("Forms.ListBox.1", "lst", LBL_L, t, INNER_W, 10)
+    mList.IntegralHeight = False         ' keep the size we set (no growing over the buttons)
+    mList.Height = 150
+    mList.ColumnCount = 6
+    mList.ColumnWidths = "54;70;20;124;124;60"   ' total 452 < 480 (room for the scroll bar)
+    mList.Font.Size = 9
+    t = t + 156
+    Set mVoid = AddCtl("Forms.CommandButton.1", "cmdVoid", LBL_L, t, 110, 22)
+    mVoid.Caption = "Void selected"
+    AddLabel "status", "", LBL_L + 120, t + 4, INNER_W - 120
+    C("status").Font.Size = 8
+    Me.Height = t + 22 + 36
+
+    RefillPeople                         ' empty until the unit is picked
+    LoadPayback
+    LoadList
+
+    ApplyFormTheme Me
+    mSave.BackColor = RGB(180, 100, 0): mSave.ForeColor = vbWhite
+    mShowAll.BackStyle = 0
+    mTwoWay.BackStyle = 0
+    With C("rule")
+        .Caption = "": .BackStyle = 1: .BackColor = RGB(200, 206, 215)
+    End With
+    Dim h As Variant
+    For Each h In Array("hDate", "hOff", "hWorks", "hShift", "hPay")
+        C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
+    Next h
+End Sub
+
+
+' ================================================================
+' LIVE CHECKS
+' ================================================================
+Private Function PickedDate(ByRef d As Date) As Boolean
+    PickedDate = ParseShiftDate(mDate.Text, d)
+End Function
+
+' Reads a typed date (no time part). With no year typed ("Oct 12", "10/12"),
+' a date more than 90 days ago means next year - typing January in December.
+' More than ~13 months from today is treated as not finished typing.
+Private Function ParseShiftDate(ByVal t As String, ByRef d As Date) As Boolean
+    t = Trim$(t)
+    If t = "" Then Exit Function
+    If Not IsDate(t) Then Exit Function
+    Dim dd As Date: dd = Int(CDate(t))
+    If Not HasYear(t) Then
+        If dd < Date - 90 Then dd = DateAdd("yyyy", 1, dd)
+    End If
+    If Abs(dd - Date) > 400 Then Exit Function
+    d = dd
+    ParseShiftDate = True
+End Function
+
+' True when the text includes a year: a 3+ digit number, three numbers
+' (10/12/26), or a month name plus two numbers (Oct 12 26).
+Private Function HasYear(ByVal t As String) As Boolean
+    Dim i As Long, ch As String, tok As String
+    Dim nNum As Long, hasAlpha As Boolean, bigNum As Boolean
+    ' leave out a time typed after the date ("10/12 7:00", "Oct 12 7pm")
+    Dim p As Long: p = InStr(t, ":")
+    If p > 0 Then t = Left$(t, InStrRev(Left$(t, p), " "))
+    Dim w As Variant, kept As String
+    For Each w In Split(t, " ")
+        If Not (LCase$(CStr(w)) Like "#*[ap]m") Then kept = kept & CStr(w) & " "
+    Next w
+    t = kept & " "
+    For i = 1 To Len(t)
+        ch = Mid$(t, i, 1)
+        If ch Like "[0-9]" Then
+            tok = tok & ch
+        Else
+            If tok <> "" Then
+                nNum = nNum + 1
+                If Len(tok) >= 3 Then bigNum = True
+                tok = ""
+            End If
+            If ch Like "[A-Za-z]" Then hasAlpha = True
+        End If
+    Next i
+    HasYear = bigNum Or nNum >= 3 Or (hasAlpha And nNum >= 2)
+End Function
+
+Private Sub mDate_Change()
+    Dim d As Date, ok As Boolean, key As String
+    ok = PickedDate(d)
+    With C("hDate")
+        If Trim$(mDate.Text) = "" Then
+            .Caption = "e.g. Oct 12 or 10/12/2026": .ForeColor = RGB(120, 120, 120)
+        ElseIf ok Then
+            .Caption = "= " & Format$(d, "ddd mmm d, yyyy"): .ForeColor = RGB(0, 110, 60)
+        ElseIf IsDate(Trim$(mDate.Text)) And InStr(mDate.Text, ":") = 0 Then
+            .Caption = "check the year": .ForeColor = RGB(190, 30, 30)
+        Else
+            .Caption = "not a date": .ForeColor = RGB(190, 30, 30)
+        End If
+    End With
+    If ok Then key = Format$(d, "yyyy-mm-dd")
+    If key = mLastDateKey Then Exit Sub   ' same date as before (or still unfinished) - nothing to rebuild
+    mLastDateKey = key
+    RefillPeople
+    Refresh True
+End Sub
+
+Private Sub mUnit_Change()
+    Dim wasFilling As Boolean: wasFilling = mFilling
+    If Not wasFilling Then
+        ' names picked for the old unit don't carry over
+        mFilling = True
+        mOff.ListIndex = -1: mWorks.ListIndex = -1
+        mFilling = False
+    End If
+    RefillPeople
+    Refresh True
+    If Not wasFilling Then LoadPayback
+End Sub
+
+Private Sub mOff_Change()
+    If mRefilling Then Exit Sub
+    Refresh True
+    RefillWorks                          ' the shift comes from this person - re-check who's free
+    If Not mFilling Then LoadPayback
+End Sub
+
+Private Sub mWorks_Change()
+    If mRefilling Then Exit Sub
+    Refresh False
+    If Not mFilling Then LoadPayback
+End Sub
+
+Private Sub mShift_Change()
+    If Not mAutoShift Then Refresh False
+    RefillWorks
+End Sub
+
+' ---- name lists: only people signed off in the unit and on / free for the shift ----
+' Gives up: signed off in the unit and scheduled that date. Needs the date and unit.
+Private Sub RefillPeople()
+    Dim unit As String: unit = mUnit.Text
+    Dim d As Date, ok As Boolean
+    ok = PickedDate(d) And unit <> ""
+    mRefilling = True
+    If ok Then
+        FillPeople mOff, SwitchPickList(unit, d, "OFF", "", False)
+    Else
+        FillPeople mOff, Empty
+    End If
+    mRefilling = False
+    RefillWorks
+    If Not ok Then
+        C("status").Caption = "Enter the shift date and unit first - the lists fill with who's scheduled and who's free."
+    ElseIf Left$(C("status").Caption, 9) = "Enter the" Or Left$(C("status").Caption, 4) = "Pick" Then
+        C("status").Caption = ""
+    End If
+End Sub
+
+' Works: signed off in the unit and free for that shift - filled once the person
+' giving it up (or the shift) is picked; never lists the person giving it up.
+Private Sub RefillWorks()
+    Dim d As Date, sh As String, items As Variant, i As Long, k As Long, outA() As String
+    If mShift.ListIndex >= 0 Then sh = mShift.Text
+    If PickedDate(d) And mUnit.Text <> "" And (mOff.ListIndex >= 0 Or sh <> "") Then
+        items = SwitchPickList(mUnit.Text, d, "WORKS", sh, SameDaySwap())
+        If IsArray(items) And mOff.ListIndex >= 0 Then
+            ReDim outA(0 To UBound(items) - LBound(items))
+            For i = LBound(items) To UBound(items)
+                If StrComp(CStr(items(i)), mOff.Text, vbTextCompare) <> 0 Then outA(k) = CStr(items(i)): k = k + 1
+            Next i
+            If k = 0 Then
+                items = Empty
+            Else
+                ReDim Preserve outA(0 To k - 1)
+                items = outA
+            End If
+        End If
+    End If
+    mRefilling = True
+    FillPeople mWorks, items
+    mRefilling = False
+End Sub
+
+' fills a name list; a name already picked stays (its hint line shows any problem)
+Private Sub FillPeople(ByVal cb As Object, ByVal items As Variant)
+    Dim keepName As String, i As Long, found As Boolean
+    If cb.ListIndex >= 0 Then keepName = cb.Text
+    cb.Clear
+    If IsArray(items) Then
+        For i = LBound(items) To UBound(items)
+            cb.AddItem CStr(items(i))
+            If StrComp(CStr(items(i)), keepName, vbTextCompare) = 0 Then found = True
+        Next i
+    End If
+    If keepName <> "" Then
+        If Not found Then cb.AddItem keepName, 0
+        cb.Value = keepName
+    End If
+End Sub
+
+Private Sub Refresh(ByVal setShift As Boolean)
+    Dim d As Date
+    If Not PickedDate(d) Then
+        C("hOff").Caption = "": C("hWorks").Caption = "": C("hShift").Caption = ""
+        Exit Sub
+    End If
+
+    ' shift: from the person giving it up
+    If setShift And mOff.ListIndex >= 0 Then
+        Dim sch As String: sch = ScheduledShift(mOff.Text, d)
+        If sch <> "" Then
+            mAutoShift = True
+            mShift.Value = sch
+            mAutoShift = False
+            C("hShift").Caption = "from " & ShortName(mOff.Text) & "'s crew"
+        Else
+            C("hShift").Caption = ""
+        End If
+    End If
+
+    Dim isNight As Boolean: isNight = (mShift.Text = "Nights")
+    Dim msg As String
+    Dim flag As String
+    If mOff.ListIndex >= 0 Then
+        msg = CrewStatus(mOff.Text, d)
+        flag = PersonFlag(mOff.Text, d)
+        Dim oc As String
+        If mShift.ListIndex >= 0 Then oc = OffConflict(mOff.Text, d, isNight)
+        If flag <> "" Then
+            msg = msg & "  -  NOT ELIGIBLE: " & flag
+        ElseIf oc <> "" Then
+            msg = msg & "  -  check: " & oc
+        End If
+        SetHint "hOff", msg, (oc = "" And flag = "")
+    Else
+        C("hOff").Caption = ""
+    End If
+
+    If mWorks.ListIndex >= 0 Then
+        msg = CrewStatus(mWorks.Text, d)
+        Dim wkKind As String
+        flag = PersonFlag(mWorks.Text, d, wkKind)
+        If wkKind = "GAVE_UP" Then flag = ""     ' gave up their own shift that day - fine for the one working
+        Dim wc As String
+        If mShift.ListIndex >= 0 And Not SameDaySwap() Then wc = WorksConflict(mWorks.Text, d, isNight)
+        If flag <> "" Then
+            msg = msg & "  -  NOT ELIGIBLE: " & flag
+        ElseIf wc <> "" Then
+            msg = msg & "  -  check: " & wc
+        End If
+        SetHint "hWorks", msg, (wc = "" And flag = "")
+    Else
+        C("hWorks").Caption = ""
+    End If
+    PayHint
+End Sub
+
+' ---- two-way swap ----
+Private Function PayDateOk(ByRef d2 As Date) As Boolean
+    If Not mTwoWay.Value Then Exit Function
+    PayDateOk = ParseShiftDate(mPayDate.Text, d2)
+End Function
+
+' same-date days <-> nights swap between sister crews
+Private Function SameDaySwap() As Boolean
+    Dim d As Date, d2 As Date
+    If PickedDate(d) And PayDateOk(d2) Then SameDaySwap = (Int(d) = Int(d2))
+End Function
+
+' payback shift = the shift the person who works today is scheduled for on the payback date
+Private Function PayShift(ByVal d2 As Date) As String
+    If mWorks.ListIndex < 0 Then Exit Function
+    PayShift = ScheduledShift(mWorks.Text, d2)
+End Function
+
+Private Sub PayHint()
+    Dim d2 As Date
+    If Not mTwoWay.Value Then C("hPay").Caption = "": Exit Sub
+    If Trim$(mPayDate.Text) = "" Then C("hPay").Caption = "payback date": C("hPay").ForeColor = RGB(120, 120, 120): Exit Sub
+    If Not PayDateOk(d2) Then SetHint "hPay", "not a date", False: Exit Sub
+    If mOff.ListIndex < 0 Or mWorks.ListIndex < 0 Then SetHint "hPay", Format$(d2, "ddd mmm d"), True: Exit Sub
+    Dim sh As String: sh = PayShift(d2)
+    Dim prob As String: prob = PaybackProblem(d2, sh)
+    If prob = "" Then
+        ' the same hard stops Save checks for the payback half (booked off / already on a switch)
+        Dim d As Date
+        If PickedDate(d) Then
+            If Int(d2) <> Int(d) Then prob = FirstProblem(EligibilityProblems(mWorks.Text, mOff.Text, d2))
+        End If
+    End If
+    If prob <> "" Then
+        SetHint "hPay", Format$(d2, "ddd mmm d") & ":  NOT POSSIBLE - " & prob, False
+    Else
+        SetHint "hPay", Format$(d2, "ddd mmm d") & " " & sh & ": " & ShortName(mOff.Text) & " works for " & ShortName(mWorks.Text), True
+    End If
+End Sub
+
+' Can the payback physically happen on d2? "" = yes.
+'  - the one being paid back (today's "works") must be scheduled that day (sh2)
+'  - the one paying back (today's "gives up") must be free for that shift:
+'    not scheduled, not under the rest rule, not booked off, not on another switch
+' A same-day sister swap is exempt from the "scheduled" check (they trade shifts).
+Private Function PaybackProblem(ByVal d2 As Date, ByVal sh2 As String) As String
+    If mOff.ListIndex < 0 Or mWorks.ListIndex < 0 Then Exit Function
+    If sh2 = "" Then PaybackProblem = ShortName(mWorks.Text) & " isn't scheduled that day - no shift to pay back": Exit Function
+    Dim d As Date
+    If Not PickedDate(d) Then Exit Function
+    Dim who As String: who = ShortName(mOff.Text)
+    Dim t As String
+    If Int(d2) = Int(d) Then
+        If BookedOff(mOff.Text, d2, t) Then PaybackProblem = who & " is booked off (" & t & ")"
+        Exit Function
+    End If
+    Dim code As String: code = EmpCrewCode(mOff.Text)
+    Select Case NotFreeReason(mOff.Text, code, d2, sh2)
+        Case "", "S/S off"
+        Case "scheduled": PaybackProblem = who & " is scheduled to work " & LCase$(CrewShiftOn(code, d2)) & " that day"
+        Case "rest"
+            If sh2 = "Days" Then
+                PaybackProblem = who & " is coming off nights that morning"
+            Else
+                PaybackProblem = who & " starts days the next morning"
+            End If
+        Case "S/S": PaybackProblem = who & " is already working a switch that day"
+        Case Else: PaybackProblem = who & " is booked off (" & NotFreeReason(mOff.Text, code, d2, sh2) & ")"
+    End Select
+End Function
+
+' first line of an EligibilityProblems list, without its "- "
+Private Function FirstProblem(ByVal s As String) As String
+    s = Trim$(s)
+    If s = "" Then Exit Function
+    Dim p As Long: p = InStr(s, vbNewLine)
+    If p > 0 Then s = Left$(s, p - 1)
+    If Left$(s, 2) = "- " Then s = Mid$(s, 3)
+    FirstProblem = s
+End Function
+
+Private Sub mTwoWay_Click()
+    mPayDate.Enabled = mTwoWay.Value
+    RefillWorks
+    If mTwoWay.Value Then
+        C("cboPay").ListIndex = 0                ' a two-way swap is a new pair
+        C("cboPay").Enabled = False
+        mPayDate.SetFocus
+    Else
+        C("cboPay").Enabled = True
+        mPayDate.Text = ""
+        LoadPayback                          ' bring back any open payback for this pair
+    End If
+    Refresh False
+End Sub
+
+Private Sub mPayDate_Change()
+    RefillWorks                          ' a same-day sister swap lists the other shift's crew
+    Refresh False
+End Sub
+
+Private Sub SetHint(ByVal nm As String, ByVal txt As String, ByVal ok As Boolean)
+    With C(nm)
+        .Caption = txt
+        .ForeColor = IIf(ok, RGB(0, 110, 60), RGB(190, 30, 30))
+    End With
+End Sub
+
+Private Function ShortName(ByVal nm As String) As String
+    Dim p As Long: p = InStr(nm, ",")
+    If p > 0 Then ShortName = Trim$(Mid$(nm, p + 1)) & " " & Left$(nm, 1) Else ShortName = nm
+End Function
+
+' Payback choices: earlier switches where today's "works" gave up a shift
+' and today's "off" worked it, not yet paid back.
+Private Sub LoadPayback()
+    Dim cb As Object: Set cb = C("cboPay")
+    cb.Clear
+    cb.AddItem "(none - this is a new switch)"
+    mPayIds = Empty
+    If mTwoWay.Value Then cb.ListIndex = 0: Exit Sub   ' a two-way swap is always a new pair
+    If mOff.ListIndex >= 0 And mWorks.ListIndex >= 0 Then
+        Dim d As Variant, i As Long
+        d = OpenPaybacks(mOff.Text, mWorks.Text, mPayIds)
+        If IsArray(d) Then
+            For i = LBound(d) To UBound(d)
+                cb.AddItem d(i)
+            Next i
+            cb.ListIndex = 1                 ' most likely: it's the payback
+            If mWantPay <> "" Then
+                For i = LBound(mPayIds) To UBound(mPayIds)
+                    If StrComp(CStr(mPayIds(i)), mWantPay, vbTextCompare) = 0 Then cb.ListIndex = i + 1
+                Next i
+            End If
+            Exit Sub
+        End If
+    End If
+    cb.ListIndex = 0
+End Sub
+
+Private Sub LoadList()
+    Dim v As Variant
+    mList.Clear
+    mListIds = Empty
+    If mShowAll.Value Then
+        C("hdr2").Caption = "RECENT SWITCHES (all)"
+        v = RecentSwitches(60, mListIds)
+        If IsArray(v) Then
+            mList.List = v
+            C("status").Caption = (UBound(v, 1) + 1) & " shown, newest first.  owed / paid SS-# / pays SS-# / VOID"
+        Else
+            C("status").Caption = "No switches logged yet."
+        End If
+    Else
+        C("hdr2").Caption = "OWED - click one to log its payback"
+        v = OwedSwitches(mListIds)
+        If IsArray(v) Then
+            mList.List = v
+            C("status").Caption = (UBound(v, 1) + 1) & " switch(es) still owed a payback."
+        Else
+            C("status").Caption = "Nothing owed - every switch has been paid back."
+        End If
+    End If
+End Sub
+
+Private Sub mShowAll_Click()
+    LoadList
+End Sub
+
+
+' ================================================================
+' CLICK AN OWED SWITCH -> FILL THE PAYBACK
+' ================================================================
+Private Sub mList_Click()
+    If mShowAll.Value Then Exit Sub                 ' history view: select only (for Void)
+    Dim i As Long: i = mList.ListIndex
+    If i < 0 Or Not IsArray(mListIds) Then Exit Sub
+    Dim id As String: id = CStr(mListIds(i))
+    Dim d0 As Date, sh As String, unit As String, offN As String, worksN As String
+    If Not SwitchInfo(id, d0, sh, unit, offN, worksN) Then Exit Sub
+
+    ' payback = the reverse: the one who worked now gives up a shift
+    If mTwoWay.Value Then mTwoWay.Value = False
+    mFilling = True
+    On Error Resume Next
+    mUnit.Value = unit
+    mOff.ListIndex = -1: mWorks.ListIndex = -1
+    FillPeople mOff, Array(worksN)           ' payback pair: keep them in the lists until the date is entered
+    mOff.Value = worksN
+    FillPeople mWorks, Array(offN)
+    mWorks.Value = offN
+    On Error GoTo 0
+    mFilling = False
+    mWantPay = id
+    LoadPayback
+    mWantPay = ""
+
+    mDate.Text = ""
+    C("txtNote").Text = ""
+    C("status").Caption = id & " selected: " & ShortName(worksN) & " pays back " & ShortName(offN) & _
+                          ". Enter the payback date and save."
+    mDate.SetFocus
+End Sub
+
+Private Sub mClear_Click()
+    mFilling = True
+    mOff.ListIndex = -1: mWorks.ListIndex = -1
+    mShift.ListIndex = -1
+    mFilling = False
+    mDate.Text = "": C("txtNote").Text = ""
+    mTwoWay.Value = False
+    LoadPayback
+    mList.ListIndex = -1
+    C("status").Caption = ""
+End Sub
+
+
+' ================================================================
+' SAVE / VOID
+' ================================================================
+Private Sub mSave_Click()
+    Dim d As Date, problems As String
+    If Not PickedDate(d) Then problems = problems & "- Shift date" & vbNewLine
+    If C("cboUnit").ListIndex < 0 Then problems = problems & "- Unit" & vbNewLine
+    If mOff.ListIndex < 0 Then problems = problems & "- Gives up shift" & vbNewLine
+    If mWorks.ListIndex < 0 Then problems = problems & "- Works the shift" & vbNewLine
+    If mShift.ListIndex < 0 Then problems = problems & "- Shift (Days / Nights)" & vbNewLine
+    If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Shift Switch": Exit Sub
+    If mOff.Text = mWorks.Text Then MsgBox "The same person is on both sides.", vbExclamation: Exit Sub
+
+    Dim isNight As Boolean: isNight = (mShift.Text = "Nights")
+    Dim twoWay As Boolean: twoWay = mTwoWay.Value
+    Dim d2 As Date, sh2 As String
+    If twoWay Then
+        If Not PayDateOk(d2) Then MsgBox "Enter the payback date (or untick Two-way swap).", vbExclamation: Exit Sub
+        sh2 = PayShift(d2)
+        Dim payProb As String: payProb = PaybackProblem(d2, sh2)
+        If payProb <> "" Then
+            MsgBox "The payback on " & Format$(d2, "ddd mmm d") & " can't be logged:" & vbNewLine & vbNewLine & _
+                   "- " & payProb & vbNewLine & vbNewLine & "Pick another payback date.", vbExclamation, "Not eligible"
+            Exit Sub
+        End If
+        If Int(d2) = Int(d) And sh2 = mShift.Text Then
+            MsgBox "The payback is the same date AND shift - that isn't a swap.", vbExclamation: Exit Sub
+        End If
+    End If
+
+    ' ---- hard stops: booked off / already on a switch ----
+    Dim stops As String
+    stops = EligibilityProblems(mOff.Text, mWorks.Text, d)
+    If twoWay Then
+        If Int(d2) = Int(d) Then
+            ' same-day swap: each one is the other's "switch" - only check booked off
+            Dim t2 As String
+            stops = ""
+            If BookedOff(mOff.Text, d, t2) Then stops = stops & "- " & mOff.Text & " is booked off (" & t2 & ")" & vbNewLine
+            If BookedOff(mWorks.Text, d, t2) Then stops = stops & "- " & mWorks.Text & " is booked off (" & t2 & ")" & vbNewLine
+            If SwitchOffOn(mOff.Text, d) <> "" Or SwitchWorkingOn(mOff.Text, d, "") <> "" Then stops = stops & "- " & mOff.Text & " is already on a switch that day" & vbNewLine
+            If SwitchOffOn(mWorks.Text, d) <> "" Or SwitchWorkingOn(mWorks.Text, d, "") <> "" Then stops = stops & "- " & mWorks.Text & " is already on a switch that day" & vbNewLine
+        Else
+            stops = stops & EligibilityProblems(mWorks.Text, mOff.Text, d2)
+        End If
+    End If
+    If stops <> "" Then
+        MsgBox "This switch can't be logged:" & vbNewLine & vbNewLine & stops, vbExclamation, "Not eligible"
+        Exit Sub
+    End If
+
+    ' ---- rotation warnings ----
+    Dim warn As String, s As String
+    s = OffConflict(mOff.Text, d, isNight)
+    If s <> "" Then warn = warn & "- " & mOff.Text & ": " & s & vbNewLine
+    If Not (twoWay And Int(d2) = Int(d)) Then
+        s = WorksConflict(mWorks.Text, d, isNight)
+        If s <> "" Then warn = warn & "- " & mWorks.Text & ": " & s & vbNewLine
+    End If
+
+    Dim payFor As String
+    If Not twoWay Then
+        If C("cboPay").ListIndex > 0 And IsArray(mPayIds) Then payFor = CStr(mPayIds(C("cboPay").ListIndex - 1))
+    End If
+
+    Dim msg As String
+    msg = Format$(d, "dddd mmm d, yyyy") & "  -  " & mShift.Text & "  -  " & C("cboUnit").Text & vbNewLine & vbNewLine & _
+          mWorks.Text & "  works for  " & mOff.Text & vbNewLine
+    If twoWay Then
+        msg = msg & vbNewLine & "Payback " & Format$(d2, "dddd mmm d, yyyy") & "  -  " & sh2 & vbNewLine & _
+              mOff.Text & "  works for  " & mWorks.Text & vbNewLine & "(both logged now - nothing left owed)" & vbNewLine
+    Else
+        msg = msg & IIf(payFor <> "", "Payback for " & payFor & " (it will be cleared from the owed list)", _
+                                      "New switch - stays on the owed list until paid back") & vbNewLine
+    End If
+    If warn <> "" Then msg = msg & vbNewLine & "Rotation check:" & vbNewLine & warn
+    If MsgBox(msg & vbNewLine & "Save?", vbOKCancel + IIf(warn <> "", vbExclamation, vbQuestion), "Confirm shift switch") <> vbOK Then Exit Sub
+
+    Dim id As String, id2 As String
+    id = SaveSwitch(d, mShift.Text, C("cboUnit").Text, mOff.Text, mWorks.Text, payFor, Trim$(C("txtNote").Text))
+    If id = "" Then Exit Sub
+    If twoWay Then
+        id2 = SaveSwitch(d2, sh2, C("cboUnit").Text, mWorks.Text, mOff.Text, id, Trim$(C("txtNote").Text))
+        If id2 = "" Then MsgBox id & " was saved but its payback wasn't - it stays on the owed list.", vbExclamation
+        payFor = ""
+    End If
+
+    ' ready for the next one (keep date + unit)
+    mFilling = True
+    mOff.ListIndex = -1: mWorks.ListIndex = -1
+    mFilling = False
+    C("txtNote").Text = ""
+    RefillPeople                         ' the two people just switched - rebuild who's on / free
+    LoadPayback
+    LoadList
+    If twoWay And id2 <> "" Then
+        C("status").Caption = id & " and payback " & id2 & " saved."
+        mTwoWay.Value = False
+    Else
+        C("status").Caption = id & " saved" & IIf(payFor <> "", " - " & payFor & " is paid back.", " - owed until paid back.")
+    End If
+End Sub
+
+Private Sub mVoid_Click()
+    Dim i As Long: i = mList.ListIndex
+    If i < 0 Or Not IsArray(mListIds) Then MsgBox "Select a switch in the list first.", vbInformation: Exit Sub
+    Dim id As String: id = CStr(mListIds(i))
+    If VoidSwitch(id) Then
+        ' in the owed view, clicking the row filled the form with its payback - clear it
+        If mShowAll.Value Then RefillPeople Else mClear_Click
+        LoadPayback
+        LoadList
+        C("status").Caption = id & " voided."
+    End If
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

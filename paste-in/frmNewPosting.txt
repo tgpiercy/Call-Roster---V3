@@ -1,0 +1,469 @@
+Option Explicit
+' @version v20 (Oct 9)
+
+' ================================================================
+' NEW OVERTIME POSTING  /  LOAD POSTING
+' Opened from the OT Roster buttons:
+'   New Posting  -> full form (reprint an existing one, or create new)
+'   Load Posting -> just the "existing posting" part
+' Creating saves the posting + its eligible list (modPostings), draws
+' the Overtime Posting tab, and prints it / saves the PDF (tick boxes).
+'
+' Every control is built in code below. Anything drawn on the form in
+' the designer is hidden automatically (you can delete it to tidy up).
+' ================================================================
+
+Private WithEvents mView As MSForms.CommandButton
+Private WithEvents mPrint As MSForms.CommandButton
+Private WithEvents mPdf As MSForms.CommandButton
+Private WithEvents mCreate As MSForms.CommandButton
+Private WithEvents mCancel As MSForms.CommandButton
+Private WithEvents mUnit As MSForms.ComboBox
+Private WithEvents mCrew As MSForms.ComboBox
+Private WithEvents mDate As MSForms.TextBox
+Private WithEvents mCloses As MSForms.TextBox
+Private WithEvents mExisting As MSForms.ComboBox
+Private WithEvents mShiftCb As MSForms.ComboBox
+
+Private mIds As Variant
+Private mNewCtls As Collection          ' controls hidden in Load-only mode
+Private mAutoCloses As String           ' closing date we filled in (cleared once you type your own)
+
+Private Const LBL_L As Long = 14
+Private Const BOX_L As Long = 118
+Private Const BOX_W As Long = 150
+Private Const HINT_L As Long = 276
+Private Const ROW_H As Long = 26
+Private Const ROW1_TOP As Long = 140
+
+
+' ================================================================
+' CONTROL HELPERS
+' ================================================================
+' Runtime controls are named "np_..." so they can't clash with anything
+' already drawn on the form in the designer.
+Private Function C(ByVal nm As String) As Object
+    Set C = Me.Controls("np_" & nm)
+End Function
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single, Optional ByVal isNew As Boolean = True) As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "np_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    If isNew Then mNewCtls.Add o
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single, _
+                          Optional ByVal isNew As Boolean = True) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15, isNew)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Function AddCheck(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, _
+                          ByVal W As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.CheckBox.1", nm, L, T, W, 18)
+    o.Caption = cap
+    o.Value = True
+    Set AddCheck = o
+End Function
+
+Private Sub AddRow(ByVal rowNo As Long, ByVal cap As String, ByVal ctl As Object)
+    AddLabel "lbl_" & Mid$(ctl.Name, 4), cap, LBL_L, RowTop(rowNo) + 3, BOX_L - LBL_L - 4
+End Sub
+
+Private Function RowTop(ByVal rowNo As Long) As Single
+    RowTop = ROW1_TOP + (rowNo - 1) * ROW_H
+End Function
+
+Private Sub FillCombo(ByVal cb As Object, ByVal items As Variant)
+    Dim i As Long
+    cb.Clear
+    For i = LBound(items) To UBound(items)
+        cb.AddItem CStr(items(i))
+    Next i
+End Sub
+
+Private Function SmallBtn(ByVal nm As String, ByVal cap As String, ByVal L As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.CommandButton.1", nm, L, 52, 120, 24, False)
+    o.Caption = cap
+    o.Font.Bold = True
+    Set SmallBtn = o
+End Function
+
+
+' ================================================================
+' BUILD
+' ================================================================
+Private Sub UserForm_Initialize()
+    ' hide anything left on the form from the designer (old buttons/lists)
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False
+        old.Enabled = False
+    Next old
+
+    Set mNewCtls = New Collection
+    Me.Caption = "Overtime Posting"
+    Me.Width = 412
+    Me.Height = 470
+
+    ' ---------- existing posting: view / print / PDF ----------
+    Dim o As Object
+    Set o = AddLabel("lblExistHdr", "EXISTING POSTING", LBL_L, 8, 300, False)
+    o.Font.Bold = True: o.ForeColor = RGB(30, 56, 100)
+
+    Set mExisting = AddCtl("Forms.ComboBox.1", "cboExisting", LBL_L, 26, 372, 20, False)
+    mExisting.Style = 2                     ' pick from list
+    mExisting.ListRows = 15
+
+    Set mView = SmallBtn("cmdView", "View on sheet", LBL_L)
+    Set mPrint = SmallBtn("cmdPrint", "Print", LBL_L + 126)
+    Set mPdf = SmallBtn("cmdPdf", "Save PDF", LBL_L + 252)
+
+    Set o = AddLabel("lblExistInfo", "", LBL_L, 82, 372, False)
+    o.Height = 30: o.WordWrap = True
+    o.Font.Size = 8: o.ForeColor = RGB(110, 110, 110)
+
+    ' ---------- new posting ----------
+    AddCtl "Forms.Label.1", "lblRule", LBL_L, 114, 372, 1
+    Set o = AddLabel("lblNewHdr", "NEW POSTING", LBL_L, 120, 300)
+    o.Font.Bold = True: o.ForeColor = RGB(0, 128, 70)
+
+    Set mUnit = AddCtl("Forms.ComboBox.1", "cboUnit", BOX_L, RowTop(1), BOX_W, 20)
+    mUnit.Style = 2: FillCombo mUnit, DeptList()
+    AddRow 1, "Unit", mUnit
+
+    Set mDate = AddCtl("Forms.TextBox.1", "txtDate", BOX_L, RowTop(2), BOX_W, 20)
+    AddRow 2, "Shift date", mDate
+    AddLabel "hintDate", "e.g. Oct 12 or 10/12/2026", HINT_L, RowTop(2) + 3, 120
+
+    Set mShiftCb = AddCtl("Forms.ComboBox.1", "cboShift", BOX_L, RowTop(3), BOX_W, 20)
+    mShiftCb.Style = 2: FillCombo mShiftCb, Array("Days", "Nights")
+    AddRow 3, "Shift", mShiftCb
+
+    Set mCrew = AddCtl("Forms.ComboBox.1", "cboCrew", BOX_L, RowTop(4), BOX_W, 20)
+    mCrew.Style = 2: FillCombo mCrew, CrewPickList()
+    mCrew.ListIndex = 0                       ' All not scheduled
+    AddRow 4, "Crew", mCrew
+    Set o = AddLabel("hintCrew", "fills in from the rotation", HINT_L, RowTop(3) + 2, 118)
+    o.Height = 46: o.WordWrap = True
+
+    Set o = AddCtl("Forms.ComboBox.1", "cboReason", BOX_L, RowTop(5), BOX_W, 20)
+    o.Style = 0                             ' pick or type
+    FillCombo o, TaskList()
+    AddRow 5, "Reason", o
+    AddLabel "hintReason", "pick or type", HINT_L, RowTop(5) + 3, 120
+
+    Set o = AddCtl("Forms.TextBox.1", "txtHours", BOX_L, RowTop(6), 60, 20)
+    o.Text = "12"
+    AddRow 6, "Hours", o
+
+    Set o = AddCtl("Forms.TextBox.1", "txtPos", BOX_L, RowTop(7), 60, 20)
+    o.Text = "1"
+    AddRow 7, "Positions", o
+    AddLabel "hintPos", "people needed", HINT_L - 90, RowTop(7) + 3, 120
+
+    Set mCloses = AddCtl("Forms.TextBox.1", "txtCloses", BOX_L, RowTop(8), BOX_W, 20)
+    AddRow 8, "Posting closes", mCloses
+    AddLabel "hintCloses", "@ " & POSTING_CLOSE_TIME, HINT_L, RowTop(8) + 3, 120
+
+    Set o = AddLabel("lblEligible", "Pick a unit and crew to see the list size.", LBL_L, RowTop(9) + 2, 372)
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 9
+
+    AddCheck "chkPrint", "Print it", LBL_L, RowTop(10) + 2, 90
+    AddCheck "chkPdf", "Save PDF", LBL_L + 100, RowTop(10) + 2, 100
+
+    Set mCreate = AddCtl("Forms.CommandButton.1", "cmdCreate", LBL_L, RowTop(11), 250, 32)
+    mCreate.Caption = "CREATE POSTING"
+    mCreate.Font.Bold = True: mCreate.Font.Size = 11
+
+    Set mCancel = AddCtl("Forms.CommandButton.1", "cmdCancel", 272, RowTop(11), 114, 32, False)
+    mCancel.Caption = "Close"
+    mCancel.Cancel = True                   ' Esc closes
+
+    LoadExisting
+    ApplyFormTheme Me
+
+    ' colours after the theme
+    mCreate.BackColor = RGB(0, 128, 70): mCreate.ForeColor = vbWhite
+    mView.BackColor = RGB(30, 56, 100): mView.ForeColor = vbWhite
+    mPrint.BackColor = RGB(30, 56, 100): mPrint.ForeColor = vbWhite
+    mPdf.BackColor = RGB(30, 56, 100): mPdf.ForeColor = vbWhite
+    C("chkPrint").BackStyle = 0: C("chkPdf").BackStyle = 0
+    With C("lblRule")
+        .Caption = "": .BackStyle = 1: .BackColor = RGB(200, 206, 215)
+    End With
+    Dim h As Variant
+    For Each h In Array("hintDate", "hintReason", "hintPos", "hintCloses", "hintCrew")
+        C(CStr(h)).Font.Size = 8
+        C(CStr(h)).ForeColor = RGB(120, 120, 120)
+    Next h
+    mCreate.Default = True
+End Sub
+
+' Called before .Show for the Load Posting button: hide the new-posting part
+' Called by the Calendar's Post Line before .Show
+Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, ByVal reason As String, _
+                   ByVal hrs As Double, ByVal note As String)
+    On Error Resume Next
+    mUnit.Value = unit
+    mDate.Text = Format$(d, "mm/dd/yyyy")
+    mShiftCb.Value = shiftLbl                 ' crew fills in from the rotation
+    C("cboReason").Text = reason
+    If hrs > 0 Then C("txtHours").Text = CStr(hrs)
+    C("txtPos").Text = "1"
+    Me.Caption = "New Posting - from the calendar"
+    C("lblNewHdr").Caption = "NEW POSTING  -  " & note
+    On Error GoTo 0
+End Sub
+
+Public Sub LoadOnly()
+    Dim o As Object
+    For Each o In mNewCtls
+        o.Visible = False
+    Next o
+    C("lblExistInfo").Width = 245
+    mCancel.Top = 84: mCancel.Left = LBL_L + 252: mCancel.Width = 120: mCancel.Height = 22
+    Me.Height = 146
+    Me.Caption = "Load Posting"
+    mCreate.Default = False
+End Sub
+
+Private Sub LoadExisting()
+    Dim d As Variant, i As Long
+    mExisting.Clear
+    d = AllPostingChoices(mIds)
+    If IsArray(d) Then
+        For i = LBound(d) To UBound(d)
+            mExisting.AddItem d(i)
+        Next i
+        mExisting.ListIndex = 0             ' newest
+        Info CStr(UBound(d) - LBound(d) + 1) & " posting(s), newest first.", False
+    Else
+        Info "No postings yet.", False
+        mView.Enabled = False: mPrint.Enabled = False: mPdf.Enabled = False
+    End If
+End Sub
+
+Private Sub Info(ByVal txt As String, ByVal good As Boolean)
+    With C("lblExistInfo")
+        .Caption = txt
+        .ForeColor = IIf(good, RGB(0, 110, 60), RGB(110, 110, 110))
+    End With
+End Sub
+
+
+' ================================================================
+' LIVE HINTS
+' ================================================================
+Private Sub mDate_Change()
+    ShowDateHint mDate, "hintDate", "e.g. Oct 12 or 10/12/2026", ""
+    AutoCrew
+    AutoCloses
+End Sub
+
+' Closing date defaults to POSTING_CLOSE_DAYS (14) before the shift; if that's
+' already past, the day before the shift (never before today). Typing your
+' own closing date stops the auto-fill.
+Private Sub AutoCloses()
+    Dim t As String: t = Trim$(mDate.Text)
+    If Not IsDate(t) Then Exit Sub
+    If Trim$(mCloses.Text) <> "" And Trim$(mCloses.Text) <> mAutoCloses Then Exit Sub   ' typed by hand
+    Dim d As Date: d = CDate(t)
+    Dim cl As Date: cl = d - POSTING_CLOSE_DAYS
+    If cl < Date Then cl = d - 1
+    If cl < Date Then cl = Date
+    mAutoCloses = Format$(cl, "mm/dd/yyyy")
+    mCloses.Text = mAutoCloses
+End Sub
+
+Private Sub mShiftCb_Change()
+    AutoCrew
+End Sub
+
+' date + Days/Nights -> crew from the rotation (can still be changed)
+Private Sub AutoCrew()
+    Dim t As String: t = Trim$(mDate.Text)
+    If Not IsDate(t) Then
+        C("hintCrew").Caption = "fills in from the rotation"
+        Exit Sub
+    End If
+    Dim d As Date: d = CDate(t)
+    If mShiftCb.ListIndex < 0 Then
+        C("hintCrew").Caption = "On: " & DaysCrew(d) & " days, " & NightsCrew(d) & " nights" & vbLf & "Off: " & CrewsOff(d)
+        Exit Sub
+    End If
+    Dim note As String, crew As String
+    crew = AvailableCrew(d, IsNightShift(mShiftCb.Text), note)
+    C("hintCrew").Caption = "On: " & DaysCrew(d) & " days, " & NightsCrew(d) & " nights" & vbLf & _
+                            "Off: " & CrewsOff(d) & IIf(note <> "", vbLf & "(" & note & ")", "")
+    UpdateEligible
+End Sub
+
+Private Sub mCloses_Change()
+    ShowDateHint mCloses, "hintCloses", "@ " & POSTING_CLOSE_TIME, " @ " & POSTING_CLOSE_TIME
+End Sub
+
+Private Sub ShowDateHint(ByVal tb As Object, ByVal hintName As String, ByVal emptyTxt As String, _
+                         ByVal suffix As String)
+    Dim t As String: t = Trim$(tb.Text)
+    With C(hintName)
+        If t = "" Then
+            .Caption = emptyTxt: .ForeColor = RGB(120, 120, 120)
+        ElseIf IsDate(t) Then
+            .Caption = "= " & Format$(CDate(t), "ddd mmm d, yyyy") & suffix: .ForeColor = RGB(0, 110, 60)
+        Else
+            .Caption = "not a date": .ForeColor = RGB(190, 30, 30)
+        End If
+    End With
+End Sub
+
+Private Sub mUnit_Change()
+    UpdateEligible
+End Sub
+
+Private Sub mCrew_Change()
+    UpdateEligible
+End Sub
+
+Private Sub UpdateEligible()
+    If mUnit.ListIndex < 0 Or mCrew.ListIndex < 0 Then Exit Sub
+    Dim n As Long, notFree As String, haveDay As Boolean
+    haveDay = IsDate(Trim$(mDate.Text)) And mShiftCb.ListIndex >= 0
+    If haveDay Then
+        n = EligibleCount(mUnit.Text, mCrew.Text, CDate(Trim$(mDate.Text)), mShiftCb.Text, notFree)
+    Else
+        n = EligibleCount(mUnit.Text, mCrew.Text)
+    End If
+    With C("lblEligible")
+        If n = 0 Then
+            .Caption = "No one free to sign up for " & mUnit.Text & IIf(haveDay, " that shift.", ".")
+            .ForeColor = RGB(190, 30, 30)
+        ElseIf haveDay Then
+            .Caption = n & " free to sign up (call order, hours as of now)." & IIf(notFree <> "", "  Left off: " & notFree, "")
+            .ForeColor = RGB(0, 110, 60)
+        Else
+            .Caption = n & " with the code - pick the date and shift to drop anyone scheduled."
+            .ForeColor = RGB(120, 120, 120)
+        End If
+    End With
+End Sub
+
+
+' ================================================================
+' EXISTING POSTING: VIEW / PRINT / PDF
+' ================================================================
+Private Function PickedID() As String
+    Dim idx As Long: idx = mExisting.ListIndex
+    If idx < 0 Or Not IsArray(mIds) Then
+        MsgBox "Pick a posting first.", vbExclamation
+    Else
+        PickedID = CStr(mIds(idx))
+    End If
+End Function
+
+Private Sub mView_Click()
+    Dim id As String: id = PickedID()
+    If id = "" Then Exit Sub
+    Dim rpt As String
+    If PostingOutput(id, True, False, False, rpt) Then
+        Unload Me
+    Else
+        MsgBox "Posting " & id & " couldn't be loaded (no saved list).", vbExclamation
+    End If
+End Sub
+
+Private Sub mPrint_Click()
+    RunOutput False, True, False
+End Sub
+
+Private Sub mPdf_Click()
+    RunOutput False, False, True
+End Sub
+
+' stays open so you can print AND save, or do several
+Private Sub RunOutput(ByVal doView As Boolean, ByVal doPrint As Boolean, ByVal doPdf As Boolean)
+    Dim id As String: id = PickedID()
+    If id = "" Then Exit Sub
+    Dim rpt As String
+    Me.MousePointer = fmMousePointerHourGlass
+    If Not PostingOutput(id, doView, doPrint, doPdf, rpt) Then
+        Me.MousePointer = fmMousePointerDefault
+        MsgBox "Posting " & id & " couldn't be loaded (no saved list).", vbExclamation
+        Exit Sub
+    End If
+    Me.MousePointer = fmMousePointerDefault
+    rpt = Replace(rpt, "It's on the Overtime Posting tab." & vbNewLine, "")
+    If InStr(rpt, "NOT ") > 0 Then
+        MsgBox id & ":" & vbNewLine & rpt, vbExclamation
+        Info id & ": failed - see message.", False
+    Else
+        Info id & ": " & Replace(rpt, vbNewLine, "  "), True
+    End If
+End Sub
+
+
+' ================================================================
+' CREATE
+' ================================================================
+Private Sub mCreate_Click()
+    Dim problems As String, firstBad As Object
+    Dim hrs As String: hrs = Trim$(C("txtHours").Text)
+    Dim pos As String: pos = Trim$(C("txtPos").Text)
+
+    If mUnit.ListIndex < 0 Then Flag problems, firstBad, "Unit", mUnit
+    If Not IsDate(Trim$(mDate.Text)) Then Flag problems, firstBad, "Shift date", mDate
+    If C("cboShift").ListIndex < 0 Then Flag problems, firstBad, "Shift (Days / Nights)", C("cboShift")
+    If mCrew.ListIndex < 0 Then Flag problems, firstBad, "Crew available", mCrew
+    If Trim$(C("cboReason").Text) = "" Then Flag problems, firstBad, "Reason", C("cboReason")
+    If Not IsNumeric(hrs) Then
+        Flag problems, firstBad, "Hours (a number)", C("txtHours")
+    ElseIf CDbl(hrs) <= 0 Or CDbl(hrs) > 24 Then
+        Flag problems, firstBad, "Hours (0.5 - 24)", C("txtHours")
+    End If
+    If Not IsNumeric(pos) Then
+        Flag problems, firstBad, "Positions (1 - 20)", C("txtPos")
+    ElseIf CDbl(pos) < 1 Or CDbl(pos) > 20 Or CDbl(pos) <> Int(CDbl(pos)) Then
+        Flag problems, firstBad, "Positions (1 - 20)", C("txtPos")
+    End If
+    If Not IsDate(Trim$(mCloses.Text)) Then Flag problems, firstBad, "Posting closes", mCloses
+
+    If problems <> "" Then
+        MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "New Posting"
+        firstBad.SetFocus
+        Exit Sub
+    End If
+    ' v20: the posting saves everyone's hours as they are now - warn if Kronos is old
+    If Not KronosOkToContinue("posting") Then Exit Sub
+
+    Dim p As PostRec
+    p.Unit = mUnit.Text
+    p.ShiftDate = CDate(Trim$(mDate.Text))
+    p.ShiftLbl = C("cboShift").Text
+    p.Crew = mCrew.Text
+    p.Reason = Trim$(C("cboReason").Text)
+    p.Hours = CDbl(hrs)
+    p.Positions = CLng(pos)
+    p.ClosesOn = CDate(Trim$(mCloses.Text))
+
+    Me.MousePointer = fmMousePointerHourGlass
+    Dim ok As Boolean
+    ok = CreatePostingFrom(p, CBool(C("chkPrint").Value), CBool(C("chkPdf").Value))
+    Me.MousePointer = fmMousePointerDefault
+    If ok Then Unload Me
+End Sub
+
+Private Sub Flag(ByRef problems As String, ByRef firstBad As Object, ByVal what As String, ByVal ctl As Object)
+    problems = problems & "- " & what & vbNewLine
+    If firstBad Is Nothing Then Set firstBad = ctl
+End Sub
+
+Private Sub mCancel_Click()
+    Unload Me
+End Sub

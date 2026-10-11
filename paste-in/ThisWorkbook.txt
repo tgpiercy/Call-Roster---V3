@@ -1,0 +1,97 @@
+Option Explicit
+' @version v20 (Oct 9)
+
+Private mRestoreAdmin As Boolean
+Private mWasActive As Object
+
+' Opening: protect every sheet (macros can still edit), then show the
+' admin view only to people on ADMIN_USERS. No password prompt.
+Private Sub Workbook_Open()
+    On Error Resume Next
+    Application.ScreenUpdating = False
+    ProtectAll
+    ApplyView IsAdmin()
+    HolidaysOnOpen                     ' v20: this year's and next year's holidays listed (admins)
+    CalOnOpen                          ' calendar: this month, fresh needs-attention box
+    RosterSheet().Activate
+    Application.ScreenUpdating = True
+    ThisWorkbook.Saved = True
+    OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
+    On Error GoTo 0
+End Sub
+
+' SystemCheck reads this to confirm ThisWorkbook was re-pasted
+Public Function CodeVersion() As String
+    CodeVersion = "ThisWorkbook v20 (Oct 9)"
+End Function
+
+' Every save (manual, after a form submit, or on close) stores the
+' RESTRICTED view - phones hidden, admin sheets hidden, all protected -
+' then puts the admin view back. Blocks saving after a failed migration.
+Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
+    If NoSave() Then
+        Cancel = True
+        MsgBox "Saving is blocked because the roster conversion failed verification." & vbNewLine & _
+               "Close this workbook without saving and restore from the backup.", vbCritical
+        Exit Sub
+    End If
+    On Error Resume Next
+    mRestoreAdmin = gAdminUnlocked
+    If mRestoreAdmin Then
+        Set mWasActive = ActiveSheet
+        Application.ScreenUpdating = False
+        ApplyView False
+    End If
+    On Error GoTo 0
+End Sub
+
+Private Sub Workbook_AfterSave(ByVal Success As Boolean)
+    On Error Resume Next
+    If mRestoreAdmin Then
+        mRestoreAdmin = False
+        ApplyView True
+        If Not mWasActive Is Nothing Then mWasActive.Activate
+        Set mWasActive = Nothing
+        ThisWorkbook.Saved = True
+        Application.ScreenUpdating = True
+    End If
+    On Error GoTo 0
+End Sub
+
+' Closing: writable copies are saved (as before); read-only copies, or a
+' workbook whose conversion failed, close without saving.
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    On Error Resume Next
+    If NoSave() Or ThisWorkbook.ReadOnly Then
+        ThisWorkbook.Saved = True
+        Exit Sub
+    End If
+    mRestoreAdmin = True                   ' closing - no tab redraws while the view switches
+    ApplyView False
+    RosterSheet().Activate
+    mRestoreAdmin = False
+    ThisWorkbook.Save
+    On Error GoTo 0
+End Sub
+
+' ---- Calendar + Needs Attention tabs ----
+' Switching to either tab redraws it only if something changed;
+' double-click or right-click a line (or an empty spot) for its menu.
+Private Sub Workbook_SheetActivate(ByVal Sh As Object)
+    If mRestoreAdmin And Not gAdminUnlocked Then Exit Sub   ' mid-save / closing view switch
+    CalSheetActivated Sh
+End Sub
+
+' Any change to Absences / Coverage / Postings / Shift Switches / Holidays
+' marks the calendar out of date (it redraws the next time you look at it).
+Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
+    CalSheetChanged Sh
+End Sub
+
+Private Sub Workbook_SheetBeforeDoubleClick(ByVal Sh As Object, ByVal Target As Range, Cancel As Boolean)
+    CalSheetDoubleClick Sh, Target, Cancel
+End Sub
+
+Private Sub Workbook_SheetBeforeRightClick(ByVal Sh As Object, ByVal Target As Range, Cancel As Boolean)
+    CalSheetRightClick Sh, Target, Cancel
+End Sub

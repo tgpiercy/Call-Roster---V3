@@ -1,0 +1,376 @@
+Option Explicit
+
+' ================================================================
+' AWARD OVERTIME POSTING
+' Pick an open posting, tick who signed up (from the paper sheet),
+' pick who is awarded, then one of:
+'   SUBMIT AWARD   - anyone AHEAD of the (last) awarded person in call
+'                    order who did NOT sign up is charged hours x 1.75.
+'                    Signed up, below the awarded person, or awarded:
+'                    not charged.
+'   NO TAKERS      - nobody took it: everyone eligible is charged.
+'   CANCEL REQUEST - overtime no longer needed: nobody is charged.
+'   AWARD OUT OF DEPT - nobody in the department took it; award to a
+'                    name from another department. In-department people
+'                    who didn't sign up are charged as for NO TAKERS.
+' Charges are previewed live. Uses modPostings for the rules and saving.
+' (Design-time controls reused: btnLoad, lstEmployees, btnSignedUp,
+'  btnPassed = AWARD toggle, btnSubmit. NO TAKERS / CANCEL REQUEST are
+'  added in code.)
+' ================================================================
+
+Private WithEvents mNoTakers As MSForms.CommandButton
+Private WithEvents mCancelReq As MSForms.CommandButton
+Private WithEvents mOutside As MSForms.CommandButton
+
+Private mP As PostRec
+Private mL() As PListRec
+Private mN As Long
+Private mIds As Variant
+Private mDirty As Boolean
+
+
+' ================================================================
+' CONTROL HELPERS
+' ================================================================
+Private Function C(nm As String) As Object
+    Set C = Me.Controls(nm)
+End Function
+
+Private Sub MakeLabel(nm As String, cap As String, L As Long, T As Long, W As Long)
+    Dim o As Object
+    Set o = Me.Controls.Add("Forms.Label.1", nm, True)
+    o.Caption = cap: o.Left = L: o.Top = T
+    o.Width = W: o.Height = 15
+End Sub
+
+Private Sub MakeCombo(nm As String, L As Long, T As Long, W As Long)
+    Dim o As Object
+    Set o = Me.Controls.Add("Forms.ComboBox.1", nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = 20: o.Style = 2
+End Sub
+
+
+' ================================================================
+' INITIALIZE
+' ================================================================
+Private Sub UserForm_Initialize()
+    Me.Width = 480: Me.Height = 600
+    Me.Caption = "Award Overtime Posting"
+
+    MakeLabel "lblPick", "Posting:", 10, 13, 50
+    C("lblPick").Font.Bold = True
+    MakeCombo "cmbPosting", 62, 10, 300
+
+    With btnLoad
+        .Caption = "LOAD"
+        .Left = 370: .Top = 8: .Width = 90: .Height = 24
+        .Font.Bold = True
+    End With
+
+    MakeLabel "lblInfo", "Pick a posting and click LOAD.", 10, 40, 450
+    With C("lblInfo")
+        .Height = 52
+        .WordWrap = True
+        .Font.Size = 9
+    End With
+
+    MakeLabel "lblH1", "#", 12, 98, 20
+    MakeLabel "lblH2", "Employee", 34, 98, 180
+    MakeLabel "lblH3", "Shift", 216, 98, 40
+    MakeLabel "lblH4", "Hrs", 258, 98, 44
+    MakeLabel "lblH5", "Signed", 304, 98, 46
+    MakeLabel "lblH6", "Result", 352, 98, 100
+    Dim h As Variant
+    For Each h In Array("lblH1", "lblH2", "lblH3", "lblH4", "lblH5", "lblH6")
+        C(CStr(h)).Font.Bold = True
+    Next h
+
+    With lstEmployees
+        .Left = 10: .Top = 112: .Width = 450: .Height = 200
+        .ColumnCount = 6
+        .ColumnWidths = "22;182;42;46;48;100"
+        .Font.Size = 10
+    End With
+
+    MakeLabel "lblHint", "Double-click a name = signed up.  Select a name + AWARD for the winner(s).  " & _
+              "Anyone ahead of the awarded person who didn't sign up is charged.", 10, 315, 450
+    C("lblHint").Font.Italic = True
+    C("lblHint").Font.Size = 8
+    C("lblHint").Height = 26
+    C("lblHint").WordWrap = True
+
+    With btnSignedUp
+        .Caption = "SIGNED UP  (on / off)"
+        .Left = 10: .Top = 344: .Width = 220: .Height = 34
+        .Font.Bold = True: .Font.Size = 10
+        .BackColor = RGB(0, 140, 50): .ForeColor = RGB(255, 255, 255)
+        .Enabled = False
+    End With
+    With btnPassed
+        .Caption = "AWARD  (on / off)"
+        .Left = 240: .Top = 344: .Width = 220: .Height = 34
+        .Font.Bold = True: .Font.Size = 10
+        .BackColor = RGB(30, 56, 100): .ForeColor = RGB(255, 255, 255)
+        .Enabled = False
+    End With
+
+    MakeLabel "lblSummary", "", 10, 386, 450
+    With C("lblSummary")
+        .Height = 44
+        .WordWrap = True
+        .Font.Bold = True
+        .Font.Size = 9
+    End With
+
+    With btnSubmit
+        .Caption = "SUBMIT AWARD"
+        .Left = 10: .Top = 436: .Width = 210: .Height = 38
+        .Font.Bold = True: .Font.Size = 11
+        .Enabled = False
+    End With
+
+    Set mNoTakers = Me.Controls.Add("Forms.CommandButton.1", "cmdNoTakers", True)
+    With mNoTakers
+        .Caption = "NO TAKERS"
+        .Left = 226: .Top = 436: .Width = 114: .Height = 38
+        .Font.Bold = True: .Font.Size = 9
+        .Enabled = False
+    End With
+    Set mCancelReq = Me.Controls.Add("Forms.CommandButton.1", "cmdCancelReq", True)
+    With mCancelReq
+        .Caption = "CANCEL REQUEST"
+        .Left = 346: .Top = 436: .Width = 114: .Height = 38
+        .Font.Bold = True: .Font.Size = 9
+        .Enabled = False
+    End With
+
+    ' out of department: someone from another department signed a blank line
+    MakeLabel "lblOutside", "Out of department (signed a blank line):", 10, 486, 450
+    C("lblOutside").Font.Bold = True
+    C("lblOutside").Font.Size = 8.5
+    MakeCombo "cmbOutside", 10, 502, 300
+    With C("cmbOutside")
+        .Style = 0                      ' pick from the list (or type a name)
+        .MatchEntry = 1                 ' fmMatchEntryComplete
+        .ListRows = 12
+        .ColumnCount = 4                ' name | unit code | crew | hours (lowest first)
+        .ColumnWidths = "180;45;45;55"
+        .ListWidth = 345
+        .BoundColumn = 1
+        .TextColumn = 1
+        .Enabled = False
+    End With
+    Set mOutside = Me.Controls.Add("Forms.CommandButton.1", "cmdOutside", True)
+    With mOutside
+        .Caption = "AWARD OUT OF DEPT"
+        .Left = 316: .Top = 499: .Width = 144: .Height = 26
+        .Font.Bold = True: .Font.Size = 8.5
+        .Enabled = False
+    End With
+
+    MakeLabel "lblStatus", "", 10, 540, 450
+    C("lblStatus").Font.Size = 8
+
+    LoadChoices
+    ApplyFormTheme Me
+    mNoTakers.BackColor = RGB(190, 30, 30): mNoTakers.ForeColor = vbWhite
+    mOutside.BackColor = RGB(93, 64, 55): mOutside.ForeColor = vbWhite
+    mCancelReq.BackColor = RGB(236, 239, 243): mCancelReq.ForeColor = RGB(40, 40, 40)
+End Sub
+
+Private Sub LoadChoices()
+    Dim d As Variant
+    C("cmbPosting").Clear
+    d = OpenPostingChoices(mIds)
+    If IsArray(d) Then
+        Dim i As Long
+        For i = LBound(d) To UBound(d)
+            C("cmbPosting").AddItem d(i)
+        Next i
+        C("lblStatus").Caption = (UBound(d) - LBound(d) + 1) & " open posting(s)."
+    Else
+        C("lblStatus").Caption = "No open postings."
+    End If
+End Sub
+
+
+' ================================================================
+' LOAD
+' ================================================================
+Private Sub btnLoad_Click()
+    If mDirty Then
+        If MsgBox("Discard the sign-ups / awards you've marked?", vbYesNo + vbExclamation) = vbNo Then Exit Sub
+    End If
+    Dim idx As Long: idx = C("cmbPosting").ListIndex
+    If idx < 0 Or Not IsArray(mIds) Then MsgBox "Pick a posting first.", vbExclamation: Exit Sub
+
+    mN = LoadPosting(CStr(mIds(idx)), mP, mL)
+    If mN = 0 Then MsgBox "That posting has no list.", vbExclamation: Exit Sub
+    mDirty = False
+
+    C("lblInfo").Caption = mP.ID & "   " & mP.Unit & "   -   " & Format$(mP.ShiftDate, "dddd mmm d, yyyy") & vbLf & _
+        "Shift: " & mP.ShiftLbl & "   Crew: " & mP.Crew & "   Hours: " & mP.Hours & _
+        "   Positions: " & mP.Positions & vbLf & _
+        "Reason: " & mP.Reason & "   |   Posted " & Format$(mP.PostedOn, "mmm d") & _
+        ", closes " & Format$(mP.ClosesOn, "mmm d") & IIf(Date > mP.ClosesOn, "  (closed)", "  (STILL OPEN)")
+
+    SetActionButtons True
+    FillOutside
+    RefreshList 0
+End Sub
+
+' signed off in this unit, not on the posting's list, and free that shift
+Private Sub FillOutside()
+    Dim cand As Variant, i As Long, cnt As Long
+    cand = OutsideCandidates(mP, mL, mN)
+    With C("cmbOutside")
+        .Clear
+        .Text = ""
+        If IsArray(cand) Then
+            For i = LBound(cand, 1) To UBound(cand, 1)
+                .AddItem cand(i, 0)
+                .List(.ListCount - 1, 1) = cand(i, 1)
+                .List(.ListCount - 1, 2) = cand(i, 2)
+                .List(.ListCount - 1, 3) = cand(i, 3)
+            Next i
+            cnt = UBound(cand, 1) - LBound(cand, 1) + 1
+        End If
+    End With
+    C("lblOutside").Caption = "Out of department (signed a blank line):   " & _
+        IIf(cnt = 0, "nobody else signed off in " & mP.Unit & " is free that shift", _
+                     cnt & " signed off in " & mP.Unit & " and free - lowest hours first")
+End Sub
+
+
+' ================================================================
+' LIST + LIVE PREVIEW
+' ================================================================
+Private Sub RefreshList(ByVal keepIdx As Long)
+    Dim maxRank As Long, maxHrs As Double, nAw As Long, nCh As Long, tot As Double
+    ComputeAward mP, mL, mN, maxRank, maxHrs, nAw, nCh, tot
+
+    lstEmployees.Clear
+    Dim i As Long, res As String
+    For i = 1 To mN
+        lstEmployees.AddItem CStr(mL(i).Rank)
+        lstEmployees.List(i - 1, 1) = mL(i).EmpName
+        lstEmployees.List(i - 1, 2) = mL(i).EmpShift
+        lstEmployees.List(i - 1, 3) = Format$(mL(i).TotalHrs, "#,##0")
+        lstEmployees.List(i - 1, 4) = IIf(mL(i).SignedUp, "Yes", "")
+        Select Case mL(i).Result
+            Case "Awarded": res = "AWARDED"
+            Case "Charged": res = "REFUSED  " & Format$(mL(i).Charged, "0.##")
+            Case "Signed up": res = "not charged"
+            Case Else: res = ""
+        End Select
+        lstEmployees.List(i - 1, 5) = res
+    Next i
+    If keepIdx >= 0 And keepIdx < mN Then lstEmployees.ListIndex = keepIdx
+
+    If nAw = 0 Then
+        C("lblSummary").Caption = "No one awarded yet." & IIf(mP.Positions > 1, "  (" & mP.Positions & " positions)", "")
+    Else
+        C("lblSummary").Caption = "Awarded " & nAw & " of " & mP.Positions & "   |   last awarded in call order: #" & _
+            maxRank & " (" & Format$(maxHrs, "#,##0") & " hrs)" & vbLf & _
+            "Charged (didn't sign up, ahead of #" & maxRank & "): " & nCh & " operator(s), " & Format$(tot, "0.##") & " hrs total"
+    End If
+End Sub
+
+Private Sub lstEmployees_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+    ToggleSigned
+End Sub
+
+Private Sub btnSignedUp_Click()
+    ToggleSigned
+End Sub
+
+Private Sub btnPassed_Click()           ' AWARD toggle
+    Dim i As Long: i = lstEmployees.ListIndex + 1
+    If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation: Exit Sub
+    mL(i).Awarded = Not mL(i).Awarded
+    If mL(i).Awarded Then mL(i).SignedUp = True      ' the winner signed up by definition
+    mDirty = True
+    RefreshList i - 1
+End Sub
+
+Private Sub ToggleSigned()
+    Dim i As Long: i = lstEmployees.ListIndex + 1
+    If i < 1 Or i > mN Then Exit Sub
+    mL(i).SignedUp = Not mL(i).SignedUp
+    If Not mL(i).SignedUp Then mL(i).Awarded = False
+    mDirty = True
+    RefreshList i - 1
+End Sub
+
+
+' ================================================================
+' SUBMIT
+' ================================================================
+Private Sub btnSubmit_Click()
+    If mN = 0 Then Exit Sub
+    If SubmitAward(mP, mL, mN) Then
+        Finished mP.ID & " awarded."
+    Else
+        RefreshList lstEmployees.ListIndex
+    End If
+End Sub
+
+Private Sub mNoTakers_Click()
+    If mN = 0 Then Exit Sub
+    If SubmitNoTakers(mP, mL, mN) Then
+        Finished mP.ID & " closed - no takers."
+    Else
+        RefreshList lstEmployees.ListIndex
+    End If
+End Sub
+
+Private Sub mOutside_Click()
+    If mN = 0 Then Exit Sub
+    If SubmitAwardOutside(mP, mL, mN, C("cmbOutside").Text) Then
+        Finished mP.ID & " awarded out of department."
+    Else
+        RefreshList lstEmployees.ListIndex
+    End If
+End Sub
+
+Private Sub mCancelReq_Click()
+    If mN = 0 Then Exit Sub
+    If SubmitCancel(mP, mL, mN) Then
+        Finished mP.ID & " cancelled - no charges."
+    Else
+        RefreshList lstEmployees.ListIndex
+    End If
+End Sub
+
+Private Sub Finished(ByVal msg As String)
+    mDirty = False
+    mN = 0
+    lstEmployees.Clear
+    C("lblInfo").Caption = "Pick a posting and click LOAD."
+    C("lblSummary").Caption = ""
+    SetActionButtons False
+    LoadChoices
+    C("lblStatus").Caption = msg & "   " & C("lblStatus").Caption
+End Sub
+
+Private Sub SetActionButtons(ByVal on_ As Boolean)
+    btnSignedUp.Enabled = on_
+    btnPassed.Enabled = on_
+    btnSubmit.Enabled = on_
+    mNoTakers.Enabled = on_
+    mCancelReq.Enabled = on_
+    mOutside.Enabled = on_
+    C("cmbOutside").Enabled = on_
+    If Not on_ Then C("cmbOutside").Text = ""
+End Sub
+
+
+' ================================================================
+' WARN ON CLOSE
+' ================================================================
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If mDirty Then
+        If MsgBox("Close without submitting?", vbYesNo + vbExclamation, "Unsaved") = vbNo Then Cancel = 1
+    End If
+End Sub

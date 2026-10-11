@@ -1,0 +1,383 @@
+Option Explicit
+
+' ================================================================
+' BOOK TIME OFF  /  ADD A NEED
+'  Person off : vacation, training, leave (LOA / STD / parental) for a
+'               date range. End can be left open (STD with no return
+'               date) and set later. The rotation decides which days /
+'               nights it shows on. STD / parental / LOA show as "Leave".
+'  Need       : a line to fill with nobody off (PHA, support op ...)
+'               for each date in a range, Days / Nights / Both.
+'
+' Every control is built in code below. Anything drawn on the form in
+' the designer is hidden automatically.
+' ================================================================
+
+Private WithEvents mOptPerson As MSForms.OptionButton
+Private WithEvents mOptNeed As MSForms.OptionButton
+Private WithEvents mEmp As MSForms.ComboBox
+Private WithEvents mStart As MSForms.TextBox
+Private WithEvents mEnd As MSForms.TextBox
+Private WithEvents mOpen As MSForms.CheckBox
+Private WithEvents mSave As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+Private WithEvents mSetEnd As MSForms.CommandButton
+Private WithEvents mVoid As MSForms.CommandButton
+
+Private mIds As Variant
+Private mPersonCtls As Collection
+Private mNeedCtls As Collection
+
+Private Const LBL_L As Long = 14
+Private Const BOX_L As Long = 118
+Private Const ROW_H As Long = 26
+
+
+' ================================================================
+' CONTROL HELPERS (runtime names start "to_")
+' ================================================================
+Private Function C(ByVal nm As String) As Object
+    Set C = Me.Controls("to_" & nm)
+End Function
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single, Optional ByVal grp As String = "") As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "to_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    If grp = "P" Then mPersonCtls.Add o
+    If grp = "N" Then mNeedCtls.Add o
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, _
+                          ByVal W As Single, Optional ByVal grp As String = "") As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15, grp)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Function RowT(ByVal i As Long) As Single
+    RowT = 40 + (i - 1) * ROW_H
+End Function
+
+Private Sub FillCombo(ByVal cb As Object, ByVal items As Variant)
+    Dim i As Long
+    cb.Clear
+    If Not IsArray(items) Then Exit Sub
+    For i = LBound(items) To UBound(items)
+        cb.AddItem CStr(items(i))
+    Next i
+End Sub
+
+
+' ================================================================
+' BUILD
+' ================================================================
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False
+        old.Enabled = False
+    Next old
+    Set mPersonCtls = New Collection
+    Set mNeedCtls = New Collection
+
+    Me.Caption = "Book Time Off"
+    Me.Width = 412
+    Me.Height = 560
+
+    Set mOptPerson = AddCtl("Forms.OptionButton.1", "optP", LBL_L, 10, 110, 18)
+    mOptPerson.Caption = "Person off"
+    mOptPerson.Font.Bold = True
+    Set mOptNeed = AddCtl("Forms.OptionButton.1", "optN", 130, 10, 250, 18)
+    mOptNeed.Caption = "Need - nobody off (PHA, support op ...)"
+    mOptNeed.Font.Bold = True
+
+    Dim o As Object
+    ' row 1: employee / need
+    AddLabel "lEmp", "Employee", LBL_L, RowT(1) + 3, 100, "P"
+    Set mEmp = AddCtl("Forms.ComboBox.1", "cboEmp", BOX_L, RowT(1), 230, 20, "P")
+    mEmp.Style = 2: mEmp.ListRows = 20
+    FillCombo mEmp, RosterNames()
+    AddLabel "lNeed", "Need", LBL_L, RowT(1) + 3, 100, "N"
+    Set o = AddCtl("Forms.ComboBox.1", "cboNeed", BOX_L, RowT(1), 268, 20, "N")
+    o.Style = 0: FillCombo o, NeedTypes()
+
+    ' row 2: unit
+    AddLabel "lUnit", "Unit", LBL_L, RowT(2) + 3, 100
+    Set o = AddCtl("Forms.ComboBox.1", "cboUnit", BOX_L, RowT(2), 150, 20)
+    o.Style = 2: FillCombo o, DeptList()
+
+    ' row 3: type / shift
+    AddLabel "lType", "Type", LBL_L, RowT(3) + 3, 100, "P"
+    Set o = AddCtl("Forms.ComboBox.1", "cboType", BOX_L, RowT(3), 200, 20, "P")
+    o.Style = 2: FillCombo o, AbsenceTypes(): o.ListIndex = 0
+    AddLabel "lShift", "Shift", LBL_L, RowT(3) + 3, 100, "N"
+    Set o = AddCtl("Forms.ComboBox.1", "cboShift", BOX_L, RowT(3), 100, 20, "N")
+    o.Style = 2: FillCombo o, Array("Days", "Nights", "Both"): o.ListIndex = 0
+
+    ' rows 4-5: dates
+    AddLabel "lStart", "From", LBL_L, RowT(4) + 3, 100
+    Set mStart = AddCtl("Forms.TextBox.1", "txtStart", BOX_L, RowT(4), 110, 20)
+    AddLabel "hStart", "", BOX_L + 118, RowT(4) + 3, 150
+    AddLabel "lEnd", "To (last day)", LBL_L, RowT(5) + 3, 100
+    Set mEnd = AddCtl("Forms.TextBox.1", "txtEnd", BOX_L, RowT(5), 110, 20)
+    AddLabel "hEnd", "", BOX_L + 118, RowT(5) + 3, 150
+    Set mOpen = AddCtl("Forms.CheckBox.1", "chkOpen", BOX_L, RowT(6) - 4, 260, 18, "P")
+    mOpen.Caption = "Open-ended (no return date yet)"
+
+    ' row 7: hours
+    AddLabel "lHrs", "Hours / shift", LBL_L, RowT(7) + 3, 100
+    Set o = AddCtl("Forms.ComboBox.1", "cboHrs", BOX_L, RowT(7), 110, 20)
+    o.Style = 0: FillCombo o, Array("12 (full shift)", "8", "4"): o.ListIndex = 0
+    AddLabel "hHrs", "e.g. 8 if they work 4 of the 12", BOX_L + 118, RowT(7) + 3, 160
+
+    ' row 8: times (person)
+    AddLabel "lTimes", "Times (optional)", LBL_L, RowT(8) + 3, 100, "P"
+    AddCtl "Forms.TextBox.1", "txtTimes", BOX_L, RowT(8), 110, 20, "P"
+    AddLabel "hTimes", "e.g. 7-3", BOX_L + 118, RowT(8) + 3, 150, "P"
+
+    ' row 9: note
+    AddLabel "lNote", "Note (optional)", LBL_L, RowT(9) + 3, 100
+    AddCtl "Forms.TextBox.1", "txtNote", BOX_L, RowT(9), 268, 20
+
+    Set o = AddLabel("info", "", LBL_L, RowT(10) + 2, 372)
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 9
+
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(11) + 4, 250, 30)
+    mSave.Caption = "SAVE"
+    mSave.Font.Bold = True: mSave.Font.Size = 11
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", 272, RowT(11) + 4, 114, 30)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+
+    ' person's booked time off
+    Dim t As Single: t = RowT(11) + 44
+    AddCtl "Forms.Label.1", "rule", LBL_L, t, 372, 1, "P"
+    Set o = AddLabel("hdr2", "BOOKED TIME OFF", LBL_L, t + 6, 300, "P")
+    o.Font.Bold = True: o.ForeColor = RGB(30, 56, 100)
+    Set o = AddCtl("Forms.ListBox.1", "lst", LBL_L, t + 22, 372, 90, "P")
+    o.IntegralHeight = False: o.Height = 90
+    o.ColumnCount = 5
+    o.ColumnWidths = "52;34;96;96;80"
+    o.Font.Size = 8.5
+    Set mSetEnd = AddCtl("Forms.CommandButton.1", "cmdEnd", LBL_L, t + 116, 120, 22, "P")
+    mSetEnd.Caption = "Change end date"
+    Set mVoid = AddCtl("Forms.CommandButton.1", "cmdVoid", LBL_L + 126, t + 116, 90, 22, "P")
+    mVoid.Caption = "Void"
+    AddLabel "status", "", LBL_L, t + 144, 372
+    C("status").Font.Size = 8
+
+    ApplyFormTheme Me
+    mSave.BackColor = RGB(31, 56, 100): mSave.ForeColor = vbWhite
+    With C("rule")
+        .Caption = "": .BackStyle = 1: .BackColor = RGB(200, 206, 215)
+    End With
+    Dim h As Variant
+    For Each h In Array("hStart", "hEnd", "hHrs", "hTimes")
+        C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
+    Next h
+    mOpen.BackStyle = 0: mOptPerson.BackStyle = 0: mOptNeed.BackStyle = 0
+
+    mOptPerson.Value = True
+    SetMode True
+    mSave.Default = True
+End Sub
+
+Private Sub SetMode(ByVal person As Boolean)
+    Dim o As Object
+    For Each o In mPersonCtls
+        o.Visible = person
+    Next o
+    For Each o In mNeedCtls
+        o.Visible = Not person
+    Next o
+    Me.Caption = IIf(person, "Book Time Off", "Add a Need")
+    Me.Height = IIf(person, 560, RowT(11) + 74)
+    UpdateInfo
+End Sub
+
+Private Sub mOptPerson_Click()
+    SetMode True
+End Sub
+
+Private Sub mOptNeed_Click()
+    SetMode False
+End Sub
+
+
+' ================================================================
+' LIVE INFO
+' ================================================================
+Private Sub mEmp_Change()
+    LoadList
+    UpdateInfo
+End Sub
+
+Private Sub mStart_Change()
+    DateHint mStart, "hStart"
+    UpdateInfo
+End Sub
+
+Private Sub mEnd_Change()
+    DateHint mEnd, "hEnd"
+    UpdateInfo
+End Sub
+
+Private Sub mOpen_Click()
+    mEnd.Enabled = Not mOpen.Value
+    If mOpen.Value Then mEnd.Text = ""
+    UpdateInfo
+End Sub
+
+Private Sub DateHint(ByVal tb As Object, ByVal nm As String)
+    Dim t As String: t = Trim$(tb.Text)
+    With C(nm)
+        If t = "" Then
+            .Caption = "": .ForeColor = RGB(120, 120, 120)
+        ElseIf IsDate(t) Then
+            .Caption = "= " & Format$(CDate(t), "ddd mmm d, yyyy"): .ForeColor = RGB(0, 110, 60)
+        Else
+            .Caption = "not a date": .ForeColor = RGB(190, 30, 30)
+        End If
+    End With
+End Sub
+
+Private Sub UpdateInfo()
+    Dim lbl As Object: Set lbl = C("info")
+    lbl.ForeColor = RGB(30, 56, 100)
+    If Not IsDate(Trim$(mStart.Text)) Then lbl.Caption = "": Exit Sub
+    Dim d1 As Date, d2 As Date: d1 = CDate(Trim$(mStart.Text))
+    If mOptNeed.Value Then
+        If IsDate(Trim$(mEnd.Text)) Then d2 = CDate(Trim$(mEnd.Text)) Else d2 = d1
+        lbl.Caption = (Int(d2) - Int(d1) + 1) & " day(s) - one line per day" & _
+                      IIf(C("cboShift").Text = "Both", " and shift", "") & "."
+        Exit Sub
+    End If
+    If mEmp.ListIndex < 0 Then lbl.Caption = "": Exit Sub
+    Dim nD As Long, nN As Long
+    If mOpen.Value Then
+        ShiftCount mEmp.Text, d1, d1 + 27, nD, nN
+        lbl.Caption = "Open-ended from " & Format$(d1, "mmm d") & ": " & nD & " day / " & nN & _
+                      " night shifts in the first 4 weeks. Set the end date when known."
+    ElseIf IsDate(Trim$(mEnd.Text)) Then
+        d2 = CDate(Trim$(mEnd.Text))
+        If d2 < d1 Then lbl.Caption = "The end is before the start.": lbl.ForeColor = RGB(190, 30, 30): Exit Sub
+        ShiftCount mEmp.Text, d1, d2, nD, nN
+        lbl.Caption = "Covers " & (nD + nN) & " scheduled shift(s): " & nD & " day, " & nN & " night." & _
+                      IIf(nD + nN = 0, "  (none - check the dates / crew)", "")
+    Else
+        lbl.Caption = ""
+    End If
+End Sub
+
+Private Sub LoadList()
+    C("lst").Clear
+    mIds = Empty
+    If mEmp.ListIndex < 0 Then C("status").Caption = "": Exit Sub
+    Dim v As Variant: v = PersonAbsences(mEmp.Text, mIds)
+    If IsArray(v) Then
+        C("lst").List = v
+        C("status").Caption = (UBound(v, 1) + 1) & " booking(s) for " & mEmp.Text & ", newest first."
+    Else
+        C("status").Caption = "Nothing booked for " & mEmp.Text & "."
+    End If
+End Sub
+
+
+' ================================================================
+' SAVE / EDIT
+' ================================================================
+Private Function HoursValue() As Variant
+    Dim t As String: t = Trim$(C("cboHrs").Text)
+    HoursValue = Empty
+    If t = "" Then Exit Function
+    If Val(t) > 0 And Val(t) < 12 Then HoursValue = Val(t)
+End Function
+
+Private Sub mSave_Click()
+    Dim problems As String
+    If C("cboUnit").ListIndex < 0 Then problems = problems & "- Unit" & vbNewLine
+    If Not IsDate(Trim$(mStart.Text)) Then problems = problems & "- From date" & vbNewLine
+    Dim t As String: t = Trim$(C("cboHrs").Text)
+    If t <> "" And Val(t) <= 0 Then problems = problems & "- Hours / shift" & vbNewLine
+
+    If mOptNeed.Value Then
+        If Trim$(C("cboNeed").Text) = "" Then problems = problems & "- Need" & vbNewLine
+        If Trim$(mEnd.Text) <> "" And Not IsDate(Trim$(mEnd.Text)) Then problems = problems & "- To date" & vbNewLine
+        If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation: Exit Sub
+        Dim d1 As Date, d2 As Date: d1 = CDate(Trim$(mStart.Text))
+        If IsDate(Trim$(mEnd.Text)) Then d2 = CDate(Trim$(mEnd.Text)) Else d2 = d1
+        If d2 < d1 Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
+        Dim needTxt As String, typ As String
+        If C("cboNeed").ListIndex >= 0 Then
+            needTxt = Trim$(Mid$(C("cboNeed").Text, 7))
+            typ = Left$(C("cboNeed").Text, 3)
+        Else
+            needTxt = Trim$(C("cboNeed").Text)
+            If InStr(1, needTxt, "PHA", vbTextCompare) > 0 Then
+                typ = "PHA"
+            ElseIf InStr(1, needTxt, "train", vbTextCompare) > 0 Then
+                typ = "TRN"
+            Else
+                typ = "SUP"
+            End If
+        End If
+        If Trim$(C("txtNote").Text) <> "" Then needTxt = needTxt & " - " & Trim$(C("txtNote").Text)
+        Dim nLines As Long
+        nLines = SaveNeed(C("cboUnit").Text, needTxt, typ, d1, d2, C("cboShift").Text, HoursValue())
+        If nLines > 0 Then C("status").Caption = nLines & " need line(s) added."
+        If nLines > 0 Then MsgBox nLines & " line(s) added to the " & C("cboUnit").Text & " calendar.", vbInformation
+        Exit Sub
+    End If
+
+    ' ---- person off ----
+    If mEmp.ListIndex < 0 Then problems = problems & "- Employee" & vbNewLine
+    If C("cboType").ListIndex < 0 Then problems = problems & "- Type" & vbNewLine
+    If Not mOpen.Value And Not IsDate(Trim$(mEnd.Text)) Then problems = problems & "- To date (or tick Open-ended)" & vbNewLine
+    If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation: Exit Sub
+
+    Dim ds As Date: ds = CDate(Trim$(mStart.Text))
+    Dim de As Variant
+    If mOpen.Value Then
+        de = Empty
+    Else
+        de = CDate(Trim$(mEnd.Text))
+        If de < ds Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
+    End If
+
+    Dim id As String
+    id = SaveAbsence(mEmp.Text, C("cboUnit").Text, C("cboType").Text, ds, de, HoursValue(), _
+                     Trim$(C("txtTimes").Text), Trim$(C("txtNote").Text))
+    If id = "" Then Exit Sub
+    LoadList
+    C("status").Caption = id & " saved - " & mEmp.Text & ", " & Left$(C("cboType").Text, 3) & ", " & _
+                          Format$(ds, "mmm d") & " to " & IIf(mOpen.Value, "open", Format$(de, "mmm d")) & "."
+    ' ready for the next booking
+    mStart.Text = "": mEnd.Text = "": C("txtTimes").Text = "": C("txtNote").Text = ""
+    mOpen.Value = False
+End Sub
+
+Private Function PickedId() As String
+    Dim i As Long: i = C("lst").ListIndex
+    If i < 0 Or Not IsArray(mIds) Then MsgBox "Select a booking in the list first.", vbInformation: Exit Function
+    PickedId = CStr(mIds(i))
+End Function
+
+Private Sub mSetEnd_Click()
+    Dim id As String: id = PickedId()
+    If id = "" Then Exit Sub
+    If SetAbsenceEnd(id) Then LoadList: C("status").Caption = id & " end date changed."
+End Sub
+
+Private Sub mVoid_Click()
+    Dim id As String: id = PickedId()
+    If id = "" Then Exit Sub
+    If VoidAbsence(id) Then LoadList: C("status").Caption = id & " voided."
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

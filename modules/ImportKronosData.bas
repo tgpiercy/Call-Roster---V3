@@ -1,0 +1,326 @@
+Attribute VB_Name = "ImportKronosData"
+Option Explicit
+
+' ====================================================================
+'  KRONOS -> Worked Hours (column H)
+'  Reads "Sorted Data Here" (name in B, grand total in M) and fills H.
+'  Names match ignoring spaces/case; a Kronos name with a trailing
+'  middle initial (e.g. "Dobbin,Stephen A") also matches.
+'  Matched names turn green; unmatched names are listed at the end.
+'
+'  v20 (Oct 9):
+'   - Remembers when the import ran and the Kronos file's saved date, for
+'     the status line and the stale-data warning (KronosStatusText).
+'   - Every import adds a dated snapshot of each person's worked hours to
+'     the hidden Hours History sheet (needed later for the leave return
+'     top-up and provisional accepted OT).
+'   - Also lists Kronos names that aren't on the roster.
+' ====================================================================
+
+Public Const KR_VERSION As String = "Kronos import v20 (Oct 9)"
+Public Const HH_SHEET As String = "Hours History"
+Public Const HH_TABLE As String = "tblHoursHistory"
+
+Sub SyncKronosData()
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+
+    Dim wsDest As Worksheet: Set wsDest = RosterSheet()
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    If lastRow < R_FIRST Then Exit Sub
+
+    ' ---- open (or reuse) the Kronos workbook ----
+    Dim fileName As String: fileName = Mid$(KRONOS_PATH, InStrRev(KRONOS_PATH, "\") + 1)
+    Dim wbSource As Workbook, openedHere As Boolean
+    On Error Resume Next
+    Set wbSource = Workbooks(fileName)
+    On Error GoTo 0
+    If wbSource Is Nothing Then
+        Application.EnableEvents = False          ' don't run the Kronos file's own macros
+        On Error Resume Next
+        Set wbSource = Workbooks.Open(Filename:=KRONOS_PATH, ReadOnly:=True, UpdateLinks:=0)
+        On Error GoTo 0
+        Application.EnableEvents = True
+        If wbSource Is Nothing Then
+            MsgBox "Could not open the Kronos file:" & vbNewLine & KRONOS_PATH, vbCritical
+            Exit Sub
+        End If
+        openedHere = True
+    End If
+
+    Dim wsSource As Worksheet
+    On Error Resume Next
+    Set wsSource = wbSource.Worksheets(KRONOS_SHEET)
+    On Error GoTo 0
+    If wsSource Is Nothing Then
+        If openedHere Then wbSource.Close SaveChanges:=False
+        MsgBox "Sheet '" & KRONOS_SHEET & "' not found in " & fileName, vbCritical
+        Exit Sub
+    End If
+
+    ' ---- Kronos names -> grand total ----
+    Dim dict As Object: Set dict = CreateObject("Scripting.Dictionary")
+    Dim rawOf As Object: Set rawOf = CreateObject("Scripting.Dictionary")   ' key -> name as Kronos spells it
+    Dim used As Object: Set used = CreateObject("Scripting.Dictionary")    ' keys matched to a roster name
+    Dim alt As Object: Set alt = CreateObject("Scripting.Dictionary")   ' "Last,First X" -> "last,first"
+    Dim lastSrc As Long: lastSrc = wsSource.Cells(wsSource.Rows.Count, 2).End(xlUp).Row
+    Dim src As Variant: src = wsSource.Range("A1:M" & lastSrc).Value
+    Dim i As Long, k As String, raw As String, a As String
+    For i = 1 To UBound(src, 1)
+        raw = Trim$(SafeStr(src(i, 2)))
+        k = NameKey(raw)
+        If k <> "" Then
+            If Not dict.Exists(k) Then dict.Add k, src(i, 13): rawOf.Add k, raw
+            If raw Like "* [A-Za-z]" Or raw Like "* [A-Za-z]." Then
+                a = NameKey(Left$(raw, InStrRev(raw, " ") - 1))
+                If alt.Exists(a) Then
+                    alt(a) = ""                 ' two people share it - don't guess
+                Else
+                    alt.Add a, k
+                End If
+            End If
+        End If
+    Next i
+    Dim fileDate As Date
+    On Error Resume Next
+    fileDate = FileDateTime(KRONOS_PATH)
+    If fileDate = 0 Then fileDate = FileDateTime(wbSource.FullName)
+    On Error GoTo 0
+    If openedHere Then wbSource.Close SaveChanges:=False
+    ThisWorkbook.Activate
+
+    ' ---- fill column H ----
+    Application.ScreenUpdating = False
+    wsDest.Unprotect Password:=SHEET_PASSWORD
+    wsDest.Range(wsDest.Cells(R_FIRST, C_NAME), wsDest.Cells(lastRow, C_NAME)).Interior.ColorIndex = xlNone
+
+    Dim r As Long, nm As String, hit As String, found As Long, missing As String, kVal As Variant
+    Dim histN As Long, histName() As String, histHrs() As Double
+    ReDim histName(1 To lastRow - R_FIRST + 1): ReDim histHrs(1 To lastRow - R_FIRST + 1)
+    For r = R_FIRST To lastRow
+        nm = Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value))
+        If nm <> "" Then
+            hit = FindKey(dict, alt, NameKey(nm))
+            If hit <> "" Then
+                used(hit) = True
+                kVal = dict(hit)
+                If Not IsError(kVal) And IsNumeric(kVal) And Not IsEmpty(kVal) Then
+                    wsDest.Cells(r, C_WORKED).Value = CDbl(kVal)
+                    wsDest.Cells(r, C_NAME).Interior.Color = RGB(226, 239, 218)
+                    found = found + 1
+                    histN = histN + 1: histName(histN) = nm: histHrs(histN) = CDbl(kVal)
+                Else
+                    missing = missing & "  " & nm & " (no number in Kronos)" & vbNewLine
+                End If
+            Else
+                missing = missing & "  " & nm & vbNewLine
+            End If
+        End If
+    Next r
+    wsDest.Rows(R_FIRST & ":" & lastRow).AutoFit
+    ProtectSheet wsDest
+
+    ' ---- v20: remember when, and keep a dated snapshot ----
+    Dim stamp As Date: stamp = Now
+    If fileDate = 0 Then fileDate = stamp
+    SetDateName "KronosImportedAt", stamp
+    SetDateName "KronosFileDate", fileDate
+    Dim histId As String
+    If histN > 0 Then histId = AppendHoursHistory(stamp, fileDate, histName, histHrs, histN)
+    Application.ScreenUpdating = True
+    wsDest.Activate
+    On Error Resume Next
+    SetRosterStatus
+    On Error GoTo 0
+
+    ' Kronos names that matched nobody on the roster
+    Dim extra As String, nExtra As Long, kk As Variant
+    For Each kk In dict.Keys
+        If Not used.Exists(kk) Then
+            nExtra = nExtra + 1
+            If nExtra <= 15 Then extra = extra & "  " & rawOf(kk) & vbNewLine
+        End If
+    Next kk
+    If nExtra > 15 Then extra = extra & "  ... and " & (nExtra - 15) & " more" & vbNewLine
+
+    Dim msg As String
+    msg = "Kronos import complete. " & found & " names matched (green)." & vbNewLine & _
+          "Kronos file saved " & Format$(fileDate, "ddd mmm d, h:mm AM/PM") & "." & _
+          IIf(histId <> "", "  Snapshot " & histId & " added to Hours History.", "")
+    If missing <> "" Then msg = msg & vbNewLine & vbNewLine & _
+        "On the roster but not found in Kronos - Worked Hours NOT updated:" & vbNewLine & missing
+    If extra <> "" Then msg = msg & vbNewLine & _
+        "In Kronos but not on the roster (spelling different, or not on this roster):" & vbNewLine & extra
+    MsgBox msg, IIf(missing = "" And extra = "", vbInformation, vbExclamation), "Kronos import"
+End Sub
+
+
+' ====================================================================
+'  IMPORT DATE / STALE CHECK (v20)
+' ====================================================================
+Private Sub SetDateName(ByVal nmName As String, ByVal d As Date)
+    On Error Resume Next
+    ThisWorkbook.Names(nmName).Delete
+    ThisWorkbook.Names.Add Name:=nmName, RefersTo:="=" & Replace(Format$(CDbl(d), "0.00000"), ",", "."), Visible:=False
+    On Error GoTo 0
+End Sub
+
+Private Function GetDateName(ByVal nmName As String) As Date
+    Dim nmObj As Name
+    On Error Resume Next
+    Set nmObj = ThisWorkbook.Names(nmName)
+    On Error GoTo 0
+    If nmObj Is Nothing Then Exit Function
+    Dim x As Double: x = Val(Mid$(nmObj.RefersTo, 2))
+    If x > 0 Then GetDateName = CDate(x)
+End Function
+
+' When the Kronos data was saved (falls back to when it was imported); 0 = never
+Public Function KronosDataDate() As Date
+    KronosDataDate = GetDateName("KronosFileDate")
+    If KronosDataDate = 0 Then KronosDataDate = GetDateName("KronosImportedAt")
+End Function
+
+Public Function KronosImportedAt() As Date
+    KronosImportedAt = GetDateName("KronosImportedAt")
+End Function
+
+' Days since the Kronos data was saved; -1 = never imported (v20)
+Public Function KronosAgeDays() As Long
+    Dim d As Date: d = KronosDataDate()
+    If d = 0 Then KronosAgeDays = -1 Else KronosAgeDays = Int(Date) - Int(d)
+End Function
+
+Public Function KronosIsStale() As Boolean
+    Dim a As Long: a = KronosAgeDays()
+    KronosIsStale = (a < 0 Or a > KRONOS_STALE_DAYS)
+End Function
+
+' Status line text, e.g. "Kronos: Oct 7 (2 days ago)"
+Public Function KronosStatusText() As String
+    Dim a As Long: a = KronosAgeDays()
+    If a < 0 Then KronosStatusText = "Kronos: not imported since v20": Exit Function
+    Dim t As String
+    Select Case a
+        Case 0: t = "today"
+        Case 1: t = "yesterday"
+        Case Else: t = a & " days ago"
+    End Select
+    KronosStatusText = "Kronos: " & Format$(KronosDataDate(), "mmm d") & " (" & t & ")" & _
+                       IIf(a > KRONOS_STALE_DAYS, " - import", "")
+End Function
+
+' Call-out / posting warning. True = go ahead.
+Public Function KronosOkToContinue(ByVal what As String) As Boolean
+    KronosOkToContinue = True
+    If Not KronosIsStale() Then Exit Function
+    Dim a As Long: a = KronosAgeDays()
+    Dim msg As String
+    If a < 0 Then
+        msg = "Worked hours haven't been imported from Kronos since this update was installed, " & _
+              "so there's no record of how current they are."
+    Else
+        msg = "Worked hours were last imported from Kronos data saved " & Format$(KronosDataDate(), "ddd mmm d") & _
+              " (" & a & " days ago)."
+    End If
+    msg = msg & vbNewLine & vbNewLine & "Call order is only as current as that import. Continue with the " & what & " anyway?" & _
+          vbNewLine & vbNewLine & "(No = stop here and run Import Kronos first.)"
+    KronosOkToContinue = (MsgBox(msg, vbYesNo + vbExclamation + vbDefaultButton2, "Kronos data is old") = vbYes)
+End Function
+
+
+' ====================================================================
+'  HOURS HISTORY (v20) - one dated row per person per import
+' ====================================================================
+Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As ListObject
+    Dim ws As Worksheet, lo As ListObject
+    If SheetExists(HH_SHEET) Then
+        Set ws = ThisWorkbook.Worksheets(HH_SHEET)
+        On Error Resume Next
+        Set lo = ws.ListObjects(HH_TABLE)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = HH_SHEET
+            ws.Tab.Color = RGB(96, 125, 139)
+        End If
+        ws.Unprotect Password:=SHEET_PASSWORD
+        ws.Range("A1:F1").Value = Array("Import ID", "Imported At", "Kronos File Date", "Employee", "Worked Hours", "Imported By")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1:F2"), , xlYes)
+        lo.Name = HH_TABLE
+        lo.TableStyle = "TableStyleLight9"
+        ws.Columns("A").ColumnWidth = 10
+        ws.Columns("B:C").ColumnWidth = 17
+        ws.Columns("D").ColumnWidth = 24
+        ws.Columns("E").ColumnWidth = 12
+        ws.Columns("F").ColumnWidth = 12
+        ProtectSheet ws
+    End If
+    Set HoursHistoryTable = lo
+End Function
+
+' Appends the snapshot; returns its Import ID ("KR-0007") or "" on failure
+Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date, histName() As String, _
+                                    histHrs() As Double, ByVal n As Long) As String
+    Dim lo As ListObject: Set lo = HoursHistoryTable(True)
+    If lo Is Nothing Then Exit Function
+    Dim ws As Worksheet: Set ws = lo.Parent
+
+    ' next Import ID
+    Dim mx As Long, v As Variant, i As Long, cnt As Long, blankFirst As Boolean
+    cnt = lo.ListRows.Count
+    If Not lo.DataBodyRange Is Nothing Then
+        If cnt = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then
+            blankFirst = True: cnt = 0
+        Else
+            v = RangeTo2D(lo.ListColumns(1).DataBodyRange)
+            For i = 1 To UBound(v, 1)
+                If Left$(SafeStr(v(i, 1)), 3) = "KR-" Then
+                    If Val(Mid$(SafeStr(v(i, 1)), 4)) > mx Then mx = Val(Mid$(SafeStr(v(i, 1)), 4))
+                End If
+            Next i
+        End If
+    End If
+    Dim id As String: id = "KR-" & Format$(mx + 1, "0000")
+
+    Dim outA() As Variant: ReDim outA(1 To n, 1 To 6)
+    For i = 1 To n
+        outA(i, 1) = id
+        outA(i, 2) = stamp
+        outA(i, 3) = fileDate
+        outA(i, 4) = histName(i)
+        outA(i, 5) = histHrs(i)
+        outA(i, 6) = CurrentUser()
+    Next i
+
+    Dim em As String
+    On Error GoTo Fail
+    ws.Unprotect Password:=SHEET_PASSWORD
+    lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
+    With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, 6)
+        .Value = outA
+        .Columns(2).NumberFormat = "mmm d, yyyy h:mm"
+        .Columns(3).NumberFormat = "mmm d, yyyy h:mm"
+    End With
+    ProtectSheet ws
+    AppendHoursHistory = id
+    Exit Function
+Fail:
+    em = Err.Description
+    On Error Resume Next
+    ProtectSheet ws
+    MsgBox "Worked hours were imported, but the Hours History snapshot couldn't be saved:" & vbNewLine & em, vbExclamation
+End Function
+
+Private Function NameKey(ByVal s As String) As String
+    NameKey = LCase$(Replace(Replace(Trim$(s), " ", ""), ".", ""))
+End Function
+
+' exact match, or the roster name + a middle initial in Kronos ("Dobbin,Stephen A")
+Private Function FindKey(ByVal dict As Object, ByVal alt As Object, ByVal k As String) As String
+    If k = "" Then Exit Function
+    If dict.Exists(k) Then FindKey = k: Exit Function
+    If alt.Exists(k) Then FindKey = CStr(alt(k))
+End Function

@@ -1,0 +1,102 @@
+Attribute VB_Name = "modShiftCycle"
+Option Explicit
+
+' ====================================================================
+'  12-HOUR SHIFT ROTATION
+'  Taken from the plant's 12 Hour Shift Schedule (SHIFT2026). It is a
+'  28-day cycle, so it works for any date in any year:
+'    day 1 of the cycle = Sunday Dec 28, 2025 (B days / A nights)
+'  Days = 7 AM - 7 PM.  Nights = 7 PM - 7 AM (dated by the evening it starts).
+'
+'  Available crew for overtime = the two crews OFF that day, minus:
+'    - DAY OT:   the crew that worked NIGHTS the night before
+'                (they finish at 7 AM that morning - not eligible)
+'    - NIGHT OT: the crew that starts DAYS the next morning at 7 AM
+'                (they'd be working straight through)
+' ====================================================================
+
+Public Const ROT_VERSION As String = "Shift cycle v20 (Oct 9)"
+
+Private Const ROT_ANCHOR As Date = #12/28/2025#
+Private Const ROT_DAYS As String = "BDDAACCCBBDDAAACCBBDDDAACCBB"     ' crew on days, cycle day 1..28
+Private Const ROT_NIGHTS As String = "ACCBBDDDAACCBBBDDAACCCBBDDAA"   ' crew on nights, cycle day 1..28
+Private Const ROT_LEN As Long = 28
+
+Private Function RotIdx(ByVal d As Date) As Long
+    Dim k As Long
+    k = DateDiff("d", ROT_ANCHOR, Int(d)) Mod ROT_LEN
+    If k < 0 Then k = k + ROT_LEN
+    RotIdx = k + 1
+End Function
+
+Public Function DaysCrew(ByVal d As Date) As String
+    DaysCrew = Mid$(ROT_DAYS, RotIdx(d), 1)
+End Function
+
+Public Function NightsCrew(ByVal d As Date) As String
+    NightsCrew = Mid$(ROT_NIGHTS, RotIdx(d), 1)
+End Function
+
+' The two crews with the day off, e.g. "A/B"
+Public Function CrewsOff(ByVal d As Date) As String
+    Dim c As Variant, s As String
+    For Each c In Array("A", "B", "C", "D")
+        If c <> DaysCrew(d) And c <> NightsCrew(d) Then s = s & IIf(s = "", "", "/") & c
+    Next c
+    CrewsOff = s
+End Function
+
+' Which shift a roster crew code works on date d: "Days", "Nights", "" (off) or "?" (unknown code)
+'   A, B, C, D   the 4-crew rotation - days and nights
+'   A/B, C/D     that pair's DAY shifts only (on whenever A or B is on days)
+'   DAYS         Monday - Friday days, except plant holidays (v20, see modHolidays)
+Public Function CrewShiftOn(ByVal crewCode As String, ByVal d As Date) As String
+    Dim s As String: s = UCase$(Replace(Trim$(crewCode), " ", ""))
+    If Len(s) = 1 And InStr("ABCD", s) > 0 Then
+        If s = DaysCrew(d) Then CrewShiftOn = "Days"
+        If s = NightsCrew(d) Then CrewShiftOn = "Nights"
+    ElseIf s Like "[ABCD]/[ABCD]" Then
+        If InStr(s, DaysCrew(d)) > 0 Then CrewShiftOn = "Days"
+    ElseIf s = "DAYS" Then
+        If Weekday(d, vbMonday) <= 5 Then
+            If Not DaysHolidayOff(d) Then CrewShiftOn = "Days"
+        End If
+    Else
+        CrewShiftOn = "?"
+    End If
+End Function
+
+Public Function IsNightShift(ByVal shiftLbl As String) As Boolean
+    IsNightShift = (UCase$(Left$(Trim$(shiftLbl), 1)) = "N")
+End Function
+
+' Crew(s) eligible for OT on date d, Days or Nights. note = why a crew
+' that's off isn't eligible (blank if both off crews are eligible).
+Public Function AvailableCrew(ByVal d As Date, ByVal isNight As Boolean, Optional ByRef note As String) As String
+    Dim c As Variant, s As String, blocked As String
+    note = ""
+    If isNight Then
+        blocked = DaysCrew(d + 1)
+    Else
+        blocked = NightsCrew(d - 1)
+    End If
+    For Each c In Array("A", "B", "C", "D")
+        If c <> DaysCrew(d) And c <> NightsCrew(d) Then
+            If c = blocked Then
+                If isNight Then
+                    note = c & " starts days next morning"
+                Else
+                    note = c & " coming off nights"
+                End If
+            Else
+                s = s & IIf(s = "", "", "/") & c
+            End If
+        End If
+    Next c
+    AvailableCrew = s
+End Function
+
+' One-line summary for the pop-ups, e.g. "On: D days, C nights | Off: A/B"
+Public Function RotationSummary(ByVal d As Date) As String
+    RotationSummary = "On: " & DaysCrew(d) & " days, " & NightsCrew(d) & " nights  |  Off: " & CrewsOff(d)
+End Function

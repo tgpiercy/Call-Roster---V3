@@ -1,5 +1,14 @@
 # Changelog
 
+## M1 - members' workbook (Oct 2026)
+Brief: `briefs/M1.md`. Design: `docs/member-workbook-design-2026-10-09.md`. Install: `INSTALL.md` in `dist/Callout_Roster_M1.zip`.
+
+- **Member View** now publishes `Call Out Roster - Members.xlsm` (values only) into `PUBLISH_FOLDER`: the master works out everyone's call position per unit, who is free for each unit / date / shift for the next 14 days, calendar lines with leave masked, open postings and their lists, and this year's non-void log rows, and pushes them into the members' template found next to the master. The old values-only `.xlsx` is no longer written (it carried Logged By and Timestamp).
+- **Privacy check** before anything is written: no emails, phone-like numbers or raw leave codes in any published table, or the publish stops and says which row.
+- **Members' file** (`member/modMember.bas` + its ThisWorkbook): Home, Roster (unit call order, A-Z, Find me, crew filter), Who's next, Calendar, Open postings, My history. It holds no rules and never reads the master. `BuildMemberTemplate` lays it out once.
+- **Needs Attention** shows "Members file: last published ..." when the published copy is more than a day old (double-click publishes). **SystemCheck** lists `modPublish` (13 modules) and the template.
+- Publish-time caches (`BeginSwitchBatch`, `RefreshCalCache`, `FilterNotFree useCache`) so the who's-free sweep runs in seconds. Same answers as the call-out form.
+
 ## v21 - call order accuracy (Oct 2026)
 Brief: `briefs/v21.md`. Install notes: `INSTALL.md` in `dist/Callout_Roster_v21.zip`.
 

@@ -153,10 +153,10 @@ Private Sub ClearBelow(ByVal ws As Worksheet, ByVal fromRow As Long)
     On Error GoTo 0
 End Sub
 
-Private Sub Title(ByVal ws As Worksheet, ByVal txt As String, ByVal sub_ As String)
+Private Sub Title(ByVal ws As Worksheet, ByVal cap As String, ByVal sub_ As String)
     ws.Rows(1).RowHeight = 28
     With ws.Range("A1")
-        .Value = txt
+        .Value = cap
         .Font.Size = 16: .Font.Bold = True: .Font.Color = NAVY
     End With
     With ws.Range("A3")

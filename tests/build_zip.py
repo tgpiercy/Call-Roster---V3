@@ -21,12 +21,12 @@ def main() -> int:
     base = sys.argv[2] if len(sys.argv) > 2 else "v20"
     out = ROOT / "dist" / f"Callout_Roster_{tag}.zip"
     changed = subprocess.run(
-        ["git", "diff", "--name-only", f"{base}..HEAD", "--", "modules", "paste-in"],
+        ["git", "diff", "--name-only", f"{base}..HEAD", "--", "modules", "paste-in", "member"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout.split()
     # files in the working tree that are not committed yet also count
     pending = subprocess.run(
-        ["git", "status", "--porcelain", "--", "modules", "paste-in"],
+        ["git", "status", "--porcelain", "--", "modules", "paste-in", "member"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout.splitlines()
     for ln in pending:

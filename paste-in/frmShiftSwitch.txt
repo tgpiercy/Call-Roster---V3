@@ -1,5 +1,5 @@
 Option Explicit
-' @version v20 (Oct 9)
+' @version v21 (Oct 12)
 
 ' ================================================================
 ' SHIFT SWITCH (S/S)

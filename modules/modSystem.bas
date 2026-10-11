@@ -83,7 +83,7 @@ Public Sub SystemCheck()
                 warn = warn & "- form " & f & " is missing" & vbNewLine
             End If
         Next f
-        For Each f In Array("frmOvertimeEntry", "frmNewPosting")      ' forms changed in v21
+        For Each f In Array("frmShiftSwitch", "frmOvertimeEntry", "frmNewPosting", "frmPostingEntry", "frmTimeOff")   ' every form carries a version line from v21
             If InStr(compNames, "|" & LCase$(CStr(f)) & "|") > 0 Then
                 If InStr(FormMarker(proj, CStr(f)), EXPECTED_RELEASE) = 0 Then
                     warn = warn & "- " & f & " code is older than " & EXPECTED_RELEASE & ": re-paste " & f & ".txt" & vbNewLine

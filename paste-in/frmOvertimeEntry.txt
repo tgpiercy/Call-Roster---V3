@@ -62,22 +62,25 @@ End Sub
 ' INITIALIZE
 ' ================================================================
 Private Sub UserForm_Initialize()
-    Me.Width = 445: Me.Height = 500
+    Me.Width = 445: Me.Height = 510
     Me.Caption = "Callout Session"
 
     MakeLabel "lblDept", "Department:", 10, 13, 62
-    MakeCombo "cmbDept", 74, 10, 120
-    MakeLabel "lblDN", "Shift:", 202, 13, 32
-    MakeCombo "cmbDN", 236, 10, 70
-    MakeLabel "lblShift", "Crew:", 314, 13, 32
-    MakeCombo "cmbShift", 348, 10, 67
+    MakeCombo "cmbDept", 74, 10, 110
+    MakeLabel "lblDN", "Shift:", 192, 13, 32
+    MakeCombo "cmbDN", 224, 10, 68
+    MakeLabel "lblShift", "Crew:", 300, 13, 32
+    MakeCombo "cmbShift", 332, 10, 88                  ' wide enough for "All not scheduled"
 
     MakeLabel "lblDate", "Date:", 10, 41, 30
     MakeBox "txtDate", 44, 38, 90
     MakeLabel "lblHrs", "Hours:", 142, 41, 36
     MakeBox "txtHours", 180, 38, 50
 
+    ' rotation / DST line: two lines high so a long line wraps instead of clipping (v21)
     MakeLabel "lblRot", "Pick the date and Days / Nights - the crew fills in from the rotation.", 10, 64, 410
+    C("lblRot").Height = 24
+    C("lblRot").WordWrap = True
     C("lblRot").Font.Size = 8.5
     C("lblRot").ForeColor = RGB(30, 56, 100)
 
@@ -89,43 +92,43 @@ Private Sub UserForm_Initialize()
 
     MakeLabel "lblLegend", _
         ">> = above Grade " & CHARGE_MAX_GRADE & " (called, not charged) | charged at " & _
-        CHARGE_MULTIPLIER & "x | * = total includes accepted OT not yet in Kronos", 10, 80, 410
+        CHARGE_MULTIPLIER & "x | * = total includes accepted OT not yet in Kronos", 10, 90, 410
     C("lblLegend").Font.Italic = True
     C("lblLegend").Font.Size = 8
     C("lblLegend").ForeColor = RGB(100, 100, 100)
 
-    MakeLabel "lblH1", "Employee", 12, 96, 155
-    MakeLabel "lblH2", "Phone", 169, 96, 90
-    MakeLabel "lblH3", "Total", 261, 96, 35
-    MakeLabel "lblH4", "Outcome", 298, 96, 125
+    MakeLabel "lblH1", "Employee", 12, 106, 155
+    MakeLabel "lblH2", "Phone", 169, 106, 90
+    MakeLabel "lblH3", "Total", 261, 106, 35
+    MakeLabel "lblH4", "Outcome", 298, 106, 125
     C("lblH1").Font.Bold = True
     C("lblH2").Font.Bold = True
     C("lblH3").Font.Bold = True
     C("lblH4").Font.Bold = True
 
     With lstEmployees
-        .Left = 10: .Top = 110: .Width = 410: .Height = 146
+        .Left = 10: .Top = 120: .Width = 410: .Height = 146
         .ColumnCount = 4
         .ColumnWidths = "155;90;35;125"
         .Font.Size = 10
     End With
 
-    MakeLabel "lblNowHdr", "Now calling:", 10, 262, 75
+    MakeLabel "lblNowHdr", "Now calling:", 10, 272, 75
     C("lblNowHdr").Font.Bold = True
-    MakeLabel "lblCurrent", "Load a list to begin", 90, 262, 330
+    MakeLabel "lblCurrent", "Load a list to begin", 90, 272, 330
     C("lblCurrent").Font.Bold = True
     C("lblCurrent").Font.Size = 9
 
-    MakeLabel "lblPhone", "", 10, 279, 410
+    MakeLabel "lblPhone", "", 10, 289, 410
     C("lblPhone").Font.Bold = True
     C("lblPhone").Font.Size = 16
     C("lblPhone").ForeColor = RGB(0, 70, 140)
     C("lblPhone").Height = 22
 
-    MakeLabel "lblReason", "Unavailable reason:", 10, 307, 105
+    MakeLabel "lblReason", "Unavailable reason:", 10, 317, 105
     C("lblReason").Font.Size = 9
-    MakeCombo "cmbReason", 118, 304, 195
-    MakeLabel "lblReasonHint", "(pick first)", 320, 307, 95
+    MakeCombo "cmbReason", 118, 314, 195
+    MakeLabel "lblReasonHint", "(pick first)", 320, 317, 95
     C("lblReasonHint").Font.Italic = True
     C("lblReasonHint").Font.Size = 8
     C("lblReasonHint").ForeColor = RGB(100, 100, 100)
@@ -135,17 +138,17 @@ Private Sub UserForm_Initialize()
     StyleOutcome btnLeftMsg, " LEFT MSG", 216, RGB(180, 100, 0)
     StyleOutcome btnUnavailable, " UNAVAIL.", 319, RGB(80, 90, 110)
 
-    MakeLabel "lblProgress", "", 10, 382, 410
+    MakeLabel "lblProgress", "", 10, 392, 410
     C("lblProgress").Font.Italic = True
 
     With btnSubmit
         .Caption = "SUBMIT ALL ENTRIES"
-        .Left = 10: .Top = 399: .Width = 410: .Height = 38
+        .Left = 10: .Top = 409: .Width = 410: .Height = 38
         .Font.Bold = True: .Font.Size = 11
         .Enabled = False
     End With
 
-    MakeLabel "lblStatus", "", 10, 444, 410
+    MakeLabel "lblStatus", "", 10, 454, 410
     C("lblStatus").Height = 28
     C("lblStatus").WordWrap = True
     C("lblStatus").Font.Size = 8
@@ -166,7 +169,7 @@ End Sub
 Private Sub StyleOutcome(b As Object, cap As String, L As Long, col As Long)
     With b
         .Caption = Chr(10) & cap
-        .Left = L: .Top = 330: .Width = 96: .Height = 46
+        .Left = L: .Top = 340: .Width = 96: .Height = 46
         .Font.Bold = True: .Font.Size = 9
         .BackColor = col: .ForeColor = RGB(255, 255, 255)
         .Enabled = False
@@ -193,8 +196,7 @@ Private Sub mDateBox_Change()
 End Sub
 
 Private Sub AutoCrew()
-    C("lblRot").Font.Size = 8.5                      ' back to normal until a DST note says otherwise
-    C("lblRot").ForeColor = RGB(30, 56, 100)
+    C("lblRot").ForeColor = RGB(30, 56, 100)         ' back to normal until a DST note says otherwise
     Dim t As String: t = Trim$(C("txtDate").Text)
     If Not IsDate(t) Then
         C("lblRot").Caption = "Pick the date and Days / Nights - the crew fills in from the rotation."
@@ -221,14 +223,14 @@ Private Sub AutoCrew()
             C("txtHours").Value = "": mAutoHours = ""           ' no longer a DST night - back to blank
         End If
     End If
+    ' two lines: rotation on the first, the DST warning (or the list note) on the second
     If dst <> "" Then
-        C("lblRot").Font.Size = 8
         C("lblRot").ForeColor = RGB(190, 30, 30)
-        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  off: " & crew & _
-                              IIf(note <> "", "  (" & note & ")", "") & "   |   " & dst
+        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  crews off: " & crew & _
+                              IIf(note <> "", "  (" & note & ")", "") & vbLf & dst & " - check the Hours box"
     Else
-        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "   ->  crews off: " & crew & _
-                              IIf(note <> "", "  (" & note & ")", "") & "   (list = everyone free that shift)"
+        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  crews off: " & crew & _
+                              IIf(note <> "", "  (" & note & ")", "") & vbLf & "The list is everyone with the code who is free that shift."
     End If
 End Sub
 

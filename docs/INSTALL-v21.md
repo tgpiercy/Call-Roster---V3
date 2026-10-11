@@ -16,8 +16,9 @@ In the VBA editor (Alt+F11), for EACH of these, right-click the module > **Remov
 
 ## 3. Re-paste the code (open the code window, Ctrl+A, paste)
 - **ThisWorkbook** from `paste-in/ThisWorkbook.txt`
-- **frmOvertimeEntry** from `paste-in/frmOvertimeEntry.txt`
+- **frmOvertimeEntry** from `paste-in/frmOvertimeEntry.txt` (layout fix: the rotation line no longer clips)
 - **frmNewPosting** from `paste-in/frmNewPosting.txt`
+- **frmShiftSwitch**, **frmPostingEntry**, **frmTimeOff** from their `.txt` files (only a version line changed, so SystemCheck can confirm every form)
 
 ## 4. Settings (in modOvertimeEntry, near the top)
 - `BACKUP_FOLDER` - the folder for the daily backup copy, e.g. `"P:\...\Roster Backups\"`. Leave it `""` for now if the folder isn't decided; SystemCheck will keep reminding you.

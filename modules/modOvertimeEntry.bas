@@ -376,6 +376,8 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
 
     Dim v As Variant
     v = ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, C_LAST)).Value
+    ' column C only means "provisional" once RefreshRosterFormulas has written it (v21)
+    Dim provLive As Boolean: provLive = ProvisionalLive()
 
     Dim n As Long, i As Long, nm As String, code As String, g As Double
     ReDim recs(1 To UBound(v, 1))
@@ -394,7 +396,7 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                         .DeptCode = code
                         .Grade = g
                         .TotalHrs = NumOr0(v(i, C_TOTAL))
-                        .ProvHrs = NumOr0(v(i, C_PROV))
+                        If provLive Then .ProvHrs = NumOr0(v(i, C_PROV)) Else .ProvHrs = 0
                         .Seniority = SeniorityKey(v(i, C_SENIORITY))
                         .Phone = Trim$(SafeStr(v(i, C_PHONE)))
                         .EmpShift = Trim$(SafeStr(v(i, C_SHIFT)))
@@ -621,6 +623,20 @@ Private Function ProvSumIfs(ByVal r As Long, ByVal outcome As String, ByVal nigh
         dateCol & ",""<=""&" & yearTo & "," & _
         LOG_TABLE & "[[Shift]:[Shift]],""" & IIf(nights, "Nights", "<>Nights") & """," & _
         dateCol & ","">""&" & IIf(nights, "(" & PROV_NAME & "-1)", PROV_NAME) & ")"
+End Function
+
+' True once the roster's Total (G) formulas add column C, i.e. after
+' RefreshRosterFormulas has run on v21 (checks the first named row)
+Public Function ProvisionalLive() As Boolean
+    On Error Resume Next
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long
+    For r = R_FIRST To RosterLastRow()
+        If Trim$(SafeStr(ws.Cells(r, C_NAME).Value)) <> "" Then
+            ProvisionalLive = (InStr(1, ws.Cells(r, C_TOTAL).Formula, "+" & ColLetter(C_PROV) & r, vbTextCompare) > 0)
+            Exit Function
+        End If
+    Next r
 End Function
 
 ' Total Hours (column G) = Worked + Refused + Provisional

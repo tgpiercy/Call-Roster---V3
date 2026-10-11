@@ -11,6 +11,7 @@ Brief: `briefs/v21.md`. Install notes: `INSTALL.md` in `dist/Callout_Roster_v21.
 - **Daily backup.** The first admin open each day saves `Call Out Roster yyyy-mm-dd.xlsm` into `BACKUP_FOLDER` and deletes copies older than 30 days there. Never blocks opening; SystemCheck says when the folder isn't set or can't be reached.
 - **SelfTest** (Alt+F8): 147 known-answer cases over rotation, holidays, DST, call order, charging, eligibility and provisional coverage, in memory only. The same table (`tests/cases.csv`) drives the Python mirror in `tests/`.
 - **SystemCheck** expects v21 on 11 modules and also flags Total Hours without the provisional term, blank Home Units and the backup.
+- **Roster writes in this release** (all disclosed): `RefreshRosterFormulas` rewrites C and G formulas (verified, save blocked on a mismatch); `SetupHomeUnit` writes column B and its B2 title (backup first, verified); `ApplyRosterLayout` writes the hidden C2 title "PROV" and, once Total includes the provisional term, rewrites C and G with the period formulas. No hours are ever typed into roster cells.
 - Rules consolidated: the call-out charge is one function (`CalloutCharge`); the rotation part of eligibility is `RotationFreeReason`; out-of-department and cancel charging are `ComputeOutside` / `ComputeCancel`.
 
 ## v20

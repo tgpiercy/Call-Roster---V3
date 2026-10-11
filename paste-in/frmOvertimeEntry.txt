@@ -193,6 +193,8 @@ Private Sub mDateBox_Change()
 End Sub
 
 Private Sub AutoCrew()
+    C("lblRot").Font.Size = 8.5                      ' back to normal until a DST note says otherwise
+    C("lblRot").ForeColor = RGB(30, 56, 100)
     Dim t As String: t = Trim$(C("txtDate").Text)
     If Not IsDate(t) Then
         C("lblRot").Caption = "Pick the date and Days / Nights - the crew fills in from the rotation."
@@ -225,8 +227,6 @@ Private Sub AutoCrew()
         C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  off: " & crew & _
                               IIf(note <> "", "  (" & note & ")", "") & "   |   " & dst
     Else
-        C("lblRot").Font.Size = 8.5
-        C("lblRot").ForeColor = RGB(30, 56, 100)
         C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "   ->  crews off: " & crew & _
                               IIf(note <> "", "  (" & note & ")", "") & "   (list = everyone free that shift)"
     End If

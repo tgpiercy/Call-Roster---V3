@@ -107,7 +107,7 @@ Public Sub SystemCheck()
     info = info & KronosStatusText() & vbNewLine
     If KronosIsStale() Then warn = warn & "- Kronos data is old: run Import Kronos" & vbNewLine
     info = info & DataThroughText() & vbNewLine
-    If Not TotalsIncludeProvisional() Then
+    If RosterLastRow() >= R_FIRST And Not ProvisionalLive() Then
         warn = warn & "- Total Hours doesn't include provisional accepted OT yet: run RefreshRosterFormulas" & vbNewLine
     End If
     Dim hv As Variant, k As Long
@@ -182,21 +182,6 @@ Private Function FormMarker(ByVal proj As Object, ByVal formName As String) As S
     Next i
     FormMarker = "no version line (before v20)"
 End Function
-
-' True once the first roster row's Total (G) formula adds column C (v21)
-Private Function TotalsIncludeProvisional() As Boolean
-    On Error Resume Next
-    Dim ws As Worksheet: Set ws = RosterSheet()
-    Dim r As Long
-    For r = R_FIRST To RosterLastRow()
-        If Trim$(SafeStr(ws.Cells(r, C_NAME).Value)) <> "" Then
-            TotalsIncludeProvisional = (InStr(1, ws.Cells(r, C_TOTAL).Formula, ColLetter(C_PROV) & r, vbTextCompare) > 0)
-            Exit Function
-        End If
-    Next r
-    TotalsIncludeProvisional = True          ' no employees: nothing to flag
-End Function
-
 
 ' ---------------- opening checks ----------------
 Public Sub OpenChecks()

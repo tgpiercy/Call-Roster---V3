@@ -198,9 +198,15 @@ Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
     ws.Range(pf & "3:" & pl & "3").NumberFormat = "General"
     ws.Range(pf & "3:" & pl & "3").Value = "to"
 
-    ' rewrite each row's formulas (rows with typed numbers were listed above)
+    ' rewrite each row's formulas (rows with typed numbers were listed above).
+    ' v21: once Total includes the provisional term, C and G are rewritten too,
+    ' so their year window ($T$2 / $AS$4) always matches the date rows.
+    Dim provLive As Boolean: provLive = ProvisionalLive()
     For r = R_FIRST To lastRow
-        If Trim$(SafeStr(ws.Cells(r, C_NAME).Value)) <> "" And Not skip(r) Then WritePeriodRow ws, r
+        If Trim$(SafeStr(ws.Cells(r, C_NAME).Value)) <> "" And Not skip(r) Then
+            WritePeriodRow ws, r
+            If provLive Then WriteTotalRow ws, r
+        End If
     Next r
     Application.Calculate
 

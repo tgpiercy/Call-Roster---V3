@@ -90,6 +90,7 @@ Private Function RecordChanges(ByVal ws As Worksheet, ByVal r1 As Long, ByVal r2
             End If
         End If
     Next i
+    Dim written As Boolean
     If n > 0 Then
         Dim outA() As Variant: ReDim outA(1 To n, 1 To GL_N)
         For i = 1 To n
@@ -97,9 +98,11 @@ Private Function RecordChanges(ByVal ws As Worksheet, ByVal r1 As Long, ByVal r2
                 outA(i, c) = rows(i, c)
             Next c
         Next i
-        AppendGradeRows outA, n
+        written = AppendGradeRows(outA, n)
     End If
-    If n > 0 Or needRefresh Then RefreshGradeSnapshot  ' old values for next time
+    ' old values for next time - but if the rows couldn't be written, keep the
+    ' old snapshot so the change is still caught (on open, or next edit)
+    If written Or (n = 0 And needRefresh) Then RefreshGradeSnapshot
     RecordChanges = n
 End Function
 
@@ -134,12 +137,13 @@ End Function
 ' there is no snapshot yet. Quiet: never stops the caller.
 Public Sub RefreshGradeSnapshot()
     If ThisWorkbook.ReadOnly Then Exit Sub
+    Dim evWas As Boolean: evWas = Application.EnableEvents    ' captured first: Quit restores it
+    Dim ws As Worksheet
     On Error GoTo Quit
     Dim rs As Worksheet: Set rs = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
-    Dim ws As Worksheet: Set ws = SnapSheet(True)
+    Set ws = SnapSheet(True)
     If ws Is Nothing Then Exit Sub
-    Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False
     ws.Unprotect Password:=SHEET_PASSWORD
     ws.Cells.ClearContents
@@ -168,7 +172,7 @@ Public Sub RefreshGradeSnapshot()
     Exit Sub
 Quit:
     On Error Resume Next
-    ProtectSheet ws
+    If Not ws Is Nothing Then ProtectSheet ws
     Application.EnableEvents = evWas
 End Sub
 
@@ -176,10 +180,14 @@ Private Function SnapSheet(ByVal create As Boolean) As Worksheet
     If SheetExists(GS_SHEET) Then
         Set SnapSheet = ThisWorkbook.Worksheets(GS_SHEET)
     ElseIf create Then
-        Dim ws As Worksheet
+        Dim ws As Worksheet, was As Object
+        Set was = ActiveSheet                      ' adding a sheet activates it - put the user back
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = GS_SHEET
         ws.Visible = xlSheetVeryHidden
+        On Error Resume Next
+        If Not was Is Nothing Then was.Activate
+        On Error GoTo 0
         Set SnapSheet = ws
     End If
 End Function
@@ -212,9 +220,13 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
     End If
     If lo Is Nothing And create Then
         If ws Is Nothing Then
+            Dim was As Object: Set was = ActiveSheet       ' adding a sheet activates it - put the user back
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = GL_SHEET
             ws.Tab.Color = RGB(96, 125, 139)
+            On Error Resume Next
+            If Not was Is Nothing Then was.Activate
+            On Error GoTo 0
         End If
         ws.Unprotect Password:=SHEET_PASSWORD
         ws.Range("A1").Resize(1, GL_N).Value = Array("Timestamp", "Employee", "Unit", "Old Code", "New Code", "Windows Login")
@@ -233,9 +245,10 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
     Set GradeLogTable = lo
 End Function
 
-Private Sub AppendGradeRows(ByRef outA() As Variant, ByVal n As Long)
+' True when the rows are in the table
+Private Function AppendGradeRows(ByRef outA() As Variant, ByVal n As Long) As Boolean
     Dim lo As ListObject: Set lo = GradeLogTable(True)
-    If lo Is Nothing Then Exit Sub
+    If lo Is Nothing Then Exit Function
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim cnt As Long: cnt = lo.ListRows.Count
     If cnt = 1 Then
@@ -253,7 +266,8 @@ Private Sub AppendGradeRows(ByRef outA() As Variant, ByVal n As Long)
     End With
     ProtectSheet ws
     Application.EnableEvents = evWas
-    Exit Sub
+    AppendGradeRows = True
+    Exit Function
 Fail:
     em = Err.Description
     On Error Resume Next
@@ -261,7 +275,7 @@ Fail:
     Application.EnableEvents = evWas
     MsgBox "The grade change couldn't be written to the Grade Log: " & em & vbNewLine & _
            "The roster change itself is kept. Send me this message.", vbExclamation, "Grade Log"
-End Sub
+End Function
 
 ' Alt+F8 > ShowGradeLog (admin): opens the Grade Log sheet
 Public Sub ShowGradeLog()

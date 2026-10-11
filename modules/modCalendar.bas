@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v20 (Oct 9)"
+Public Const CAL_VERSION As String = "Calendar v21 (Oct 11)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -2757,6 +2757,19 @@ Public Sub DrawNeeds()
         Next hk
     End If
 
+    ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
+    Dim ur() As NARow, nU As Long, uv As Variant, uk As Variant
+    ReDim ur(1 To 20)
+    On Error Resume Next
+    uv = BlankHomeUnits()
+    On Error GoTo Failed
+    If IsArray(uv) Then
+        For Each uk In uv
+            NAAdd ur, nU, "", "", EmpCrewOf(CStr(uk)), "", CStr(uk), "Roster", "Home Unit blank", "", _
+                  "U:" & CStr(uk), 0, thMuted(), thOpen(), thOpenFill(), thMuted()
+        Next uk
+    End If
+
     ' ---- draw ----
     ws.Rows("1:3000").Delete
     With ws.Cells.Font
@@ -2819,6 +2832,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "HOLIDAYS TO CONFIRM  -  weekend holiday, weekday off not entered (next " & hLook & " days)", _
                       nH, RGB(176, 0, 32), Array("Holiday date", "", "Crew", "Unit", "Holiday", "Type", "Status", "When"))
         r = NARows(ws, r, hr, nH, "")
+    End If
+    If nU > 0 Then
+        r = NASection(ws, r, "HOME UNIT NOT SET  -  pick it from the drop-down in column B of the roster (double-click a name)", _
+                      nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
+        r = NARows(ws, r, ur, nU, "")
     End If
 
     ' ---- summary tiles (double-click one to jump to its list) ----
@@ -3085,6 +3103,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         GoToHoliday DateSerial(CLng(Mid$(keyTxt, 3, 4)), CLng(Mid$(keyTxt, 8, 2)), CLng(Mid$(keyTxt, 11, 2)))
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "U:" Then              ' v21: Home Unit blank - jump to that cell on the roster
+        GoToHomeUnit Mid$(keyTxt, 3)
+        Exit Sub
+    End If
     ShowLineMenu keyTxt
 End Sub
 
@@ -3094,6 +3116,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     Cancel = True
     If Left$(keyTxt, 2) = "H:" Then
         GoToHoliday DateSerial(CLng(Mid$(keyTxt, 3, 4)), CLng(Mid$(keyTxt, 8, 2)), CLng(Mid$(keyTxt, 11, 2)))
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "U:" Then
+        GoToHomeUnit Mid$(keyTxt, 3)
         Exit Sub
     End If
     ShowLineMenu keyTxt

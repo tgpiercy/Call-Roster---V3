@@ -55,6 +55,7 @@ Public Const R_HDR As Long = 4          ' sort / filter header row (row just abo
 Public Const PERIOD_FMT As String = "General;-General;"   ' hides zeros; NO text (@) section
 ' Pay-period START and END dates live in rows 2 and 4 - see PStartRow / PEndRow
 Public Const R_FIRST As Long = 5        ' first employee row
+Public Const C_HOME As Long = 2         ' B  Home Unit (v21) - one of DeptList; blank = Graeme fills it in
 Public Const C_PROV As Long = 3         ' C  (hidden) provisional accepted OT not yet in Kronos (v21)
 Public Const C_NAME As Long = 4         ' D
 Public Const C_SHIFT As Long = 5        ' E
@@ -172,6 +173,13 @@ Public Function TaskList() As Variant
                      "PHA", "Unit Operator Support", "Other")
 End Function
 
+' Add Adjustment must pick one of these (v21). Stored in the OT Log's
+' Reason column (7) so reports can split adjustments by type; the Type
+' column stays "Adjustment".
+Public Function AdjustmentTypes() As Variant
+    AdjustmentTypes = Array("Leave return", "Unit move", "New hire", "Correction", "Other")
+End Function
+
 Public Function UnavailableReasons() As Variant
     UnavailableReasons = Array("Vacation", "Already Working OT", "Training", _
                                "Scheduled Off Site", "Modified Duties", _
@@ -191,6 +199,69 @@ Public Function DeptCol(ByVal d As String) As Long
         Case "SBP": DeptCol = 19                ' S - SBP
         Case Else: DeptCol = 0
     End Select
+End Function
+
+' Unit column number -> department name (reverse of DeptCol); "" if not a unit column
+Public Function DeptOfCol(ByVal col As Long) As String
+    Dim d As Variant
+    For Each d In DeptList()
+        If DeptCol(CStr(d)) = col Then DeptOfCol = CStr(d): Exit Function
+    Next d
+End Function
+
+' First and last unit-code columns on the roster (L:S)
+Public Function UnitColFirst() As Long
+    UnitColFirst = 12
+End Function
+
+Public Function UnitColLast() As Long
+    UnitColLast = 19
+End Function
+
+' Home Unit for one roster row read as a 2-D array slice: the unit whose
+' column holds that person's ONLY code; "" when they have codes in more
+' than one unit (or none). v21 - SetupHomeUnit uses it to pre-fill B.
+Public Function SingleUnitFor(ByVal rowVals As Variant, ByVal rowIdx As Long) As String
+    Dim d As Variant, n As Long, hit As String
+    For Each d In DeptList()
+        If Trim$(SafeStr(rowVals(rowIdx, DeptCol(CStr(d))))) <> "" Then
+            n = n + 1
+            hit = CStr(d)
+        End If
+    Next d
+    If n = 1 Then SingleUnitFor = hit
+End Function
+
+' Names with a unit code but no Home Unit (column B), A-Z. Empty if none.
+Public Function BlankHomeUnits() As Variant
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    If lastRow < R_FIRST Then Exit Function
+    Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, UnitColLast())).Value
+    Dim i As Long, n As Long, nm As String, d As Variant, hasCode As Boolean
+    Dim a() As String: ReDim a(1 To UBound(v, 1))
+    For i = 1 To UBound(v, 1)
+        nm = Trim$(SafeStr(v(i, C_NAME)))
+        If nm <> "" And Trim$(SafeStr(v(i, C_HOME))) = "" Then
+            hasCode = False
+            For Each d In DeptList()
+                If Trim$(SafeStr(v(i, DeptCol(CStr(d))))) <> "" Then hasCode = True: Exit For
+            Next d
+            If hasCode Then n = n + 1: a(n) = nm
+        End If
+    Next i
+    If n = 0 Then Exit Function
+    ReDim Preserve a(1 To n)
+    Dim j As Long, t As String
+    For i = 2 To n
+        t = a(i): j = i - 1
+        Do While j >= 1
+            If StrComp(a(j), t, vbTextCompare) <= 0 Then Exit Do
+            a(j + 1) = a(j): j = j - 1
+        Loop
+        a(j + 1) = t
+    Next i
+    BlankHomeUnits = a
 End Function
 
 ' Department -> section title on the Blank Call Out Roster sheet

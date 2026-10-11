@@ -396,8 +396,9 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ws.Rows(3).RowHeight = 34                 ' status: 3 lines (v20)
     ws.Rows(4).RowHeight = 17
 
-    ' row 2, D:S - column titles
-    With ws.Range(ws.Cells(2, 3), ws.Cells(2, 19))
+    ' row 2, B:S - column titles (B = Home Unit from v21)
+    If UCase$(Trim$(SafeStr(ws.Cells(2, C_HOME).Value))) <> "HOME UNIT" Then ws.Cells(2, C_HOME).Value = "HOME UNIT"
+    With ws.Range(ws.Cells(2, C_HOME), ws.Cells(2, 19))
         .Interior.Color = NAVY
         .Font.Color = vbWhite
         .Font.Bold = True
@@ -406,6 +407,13 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
     End With
+    With ws.Range(ws.Cells(R_FIRST, C_HOME), ws.Cells(lastRow, C_HOME))
+        .Font.Name = "Segoe UI"
+        .Font.Size = 9
+        .Font.Color = INK
+        .HorizontalAlignment = xlCenter
+    End With
+    HomeUnitValidation ws, lastRow
     ' row 3, C:S - status lives in D3 (two lines, stays visible when scrolling)
     With ws.Range(ws.Cells(3, 3), ws.Cells(3, 19))
         .ClearContents                            ' removes the old D3 formula / L3 text
@@ -521,6 +529,8 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ws.Range(ws.Cells(R_FIRST, C_PROV), ws.Cells(lastRow, C_PROV)).NumberFormat = PERIOD_FMT
     ws.Columns(C_PROV).ColumnWidth = 7
     ws.Columns(C_PROV).Hidden = True
+    ws.Columns(C_HOME).ColumnWidth = 14          ' Home Unit (v21)
+    ws.Columns(C_HOME).Hidden = False
     ws.Columns(C_EMAIL).ColumnWidth = 26           ' EMAIL (ApplyView hides it for non-admins)
     ws.Columns(C_NAME).ColumnWidth = 26
     ws.Columns(C_SHIFT).ColumnWidth = 6.5
@@ -539,6 +549,174 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ActiveWindow.FreezePanes = True
     ActiveWindow.DisplayGridlines = False
     ws.Tab.Color = NAVY
+End Sub
+
+
+' --------------------------------------------------------------------
+'  HOME UNIT (v21) - column B, a drop-down of the eight units.
+'  SetupHomeUnit (Alt+F8, once): writes the header and drop-down and fills
+'  in everyone who has a code in exactly ONE unit. People with codes in
+'  more than one unit are left blank for Graeme to fill in by hand
+'  (SystemCheck and Needs Attention list them). Nothing else is written:
+'  a backup copy is saved first and names / hours are checked after.
+' --------------------------------------------------------------------
+Private Sub HomeUnitValidation(ByVal ws As Worksheet, ByVal lastRow As Long)
+    If lastRow < R_FIRST Then Exit Sub
+    Dim lst As String: lst = Join(DeptList(), ",")
+    With ws.Range(ws.Cells(R_FIRST, C_HOME), ws.Cells(lastRow, C_HOME)).Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:=lst
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .ErrorTitle = "Home Unit"
+        .ErrorMessage = "Pick one of the eight units from the drop-down, or leave it blank."
+        .ShowError = True
+    End With
+End Sub
+
+Public Sub SetupHomeUnit()
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    If lastRow < R_FIRST Then MsgBox "No employees found on the roster.", vbExclamation: Exit Sub
+
+    ' column B must be free (it has held nothing since the OT Log migration)
+    Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, UnitColLast())).Value
+    Dim i As Long, stray As String, hdr As String
+    hdr = UCase$(Trim$(SafeStr(ws.Cells(2, C_HOME).Value)))
+    For i = 1 To UBound(v, 1)
+        If Trim$(SafeStr(v(i, C_HOME))) <> "" Then
+            If InStr(1, "," & Join(DeptList(), ",") & ",", "," & Trim$(SafeStr(v(i, C_HOME))) & ",", vbTextCompare) = 0 Then
+                stray = stray & "  B" & (R_FIRST + i - 1) & ": " & SafeStr(v(i, C_HOME)) & vbNewLine
+            End If
+        End If
+    Next i
+    If stray <> "" Or (hdr <> "" And hdr <> "HOME UNIT") Then
+        MsgBox "Nothing was changed. Column B isn't free - it holds:" & vbNewLine & _
+               IIf(hdr <> "" And hdr <> "HOME UNIT", "  B2: " & ws.Cells(2, C_HOME).Value & vbNewLine, "") & stray & vbNewLine & _
+               "Clear those cells (or send me a screenshot), then run SetupHomeUnit again.", vbCritical, "Home Unit"
+        Exit Sub
+    End If
+
+    ' what would be filled in
+    Dim fills As Long, blanks As String, nBlank As Long, u As String, nm As String
+    For i = 1 To UBound(v, 1)
+        nm = Trim$(SafeStr(v(i, C_NAME)))
+        If nm <> "" And Trim$(SafeStr(v(i, C_HOME))) = "" Then
+            u = SingleUnitFor(v, i)
+            If u <> "" Then
+                fills = fills + 1
+            Else
+                nBlank = nBlank + 1
+                If nBlank <= 12 Then blanks = blanks & "  " & nm & vbNewLine
+            End If
+        End If
+    Next i
+    If nBlank > 12 Then blanks = blanks & "  ...and " & (nBlank - 12) & " more" & vbNewLine
+    If MsgBox("Set up the Home Unit column (B)?" & vbNewLine & vbNewLine & _
+              "- header and drop-down of the eight units" & vbNewLine & _
+              "- " & fills & " people with a code in exactly one unit are filled in" & vbNewLine & _
+              "- " & nBlank & " with codes in more than one unit (or none) are left blank for you:" & vbNewLine & blanks & vbNewLine & _
+              "A backup copy is saved first. Nothing else on the roster is changed.", _
+              vbOKCancel + vbQuestion, "Home Unit") <> vbOK Then Exit Sub
+
+    ' ---- backup ----
+    Dim bk As String
+    bk = EnsureSlash(ThisWorkbook.Path) & "Backup before Home Unit " & Format$(Now, "yyyy-mm-dd hhmm") & " - " & ThisWorkbook.Name
+    On Error Resume Next
+    ThisWorkbook.SaveCopyAs bk
+    If Err.Number <> 0 Then
+        Dim e As String: e = Err.Description
+        On Error GoTo 0
+        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical
+        Exit Sub
+    End If
+    On Error GoTo 0
+
+    ' ---- write (names, hours and codes untouched) ----
+    Dim beforeNames As Variant, beforeTot As Variant
+    beforeNames = ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)).Value2
+    beforeTot = ws.Range(ws.Cells(R_FIRST, C_TOTAL), ws.Cells(lastRow, C_TOTAL)).Value2
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    On Error GoTo Failed
+    ws.Unprotect Password:=SHEET_PASSWORD
+    ws.Cells(2, C_HOME).Value = "HOME UNIT"
+    For i = 1 To UBound(v, 1)
+        nm = Trim$(SafeStr(v(i, C_NAME)))
+        If nm <> "" And Trim$(SafeStr(v(i, C_HOME))) = "" Then
+            u = SingleUnitFor(v, i)
+            If u <> "" Then ws.Cells(R_FIRST + i - 1, C_HOME).Value = u
+        End If
+    Next i
+    HomeUnitValidation ws, lastRow
+    With ws.Range(ws.Cells(R_FIRST, C_HOME), ws.Cells(lastRow, C_HOME))
+        .Font.Name = "Segoe UI": .Font.Size = 9: .Font.Color = INK
+        .HorizontalAlignment = xlCenter
+        .Locked = True                             ' admins see the sheet unprotected; everyone else can't edit it
+    End With
+    With ws.Cells(2, C_HOME)
+        .Interior.Color = NAVY: .Font.Color = vbWhite: .Font.Bold = True: .Font.Size = 8
+        .WrapText = True: .HorizontalAlignment = xlCenter: .VerticalAlignment = xlCenter
+    End With
+    ws.Columns(C_HOME).ColumnWidth = 14
+    ws.Columns(C_HOME).Hidden = False
+    Application.Calculate
+
+    ' ---- verify ----
+    Dim afterNames As Variant, afterTot As Variant, mism As String
+    afterNames = ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)).Value2
+    afterTot = ws.Range(ws.Cells(R_FIRST, C_TOTAL), ws.Cells(lastRow, C_TOTAL)).Value2
+    For i = 1 To UBound(v, 1)
+        If SafeStr(beforeNames(i, 1)) <> SafeStr(afterNames(i, 1)) Then mism = mism & "  row " & (R_FIRST + i - 1) & ": name changed" & vbNewLine
+        If Abs(NumOr0(beforeTot(i, 1)) - NumOr0(afterTot(i, 1))) > 0.0001 Then mism = mism & "  row " & (R_FIRST + i - 1) & ": Total Hours changed" & vbNewLine
+    Next i
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = True
+    If mism <> "" Then
+        MarkNoSave
+        MsgBox "STOP - the roster changed in a way it shouldn't have:" & vbNewLine & mism & vbNewLine & _
+               "Saving is blocked. Close WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical
+        Exit Sub
+    End If
+    On Error Resume Next
+    RefreshGradeSnapshot                           ' v21: the grade-change log keys on names + codes
+    MarkCalDirty                                   ' Needs Attention lists the blanks
+    On Error GoTo 0
+    SaveIfWritable
+    MsgBox "Home Unit set up: " & fills & " filled in, " & nBlank & " left blank for you." & vbNewLine & vbNewLine & _
+           "Pick the blank ones from the drop-down in column B (Needs Attention lists them)." & vbNewLine & _
+           "Backup saved as:" & vbNewLine & bk, vbInformation, "Home Unit"
+    Exit Sub
+
+Failed:
+    Dim em As String: em = Err.Description
+    On Error Resume Next
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = True
+    MarkNoSave
+    MsgBox "Home Unit setup stopped part-way: " & em & vbNewLine & vbNewLine & _
+           "Saving is blocked. Close WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical
+End Sub
+
+' Jump to a person's Home Unit cell (from Needs Attention)
+Public Sub GoToHomeUnit(ByVal empName As String)
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long
+    For r = R_FIRST To RosterLastRow()
+        If StrComp(Trim$(SafeStr(ws.Cells(r, C_NAME).Value)), Trim$(empName), vbTextCompare) = 0 Then
+            ws.Activate
+            On Error Resume Next
+            If ws.Rows(r).Hidden Then ShowAllRows
+            Application.Goto ws.Cells(r, C_HOME), False
+            On Error GoTo 0
+            Exit Sub
+        End If
+    Next r
 End Sub
 
 

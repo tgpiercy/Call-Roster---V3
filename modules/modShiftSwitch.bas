@@ -10,7 +10,7 @@ Option Explicit
 '  anyone who is working a switch on that date / shift.
 ' ====================================================================
 
-Public Const SS_VERSION As String = "Shift switches v21 (Oct 11)"
+Public Const SS_VERSION As String = "Shift switches v21 M1 (Oct 12)"
 Public Const SS_SHEET As String = "Shift Switches"
 Public Const SS_TABLE As String = "tblShiftSwitch"
 
@@ -33,6 +33,8 @@ Public Const SW_N As Long = 15
 
 Private mTestMode As Boolean        ' v21: SelfTest feeds SwitchData from memory
 Private mTestRows As Variant
+Private mBatch As Boolean           ' M1: one read of the table reused for a whole publish sweep
+Private mBatchRows As Variant
 
 
 ' ---------------- launcher (roster button) ----------------
@@ -125,9 +127,26 @@ Public Sub ClearTestSwitches()
     mTestRows = Empty
 End Sub
 
+' M1: the members' publish asks "who is free" hundreds of times; read the
+' switch table once for the whole sweep. Always paired with EndSwitchBatch.
+Public Sub BeginSwitchBatch()
+    mBatch = False
+    mBatchRows = SwitchData()
+    mBatch = True
+End Sub
+
+Public Sub EndSwitchBatch()
+    mBatch = False
+    mBatchRows = Empty
+End Sub
+
 Private Function SwitchData() As Variant
     If mTestMode Then
         If IsArray(mTestRows) Then SwitchData = mTestRows
+        Exit Function
+    End If
+    If mBatch Then
+        If IsArray(mBatchRows) Then SwitchData = mBatchRows
         Exit Function
     End If
     Dim lo As ListObject: Set lo = SwitchTable()

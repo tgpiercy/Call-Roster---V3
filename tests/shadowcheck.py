@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-files = sorted(list((root / "modules").glob("*.bas")) + list((root / "paste-in").glob("*.txt")))
+files = sorted(list((root / "modules").glob("*.bas")) + list((root / "paste-in").glob("*.txt")) + list((root / "member").glob("*.bas")) + list((root / "member").glob("*.txt")))
 PROC = re.compile(r"^\s*(public |private |friend )?(static )?(sub|function|property (get|let|set))\s+(\w+)\s*\((.*)\)", re.I)
 END = re.compile(r"^\s*end (sub|function|property)\b", re.I)
 DIM = re.compile(r"\b(dim|const|static)\s+(.*)", re.I)

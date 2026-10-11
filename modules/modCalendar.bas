@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v21 (Oct 11)"
+Public Const CAL_VERSION As String = "Calendar v21 M1 (Oct 12)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -354,6 +354,12 @@ Public Sub ClearTestFixtures()
     Set mShiftMap = Nothing
 End Sub
 
+' M1: the members' publish loads the cache once, then calls FilterNotFree
+' and SlotsFor with useCache:=True for the whole sweep.
+Public Sub RefreshCalCache()
+    LoadCache
+End Sub
+
 Private Sub LoadCache()
     If mTestMode Then Exit Sub
     mAbs = TableData(AbsTable())
@@ -520,8 +526,8 @@ End Function
 ' removed gets a short summary, e.g. "14 scheduled that day, 4 rest rule;
 ' booked off: Fred C (Vac); shift switch: Paul M". Returns the new count.
 Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d As Date, ByVal shiftLbl As String, _
-                              ByRef removed As String) As Long
-    LoadCache
+                              ByRef removed As String, Optional ByVal useCache As Boolean = False) As Long
+    If Not useCache Then LoadCache
     removed = ""
     Dim i As Long, k As Long, why As String
     Dim nSched As Long, nRest As Long, offTxt As String, ssTxt As String
@@ -2787,6 +2793,20 @@ Public Sub DrawNeeds()
         Next hk
     End If
 
+    ' G. members' file not published lately (M1)
+    Dim mr() As NARow, nM As Long, pubAt As Date, pubTxt As String
+    ReDim mr(1 To 2)
+    pubAt = MembersPublishedAt()
+    If pubAt = 0 Then
+        pubTxt = "never published - click Member View on the roster"
+    ElseIf Int(Date) - Int(pubAt) > MEMBERS_STALE_DAYS Then
+        pubTxt = "last published " & Format$(pubAt, "ddd mmm d, h:mm AM/PM") & " (" & (Int(Date) - Int(pubAt)) & " days ago)"
+    End If
+    If pubTxt <> "" Then
+        NAAdd mr, nM, Format$(Date, "ddd mmm d"), "", "", "All units", "Members file: " & pubTxt, "Publish", _
+              "Publish again", "", "M:publish", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
+    End If
+
     ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
     Dim ur() As NARow, nU As Long, uv As Variant, uk As Variant
     ReDim ur(1 To 20)
@@ -2867,6 +2887,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "HOME UNIT NOT SET  -  pick it from the drop-down in column B of the roster (double-click a name)", _
                       nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
         r = NARows(ws, r, ur, nU, "")
+    End If
+    If nM > 0 Then
+        r = NASection(ws, r, "MEMBERS FILE  -  what the union sees is out of date (double-click to publish)", _
+                      nM, thPosted(), Array("Today", "", "", "", "Members file", "Type", "Status", ""))
+        r = NARows(ws, r, mr, nM, "")
     End If
 
     ' ---- summary tiles (double-click one to jump to its list) ----
@@ -3137,6 +3162,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         GoToHomeUnit Mid$(keyTxt, 3)
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "M:" Then              ' M1: publish the members' file
+        PublishMemberView
+        Exit Sub
+    End If
     ShowLineMenu keyTxt
 End Sub
 
@@ -3150,6 +3179,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "U:" Then
         GoToHomeUnit Mid$(keyTxt, 3)
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "M:" Then
+        PublishMemberView
         Exit Sub
     End If
     ShowLineMenu keyTxt

@@ -440,191 +440,19 @@ End Sub
 
 
 ' --------------------------------------------------------------------
-'  PUBLISH MEMBER VIEW - a values-only .xlsx for union members.
-'  No phone numbers, no macros, no passwords. Reasons are left out
-'  unless PUBLISH_REASONS = True (they can contain personal details).
+'  PUBLISH MEMBER VIEW - the Member View button (OnAction name kept).
+'  M1: publishes the members' workbook (modPublish.PublishMembers), values
+'  only, pushed from the master. The old values-only .xlsx (which also
+'  carried Logged By and Timestamp) is no longer written.
 ' --------------------------------------------------------------------
 Public Sub PublishMemberView()
-    If Not RequireAdmin() Then Exit Sub
-    If SheetExists(LOG_SHEET) Then
-        Dim chk As ListObject
-        On Error Resume Next
-        Set chk = ThisWorkbook.Worksheets(LOG_SHEET).ListObjects(LOG_TABLE)
-        On Error GoTo 0
-        If Not chk Is Nothing Then
-            If Not LogLayoutCurrent(chk) Then MsgBox "Run UpgradeOTLogLayout first (Alt+F8).", vbExclamation: Exit Sub
-        End If
-    End If
-    Dim src As Worksheet: Set src = RosterSheet()
-    Dim lastRow As Long: lastRow = RosterLastRow()
-    If lastRow < R_FIRST Then Exit Sub
-
-    Application.Calculate
-    Application.ScreenUpdating = False
-
-    ' ---------- roster values ----------
-    Dim cols As Variant
-    cols = Array(C_NAME, C_SHIFT, C_TOTAL, C_WORKED, C_REFUSED, C_SENIORITY, _
-                 12, 13, 14, 15, 16, 17, 18, 19)
-    Dim nFixed As Long: nFixed = UBound(cols) + 1
-    Dim nPer As Long: nPer = C_PERIODN - C_PERIOD1 + 1
-    Dim v As Variant: v = src.Range(src.Cells(1, 1), src.Cells(lastRow, C_LAST)).Value
-
-    Dim n As Long, r As Long, c As Long, k As Long
-    For r = R_FIRST To lastRow
-        If Trim$(SafeStr(v(r, C_NAME))) <> "" Then n = n + 1
-    Next r
-    If n = 0 Then Application.ScreenUpdating = True: Exit Sub
-
-    Dim out() As Variant: ReDim out(1 To n + 1, 1 To nFixed + nPer)
-    out(1, 1) = "Employee": out(1, 2) = "Shift": out(1, 3) = "Total Hours"
-    out(1, 4) = "Worked Hours": out(1, 5) = "Refused Hours": out(1, 6) = "Plant Seniority"
-    For c = 6 To nFixed - 1
-        out(1, c + 1) = SafeStr(v(2, cols(c)))
-    Next c
-    Dim sR As Long: sR = PStartRow()
-    For c = 1 To nPer
-        If IsDate(v(sR, C_PERIOD1 + c - 1)) Then
-            out(1, nFixed + c) = Format$(v(sR, C_PERIOD1 + c - 1), "mmm d") & " - " & _
-                                 Format$(CDate(v(sR, C_PERIOD1 + c - 1)) + 13, "mmm d")
-        Else
-            out(1, nFixed + c) = "Period " & c
-        End If
-    Next c
-
-    k = 1
-    For r = R_FIRST To lastRow
-        If Trim$(SafeStr(v(r, C_NAME))) <> "" Then
-            k = k + 1
-            For c = 0 To nFixed - 1
-                out(k, c + 1) = CleanVal(v(r, cols(c)))
-            Next c
-            For c = 1 To nPer
-                out(k, nFixed + c) = CleanVal(v(r, C_PERIOD1 + c - 1))
-            Next c
-        End If
-    Next r
-
-    Dim wb As Workbook: Set wb = Workbooks.Add(xlWBATWorksheet)
-    Dim wsR As Worksheet: Set wsR = wb.Worksheets(1)
-    wsR.Name = "Roster"
-    With wsR.Range("A1").Resize(n + 1, nFixed + nPer)
-        .Value = out
-        .Sort Key1:=wsR.Range("A1"), Order1:=xlAscending, Header:=xlYes
-    End With
-    wsR.Rows(1).Font.Bold = True
-    wsR.Columns(6).NumberFormat = "mm/dd/yyyy"
-    wsR.Range(wsR.Cells(2, nFixed + 1), wsR.Cells(n + 1, nFixed + nPer)).NumberFormat = PERIOD_FMT
-    wsR.Columns.AutoFit
-
-    ' ---------- log values ----------
-    Dim lo As ListObject
-    If SheetExists(LOG_SHEET) Then
-        On Error Resume Next
-        Set lo = ThisWorkbook.Worksheets(LOG_SHEET).ListObjects(LOG_TABLE)
-        On Error GoTo 0
-    End If
-    If Not lo Is Nothing Then
-        Dim keepCols() As Long, nk As Long
-        ReDim keepCols(1 To L_NCOLS)
-        For c = 1 To L_NCOLS
-            If c <> L_VOIDNOTE And (c <> L_REASON Or PUBLISH_REASONS) Then
-                nk = nk + 1
-                keepCols(nk) = c
-            End If
-        Next c
-
-        Dim hdr As Variant: hdr = LogHeaders()
-        Dim lv As Variant, nl As Long
-        If Not lo.DataBodyRange Is Nothing Then
-            lv = RangeTo2D(lo.DataBodyRange)
-            For r = 1 To UBound(lv, 1)
-                If SafeStr(lv(r, L_ENTRY)) <> "" Then nl = nl + 1
-            Next r
-        End If
-
-        Dim lout() As Variant: ReDim lout(1 To nl + 1, 1 To nk)
-        For c = 1 To nk
-            lout(1, c) = hdr(keepCols(c) - 1)
-        Next c
-        k = 1
-        If nl > 0 Then
-            For r = 1 To UBound(lv, 1)
-                If SafeStr(lv(r, L_ENTRY)) <> "" Then
-                    k = k + 1
-                    For c = 1 To nk
-                        lout(k, c) = CleanVal(lv(r, keepCols(c)))
-                    Next c
-                End If
-            Next r
-        End If
-
-        Dim wsL As Worksheet: Set wsL = wb.Worksheets.Add(After:=wsR)
-        wsL.Name = "OT Log"
-        wsL.Range("A1").Resize(nl + 1, nk).Value = lout
-        wsL.Rows(1).Font.Bold = True
-        For c = 1 To nk
-            Select Case keepCols(c)
-                Case L_DATE, L_PERIOD: wsL.Columns(c).NumberFormat = "mm/dd/yyyy"
-                Case L_STAMP: wsL.Columns(c).NumberFormat = "mm/dd/yyyy hh:mm AM/PM"
-            End Select
-        Next c
-        wsL.Columns.AutoFit
-        If nl > 0 Then wsL.Range("A1").Resize(nl + 1, nk).AutoFilter
-    End If
-
-    ' ---------- about ----------
-    Dim wsA As Worksheet: Set wsA = wb.Worksheets.Add(Before:=wb.Worksheets(1))
-    wsA.Name = "About"
-    wsA.Range("A1").Value = "Overtime Call Out Roster - member view (read only)"
-    wsA.Range("A1").Font.Bold = True
-    wsA.Range("A3").Value = "Published:": wsA.Range("B3").Value = Now
-    wsA.Range("B3").NumberFormat = "mmm d, yyyy h:mm AM/PM"
-    wsA.Range("A4").Value = "Published by:": wsA.Range("B4").Value = CurrentUser()
-    wsA.Range("A6").Value = "Refused hours for each pay period are the total of that employee's " & _
-                            "non-void rows in the OT Log tab for that period."
-    wsA.Range("A7").Value = "Rows marked VOID were corrected and no longer count."
-    wsA.Columns("A").ColumnWidth = 14
-
-    Dim sh As Worksheet
-    For Each sh In wb.Worksheets
-        sh.Protect Password:=SHEET_PASSWORD, AllowFiltering:=True, AllowSorting:=True
-    Next sh
-
-    ' ---------- save ----------
-    Dim folder As String: folder = EnsureSlash(PUBLISH_FOLDER)
-    If Not FolderExists(folder) Then folder = EnsureSlash(ThisWorkbook.Path)
-    Dim fullPath As String: fullPath = folder & PUBLISH_FILE
-    Dim errMsg As String
-
-    Application.DisplayAlerts = False
-    On Error Resume Next
-    wb.SaveAs Filename:=fullPath, FileFormat:=xlOpenXMLWorkbook
-    If Err.Number <> 0 Then errMsg = Err.Description
-    On Error GoTo 0
-    Application.DisplayAlerts = True
-    wb.Close SaveChanges:=False
-
-    ThisWorkbook.Activate
-    Application.ScreenUpdating = True
-    If errMsg <> "" Then
-        MsgBox "Could not save the member view to:" & vbNewLine & fullPath & vbNewLine & vbNewLine & errMsg, vbCritical
-    Else
-        MsgBox "Member view published:" & vbNewLine & fullPath, vbInformation
-    End If
+    PublishMembers
 End Sub
 
 
 ' ====================================================================
 '  helpers
 ' ====================================================================
-Private Function CleanVal(ByVal x As Variant) As Variant
-    If IsError(x) Then
-        CleanVal = ""
-    Else
-        CleanVal = x
-    End If
-End Function
 
 ' Numbered pick of the adjustment type (v21). Returns "" if cancelled.
 Private Function AskAdjustmentType(ByVal nm As String) As String

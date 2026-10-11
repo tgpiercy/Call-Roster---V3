@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v21 (Oct 11)"
+Public Const CORE_VERSION As String = "Core v21 M1 (Oct 12)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -42,8 +42,16 @@ Public Const USUAL_SHIFT_HOURS As Double = 12
 
 Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\2026\"
 Public Const PUBLISH_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\"
-Public Const PUBLISH_FILE As String = "Call Out Roster - Member View.xlsx"
+Public Const PUBLISH_FILE As String = "Call Out Roster - Member View.xlsx"   ' the old values-only file (no longer written from M1)
 Public Const PUBLISH_REASONS As Boolean = False   ' False = leave Reason/Note column out of the member view
+
+' Members' workbook (M1): the template sits next to this workbook; the published copy goes to PUBLISH_FOLDER
+Public Const MEMBER_TEMPLATE_NAME As String = "Call Out Roster - Members TEMPLATE.xlsm"
+Public Const MEMBER_FILE_NAME As String = "Call Out Roster - Members.xlsm"
+Public Const MEMBER_PASSWORD As String = "members"  ' sheet protection in the members' file (modMember uses the same)
+Public Const MEMBERS_STALE_DAYS As Long = 1         ' Needs Attention reminds after this many days
+Public Const MEMBER_NEXT_DAYS As Long = 14          ' Who's next horizon
+Public Const PUB_NAME As String = "MembersPublishedAt"
 Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this

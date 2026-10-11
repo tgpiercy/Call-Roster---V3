@@ -1,0 +1,16 @@
+Option Explicit
+' @version Members M1 (Oct 12)
+' Members' workbook - code-behind. Everything is in modMember; this only
+' routes the workbook events. Nothing here reads the supervisors' master.
+
+Private Sub Workbook_Open()
+    MemberOnOpen
+End Sub
+
+Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
+    MemberSheetChanged Sh, Target
+End Sub
+
+Private Sub Workbook_SheetActivate(ByVal Sh As Object)
+    MemberSheetActivated Sh
+End Sub

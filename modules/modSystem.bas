@@ -23,9 +23,9 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v21 (Oct 11)"
+Public Const SYS_VERSION As String = "System v21 M1 (Oct 12)"
 Public Const EXPECTED_RELEASE As String = "v21"
-Private Const N_MODULES As Long = 12
+Private Const N_MODULES As Long = 13
 
 Private mBackupWarned As Boolean
 
@@ -48,6 +48,7 @@ Public Sub SystemCheck()
     VerCheck "modGradeLog", GL_VERSION, warn, nOk
     VerCheck "modSelfTest", ST_VERSION, warn, nOk
     VerCheck "Call_Out_Roster", CO_VERSION, warn, nOk
+    VerCheck "modPublish", PUB_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), EXPECTED_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & EXPECTED_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
@@ -137,6 +138,11 @@ Public Sub SystemCheck()
         warn = warn & "- " & nHU & " with no Home Unit (column B): " & huTxt & vbNewLine
     End If
     info = info & "Grade change log: " & IIf(SheetExists(GL_SHEET), "present", "created on the first change") & vbNewLine
+    ' M1: members' file
+    If Not MemberTemplateExists() Then
+        warn = warn & "- members' template not found next to this workbook: " & MEMBER_TEMPLATE_NAME & " (see the M1 install notes)" & vbNewLine
+    End If
+    info = info & MembersStatusText() & vbNewLine
     Dim bkWarn As String, bkInfo As String
     BackupStatus bkWarn, bkInfo
     warn = warn & bkWarn

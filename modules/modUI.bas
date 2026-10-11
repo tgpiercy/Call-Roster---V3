@@ -716,7 +716,12 @@ Public Sub GoToHomeUnit(ByVal empName As String)
         If StrComp(Trim$(SafeStr(ws.Cells(r, C_NAME).Value)), Trim$(empName), vbTextCompare) = 0 Then
             ws.Activate
             On Error Resume Next
-            If ws.Rows(r).Hidden Then ShowAllRows
+            If ws.Rows(r).Hidden Then                 ' hidden by a sort button's filter: show everyone
+                ws.Unprotect Password:=SHEET_PASSWORD
+                If ws.FilterMode Then ws.ShowAllData
+                ws.Rows(r).Hidden = False
+                ProtectSheet ws
+            End If
             Application.Goto ws.Cells(r, C_HOME), False
             On Error GoTo 0
             Exit Sub

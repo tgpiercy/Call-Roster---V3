@@ -48,6 +48,12 @@ Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)
 
+' Daily backup (v21): the first admin open each day saves "Call Out Roster yyyy-mm-dd.xlsm"
+' here and deletes copies older than BACKUP_KEEP_DAYS. Blank = backups off (SystemCheck says so).
+Public Const BACKUP_FOLDER As String = ""
+Public Const BACKUP_KEEP_DAYS As Long = 30
+Public Const BACKUP_BASENAME As String = "Call Out Roster"
+
 ' --------------------------------------------------------------------
 '  ROSTER LAYOUT (CALL IN_JAN)
 ' --------------------------------------------------------------------
@@ -800,7 +806,7 @@ End Sub
 Public Sub ApplyView(ByVal adminView As Boolean)
     gAdminUnlocked = adminView
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET)   ' absences hold leave types - admin only
+    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET)   ' absences hold leave types - admin only
         If SheetExists(CStr(nm)) Then
             If adminView Then
                 ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible

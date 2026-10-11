@@ -8,10 +8,12 @@ Private mWasActive As Object
 ' admin view only to people on ADMIN_USERS. No password prompt.
 Private Sub Workbook_Open()
     On Error Resume Next
+    BackupOnOpen                       ' v21: first admin open of the day saves a dated copy (never blocks)
     Application.ScreenUpdating = False
     ProtectAll
     ApplyView IsAdmin()
     EnsureDataThrough                  ' v21: the provisional-OT formulas need the data-through name
+    GradeLogOnOpen                     ' v21: grade-change snapshot (and anything changed with macros off)
     HolidaysOnOpen                     ' v20: this year's and next year's holidays listed (admins)
     CalOnOpen                          ' calendar: this month, fresh needs-attention box
     RosterSheet().Activate
@@ -85,8 +87,10 @@ End Sub
 
 ' Any change to Absences / Coverage / Postings / Shift Switches / Holidays
 ' marks the calendar out of date (it redraws the next time you look at it).
+' A changed unit code on the roster goes into the grade change log (v21).
 Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
     CalSheetChanged Sh
+    GradeSheetChanged Sh, Target
 End Sub
 
 Private Sub Workbook_SheetBeforeDoubleClick(ByVal Sh As Object, ByVal Target As Range, Cancel As Boolean)

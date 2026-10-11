@@ -2,11 +2,12 @@ Attribute VB_Name = "modSystem"
 Option Explicit
 
 ' ====================================================================
-'  SYSTEM CHECK + OPENING CHECKS (v20)
+'  SYSTEM CHECK + OPENING CHECKS (v20, v21)
 '
 '  Alt+F8 > SystemCheck  - run after every update. Shows each module's
 '  version, flags leftovers ("modCalendar1", modFixShift ...) and checks
-'  the sheets, the OT Log layout, holidays and the Kronos import.
+'  the sheets, the OT Log layout, holidays, the Kronos import, blank Home
+'  Units and the daily backup.
 '  Listing modules and checking the pasted form code needs Excel's
 '  "Trust access to the VBA project object model" (File > Options >
 '  Trust Center > Trust Center Settings > Macro Settings). Without it,
@@ -16,10 +17,17 @@ Option Explicit
 '   - read-only copy: says who has the file open for editing
 '   - file opened from SharePoint / OneDrive: AutoSave off (each submit
 '     already saves), so two people's edits can't be merged silently
+'
+'  BackupOnOpen (v21, from Workbook_Open): the first admin open of the
+'  day saves a dated copy into BACKUP_FOLDER and prunes old ones. It
+'  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v20 (Oct 9)"
-Public Const EXPECTED_RELEASE As String = "v20"
+Public Const SYS_VERSION As String = "System v21 (Oct 11)"
+Public Const EXPECTED_RELEASE As String = "v21"
+Private Const N_MODULES As Long = 11
+
+Private mBackupWarned As Boolean
 
 
 ' ---------------- SystemCheck ----------------
@@ -37,7 +45,9 @@ Public Sub SystemCheck()
     VerCheck "ImportKronosData", KR_VERSION, warn, nOk
     VerCheck "modUI", UI_VERSION, warn, nOk
     VerCheck "modSystem", SYS_VERSION, warn, nOk
-    info = "Modules: " & nOk & " of 9 on " & EXPECTED_RELEASE & vbNewLine
+    VerCheck "modGradeLog", GL_VERSION, warn, nOk
+    VerCheck "modSelfTest", ST_VERSION, warn, nOk
+    info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), EXPECTED_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & EXPECTED_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
     End If
@@ -72,7 +82,7 @@ Public Sub SystemCheck()
                 warn = warn & "- form " & f & " is missing" & vbNewLine
             End If
         Next f
-        For Each f In Array("frmShiftSwitch", "frmOvertimeEntry", "frmNewPosting")      ' forms changed in v20
+        For Each f In Array("frmOvertimeEntry", "frmNewPosting")      ' forms changed in v21
             If InStr(compNames, "|" & LCase$(CStr(f)) & "|") > 0 Then
                 If InStr(FormMarker(proj, CStr(f)), EXPECTED_RELEASE) = 0 Then
                     warn = warn & "- " & f & " code is older than " & EXPECTED_RELEASE & ": re-paste " & f & ".txt" & vbNewLine
@@ -96,6 +106,10 @@ Public Sub SystemCheck()
     End If
     info = info & KronosStatusText() & vbNewLine
     If KronosIsStale() Then warn = warn & "- Kronos data is old: run Import Kronos" & vbNewLine
+    info = info & DataThroughText() & vbNewLine
+    If Not TotalsIncludeProvisional() Then
+        warn = warn & "- Total Hours doesn't include provisional accepted OT yet: run RefreshRosterFormulas" & vbNewLine
+    End If
     Dim hv As Variant, k As Long
     hv = HolidaysToConfirm(Date, Date + HOL_CONFIRM_DAYS - 1)
     If IsArray(hv) Then
@@ -105,6 +119,27 @@ Public Sub SystemCheck()
         Next k
     End If
     info = info & "Holidays sheet: " & IIf(SheetExists(HOL_SHEET), "present", "created on next open (admin)") & vbNewLine
+
+    ' ---- v21: Home Unit, grade log, backup ----
+    Dim hu As Variant, nHU As Long, huTxt As String
+    On Error Resume Next
+    hu = BlankHomeUnits()
+    On Error GoTo 0
+    If UCase$(Trim$(SafeStr(RosterSheet().Cells(2, C_HOME).Value))) <> "HOME UNIT" Then
+        warn = warn & "- Home Unit column not set up: run SetupHomeUnit" & vbNewLine
+    ElseIf IsArray(hu) Then
+        nHU = UBound(hu) - LBound(hu) + 1
+        For k = LBound(hu) To UBound(hu)
+            If k - LBound(hu) < 6 Then huTxt = huTxt & IIf(huTxt = "", "", ", ") & hu(k)
+        Next k
+        If nHU > 6 Then huTxt = huTxt & " ... and " & (nHU - 6) & " more"
+        warn = warn & "- " & nHU & " with no Home Unit (column B): " & huTxt & vbNewLine
+    End If
+    info = info & "Grade change log: " & IIf(SheetExists(GL_SHEET), "present", "created on the first change") & vbNewLine
+    Dim bkWarn As String, bkInfo As String
+    BackupStatus bkWarn, bkInfo
+    warn = warn & bkWarn
+    info = info & bkInfo
     If ThisWorkbook.ReadOnly Then warn = warn & "- This copy is read-only" & vbNewLine
 
     If Len(warn) > 700 Then warn = Left$(warn, InStrRev(Left$(warn, 700), vbNewLine)) & "- ...and more" & vbNewLine
@@ -146,6 +181,20 @@ Private Function FormMarker(ByVal proj As Object, ByVal formName As String) As S
         If Left$(ln, 10) = "' @version" Then FormMarker = Trim$(Mid$(ln, 11)): Exit Function
     Next i
     FormMarker = "no version line (before v20)"
+End Function
+
+' True once the first roster row's Total (G) formula adds column C (v21)
+Private Function TotalsIncludeProvisional() As Boolean
+    On Error Resume Next
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long
+    For r = R_FIRST To RosterLastRow()
+        If Trim$(SafeStr(ws.Cells(r, C_NAME).Value)) <> "" Then
+            TotalsIncludeProvisional = (InStr(1, ws.Cells(r, C_TOTAL).Formula, ColLetter(C_PROV) & r, vbTextCompare) > 0)
+            Exit Function
+        End If
+    Next r
+    TotalsIncludeProvisional = True          ' no employees: nothing to flag
 End Function
 
 
@@ -195,3 +244,100 @@ Done:
     On Error Resume Next
     Close #f
 End Function
+
+
+' ====================================================================
+'  DAILY BACKUP (v21)
+' ====================================================================
+' Today's backup file name, e.g. "Call Out Roster 2026-10-31.xlsm"
+Public Function BackupFileName(ByVal d As Date) As String
+    BackupFileName = BACKUP_BASENAME & " " & Format$(d, "yyyy-mm-dd") & ".xlsm"
+End Function
+
+' The date in a backup file name that matches the exact pattern, or 0
+Public Function BackupFileDate(ByVal fileName As String) As Date
+    Dim pat As String: pat = BACKUP_BASENAME & " ####-##-##.xlsm"
+    If Len(fileName) <> Len(pat) Then Exit Function
+    If Not fileName Like pat Then Exit Function
+    Dim s As String: s = Mid$(fileName, Len(BACKUP_BASENAME) + 2, 10)
+    On Error Resume Next
+    BackupFileDate = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
+End Function
+
+' True when the backup should be skipped without a word
+Private Function BackupOff() As Boolean
+    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or Not IsAdmin())
+End Function
+
+Public Sub BackupOnOpen()
+    On Error Resume Next
+    If BackupOff() Then Exit Sub
+    Dim folder As String: folder = EnsureSlash(Trim$(BACKUP_FOLDER))
+    If Not FolderExists(folder) Then
+        If Not mBackupWarned Then
+            mBackupWarned = True
+            MsgBox "Today's backup copy wasn't saved: the backup folder can't be reached." & vbNewLine & _
+                   folder & vbNewLine & vbNewLine & "The roster opens as usual. Check the folder (BACKUP_FOLDER in modOvertimeEntry).", _
+                   vbExclamation, "Backup"
+        End If
+        Exit Sub
+    End If
+    Dim target As String: target = folder & BackupFileName(Date)
+    If Dir$(target) <> "" Then Exit Sub                 ' already taken today
+    Err.Clear
+    ThisWorkbook.SaveCopyAs target
+    If Err.Number <> 0 Then
+        If Not mBackupWarned Then
+            mBackupWarned = True
+            MsgBox "Today's backup copy couldn't be saved to:" & vbNewLine & target & vbNewLine & Err.Description & _
+                   vbNewLine & vbNewLine & "The roster opens as usual.", vbExclamation, "Backup"
+        End If
+        Exit Sub
+    End If
+    PruneBackups folder
+End Sub
+
+' Deletes copies older than BACKUP_KEEP_DAYS in the backup folder only,
+' matched by the exact name pattern. Returns how many were removed.
+Public Function PruneBackups(ByVal folder As String) As Long
+    On Error Resume Next
+    Dim names() As String, n As Long, f As String, d As Date, i As Long
+    f = Dir$(folder & BACKUP_BASENAME & " ????-??-??.xlsm")
+    Do While f <> ""
+        n = n + 1
+        ReDim Preserve names(1 To n)
+        names(n) = f
+        f = Dir$()
+    Loop
+    For i = 1 To n
+        d = BackupFileDate(names(i))
+        If d > 0 Then
+            If d < Date - BACKUP_KEEP_DAYS Then
+                Kill folder & names(i)
+                If Err.Number = 0 Then PruneBackups = PruneBackups + 1
+                Err.Clear
+            End If
+        End If
+    Next i
+End Function
+
+' SystemCheck lines for the backup
+Private Sub BackupStatus(ByRef warn As String, ByRef info As String)
+    On Error Resume Next
+    If Trim$(BACKUP_FOLDER) = "" Then
+        warn = warn & "- BACKUP_FOLDER isn't set (modOvertimeEntry), so daily backups are off" & vbNewLine
+        Exit Sub
+    End If
+    Dim folder As String: folder = EnsureSlash(Trim$(BACKUP_FOLDER))
+    If Not FolderExists(folder) Then
+        warn = warn & "- backup folder can't be reached: " & folder & vbNewLine
+    ElseIf Dir$(folder & BackupFileName(Date)) = "" Then
+        If IsAdmin() And Not ThisWorkbook.ReadOnly Then
+            warn = warn & "- no backup copy taken today yet (it's saved when an admin opens the file)" & vbNewLine
+        Else
+            info = info & "Backup: none today (read-only / non-admin open)" & vbNewLine
+        End If
+    Else
+        info = info & "Backup: today's copy is in " & folder & vbNewLine
+    End If
+End Sub

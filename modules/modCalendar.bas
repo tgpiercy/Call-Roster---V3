@@ -99,6 +99,7 @@ End Type
 Private mAbs As Variant
 Private mCov As Variant
 Private mShiftMap As Object
+Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the tables are never read
 
 
 ' ====================================================================
@@ -336,7 +337,25 @@ Private Function RowOf(ByVal v As Variant, ByVal id As String) As Long
     Next i
 End Function
 
+' SelfTest (v21): absence rows in the tblAbsence layout (or Empty) replace
+' the tables until ClearTestFixtures. Nothing on any sheet is read or written.
+Public Sub SetTestFixtures(ByVal absRows As Variant)
+    mTestMode = True
+    mAbs = absRows
+    mCov = Empty
+    Set mShiftMap = CreateObject("Scripting.Dictionary")
+    mShiftMap.CompareMode = 1
+End Sub
+
+Public Sub ClearTestFixtures()
+    mTestMode = False
+    mAbs = Empty
+    mCov = Empty
+    Set mShiftMap = Nothing
+End Sub
+
 Private Sub LoadCache()
+    If mTestMode Then Exit Sub
     mAbs = TableData(AbsTable())
     mCov = TableData(CovTable())
     Set mShiftMap = CreateObject("Scripting.Dictionary")
@@ -392,8 +411,23 @@ End Function
 ' typ gets the public label (Vac / Trn / Leave) - never STD / PAR.
 Public Function BookedOff(ByVal empName As String, ByVal d As Date, Optional ByRef typ As String) As Boolean
     If mShiftMap Is Nothing Then LoadCache
-    mAbs = TableData(AbsTable())          ' just the absences - cheap enough per keystroke
+    If Not mTestMode Then mAbs = TableData(AbsTable())   ' just the absences - cheap enough per keystroke
     BookedOff = AbsentOn(empName, d, typ)
+End Function
+
+' The rotation part of the rule, pure (v21 - mirrored in tests/):
+'   "scheduled" on that shift's date, "rest" (coming off nights that
+'   morning for day OT, starting days the next morning for night OT),
+'   "" otherwise. A/B, C/D and DAYS codes are handled by CrewShiftOn,
+'   including plant holidays for DAYS.
+Public Function RotationFreeReason(ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String) As String
+    Dim night As Boolean: night = IsNightShift(shiftLbl)
+    Dim onD As String: onD = CrewShiftOn(crewCode, d)
+    If onD = "Days" Or onD = "Nights" Then RotationFreeReason = "scheduled": Exit Function
+    If onD <> "?" Then
+        If Not night And CrewShiftOn(crewCode, d - 1) = "Nights" Then RotationFreeReason = "rest": Exit Function
+        If night And CrewShiftOn(crewCode, d + 1) = "Days" Then RotationFreeReason = "rest": Exit Function
+    End If
 End Function
 
 ' Why someone can't take overtime on date d, shift shiftLbl ("" = free to sign up):
@@ -407,12 +441,8 @@ Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String,
     Dim night As Boolean: night = IsNightShift(shiftLbl)
     Dim t As String
     If AbsentOn(empName, d, t) Then NotFreeReason = t: Exit Function
-    Dim onD As String: onD = CrewShiftOn(crewCode, d)
-    If onD = "Days" Or onD = "Nights" Then NotFreeReason = "scheduled": Exit Function
-    If onD <> "?" Then
-        If Not night And CrewShiftOn(crewCode, d - 1) = "Nights" Then NotFreeReason = "rest": Exit Function
-        If night And CrewShiftOn(crewCode, d + 1) = "Days" Then NotFreeReason = "rest": Exit Function
-    End If
+    NotFreeReason = RotationFreeReason(crewCode, d, shiftLbl)
+    If NotFreeReason <> "" Then Exit Function
     If SwitchWorkingOn(empName, d, "") <> "" Then NotFreeReason = "S/S": Exit Function
     If SwitchOffOn(empName, d) <> "" Then NotFreeReason = "S/S off": Exit Function
     If Not night And SwitchWorkingOn(empName, d - 1, "Nights") <> "" Then NotFreeReason = "rest": Exit Function

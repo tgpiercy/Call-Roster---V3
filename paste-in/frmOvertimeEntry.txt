@@ -455,11 +455,7 @@ Private Sub btnSubmit_Click()
     For i = 1 To mCount
         If mEntries(i).Outcome <> "" Then
             k = k + 1
-            charged = 0
-            If (mEntries(i).Outcome = "Refused" Or mEntries(i).Outcome = "Left Message") _
-               And mEntries(i).Grade <= CHARGE_MAX_GRADE Then
-                charged = hours * CHARGE_MULTIPLIER
-            End If
+            charged = CalloutCharge(mEntries(i).Outcome, mEntries(i).Grade, hours)   ' v21: one rule (modOvertimeEntry)
             totalCharged = totalCharged + charged
 
             data(k, L_REF) = sessionID

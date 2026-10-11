@@ -22,7 +22,7 @@ Option Explicit
 '  An Observed on date also overrides a weekday holiday if ever needed.
 ' ====================================================================
 
-Public Const HOL_VERSION As String = "Holidays v20 (Oct 9)"
+Public Const HOL_VERSION As String = "Holidays v21 (Oct 11)"
 Public Const HOL_SHEET As String = "Holidays"
 Public Const HOL_TABLE As String = "tblHoliday"
 Public Const HOL_CONFIRM_DAYS As Long = 90     ' look-ahead for weekend holidays still to confirm
@@ -41,6 +41,7 @@ Private mObs As Object        ' Long(date) -> holiday name, observed on this (di
 Private mYears As Object      ' years already worked out
 Private mSheet As Variant     ' Holidays table contents (read once)
 Private mSheetRead As Boolean
+Private mTestMode As Boolean  ' v21: SelfTest supplies the "sheet" from memory
 
 
 ' ====================================================================
@@ -119,6 +120,21 @@ End Function
 ' Forget the cached dates (the Holidays sheet changed)
 Public Sub ResetHolidayCache()
     Set mOff = Nothing: Set mOn = Nothing: Set mObs = Nothing: Set mYears = Nothing
+    If Not mTestMode Then mSheet = Empty: mSheetRead = False
+End Sub
+
+' SelfTest (v21): rows in the Holidays table layout (Year, Holiday, Date,
+' Day, Observed on, Note) stand in for the sheet until ClearTestHolidays.
+Public Sub SetTestHolidays(ByVal rows As Variant)
+    Set mOff = Nothing: Set mOn = Nothing: Set mObs = Nothing: Set mYears = Nothing
+    mTestMode = True
+    mSheet = rows
+    mSheetRead = True
+End Sub
+
+Public Sub ClearTestHolidays()
+    mTestMode = False
+    Set mOff = Nothing: Set mOn = Nothing: Set mObs = Nothing: Set mYears = Nothing
     mSheet = Empty: mSheetRead = False
 End Sub
 
@@ -156,6 +172,7 @@ End Sub
 
 Private Sub ReadSheet()
     mSheetRead = True
+    If mTestMode Then Exit Sub
     mSheet = Empty
     Dim lo As ListObject: Set lo = HolidayTable(False)
     If lo Is Nothing Then Exit Sub

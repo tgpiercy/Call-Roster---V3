@@ -10,7 +10,7 @@ Option Explicit
 '  anyone who is working a switch on that date / shift.
 ' ====================================================================
 
-Public Const SS_VERSION As String = "Shift switches v20 (Oct 9)"
+Public Const SS_VERSION As String = "Shift switches v21 (Oct 11)"
 Public Const SS_SHEET As String = "Shift Switches"
 Public Const SS_TABLE As String = "tblShiftSwitch"
 
@@ -110,7 +110,26 @@ Private Function CreateSwitchTable() As ListObject
     Set CreateSwitchTable = lo
 End Function
 
+' SelfTest (v21): switch rows in the tblShiftSwitch layout (or Empty)
+' replace the table until ClearTestSwitches. The sheet is never touched.
+Private mTestMode As Boolean
+Private mTestRows As Variant
+
+Public Sub SetTestSwitches(ByVal rows As Variant)
+    mTestMode = True
+    mTestRows = rows
+End Sub
+
+Public Sub ClearTestSwitches()
+    mTestMode = False
+    mTestRows = Empty
+End Sub
+
 Private Function SwitchData() As Variant
+    If mTestMode Then
+        If IsArray(mTestRows) Then SwitchData = mTestRows
+        Exit Function
+    End If
     Dim lo As ListObject: Set lo = SwitchTable()
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function

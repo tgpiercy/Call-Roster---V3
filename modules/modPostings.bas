@@ -992,6 +992,38 @@ Public Sub ComputeNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n 
     Next i
 End Sub
 
+' Awarded out of department: in-department people who didn't sign up are
+' charged as for no takers; anyone who signed up isn't (v21: pulled out of
+' SubmitAwardOutside so SelfTest can check it).
+Public Sub ComputeOutside(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
+                          ByRef nCharged As Long, ByRef totCharged As Double)
+    Dim i As Long
+    nCharged = 0: totCharged = 0
+    For i = 1 To n
+        lst(i).Awarded = False
+        lst(i).Charged = 0
+        lst(i).Result = ""
+        If lst(i).SignedUp Then
+            lst(i).Result = "Signed up"
+        ElseIf lst(i).Grade <= CHARGE_MAX_GRADE Then
+            lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
+            lst(i).Result = "Charged"
+            nCharged = nCharged + 1
+            totCharged = totCharged + lst(i).Charged
+        End If
+    Next i
+End Sub
+
+' Cancelled: nobody is awarded and nobody is charged.
+Public Sub ComputeCancel(ByRef lst() As PListRec, ByVal n As Long)
+    Dim i As Long
+    For i = 1 To n
+        lst(i).Awarded = False
+        lst(i).Charged = 0
+        lst(i).Result = ""
+    Next i
+End Sub
+
 ' Checks shared by Award / No takers / Cancel
 Private Function CanFinalize(ByRef p As PostRec) As Boolean
     If Not RequireAdmin() Then Exit Function
@@ -1103,19 +1135,7 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
     If Not EarlyOK(p, "Award") Then Exit Function
 
     Dim nCh As Long, tot As Double
-    For i = 1 To n
-        lst(i).Awarded = False
-        lst(i).Charged = 0
-        lst(i).Result = ""
-        If lst(i).SignedUp Then
-            lst(i).Result = "Signed up"
-        ElseIf lst(i).Grade <= CHARGE_MAX_GRADE Then
-            lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
-            lst(i).Result = "Charged"
-            nCh = nCh + 1
-            tot = tot + lst(i).Charged
-        End If
-    Next i
+    ComputeOutside p, lst, n, nCh, tot
     Dim ps As Date: ps = PeriodStartFor(p.ShiftDate)
     If nCh > 0 Then
         If Not ConfirmPeriod(ps) Then Exit Function
@@ -1249,12 +1269,7 @@ Public Function SubmitCancel(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
     If MsgBox("Cancel " & p.ID & " (" & p.Unit & ", " & Format$(p.ShiftDate, "ddd mmm d") & ")?" & vbNewLine & vbNewLine & _
               "The overtime is no longer needed. Nobody is awarded and NOBODY is charged.", _
               vbYesNo + vbQuestion, "Cancel request") = vbNo Then Exit Function
-    Dim i As Long
-    For i = 1 To n
-        lst(i).Awarded = False
-        lst(i).Charged = 0
-        lst(i).Result = ""
-    Next i
+    ComputeCancel lst, n
     On Error GoTo Failed
     UpdatePostingRecords p, lst, n, "Cancelled", ""
     If UpdateCoverageBySource(p.ID, "NCN") = 0 Then

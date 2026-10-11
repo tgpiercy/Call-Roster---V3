@@ -408,11 +408,12 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
 
     If n = 0 Then Exit Function
     ReDim Preserve recs(1 To n)
-    SortRecs recs, n
+    SortEmpRecs recs, n
     LoadEligible = n
 End Function
 
-Private Sub SortRecs(recs() As EmpRec, ByVal n As Long)
+' Call order on an in-memory list (public from v21 so SelfTest can use it)
+Public Sub SortEmpRecs(recs() As EmpRec, ByVal n As Long)
     Dim i As Long, j As Long, tmp As EmpRec
     For i = 2 To n
         tmp = recs(i)
@@ -436,7 +437,28 @@ Private Function RecBefore(a As EmpRec, b As EmpRec) As Boolean
     RecBefore = (StrComp(a.EmpName, b.EmpName, vbTextCompare) < 0)
 End Function
 
-Private Function SeniorityKey(ByVal x As Variant) As Double
+' Hours charged for one call-out outcome (v21: the one place for this rule).
+' Refused and Left Message are charged at CHARGE_MULTIPLIER, grade
+' CHARGE_MAX_GRADE and below only. Accepted / Unavailable: nothing.
+Public Function CalloutCharge(ByVal outcome As String, ByVal grade As Double, ByVal hours As Double) As Double
+    If grade > CHARGE_MAX_GRADE Then Exit Function
+    Select Case outcome
+        Case "Refused", "Left Message": CalloutCharge = hours * CHARGE_MULTIPLIER
+    End Select
+End Function
+
+' Does one OT Log row count as provisional accepted OT right now? Mirrors
+' the column-C SUMIFS exactly (SelfTest / tests check this against it).
+Public Function ProvisionalCounts(ByVal outcome As String, ByVal status As String, ByVal shiftDate As Date, _
+                                  ByVal isNight As Boolean, ByVal dataThrough As Date, _
+                                  ByVal yearFrom As Date, ByVal yearTo As Date) As Boolean
+    If UCase$(status) = "VOID" Then Exit Function
+    If outcome <> "Accepted" And outcome <> "Awarded" Then Exit Function
+    If Int(shiftDate) < Int(yearFrom) Or Int(shiftDate) > Int(yearTo) Then Exit Function
+    ProvisionalCounts = Not ProvisionalCovered(shiftDate, isNight, dataThrough)
+End Function
+
+Public Function SeniorityKey(ByVal x As Variant) As Double
     If IsError(x) Or IsEmpty(x) Then
         SeniorityKey = 1E+15
     ElseIf IsDate(x) Then

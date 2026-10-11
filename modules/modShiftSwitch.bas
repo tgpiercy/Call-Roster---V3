@@ -31,6 +31,9 @@ Public Const SW_STAMP As Long = 14
 Public Const SW_VOIDNOTE As Long = 15
 Public Const SW_N As Long = 15
 
+Private mTestMode As Boolean        ' v21: SelfTest feeds SwitchData from memory
+Private mTestRows As Variant
+
 
 ' ---------------- launcher (roster button) ----------------
 Public Sub ShowShiftSwitchForm()
@@ -112,9 +115,6 @@ End Function
 
 ' SelfTest (v21): switch rows in the tblShiftSwitch layout (or Empty)
 ' replace the table until ClearTestSwitches. The sheet is never touched.
-Private mTestMode As Boolean
-Private mTestRows As Variant
-
 Public Sub SetTestSwitches(ByVal rows As Variant)
     mTestMode = True
     mTestRows = rows

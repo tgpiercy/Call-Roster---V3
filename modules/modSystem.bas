@@ -301,7 +301,7 @@ End Sub
 ' matched by the exact name pattern. Returns how many were removed.
 Public Function PruneBackups(ByVal folder As String) As Long
     On Error Resume Next
-    Dim names() As String, n As Long, f As String, d As Date, i As Long
+    Dim names() As String, n As Long, f As String, d As Date, i As Long, removed As Long
     f = Dir$(folder & BACKUP_BASENAME & " ????-??-??.xlsm")
     Do While f <> ""
         n = n + 1
@@ -313,12 +313,14 @@ Public Function PruneBackups(ByVal folder As String) As Long
         d = BackupFileDate(names(i))
         If d > 0 Then
             If d < Date - BACKUP_KEEP_DAYS Then
+                Err.Clear
                 Kill folder & names(i)
-                If Err.Number = 0 Then PruneBackups = PruneBackups + 1
+                If Err.Number = 0 Then removed = removed + 1
                 Err.Clear
             End If
         End If
     Next i
+    PruneBackups = removed
 End Function
 
 ' SystemCheck lines for the backup

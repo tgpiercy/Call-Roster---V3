@@ -15,6 +15,7 @@ Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also 
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
 Public Const CALLOUT_SHEET As String = "Blank Call Out Roster"
+Public Const CALLOUT_PHONE_COL As Long = 5          ' phone column on the printed call out roster (hidden for non-admins) - v21
 Public Const POSTING_SHEET As String = "Overtime Posting"
 Public Const REFUSAL_SHEET As String = "Refusal Report"
 
@@ -862,7 +863,7 @@ Public Sub ApplyView(ByVal adminView As Boolean)
         If Left$(shp.Name, 7) = "ui_adm_" Then shp.Visible = IIf(adminView, msoTrue, msoFalse)
     Next shp
     If SheetExists(CALLOUT_SHEET) Then
-        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns("D").Hidden = Not adminView
+        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView
     End If
     If SheetExists(CAL_SHEET) Then
         For Each shp In ThisWorkbook.Worksheets(CAL_SHEET).Shapes

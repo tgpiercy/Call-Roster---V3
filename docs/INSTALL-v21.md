@@ -7,7 +7,9 @@ Target: installed before Sat Oct 31 (the DST night). Takes about 15 minutes.
 ## 1. Replace the modules
 In the VBA editor (Alt+F11), for EACH of these, right-click the module > **Remove** (answer **No** to export), then **File > Import File** from `modules/`:
 
-`modOvertimeEntry`, `modOTLog`, `ImportKronosData`, `modShiftCycle`, `modHolidays`, `modShiftSwitch`, `modPostings`, `modCalendar`, `modUI`, `modSystem`
+`modOvertimeEntry`, `modOTLog`, `ImportKronosData`, `modShiftCycle`, `modHolidays`, `modShiftSwitch`, `modPostings`, `modCalendar`, `modUI`, `modSystem`, `Call_Out_Roster`
+
+(`Call_Out_Roster` replaces the old sort-and-copy call out roster macro. If your project has that code under another module name, remove that module too, so there is only one `Call_Out`.)
 
 ## 2. Import the two new modules
 **File > Import File:** `modules/modGradeLog.bas`, then `modules/modSelfTest.bas`.
@@ -33,7 +35,7 @@ It should finish with no message. If it stops on a line, send me a screenshot.
 Opening as an admin now takes today's backup (if `BACKUP_FOLDER` is set) and builds the grade-change snapshot.
 
 ## 8. SystemCheck (Alt+F8)
-Expect **"Modules: 11 of 11 on v21"**. The only CHECK lines should be:
+Expect **"Modules: 12 of 12 on v21"**. The only CHECK lines should be:
 - people with no Home Unit (fill them in from the drop-down in column B, or from Needs Attention), and
 - `BACKUP_FOLDER isn't set` (until it is).
 
@@ -51,7 +53,8 @@ Run **Import Kronos** once so the status line shows "data through <date>" and th
 3. On a COPY of the file: Log Call-Out, mark someone near the top of the list Accepted and submit. Open Log Call-Out again for the same unit: they have moved down and their total shows `*`. Void the entry (Void Entry > the S- id): they move back.
 4. New Posting, Shift = Nights, Shift date = Sat Oct 31: Hours changes to 13 and the red line reads "DST night: 13 h (clocks go back)". Change the date to Oct 30: it goes back to 12.
 5. On the roster change one person's grade code (e.g. D2 -> D1). Alt+F8 > ShowGradeLog: one new row with the old and new code and your login. Click a sort button: no new rows appear. Put the code back (that is one more row).
-6. Close, and reopen as an admin. If `BACKUP_FOLDER` is set, today's `Call Out Roster yyyy-mm-dd.xlsm` is in it; if the folder can't be reached you get ONE warning and the roster opens as usual.
+6. Click **Call Out Roster**. The Blank Call Out Roster tab is redrawn (one section per unit, in call order, hours / name / crew / phone) without the OT Roster re-sorting, and you're asked whether to print it. Roster columns: A hidden, B = Home Unit.
+7. Close, and reopen as an admin. If `BACKUP_FOLDER` is set, today's `Call Out Roster yyyy-mm-dd.xlsm` is in it; if the folder can't be reached you get ONE warning and the roster opens as usual.
 
 ## What changed (short)
 - Accepted call-outs and awarded postings count in Total Hours straight away, until Kronos covers the shift.
@@ -61,3 +64,4 @@ Run **Import Kronos** once so the status line shows "data through <date>" and th
 - Grade code changes are logged (Alt+F8 > ShowGradeLog).
 - A dated backup copy is saved on the first admin open each day.
 - Alt+F8 > SelfTest checks the rules.
+- The Call Out Roster button draws the printable roster directly from the data (no sorting or copying) and offers to print it.

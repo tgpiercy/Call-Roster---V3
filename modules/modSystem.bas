@@ -25,7 +25,7 @@ Option Explicit
 
 Public Const SYS_VERSION As String = "System v21 (Oct 11)"
 Public Const EXPECTED_RELEASE As String = "v21"
-Private Const N_MODULES As Long = 11
+Private Const N_MODULES As Long = 12
 
 Private mBackupWarned As Boolean
 
@@ -47,6 +47,7 @@ Public Sub SystemCheck()
     VerCheck "modSystem", SYS_VERSION, warn, nOk
     VerCheck "modGradeLog", GL_VERSION, warn, nOk
     VerCheck "modSelfTest", ST_VERSION, warn, nOk
+    VerCheck "Call_Out_Roster", CO_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), EXPECTED_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & EXPECTED_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine

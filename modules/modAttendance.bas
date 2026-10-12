@@ -269,10 +269,7 @@ Public Sub EndAttendanceBatch()
 End Sub
 
 Private Sub LoadAbs()
-    mAbsV = Empty
-    Dim lo As ListObject: Set lo = AbsTable()
-    If lo Is Nothing Then Exit Sub
-    mAbsV = TableData(lo)
+    mAbsV = AbsTableData()               ' Empty when there is no Absences table yet
 End Sub
 
 ' Status of emp as of asOf. addDate / addShift add one more sick shift

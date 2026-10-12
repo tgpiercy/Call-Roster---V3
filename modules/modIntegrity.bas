@@ -637,7 +637,9 @@ Public Sub IntegrityCheck()
 End Sub
 
 ' Writes the last run to the Integrity sheet (admin, hidden in saved copies). Used by IntegrityCheck and RolloverYear.
-Public Sub DrawIntegritySheet()
+' The optional argument keeps it out of the Alt+F8 list; with no run this session there is nothing to draw.
+Public Sub DrawIntegritySheet(Optional ByVal fromCode As Boolean = True)
+    If mRanAt = 0 Then Exit Sub
     Dim ws As Worksheet
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False
@@ -670,7 +672,7 @@ Public Sub DrawIntegritySheet()
                 out(i, j) = mIss(j, i)
             Next j
         Next i
-        ws.Range("A5").Resize(mN, 4).NumberFormat = "@"
+        ws.Range("A5").Resize(mN, 4).NumberFormat = "General"      ' not "@": a text cell over 255 characters shows ####
         ws.Range("A5").Resize(mN, 4).Value = out
         ws.Range("A5").Resize(mN, 4).WrapText = True
         ws.Range("A5").Resize(mN, 4).VerticalAlignment = xlTop

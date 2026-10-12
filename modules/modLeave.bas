@@ -107,6 +107,9 @@ Public Function PickSnapshot(ByRef hh As Variant, ByVal emp As String, ByVal d A
     Next i
     If leFound Then
         through = bestLE: hours = hLE
+    ElseIf olderFound And Int(d) < Int(yearFrom) + 14 Then
+        ' v23: in the year's first pay period, before any import of the new year, nothing has been worked yet
+        through = 0: hours = 0: estimated = False
     ElseIf anyFound Then
         through = bestAny: hours = hAny: estimated = True
     ElseIf olderFound Then
@@ -418,6 +421,11 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
 
     On Error GoTo Failed
     BeginHoursBatch
+    If Int(returnDate) < Int(mYearFrom) Then     ' v23: that year is closed and its rows are archived
+        lc.Warnings = "The return date is in a year that has been rolled over and closed. If hours are still owed, use Add Adjustment (type Leave return)."
+        EndHoursBatch
+        Exit Function
+    End If
     lc.WindowFrom = lc.FirstOff
     If lc.WindowFrom < mYearFrom Then lc.WindowFrom = mYearFrom: lc.Warnings = lc.Warnings & "Leave spans the year reset: the window starts at " & Format$(mYearFrom, "mmm d, yyyy") & ". "
     Dim recs() As EmpRec, n As Long, i As Long, nP As Long, deltas() As Double, names As String
@@ -427,9 +435,10 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
     ' Hours History started Oct 9, 2026: a leave that began before the first
     ' snapshot has no peer with history before the window. Then every peer's
     ' start figure is estimated from the earliest snapshot, and the confirm says so.
-    Dim relaxHistory As Boolean, firstSnap As Date
+    Dim relaxHistory As Boolean, firstSnap As Date, atReset As Boolean
+    atReset = (lc.WindowFrom <= mYearFrom)       ' v23: the window opens at the year reset, where everyone's worked hours are 0
     firstSnap = EarliestThrough()
-    If firstSnap > 0 And lc.WindowFrom <= firstSnap Then
+    If Not atReset And firstSnap > 0 And lc.WindowFrom <= firstSnap Then
         relaxHistory = True
         lc.Warnings = lc.Warnings & "Hours History starts " & Format$(firstSnap, "mmm d") & ", after the first day off: every start figure is ESTIMATED from that snapshot. "
     End If
@@ -437,7 +446,7 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
     For i = 1 To n
         If PeerEligible(recs(i).Grade, StrComp(recs(i).EmpName, emp, vbTextCompare) = 0, _
                         HasLeaveOverlapping(recs(i).EmpName, lc.WindowFrom, lc.ReturnDate), _
-                        relaxHistory Or HasHistoryBefore(recs(i).EmpName, lc.WindowFrom)) Then
+                        atReset Or relaxHistory Or HasHistoryBefore(recs(i).EmpName, lc.WindowFrom)) Then
             a = TotalHoursAsOf(recs(i).EmpName, lc.WindowFrom, snapA, noteA)
             b = TotalHoursAsOf(recs(i).EmpName, lc.ReturnDate, snapB, noteB)
             nP = nP + 1

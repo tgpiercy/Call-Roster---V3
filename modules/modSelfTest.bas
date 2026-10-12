@@ -701,5 +701,8 @@ Private Sub LoadCases()
     AddCase "snapyear,last-year-stamp-before-new-year,2026-12-20,2026,2027,2026-12-27,,2026-12-20"
     AddCase "snapyear,this-year-stamp,2027-01-05,2027,2027,2026-12-27,,2027-01-05"
     AddCase "snapyear,on-the-first-day,2026-12-27,2026,2027,2026-12-27,,2026-12-26"
+    AddCase "hoursasof,reset-before-first-import,2025-12-20:900;2026-01-10:30,2026-01-03:Refused:Active:12:21:D,2026-01-05,,,21|none|no"
+    AddCase "hoursasof,after-first-period-estimated,2025-12-20:900;2026-02-10:30,2026-01-03:Refused:Active:12:21:D,2026-01-20,,,51|2026-02-10|yes"
+    AddCase "archive,date-typed-as-text-stays,s:12/13/2026,2026-12-27,,,,keep"
 ' <<< CASES
 End Sub

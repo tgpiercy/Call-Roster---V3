@@ -29,7 +29,7 @@ CHANGELOG.md
 **Never commit data:** no `*.xls*`, Kronos exports, posting PDFs or plant CSVs (names, phones, emails, leave codes). Test fixtures use made-up names only.
 
 ## Workbook map (as built, v21 + M1)
-### Modules (15 checked by SystemCheck, plus 6 legacy)
+### Modules (17 checked by SystemCheck, plus 6 legacy)
 | Module | Holds |
 |---|---|
 | `modOvertimeEntry` | **All settings** at the top (`ADMIN_USERS`, folders, Kronos path, `KRONOS_STALE_DAYS`, `DST_USE_ACTUAL_HOURS`, `BACKUP_FOLDER`, member file names ...), roster column constants, `EmpRec`, `LoadEligible` (the one call order), `CalloutCharge`, provisional-OT formulas, OT Log access (`AppendLogRows`), protection, `ApplyView`. Every other module depends on it. |
@@ -49,6 +49,8 @@ CHANGELOG.md
 | `modPublish` | `PublishMembers` (M1): builds the members' tables as values, privacy + order self-checks, fills the template, saves the members' file |
 | `modLeave` | v22: sick calls (`SaveSickCall`, `SickBlocks`), leave going / returning (`ComputeLeaveReturn`, `TotalHoursAsOf`), convert imported calendar lines |
 | `modAttendance` | v22.1: the sick / personal day rule (`AttendanceCore`), `AttendanceFor`, Sick Call preview, past sick days, the Attendance sheet |
+| `modIntegrity` | v23: `IntegrityCheck` / `RunIntegrity` (read-only; PROBLEM / Check / Note), `IntegrityOnOpen`, the Integrity sheet, pure `PeriodCellCode`, `DuplicatesIn` |
+| `modRollover` | v23: `RolloverYear` (the only code that removes OT Log rows, verified), Year End sheet, frozen FINAL copy, archive sheets, the 27th period column, `ArchiveHasActiveRef` |
 | `Call_Out_Roster` | Printed call-out roster (`Call_Out`), redrawn from the data |
 | `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess`, `modCleanup` | Sort buttons, legacy posting print, admin, one-time cleanup (not version-checked) |
 
@@ -69,6 +71,9 @@ CHANGELOG.md
 | `Hours History` (hidden) | Dated snapshot of worked hours per import, with Data Through (v21) |
 | `Grade Log`, `GradeSnap` | Grade change log (admin, hidden) and its very hidden name-keyed snapshot |
 | `Attendance` | v22.1: drawn sick / personal day counters per person (admin, hidden in saved copies, never published) |
+| `Integrity` | v23: the last IntegrityCheck report (admin, drawn) |
+| `Year End` (`tblYearEnd`) | v23: each person's final G / H / I / C per closed year (admin) |
+| `OT Log 2026` ... (`tblOTLog2026`) | v23: one per closed year, the archived log rows; protected even in admin view |
 | `CalMap` (hidden) | Calendar change counters |
 | `Overtime Posting`, `Blank Call Out Roster` | Output only, redrawn each time |
 | `Legacy Entry Log` (hidden) | Pre-migration history |
@@ -103,7 +108,7 @@ These win over anything older in `docs/`. Each rule lives in **one** function th
 
 Postings compare using the **posted** totals (frozen at creation). Awarded is chosen in the Award pop-up, not "first sign-up".
 
-**Year:** totals reset to zero each year; no carry-forward. Pay periods are biweekly, Sunday start; 2026 periods start Dec 28, 2025; 2027 starts Dec 27, 2026. Rollover is v23.
+**Year:** totals reset to zero each year; no carry-forward. Pay periods are biweekly, Sunday start; 2026 periods start Dec 28, 2025; 2027 starts Dec 27, 2026. **The year is one cell:** the roster's period-1 start (T2); every header, formula, the provisional window, leave top-ups and the publish read it (`RosterYearFrom` / `RosterYearTo` / `RosterYear`). A year has 26 periods, or 27 when one more fits before the next Jan 1 (first: 2033); the 27th period is column AT and `PeriodLastCol()` says which is in use, so never loop to `C_PERIODN` directly. `RolloverYear` (v23) moves the year: see `docs/rollover-one-pager.md`.
 
 **Privacy:** STD, parental, LOA show only as "Leave" everywhere outside the Absences sheet. Never publish phone, email, leave type, leave notes, void notes, Logged By or Timestamp. The members' file gets values only, pushed by the master, and contains no rules.
 
@@ -111,7 +116,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 
 ## Engineering conventions
 1. **Versioning.** Every module has `Public Const X_VERSION As String = "Name vNN (Mon d)"`; forms and ThisWorkbook have the `' @version` line; `modSystem.EXPECTED_RELEASE` is the release and `N_MODULES` the count. Bump every module that ships, and the expected release, in the same update. SystemCheck must say "N of N on vNN".
-2. **Append-only log.** Never edit or delete OT Log rows. Corrections are voids (Status VOID, Void Note) plus a new entry. Never type hours into roster cells; they are formulas over the log.
+2. **Append-only log.** Never edit or delete OT Log rows. Corrections are voids (Status VOID, Void Note) plus a new entry. Never type hours into roster cells; they are formulas over the log. The ONE sanctioned removal is `RolloverYear` moving a closed year's rows to its `OT Log YYYY` sheet, verified. Because of it, IDs come from `NextRefID` / `NextEntryID` (which honour the `IdMark_*` high-water marks): never work out a next ID by scanning the log yourself.
 3. **Verified data changes.** Any macro that restructures data: dated backup first -> change -> compare every roster period, Refused (I) and Total (G) value and the log's total Hours Charged before vs after -> on mismatch, `MarkNoSave` and tell the user to close without saving. Copy `UpgradeOTLogLayout` / `RunMigration` / `SetupHomeUnit`.
 4. **Read every row, whatever the view.** Use `ListObject.DataBodyRange` or the roster's cell reads, never last-visible-row. Handle `DataBodyRange Is Nothing`.
 5. **Columns.** Roster and log columns are constants in modOvertimeEntry (`C_*`, `L_*`); use them. For anything new, find by header text where the code already does that.
@@ -175,7 +180,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - Member workbook (M1, built): plant PCs, desktop Excel, everyone's hours visible, master pushes values into the template next to the master, published to `PUBLISH_FOLDER`, My history shows anyone, member file has no rules.
 - Platform: stay on the Excel desktop master through Q1 2027; keep tables platform-ready.
 - Release zips hold the full set from v22 on.
-- `BACKUP_FOLDER = "."`: daily backups go into the roster's own folder (`BackupFolderPath` resolves "." and ".\sub"). Can be pointed at a network folder later.
+- `BACKUP_FOLDER = "."`: daily backups go into the roster's own folder (`ResolveFolder` handles "." and ".\sub"). Can be pointed at a network folder later. `ARCHIVE_FOLDER = "."` the same way.
+- Year end (v23): old log rows are archived AND removed at the rollover (Graeme chose the brief's option over keeping one growing log); 26- and 27-period years are both handled now; nothing is built for OT worked Dec 27-31 or for Kronos year-to-date until the first January 2027 export is seen; the rollover is run by Graeme with his boss; IntegrityCheck PROBLEMs block it, Checks don't; the live file can't be rolled before the new year's first period starts.
 
 ## Still open (use the default unless Graeme answers)
 | Question | Default |
@@ -184,7 +190,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | Network paths (`REPORT_FOLDER`, `PUBLISH_FOLDER`, `KRONOS_PATH` on P:) | Everything is built and tested locally on Graeme's desktop; the P: links are wired in at go-live. SystemCheck will flag them as unreachable until then. |
 | Who runs the rollover / where the frozen copy lives | **Answered:** Graeme runs it together with his boss (two people present; v23 makes it a guided, verified macro with a frozen copy). Frozen-copy location still a settings constant, blank until given. |
 | Does Kronos export an employee number | **Answered: no, name only.** v25's employee key must be generated inside the workbook (and the Kronos import keeps matching on name). |
-| Kronos worked hours after Jan 1 (YTD or cumulative) | Check the first January export (v23) |
+| Kronos worked hours after Jan 1 (YTD or cumulative), and OT worked Dec 27-31 | Check the first January 2027 export; the import shows a reminder on that first run. A small follow-up if hours are missing or cumulative. |
 | `ADMIN_USERS` logins | Graeme's only for now; the other supervisors are added later (settings constant, no code) |
 
 ## Roadmap
@@ -195,7 +201,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | v21 | before Oct 31 | Provisional OT, DST, Home Unit, adjustment types, grade log, backup, SelfTest, printable roster | built, tagged `v21`, installed |
 | v22 | mid-Nov | Sick Call, Leave going/returning, convert imported lines | built, tagged `v22` |
 | v22.1 | Oct 2026 | Sick / personal day counters, Attendance sheet, vacation on scheduled shifts | built, tagged `v22.1` |
-| v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | `briefs/v23.md`, report-back in `docs/v23-report-back.md` |
+| v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | built, tagged `v23`; dry run on a copy first week of December |
 | v24 | before Jan 16 | Employee pop-up, crew history, partial OT | kit brief 05 |
 | v25 | Feb-Mar 2027 | Employee ID key, protection, calendar speed | kit brief 06 |
 | v26 | Mar 2027+ | History report, staffing check, board print, payback aging | kit brief 07 |

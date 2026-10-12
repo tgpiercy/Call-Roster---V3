@@ -320,8 +320,22 @@ An adjustment adds or removes charged hours for one person. Only the admin can m
 | 2027 | Begins Dec 27, 2026 |
 | Reset | Totals go back to zero each year. |
 | Carry-forward | None |
+| Number of periods | 26 in most years. A year has 27 when one more period fits before the next Jan 1. The first is 2033. |
 
-The year-end rollover is described in docs/rollover-one-pager.md.
+What the rollover does to the records:
+
+| Item | At the rollover |
+|---|---|
+| Final totals | Each person's final Total, Worked, Refused and Provisional hours are written to the Year End sheet. |
+| Frozen file | A read-only copy of the whole roster is saved as "Call Out Roster 2026 FINAL". It is the record of the year. |
+| Old OT Log rows | Moved to a sheet named for the year ("OT Log 2026"). This is the only time rows leave the live log. The count and the hours are checked before the save. |
+| Rows already logged for the new year | They stay, and count from the first day. A December posting for a January shift is one. |
+| ID numbers | They carry on. S-, P- and entry numbers never restart. |
+| Worked hours | Set to 0. They stay 0 until the first Kronos export of the new year is imported. |
+| Old-year entries | Closed. They cannot be voided after the rollover. |
+| Sick and personal day counts | Not touched. They run on the calendar year. |
+
+The steps are in docs/rollover-one-pager.md.
 
 ## 17. The members' file
 
@@ -359,4 +373,6 @@ The year-end rollover is described in docs/rollover-one-pager.md.
 | Daily backup | A dated copy is saved the first time an admin opens the file each day. 30 days are kept. |
 | Checked changes | A change to the roster's layout is compared before and after. If the totals differ, saving is blocked. |
 | SystemCheck | Confirms the installed code is the right release and the data is in order. |
+| IntegrityCheck | Compares every roster total with the OT Log, and looks for typed numbers, missing formulas and duplicate IDs. It only reads. It runs each time an admin opens the file, and the result is on the roster's status line. |
+| Year-end checks | The rollover runs IntegrityCheck first and stops on any problem. It checks the frozen copy and the new roster before it saves. |
 | SelfTest | Runs known-answer cases against the rules. It writes nothing. |

@@ -56,7 +56,7 @@ Private Sub Workbook_AfterSave(ByVal Success As Boolean)
         ApplyView True
         If Not mWasActive Is Nothing Then mWasActive.Activate
         Set mWasActive = Nothing
-        ThisWorkbook.Saved = True
+        If Success Then ThisWorkbook.Saved = True      ' v23: a failed save stays "not saved"
         Application.ScreenUpdating = True
     End If
     On Error GoTo 0

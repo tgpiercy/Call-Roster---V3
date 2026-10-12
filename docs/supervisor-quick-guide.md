@@ -89,6 +89,9 @@ Click **Member View**. Wait for "Members' file published". If the message says t
 2. The admin voids it. The entry stays in the log, marked VOID.
 3. Log the correct entry.
 
+## The status line
+The three lines above the roster show the pay period, the Kronos date and the log size. If it says "Integrity: n PROBLEMS" in red, tell the admin before logging.
+
 ## Close the file
 - Saving is automatic after each entry, and again when you close. Just close the file.
 - If a red "Saving is blocked" message appeared, close WITHOUT saving. Reopen the file. Check your last entry and redo it if it is missing. Tell the admin.

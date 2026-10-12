@@ -49,6 +49,7 @@ Private Const TOL As Double = 0.001
 Public Function GoesToArchive(ByVal periodStart As Variant, ByVal cutDate As Date) As Boolean
     If IsError(periodStart) Then Exit Function
     If IsEmpty(periodStart) Then Exit Function
+    If VarType(periodStart) = vbString Then Exit Function     ' text is never a period date (the roster formulas don't count it either)
     Dim x As Double
     If IsDate(periodStart) Then
         x = Int(CDbl(CDate(periodStart)))
@@ -96,7 +97,8 @@ Public Sub RolloverYear()
 
     ' ---- which year is closing, which one opens ----
     Dim oldFrom As Date, oldYear As Long, newYear As Long, newFrom As Date, lastStart As Date
-    Dim havePer As Long, wantPer As Long
+    Dim havePer As Long, wantPer As Long, gridBad As String
+    On Error GoTo BadDates
     oldFrom = RosterYearFrom()
     oldYear = RosterYear()
     newYear = oldYear + 1
@@ -104,6 +106,13 @@ Public Sub RolloverYear()
     lastStart = Int(CDate(ws.Cells(PStartRow(), PeriodLastCol()).Value))
     newFrom = FirstPeriodStart(oldFrom, newYear)
     wantPer = PeriodsInYear(oldFrom, newYear)
+    gridBad = PeriodGridProblem(ws, oldFrom, havePer)
+    On Error GoTo 0
+    If gridBad <> "" Then
+        MsgBox "The pay-period dates above the roster aren't a clean two-week run: " & gridBad & "." & vbNewLine & vbNewLine & _
+               "Someone may have typed over a date in row 2 or 4. Nothing was changed. Send this message to the admin.", vbCritical, "Rollover"
+        Exit Sub
+    End If
     If newFrom <> lastStart + 14 Then
         MsgBox "The dates on the roster don't make a whole " & oldYear & " year:" & vbNewLine & _
                "the last period starts " & Format$(lastStart, "mmm d, yyyy") & " but " & newYear & " should start " & _
@@ -115,10 +124,21 @@ Public Sub RolloverYear()
         Exit Sub
     End If
 
+    If lo.ShowTotals Then
+        MsgBox "The OT Log table has its Total row switched on. Turn it off (Table Design > Total Row), then run this again. Nothing was changed.", vbExclamation, "Rollover"
+        Exit Sub
+    End If
+    If wantPer = 27 And havePer = 26 Then
+        If Application.WorksheetFunction.CountA(ws.Range(ws.Cells(1, C_PERIODX), ws.Cells(lastRow + 200, C_PERIODX))) > 0 Then
+            MsgBox newYear & " has 27 pay periods and needs column " & ColLetter(C_PERIODX) & ", which isn't empty. Clear that column first. Nothing was changed.", vbExclamation, "Rollover"
+            Exit Sub
+        End If
+    End If
+
     ' ---- date guard: the live file can't be rolled early ----
     Dim dry As Boolean: dry = IsDryRunName(ThisWorkbook.Name)
-    If Date < lastStart And Not dry Then
-        MsgBox "It's too early to roll over. " & oldYear & "'s last pay period starts " & Format$(lastStart, "ddd mmm d, yyyy") & "." & vbNewLine & vbNewLine & _
+    If Date < newFrom And Not dry Then
+        MsgBox "It's too early to roll over. " & newYear & "'s first pay period starts " & Format$(newFrom, "ddd mmm d, yyyy") & "." & vbNewLine & vbNewLine & _
                "To practise, save a copy of this file with COPY or DRY RUN in its name and run RolloverYear in the copy.", vbExclamation, "Rollover"
         Exit Sub
     End If
@@ -201,6 +221,7 @@ Public Sub RolloverYear()
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     On Error GoTo Failed
+    Application.EnableCancelKey = xlErrorHandler      ' Esc / Ctrl+Break lands in Failed, never in a half-rolled file
 
     ' ---- 2. finals ----
     stepTxt = "recording the final totals"
@@ -233,6 +254,7 @@ Public Sub RolloverYear()
     problems = FrozenCopyProblem(frozen, ws.Name, nm, fG, fH, fI, nRows, lastRow)
     If problems <> "" Then Err.Raise vbObjectError + 711, , "the frozen copy doesn't match: " & problems
     SetAttr frozen, vbReadOnly
+    MarkNoSave                                        ' from here until step 7 passes this file must not be saved
 
     ' ---- 4. the log ----
     stepTxt = "archiving " & oldYear & "'s OT Log rows"
@@ -249,6 +271,8 @@ Public Sub RolloverYear()
     stepTxt = "moving the roster to " & newYear
     ws.Unprotect Password:=SHEET_PASSWORD
     ws.Cells(2, C_PERIOD1).Value = newFrom
+    WritePeriodHeaders ws
+    Application.Calculate                             ' calculation is manual here: PStartRow / PeriodLastCol read these dates
     If wantPer <> havePer Then SetPeriodColumns ws, lastRow, (wantPer = 27)
 
     ' ---- 6. worked hours wait for the new year's Kronos ----
@@ -257,6 +281,7 @@ Public Sub RolloverYear()
         If nm(r) <> "" Then ws.Cells(R_FIRST + r - 1, C_WORKED).Value = 0
     Next r
     SetKronosAwait DateSerial(newYear, 1, 1)
+    If KronosAwaitFrom() <> DateSerial(newYear, 1, 1) Then Err.Raise vbObjectError + 713, , "the 'awaiting " & newYear & " Kronos' marker couldn't be stored"
     StampHoursHistoryYear oldYear
     ProtectSheet ws
 
@@ -275,27 +300,38 @@ Public Sub RolloverYear()
     If problems <> "" Then Err.Raise vbObjectError + 712, , "the result did NOT verify:" & vbNewLine & problems
 
     ' ---- done ----
+    ClearNoSave
+    Application.EnableCancelKey = xlInterrupt
     Application.EnableEvents = evWas
     ws.Activate
+    Dim savedOk As Boolean, t0 As Date
     On Error Resume Next
-    SetRosterStatus "All"
+    SetRosterStatus
     MarkCalDirty
+    t0 = FileDateTime(ThisWorkbook.FullName)
     On Error GoTo 0
     Application.ScreenUpdating = True
     SaveIfWritable
+    On Error Resume Next                              ' did the file on disk really change?
+    Err.Clear
+    savedOk = (FileDateTime(ThisWorkbook.FullName) <> t0)
+    If Err.Number <> 0 Then savedOk = ThisWorkbook.Saved
+    On Error GoTo 0
     MsgBox IIf(dry, "PRACTICE RUN finished (this is a copy)." & vbNewLine & vbNewLine, "") & _
            "Rolled over to " & newYear & " and verified." & vbNewLine & vbNewLine & _
            "- frozen copy (read-only): " & frozen & vbNewLine & _
            "- " & Format$(nArc, "#,##0") & " OT Log row(s) are on '" & arcName & "'; " & Format$(nKeep, "#,##0") & " carried into " & newYear & vbNewLine & _
            "- final " & oldYear & " totals for " & nPeople & " people are on the Year End sheet" & vbNewLine & vbNewLine & _
            "Next: Worked hours stay at 0 until you import a Kronos export saved after Jan 1, " & newYear & ". Click Member View to publish." & _
-           IIf(ThisWorkbook.Saved, "", vbNewLine & vbNewLine & "The file did NOT save by itself: press Ctrl+S now."), _
-           vbInformation, "Rollover"
+           IIf(savedOk, "", vbNewLine & vbNewLine & "THE FILE DID NOT SAVE. Press Ctrl+S now and check it saves before you close."), _
+           IIf(savedOk, vbInformation, vbExclamation), "Rollover"
     Exit Sub
 
 Failed:
     Dim em As String: em = Err.Description
+    If Err.Number = 18 Then em = "it was interrupted (Esc or Ctrl+Break)"
     On Error Resume Next
+    Application.EnableCancelKey = xlInterrupt
     Application.Calculation = calcWas
     Application.EnableEvents = evWas
     If Not changed Then
@@ -312,7 +348,67 @@ Failed:
     Application.ScreenUpdating = True
     MsgBox "The rollover STOPPED while " & stepTxt & ":" & vbNewLine & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close this file WITHOUT saving and reopen it: the file on disk is exactly as it was before you started." & _
-           vbNewLine & "The frozen copy from this attempt was removed. Send this message to the admin before trying again.", vbCritical, "Rollover"
+           vbNewLine & IIf(madeFrozen, "The frozen copy from this attempt was removed. ", "") & "Send this message to the admin before trying again.", vbCritical, "Rollover"
+    Exit Sub
+
+BadDates:
+    MsgBox "The pay-period dates above the roster couldn't be read (" & Err.Description & ")." & vbNewLine & vbNewLine & _
+           "Nothing was changed. Send this message to the admin.", vbCritical, "Rollover"
+End Sub
+
+' "" when rows 2 and 4 hold nPer two-week periods from firstStart (start,
+' start + 13); otherwise which column is wrong. Read-only.
+Private Function PeriodGridProblem(ByVal ws As Worksheet, ByVal firstStart As Date, ByVal nPer As Long) As String
+    Dim k As Long, hs As Variant, he As Variant, want As Double
+    For k = 0 To nPer - 1
+        want = Int(CDbl(firstStart)) + 14 * k
+        hs = ws.Cells(2, C_PERIOD1 + k).Value2
+        he = ws.Cells(4, C_PERIOD1 + k).Value2
+        If IsError(hs) Or IsError(he) Then
+            PeriodGridProblem = "column " & ColLetter(C_PERIOD1 + k) & " shows an error"
+            Exit Function
+        ElseIf IsEmpty(hs) Or IsEmpty(he) Or Not IsNumeric(hs) Or Not IsNumeric(he) Then
+            PeriodGridProblem = "column " & ColLetter(C_PERIOD1 + k) & " has no date"
+            Exit Function
+        ElseIf CDbl(hs) <> want Or CDbl(he) <> want + 13 Then
+            PeriodGridProblem = "column " & ColLetter(C_PERIOD1 + k) & " should run " & Format$(CDate(want), "mmm d, yyyy") & " to " & _
+                                Format$(CDate(want + 13), "mmm d, yyyy")
+            Exit Function
+        End If
+    Next k
+End Function
+
+' Row 2 = each period's start (T2 is the one typed date, the rest are the
+' cell to the left + 14), row 3 "to", row 4 = start + 13, for the columns
+' in use. Written at every rollover so nothing rests on old header formulas.
+Private Sub WritePeriodHeaders(ByVal ws As Worksheet)
+    ' the column count is read from row 2 directly: T2 has just changed and row 4 has not recalculated yet
+    Dim lastPer As Long: lastPer = C_PERIODN
+    Dim a As Variant, b As Variant
+    a = ws.Cells(2, C_PERIODN).Value2: b = ws.Cells(2, C_PERIODX).Value2
+    If Not IsError(a) And Not IsError(b) Then
+        If Not IsEmpty(a) And Not IsEmpty(b) And IsNumeric(a) And IsNumeric(b) Then
+            If CDbl(b) = CDbl(a) + 14 Then lastPer = C_PERIODX     ' a 27-period year is in place
+        End If
+    End If
+    ws.Range(ws.Cells(2, C_PERIOD1 + 1), ws.Cells(2, lastPer)).FormulaR1C1 = "=RC[-1]+14"
+    ws.Range(ws.Cells(4, C_PERIOD1), ws.Cells(4, lastPer)).FormulaR1C1 = "=R2C+13"
+    ws.Range(ws.Cells(3, C_PERIOD1), ws.Cells(3, lastPer)).Value = "to"
+End Sub
+
+' Rows and Hours Charged of a log table, counted the same way everywhere
+' in the rollover (NumOr0, so a number stored as text can't cause a false mismatch)
+Private Sub TableCountAndSum(ByVal lo As ListObject, ByRef n As Long, ByRef total As Double)
+    n = 0: total = 0
+    If lo Is Nothing Then Exit Sub
+    If lo.DataBodyRange Is Nothing Then Exit Sub
+    If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Sub
+    Dim v As Variant: v = RangeTo2D(lo.ListColumns(L_CHARGED).DataBodyRange)
+    Dim i As Long
+    n = UBound(v, 1)
+    For i = 1 To n
+        total = total + NumOr0(v(i, 1))
+    Next i
 End Sub
 
 
@@ -388,7 +484,7 @@ Private Sub AppendYearEnd(ByVal y As Long, ByRef blk As Variant, ByRef nm() As S
 End Sub
 
 ' "Rolled over to 2027 on Dec 27, 2026 by gp" for NOTE_DAYS after a rollover ("" otherwise)
-Public Function RolloverNote() As String
+Public Function RolloverNote(Optional ByVal shortForm As Boolean = False) As String
     On Error GoTo Quit
     Dim lo As ListObject: Set lo = YearEndTable(False)
     If lo Is Nothing Then Exit Function
@@ -402,7 +498,12 @@ Public Function RolloverNote() As String
     Next i
     If best = 0 Then Exit Function
     If Int(Date) - Int(CDate(v(best, 8))) > NOTE_DAYS Then Exit Function
-    RolloverNote = "Rolled over to " & (bestY + 1) & " on " & Format$(CDate(v(best, 8)), "mmm d, yyyy") & " by " & SafeStr(v(best, 9))
+    If RosterYear() <= bestY Then Exit Function          ' not moved yet (the frozen copy is saved at this point)
+    If shortForm Then
+        RolloverNote = "rolled over " & Format$(CDate(v(best, 8)), "mmm d")
+    Else
+        RolloverNote = "Rolled over to " & (bestY + 1) & " on " & Format$(CDate(v(best, 8)), "mmm d, yyyy") & " by " & SafeStr(v(best, 9))
+    End If
 Quit:
 End Function
 
@@ -486,9 +587,13 @@ Private Sub RecordIdMarks(ByRef v As Variant)
         End If
     Next i
     For Each kk In d.Keys
-        If IsPlainPrefix(CStr(kk)) Then SetIdMark CStr(kk), CLng(d(kk))
+        If IsPlainPrefix(CStr(kk)) Then
+            SetIdMark CStr(kk), CLng(d(kk))
+            If IdMark(CStr(kk)) < CLng(d(kk)) Then Err.Raise vbObjectError + 731, , "the ID counter for " & CStr(kk) & "- couldn't be stored"
+        End If
     Next kk
     SetIdMark "ENTRY", mxE
+    If IdMark("ENTRY") < mxE Then Err.Raise vbObjectError + 732, , "the Entry ID counter couldn't be stored"
 End Sub
 
 Private Function IsPlainPrefix(ByVal s As String) As Boolean
@@ -614,6 +719,7 @@ Private Sub SetPeriodColumns(ByVal ws As Worksheet, ByVal lastRow As Long, ByVal
         ws.Columns(C_PERIODN).Copy
         ws.Columns(C_PERIODX).PasteSpecial Paste:=xlPasteFormats
         Application.CutCopyMode = False
+        ws.Columns(C_PERIODX).ColumnWidth = ws.Columns(C_PERIODN).ColumnWidth
         ws.Columns(C_PERIODX).Hidden = False
         ws.Cells(2, C_PERIODX).FormulaR1C1 = "=RC[-1]+14"
         ws.Cells(3, C_PERIODX).Value = "to"
@@ -650,34 +756,26 @@ Private Function RolloverProblems(ByVal ws As Worksheet, ByVal lo As ListObject,
     ' the two logs
     If nArc + nKeep <> nAll Then p = p & "- OT Log rows: " & nAll & " before, " & nArc & " archived + " & nKeep & " kept" & vbNewLine
     If Abs(sumArc + sumKeep - sumAll) > TOL Then p = p & "- Hours Charged: " & sumAll & " before, " & (sumArc + sumKeep) & " after" & vbNewLine
-    n = 0: s = 0
-    If Not lo.DataBodyRange Is Nothing Then
-        If Application.WorksheetFunction.CountA(lo.DataBodyRange) > 0 Then
-            n = lo.ListRows.Count
-            s = Application.WorksheetFunction.Sum(lo.ListColumns(L_CHARGED).DataBodyRange)
-        End If
-    End If
+    TableCountAndSum lo, n, s
     If n <> nKeep Then p = p & "- live OT Log has " & n & " rows, expected " & nKeep & vbNewLine
     If Abs(s - sumKeep) > TOL Then p = p & "- live OT Log Hours Charged is " & s & ", expected " & sumKeep & vbNewLine
     If Not SheetExists(arcName) Then
         p = p & "- the sheet '" & arcName & "' is missing" & vbNewLine
     Else
-        n = 0: s = 0
-        If ThisWorkbook.Worksheets(arcName).ListObjects.Count > 0 Then
-            Set la = ThisWorkbook.Worksheets(arcName).ListObjects(1)
-            If Not la.DataBodyRange Is Nothing Then
-                If Application.WorksheetFunction.CountA(la.DataBodyRange) > 0 Then
-                    n = la.ListRows.Count
-                    s = Application.WorksheetFunction.Sum(la.ListColumns(L_CHARGED).DataBodyRange)
-                End If
-            End If
-        End If
+        If ThisWorkbook.Worksheets(arcName).ListObjects.Count > 0 Then Set la = ThisWorkbook.Worksheets(arcName).ListObjects(1)
+        TableCountAndSum la, n, s
         If n <> nArc Then p = p & "- '" & arcName & "' has " & n & " rows, expected " & nArc & vbNewLine
         If Abs(s - sumArc) > TOL Then p = p & "- '" & arcName & "' Hours Charged is " & s & ", expected " & sumArc & vbNewLine
     End If
     ' the roster's year
     If RosterYearFrom() <> newFrom Or RosterYear() <> newYear Then p = p & "- the roster's first period isn't " & Format$(newFrom, "mmm d, yyyy") & vbNewLine
     If PeriodLastCol() - C_PERIOD1 + 1 <> wantPer Then p = p & "- the roster shows " & (PeriodLastCol() - C_PERIOD1 + 1) & " pay periods, expected " & wantPer & vbNewLine
+    ' every period header moved, not just the first
+    Dim gridBad As String: gridBad = PeriodGridProblem(ws, newFrom, wantPer)
+    If gridBad <> "" Then p = p & "- pay-period dates: " & gridBad & vbNewLine
+    If p = "" Then
+        If RosterYearTo() <> newFrom + 14 * wantPer - 1 Then p = p & "- the roster's last day isn't " & Format$(newFrom + 14 * wantPer - 1, "mmm d, yyyy") & vbNewLine
+    End If
     If p <> "" Then RolloverProblems = p: Exit Function
 
     ' each person: Refused = the kept rows for the new year, Worked = 0, Total = Worked + Refused + Provisional
@@ -695,12 +793,16 @@ Private Function RolloverProblems(ByVal ws As Worksheet, ByVal lo As ListObject,
                 ElseIf IsNumeric(keep(i, L_PERIOD)) And Not IsEmpty(keep(i, L_PERIOD)) Then
                     ps = Int(CDbl(keep(i, L_PERIOD)))
                 End If
-                If ps >= CDbl(newFrom) And ps <= lastStart Then sums(emp) = NumOr0(sums(emp)) + NumOr0(keep(i, L_CHARGED))
+                ' on a period start of the new year exactly, as the roster formulas match it
+                If ps >= CDbl(newFrom) And ps <= lastStart Then
+                    If (ps - CDbl(newFrom)) / 14 = Int((ps - CDbl(newFrom)) / 14) Then sums(emp) = NumOr0(sums(emp)) + NumOr0(keep(i, L_CHARGED))
+                End If
             End If
         Next i
     End If
     Dim blk As Variant: blk = ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, C_REFUSED)).Value2
     Dim r As Long, nBad As Long
+    Dim provLive As Boolean: provLive = ProvisionalLive()
     For r = 1 To nRows
         If nm(r) <> "" Then
             If Trim$(SafeStr(blk(r, C_NAME))) <> nm(r) Then
@@ -715,7 +817,7 @@ Private Function RolloverProblems(ByVal ws As Worksheet, ByVal lo As ListObject,
             ElseIf Abs(NumOr0(blk(r, C_WORKED))) > TOL Then
                 nBad = nBad + 1
                 If nBad <= 5 Then p = p & "- " & nm(r) & ": Worked isn't 0" & vbNewLine
-            ElseIf Abs(NumOr0(blk(r, C_TOTAL)) - (NumOr0(blk(r, C_WORKED)) + NumOr0(blk(r, C_REFUSED)) + NumOr0(blk(r, C_PROV)))) > TOL Then
+            ElseIf Abs(NumOr0(blk(r, C_TOTAL)) - (NumOr0(blk(r, C_WORKED)) + NumOr0(blk(r, C_REFUSED)) + IIf(provLive, NumOr0(blk(r, C_PROV)), 0))) > TOL Then
                 nBad = nBad + 1
                 If nBad <= 5 Then p = p & "- " & nm(r) & ": Total isn't Worked + Refused + Provisional" & vbNewLine
             End If

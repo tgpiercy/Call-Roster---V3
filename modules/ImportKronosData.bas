@@ -224,7 +224,7 @@ Public Sub SetKronosAwait(ByVal d As Date)
     SetDateName AWAIT_NAME, d
 End Sub
 
-Public Sub ClearKronosAwait()
+Public Sub ClearKronosAwait(Optional ByVal fromCode As Boolean = True)     ' the argument keeps it out of the Alt+F8 list
     On Error Resume Next
     ThisWorkbook.Names(AWAIT_NAME).Delete
     On Error GoTo 0
@@ -294,7 +294,7 @@ End Function
 ' Status line text, e.g. "Kronos: Oct 7 (2 days ago)"
 Public Function KronosStatusText() As String
     Dim aw As Date: aw = KronosAwaitFrom()
-    If aw > 0 Then KronosStatusText = "Kronos: awaiting " & Year(aw) & " data (Worked hours are 0)": Exit Function
+    If aw > 0 Then KronosStatusText = "Kronos: awaiting " & Year(aw) & " data (Worked = 0)": Exit Function
     Dim a As Long: a = KronosAgeDays()
     If a < 0 Then KronosStatusText = "Kronos: not imported since v20": Exit Function
     Dim t As String

@@ -64,6 +64,15 @@ The ones that change data check the roster totals before and after. They block s
 | `UpgradeAbsenceColumns` | Adds the Home Unit, Leave Group and Shift columns to the Absences table. |
 | `UpgradeOTLogLayout` | Moves an old OT Log to the current column layout. |
 
+### Macros you run when needed
+
+| Macro | What it does |
+|---|---|
+| `SystemCheck` | Section 4 |
+| `SelfTest` | Section 5 |
+| `IntegrityCheck` | Section 13. Reads only. |
+| `RolloverYear` | Once a year, with a second person. See docs/rollover-one-pager.md. Never part of an install. |
+
 ## 4. SystemCheck
 
 Run it after every install. Problems are listed first, under CHECK. With no problems it says "Everything looks right."
@@ -92,16 +101,23 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 | no backup copy taken today yet | No admin has opened the writable file today. | It is taken on the next admin open. |
 | This copy is read-only | Someone else has the file. | Open it again when they are out. |
 
-The lines under the list are for information: OT Log row count, Kronos date, data-through date, Holidays sheet, grade change log, members' file and backup.
+| archive folder for the year-end frozen copy can't be reached | `ARCHIVE_FOLDER` points at a missing folder. | Fix the setting or create the folder before the rollover. |
+| this year's reports folder doesn't exist yet | The roster year changed and the new year's folder is not there. | Create the folder named in the line. PDFs go next to the workbook until then. |
+| the integrity check found problems | IntegrityCheck found a PROBLEM this session. | Run `IntegrityCheck` and read the Integrity sheet (section 13). |
+
+The lines under the list are for information: roster year and number of pay periods, integrity result, OT Log row count, Kronos date, data-through date, Holidays sheet, grade change log, members' file and backup.
+
+After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked hours are 0)" until the first export of the new year is imported.
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups and attendance. It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering and the integrity helpers. It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|
 | SelfTest: N passed, 0 failed of N cases. | Every rule gave its known answer. N must match the INSTALL note. |
-| [suite]: 0 failed of n | The result for one group of rules. |
+| all N suites passed | Every group of rules passed. |
+| [suite]: n failed of m | Shown only for a group with a failure. |
 | Failed: [suite] / [case]: got "x", expected "y" | A rule in the installed code gave a wrong answer. |
 | Stopped by an error | The test could not finish. |
 | Nothing was written or saved. | Always shown. |
@@ -284,4 +300,48 @@ Restore the backup only if the reopened file is wrong.
 | `ShowGradeLog` (Alt+F8) | Shows the log of grade code changes |
 | `SystemCheck`, `SelfTest` (Alt+F8) | See sections 4 and 5 |
 
-The year-end rollover is described in docs/rollover-one-pager.md.
+## 13. IntegrityCheck
+
+IntegrityCheck reads the roster, the OT Log and the other tables. It reports anything that does not add up. It never changes data.
+
+| When it runs | What you see |
+|---|---|
+| Each time an admin opens the file | The status line on the roster: "Integrity: OK", "Integrity: OK (n to check)" or "Integrity: n PROBLEMS" in red |
+| Alt+F8 > `IntegrityCheck` | The full list on the **Integrity** sheet, with what to do for each line |
+| At the start and end of `RolloverYear` | The rollover stops on any PROBLEM |
+
+| Level | Meaning |
+|---|---|
+| PROBLEM | Totals cannot be trusted until it is fixed. It blocks the rollover. |
+| Check | Worth a look. Nothing is wrong with the hours. |
+| Note | Information only |
+
+| Check | Level | It reports |
+|---|---|---|
+| Roster = log | PROBLEM | A pay-period cell, Refused, Provisional or Total that differs from what the OT Log gives |
+| Typed values | PROBLEM | A pay-period cell that holds a typed number, text, or no formula |
+| IDs | PROBLEM | An Entry ID used twice, the same posting, switch, absence or calendar-line ID on two rows, or a leave return logged twice |
+| IDs | Check | One call-out or posting number covering rows with different dates, units or shifts |
+| Not on roster | Check | A name in this year's OT Log, an active booking or a coming switch that is not on the roster |
+| Postings | Check | An Open posting that already has log rows, or a posting whose own list and the log disagree on hours charged |
+| Calendar | Check | A calendar line that points at a posting or switch that does not exist, or a void switch |
+| Paybacks | Check | A shift-switch payback owed for more than `PAYBACK_WARN_DAYS` days |
+| Kronos | Check | Kronos data older than `KRONOS_STALE_DAYS` |
+
+For most PROBLEM lines the fix is `RefreshRosterFormulas`, which rewrites the formulas and moves typed numbers into the OT Log. Run IntegrityCheck again after any fix. If a PROBLEM stays, do not fix cells by hand. Report the line.
+
+The Integrity sheet is admin only and is hidden in the saved file.
+
+## 14. Year end
+
+The year-end rollover is described in docs/rollover-one-pager.md. It is run once a year by the admin with a second person. Practise it on a copy in the first week of December.
+
+| Sheet the rollover adds | What it holds |
+|---|---|
+| Year End | Each person's final totals for each closed year. Admin only. |
+| OT Log 2026 (one per year) | The closed year's OT Log rows. Locked, even for admins. |
+
+| Setting | Use |
+|---|---|
+| `ARCHIVE_FOLDER` | Where the frozen "Call Out Roster 2026 FINAL" copy is saved. "." is the roster's folder. |
+| `REPORT_FOLDER` | Keep `{YEAR}` in the path. It is replaced by the roster year, so reports follow the rollover. |

@@ -294,7 +294,8 @@ End Function
 
 ' True when the backup should be skipped without a word
 Private Function BackupOff() As Boolean
-    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or Not IsAdmin())
+    ' a practice copy (COPY / DRY RUN in its name) never takes the day's backup slot from the real roster
+    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or Not IsAdmin() Or IsDryRunName(ThisWorkbook.Name))
 End Function
 
 ' BACKUP_FOLDER with "." / ".\sub" resolved against the roster's own folder

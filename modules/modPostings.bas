@@ -1518,6 +1518,10 @@ Public Sub ReopenPosting()
         MsgBox id & " still has active OT Log rows. Void them first (Void Entry > " & id & "), then reopen.", vbExclamation
         Exit Sub
     End If
+    If ArchiveHasActiveRef(CStr(id)) Then          ' v23: its rows left the live log at the year-end rollover
+        MsgBox id & " belongs to a closed year, so it can't be reopened. Its OT Log rows are on the archive sheet and that year's file is frozen.", vbExclamation
+        Exit Sub
+    End If
     If MsgBox("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion) = vbNo Then Exit Sub
     UpdatePostingRecords p, lst, n, "Open", ""
     On Error Resume Next

@@ -355,6 +355,8 @@ def pick_snapshot(hh: list[tuple[date, float]], d: date, year_from: date):
     if le:
         t, h = max(le, key=lambda x: x[0])
         return t, h, False
+    if len(in_year) < len(hh) and d < year_from + timedelta(days=14):
+        return None, 0.0, False      # first pay period, before any import of the new year: nothing worked yet
     if in_year:
         t, h = min(in_year, key=lambda x: x[0])
         return t, h, True

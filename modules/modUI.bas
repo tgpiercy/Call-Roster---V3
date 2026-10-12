@@ -111,10 +111,11 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
     Dim kTxt As String: kTxt = KronosStatusText()        ' v20: how old the worked hours are
     Dim dt As Date: dt = KronosDataThrough()             ' v21: provisional OT counts after this date
     Dim icTxt As String: icTxt = IntegrityStatusText()   ' v23: "" until IntegrityCheck has run this session
-    Dim roTxt As String: roTxt = RolloverNote()          ' v23: shown for a month after the year-end rollover
+    Dim roTxt As String: roTxt = RolloverNote(True)      ' v23: "rolled over Dec 27", for a month after the year-end rollover
+    ' one text-format cell: keep it well under 255 characters or Excel shows ####
     txt = "Pay period: " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & IIf(roTxt <> "", "  |  " & roTxt, "") & vbLf & _
-          kTxt & IIf(dt > 0, "  |  data through " & Format$(dt, "mmm d"), "") & vbLf & _
-          "Log: " & Format$(n, "#,##0") & IIf(icTxt <> "", "  |  " & icTxt, "") & "  |  View: " & viewTxt
+          kTxt & IIf(dt > 0 And KronosAwaitFrom() = 0, "  |  data through " & Format$(dt, "mmm d"), "") & vbLf & _
+          "Log: " & Format$(n, "#,##0") & IIf(icTxt <> "", "  |  " & icTxt, "") & "  |  View: " & Left$(viewTxt, 60)
     If txt = Replace(cur, vbCr, "") Then Exit Sub
 
     Dim wasLocked As Boolean: wasLocked = ws.ProtectContents

@@ -564,11 +564,11 @@ End Function
 ' yyyy-mm-dd are blanked first so they never count.
 Private Function LongestDigitRun(ByVal s As String) As Long
     Dim joined As Long: joined = JoinedDigits(s)
-    Dim single As Long: single = SingleRun(s)
+    Dim oneRun As Long: oneRun = SingleRun(s)     ' not "single": that is a reserved word (a data type)
     If joined >= 10 Then
         LongestDigitRun = joined
     Else
-        LongestDigitRun = single
+        LongestDigitRun = oneRun
     End If
 End Function
 

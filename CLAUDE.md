@@ -136,7 +136,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - Use `Long` for row counts, not `Integer`.
 - Duplicate procedure names across modules -> "Ambiguous name". Search before adding a Public name.
 - **A local or parameter with the same name as a procedure hides it** (names are case-insensitive): `tests/shadowcheck.py` finds these. Avoid helpers named `S`, `N`, `D`, `P`, `F`.
-- `Lock`, `Unlock` and other reserved words can't be procedure names.
+- `Lock`, `Unlock` and other reserved words can't be procedure names. Data-type and built-in names can't be variables either: `Single`, `Date`, `String`, `Long`, `Len`, `Int`, `Abs`, `Input`, `Type`, `Write` ... (`Dim single As Long` is a syntax error).
 - One-line `If ... Then x ElseIf ...` is a compile error; use a block If.
 - `ReDim Preserve` can only grow the **last** dimension; size 2-D tables up front.
 - Module-level variables must be declared above the first procedure.
@@ -148,7 +148,9 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - `py -3.14 -m pytest tests -q`: the Python mirror of the pure rules (`rules.py`) against `cases.csv`, the same table SelfTest uses. Add cases for every rule touched; run `python tests/gen_selftest_cases.py` to paste them into modSelfTest.
 - `python tests/vbacheck.py .`: blocks, Option Explicit, CRLF/ASCII, duplicate Publics (its hits on one-line `Sub X(): ...: End Sub` are false positives).
 - `python tests/shadowcheck.py .`: locals hiding procedures.
-- `python tests/undeclcheck.py .`: names used but declared nowhere ("Variable not defined"). Added after exactly that compile error shipped in M1 through v23 (`cap` in `modPublish.BuildRoster`, Oct 2026). **Run all three checkers before every review and every zip**; reviewers reading the code did not catch it.
+- `python tests/undeclcheck.py .`: names used but declared nowhere ("Variable not defined"), and declared names that are VBA reserved words ("Syntax error").
+- `python tests/callcheck.py .`: duplicate declarations, missing GoTo labels, ambiguous names inside a module, wrong argument counts on calls to our own procedures, `Foo(a, b)` called as a statement, ByRef argument type mismatches, fields a Type doesn't have.
+- **Run all four checkers (vbacheck, shadowcheck, undeclcheck, callcheck) before every review and every zip.** Two compile errors shipped in M1 through v23 and were found by Graeme at install (Oct 12, 2026: an undeclared `cap` and a variable named `single` in modPublish). Three rounds of reviewers reading the code missed both; the checkers find both. A clean run is good evidence, not proof: nothing here is a compiler.
 - `python tests/build_zip.py vNN vPREV`: builds `dist/Callout_Roster_vNN.zip` from `docs/INSTALL-vNN.md`. From v22 on every zip holds the **full** module, paste-in and member set, so it can serve as the master.
 - Python 3.12 is at `C:\Users\Graeme\AppData\Local\Programs\Python\Python312\python.exe` (no pytest); pytest is on `py -3.14`. GNU `sed -i` strips CRs in this shell: re-run the CRLF fix on any file it touches.
 

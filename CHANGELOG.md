@@ -1,7 +1,8 @@
 # Changelog
 
-## Hotfix, Oct 12, 2026 (v22, v22.1 and v23 zips rebuilt)
-- **Compile error fixed:** `modPublish.BuildRoster` used a variable that was never declared ("Variable not defined" on Debug > Compile). In the code since M1; the three release zips are rebuilt with the fix and their tags moved. New static check `tests/undeclcheck.py` scans every module for this class of mistake; it finds no other.
+## Hotfix, Oct 12, 2026 (v22, v22.1 and v23 zips rebuilt twice)
+- **Two compile errors fixed, both in `modPublish` and both in the code since M1:** `BuildRoster` used a variable that was never declared ("Variable not defined"), and `LongestDigitRun` had a variable named `single`, a reserved word ("Syntax error"). Found by Graeme at Debug > Compile during the v22 install. The three release zips are rebuilt and their tags moved.
+- Two new static checks, `tests/undeclcheck.py` (undeclared names, reserved words) and `tests/callcheck.py` (duplicate declarations, labels, argument counts, ByRef types, Type fields, statement calls with parentheses). Each was proven on planted mistakes; on v22, v22.1 and v23 they find these two errors and nothing else.
 
 ## v23 - integrity check and year-end rollover (Oct 2026; rollover live Dec 27, 2026)
 Brief: `briefs/v23.md`. Report-back: `docs/v23-report-back.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v23.zip` (full set). Rollover steps: `docs/rollover-one-pager.md`.

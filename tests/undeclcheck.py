@@ -1,4 +1,5 @@
-"""Find identifiers used in a procedure that are declared nowhere.
+"""Find identifiers used in a procedure that are declared nowhere, and
+declared names that are VBA reserved words.
 
     python tests/undeclcheck.py .
 
@@ -39,6 +40,21 @@ Randomize Kill FileCopy RmDir ChDir ChDrive LOF Loc Seek
 Application ThisWorkbook ActiveWorkbook ActiveSheet ActiveCell ActiveWindow Selection Workbooks Worksheets Sheets
 Range Cells Columns Rows Names Intersect Union Evaluate UserForms Windows WorksheetFunction MSForms VBA Excel
 Count Item
+""".split())
+
+# Words VBA will not accept as the name of a variable, parameter, constant or procedure
+# ("Dim single As Long" is a syntax error: Single is a data type).
+RESERVED = set("""
+call case close const declare dim do else elseif end endif enum erase event exit for friend function get global
+gosub goto if implements input let lock loop lset next on open option print private public put raiseevent redim
+resume return rset seek select set static stop sub type unlock wend while with write rem
+any as byref byval each in new shared until withevents optional paramarray preserve spc tab then to
+addressof and eqv imp is like mod not or typeof xor
+abs cbool cbyte ccur cdate cdbl cdec cint clng clnglng clngptr csng cstr cvar cverr date debug doevents fix int
+len lenb me pset scale sgn string array circle inputb lbound ubound
+boolean byte currency double integer long longlong longptr single variant
+true false nothing empty null cdecl decimal defbool defbyte defint deflng defcur defsng defdbl defdec defdate
+defstr defobj defvar
 """.split())
 
 CONST_FAMILY = re.compile(r"^(vb|xl|mso|fm)[A-Z0-9]", re.I)
@@ -172,6 +188,7 @@ class Module:
         self.is_class = path.suffix.lower() == ".txt"       # forms / ThisWorkbook
         self.lines = strip_code(path.read_text(encoding="ascii", errors="replace"))
         self.module_names: set[str] = set()
+        self.module_level_decls: set[str] = set()      # variables / constants only (checked against RESERVED)
         self.public_names: set[str] = set()
         self.procs: list[tuple[str, int, int]] = []
         self._scan()
@@ -223,6 +240,7 @@ class Module:
                     for st in split_statements(line):
                         for n in declared_names(st):
                             self.module_names.add(n.lower())
+                            self.module_level_decls.add(n.lower())
                             if m.group(1).lower() in ("public", "global") and not self.is_class:
                                 self.public_names.add(n.lower())
             else:
@@ -238,6 +256,11 @@ def check_project(files: list[Path], label: str) -> int:
         globals_ |= m.public_names
         globals_.add(m.name.lower())
     problems = 0
+    for m in mods:
+        for n in sorted(m.module_level_decls):
+            if n in RESERVED:
+                print(f"RESERVED {label} {m.path.name}: module-level name '{n}' is a reserved word")
+                problems += 1
     for m in mods:
         for pname, a, b in m.procs:
             local = {pname.lower()}
@@ -267,6 +290,13 @@ def check_project(files: list[Path], label: str) -> int:
             for st in stmts:
                 for n in declared_names(st):
                     local.add(n.lower())
+            for n in sorted(local):
+                if n in RESERVED and n != pname.lower():
+                    print(f"RESERVED {label} {m.path.name}: {pname}: '{n}' is a reserved word and can't be a variable or parameter name")
+                    problems += 1
+            if pname.lower() in RESERVED:
+                print(f"RESERVED {label} {m.path.name}: procedure name '{pname}' is a reserved word")
+                problems += 1
             for st in stmts:
                 if re.match(r"^\s*(On\s+Error\s+)?(GoTo|Resume)\s+", st, re.I) or re.match(r"^\s*End\b", st, re.I):
                     continue
@@ -288,7 +318,7 @@ def main() -> int:
     master = sorted((root / "modules").glob("*.bas")) + sorted((root / "paste-in").glob("*.txt"))
     member = sorted((root / "member").glob("*"))
     n = check_project(master, "master") + check_project(member, "member")
-    print(f"done {n} undeclared name(s)")
+    print(f"done {n} undeclared or reserved name(s)")
     return 1 if n else 0
 
 

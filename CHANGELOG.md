@@ -1,5 +1,15 @@
 # Changelog
 
+## v22 - sick calls and leave (Oct 2026)
+Brief: `briefs/v22.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v22.zip` (full set).
+
+- **Total Hours as of a date** (`TotalHoursAsOf`, modLeave): the Hours History snapshot with the latest data-through on or before the date, plus non-void charges with shift date on or before it (this year), plus provisional accepted OT as of that snapshot. Estimated (and said so) when no snapshot is early enough.
+- **Leave** button: Going books the absence (shown as "Leave" everywhere outside Absences; WSIB and LTD added), locks in the Home Unit and a leave group `LV-####`. Returning works out the top-up = the home unit's average Total Hours gained between the first day off and the return (grade 2 and below, not the returner, not on leave themselves, with Hours History before the window; window clipped to the year start), shows peers, dates, snapshots and before -> after, then logs ONE Adjustment (Ref `LV-####`, Reason "Leave return", Note = the calculation) and closes the booking. Admin override with a required reason. Void Entry `LV-####` undoes the hours. Needs Attention's LEAVE lines offer "Return from leave now".
+- **Sick Call** button: books the sick shift (Absence `SC-####`, type SIC, shift recorded), keeps the person off every shift starting within 24 h after it ends, puts an OPEN line on the calendar ("Sick"), and opens Log Call-Out pre-filled.
+- **Convert imports** button: old-calendar vacation lines become real bookings (name matched by first name + last initial, consecutive dates merged, each line stamped with its booking so it is never converted twice); Needs Attention lists IMPORTED, NOT BOOKED lines for the next 56 days; SystemCheck flags them.
+- `tblAbsence` gains Home Unit, Leave Group and Shift (appended; `UpgradeAbsenceColumns`, verified). PEOPLE group on the command bar. SystemCheck: 14 modules, all forms.
+- SelfTest 178 cases (+31): sick window both ways, hours-as-of (snapshot choice, year clip, void, night coverage), peer rules, average, run merging. Python mirror 179.
+
 ## M1 - members' workbook (Oct 2026)
 Brief: `briefs/M1.md`. Design: `docs/member-workbook-design-2026-10-09.md`. Install: `INSTALL.md` in `dist/Callout_Roster_M1.zip`.
 

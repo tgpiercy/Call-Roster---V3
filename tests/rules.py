@@ -335,6 +335,76 @@ def not_free_reason(code: str, d: date, shift_lbl: str, *, booked_off: str = "",
     return ""
 
 
+# ---------------------------------------------------------------- v22: sick calls, hours as of a date, leave
+def sick_blocks(sick_date: date, sick_night: bool, d: date, night: bool) -> bool:
+    """modLeave.SickBlocks: the sick shift and any shift starting within 24 h
+    after it ends are blocked. Days 07:00-19:00, nights 19:00-07:00 (+1)."""
+    sick_start = sick_date.toordinal() + (19 / 24 if sick_night else 7 / 24)
+    sick_end = sick_start + 0.5
+    cand_start = d.toordinal() + (19 / 24 if night else 7 / 24)
+    return sick_start - 1e-4 <= cand_start < sick_end + 1 - 1e-4
+
+
+def pick_snapshot(hh: list[tuple[date, float]], d: date):
+    """modLeave.PickSnapshot for one employee: (through, hours, estimated) or None.
+    hh = [(data_through, worked_hours), ...]."""
+    le = [(t, h) for t, h in hh if t <= d]
+    if le:
+        t, h = max(le, key=lambda x: x[0])
+        return t, h, False
+    if hh:
+        t, h = min(hh, key=lambda x: x[0])
+        return t, h, True
+    return None
+
+
+def hours_as_of(hh: list[tuple[date, float]], lg: list[dict], d: date, year_from: date, year_to: date):
+    """modLeave.HoursAsOfCore for one employee. lg rows: dict(date, outcome, status,
+    hours, charged, night). Returns (total, through, estimated)."""
+    if d < year_from:
+        return 0.0, None, False
+    snap = pick_snapshot(hh, d)
+    if snap is None:
+        through, worked, est = None, 0.0, True
+    else:
+        through, worked, est = snap
+    charged = sum(r["charged"] for r in lg
+                  if r["status"].upper() != "VOID" and year_from <= r["date"] <= year_to and r["date"] <= d)
+    prov = 0.0
+    for r in lg:
+        if r["status"].upper() == "VOID" or r["outcome"] not in ("Accepted", "Awarded"):
+            continue
+        if not (year_from <= r["date"] <= year_to and r["date"] <= d):
+            continue
+        covered = through is not None and provisional_covered(r["date"], r["night"], through)
+        if not covered:
+            prov += r["hours"]
+    return worked + charged + prov, through, est
+
+
+def peer_eligible(grade: float, is_returner: bool, leave_overlaps: bool, has_history_before: bool) -> bool:
+    """modLeave.PeerEligible."""
+    return grade <= CHARGE_MAX_GRADE and not is_returner and not leave_overlaps and has_history_before
+
+
+def leave_average(deltas: list[float]) -> float:
+    """modLeave.LeaveAverage: mean rounded to 0.1 (0 with no peers)."""
+    if not deltas:
+        return 0.0
+    return round(sum(deltas) / len(deltas) + 1e-9, 1)
+
+
+def merge_runs(dates: list[date]) -> list[tuple[date, date]]:
+    """modLeave.MergeRuns: sorted unique dates -> consecutive runs."""
+    runs: list[list[date]] = []
+    for d in sorted(set(dates)):
+        if runs and d == runs[-1][1] + timedelta(days=1):
+            runs[-1][1] = d
+        else:
+            runs.append([d, d])
+    return [(a, b) for a, b in runs]
+
+
 # ---------------------------------------------------------------- provisional OT
 def provisional_covered(shift_date: date, is_night: bool, data_through: date) -> bool:
     """modOvertimeEntry.ProvisionalCovered: the shift has fully ended by the

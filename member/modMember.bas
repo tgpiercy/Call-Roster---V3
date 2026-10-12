@@ -16,7 +16,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M1 (Oct 12)"
+Public Const MEM_VERSION As String = "Members v22 (Oct 13)"
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -822,7 +822,8 @@ End Sub
 Private Function LineColour(ByVal code As String) As Long
     Select Case UCase$(code)
         Case "VAC": LineColour = RGB(21, 101, 192)
-        Case "LV", "LOA", "STD", "PAR": LineColour = RGB(106, 27, 154)
+        Case "LV", "LOA", "STD", "PAR", "WSIB", "LTD": LineColour = RGB(106, 27, 154)
+        Case "SIC": LineColour = RGB(230, 81, 0)
         Case "TRN": LineColour = RGB(0, 121, 107)
         Case "PHA": LineColour = RGB(46, 125, 50)
         Case "SUP": LineColour = RGB(93, 64, 55)

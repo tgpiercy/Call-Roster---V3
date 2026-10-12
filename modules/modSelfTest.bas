@@ -18,7 +18,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v21 (Oct 11)"
+Public Const ST_VERSION As String = "Self test v22 (Oct 13)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -115,6 +115,16 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(ProvisionalCovered(ParseD(i1), (i2 = "N"), ParseD(i3)), "covered", "counts")
         Case "provcount"
             RunCase = IIf(ProvisionalCounts(i1, i2, ParseD(i3), (i4 = "N"), ParseD(i5), ST_YEAR_FROM, ST_YEAR_TO), "counts", "no")
+        Case "sick"
+            RunCase = IIf(SickBlocks(ParseD(i1), (i2 = "N"), ParseD(i3), (i4 = "N")), "blocked", "free")
+        Case "hoursasof"
+            RunCase = CaseHoursAsOf(i1, i2, ParseD(i3))
+        Case "leavepeer"
+            RunCase = IIf(PeerEligible(CDbl(i1), (i2 = "Y"), (i3 = "Y"), (i4 = "Y")), "peer", "excluded")
+        Case "leaveavg"
+            RunCase = CaseLeaveAvg(i1)
+        Case "merge"
+            RunCase = CaseMerge(i1)
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -252,6 +262,77 @@ Private Function CaseEligibility(ByVal code As String, ByVal d As Date, ByVal sh
     If CaseEligibility = "" Then CaseEligibility = "free"
 End Function
 
+
+' hh "through:hours;..." and log "date:outcome:status:hours:charged:D|N;..." for one
+' person -> "total|through|est" (v22: the pure core modLeave.HoursAsOfCore)
+Private Function CaseHoursAsOf(ByVal hhSpec As String, ByVal lgSpec As String, ByVal asOf As Date) As String
+    Dim hh As Variant, lg As Variant, parts As Variant, p As Variant, i As Long, n As Long
+    If hhSpec <> "" Then
+        parts = Split(hhSpec, ";")
+        n = UBound(parts) + 1
+        Dim h() As Variant: ReDim h(1 To n, 1 To 3)
+        For i = 1 To n
+            p = Split(parts(i - 1), ":")
+            h(i, 1) = ST_NAME: h(i, 2) = ParseD(CStr(p(0))): h(i, 3) = CDbl(p(1))
+        Next i
+        hh = h
+    End If
+    If lgSpec <> "" Then
+        parts = Split(lgSpec, ";")
+        n = UBound(parts) + 1
+        Dim g() As Variant: ReDim g(1 To n, 1 To 7)
+        For i = 1 To n
+            p = Split(parts(i - 1), ":")
+            g(i, 1) = ST_NAME: g(i, 2) = ParseD(CStr(p(0))): g(i, 3) = CStr(p(1)): g(i, 4) = CStr(p(2))
+            g(i, 5) = CDbl(p(3)): g(i, 6) = CDbl(p(4)): g(i, 7) = (CStr(p(5)) = "N")
+        Next i
+        lg = g
+    End If
+    Dim through As Date, est As Boolean, tot As Double
+    tot = HoursAsOfCore(hh, lg, ST_NAME, asOf, ST_YEAR_FROM, ST_YEAR_TO, through, est)
+    CaseHoursAsOf = NumText(tot) & "|" & IIf(through = 0, "none", FmtD(through)) & "|" & IIf(est, "yes", "no")
+End Function
+
+' "grade:returner:onleave:hist:delta;..." -> the average of the eligible peers' deltas
+Private Function CaseLeaveAvg(ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim deltas() As Double: ReDim deltas(1 To UBound(parts) + 1)
+    Dim i As Long, n As Long, p As Variant
+    For i = 0 To UBound(parts)
+        p = Split(parts(i), ":")
+        If PeerEligible(CDbl(p(0)), (CStr(p(1)) = "Y"), (CStr(p(2)) = "Y"), (CStr(p(3)) = "Y")) Then
+            n = n + 1: deltas(n) = CDbl(p(4))
+        End If
+    Next i
+    CaseLeaveAvg = NumText(LeaveAverage(deltas, n))
+End Function
+
+' "date;date;..." -> "start..end;..."
+Private Function CaseMerge(ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim dates() As Date, ids() As String, n As Long, i As Long
+    n = UBound(parts) + 1
+    ReDim dates(1 To n)
+    For i = 1 To n
+        dates(i) = ParseD(CStr(parts(i - 1)))
+    Next i
+    ' MergeRuns expects sorted unique dates (ConvertImports sorts first): sort here too
+    Dim j As Long, t As Date
+    For i = 2 To n
+        t = dates(i): j = i - 1
+        Do While j >= 1
+            If dates(j) <= t Then Exit Do
+            dates(j + 1) = dates(j): j = j - 1
+        Loop
+        dates(j + 1) = t
+    Next i
+    Dim runs() As Date, k As Long, s As String
+    k = MergeRuns(dates, n, runs)
+    For i = 1 To k
+        s = s & IIf(i = 1, "", ";") & FmtD(runs(i, 1)) & ".." & FmtD(runs(i, 2))
+    Next i
+    CaseMerge = s
+End Function
 
 ' ---------------- helpers ----------------
 Private Function ParseD(ByVal s As String) As Date         ' "yyyy-mm-dd" -> date
@@ -429,5 +510,36 @@ Private Sub LoadCases()
     AddCase "provcount,awarded-last-year,Awarded,Active,2025-12-20,D,2026-10-09,no"
     AddCase "provcount,accepted-next-year,Accepted,Active,2026-12-27,D,2026-10-09,no"
     AddCase "provcount,accepted-last-day-of-year,Accepted,Active,2026-12-26,N,2026-10-09,counts"
+    AddCase "sick,days-same-shift,2026-10-20,D,2026-10-20,D,,blocked"
+    AddCase "sick,days-nights-same-day,2026-10-20,D,2026-10-20,N,,blocked"
+    AddCase "sick,days-next-day-days,2026-10-20,D,2026-10-21,D,,blocked"
+    AddCase "sick,days-next-day-nights-free,2026-10-20,D,2026-10-21,N,,free"
+    AddCase "sick,days-day-before-free,2026-10-20,D,2026-10-19,N,,free"
+    AddCase "sick,nights-same-shift,2026-10-20,N,2026-10-20,N,,blocked"
+    AddCase "sick,nights-next-day-days,2026-10-20,N,2026-10-21,D,,blocked"
+    AddCase "sick,nights-next-day-nights,2026-10-20,N,2026-10-21,N,,blocked"
+    AddCase "sick,nights-two-days-on-free,2026-10-20,N,2026-10-22,D,,free"
+    AddCase "sick,nights-same-day-days-free,2026-10-20,N,2026-10-20,D,,free"
+    AddCase "hoursasof,snapshot-before-and-provisional,2026-10-05:100;2026-10-12:118,2026-10-08:Refused:Active:12:21:D;2026-10-10:Accepted:Active:12:0:D;2026-10-20:Accepted:Active:12:0:D,2026-10-11,,,133|2026-10-05|no"
+    AddCase "hoursasof,later-snapshot-covers-accepted,2026-10-05:100;2026-10-12:118,2026-10-08:Refused:Active:12:21:D;2026-10-10:Accepted:Active:12:0:D;2026-10-20:Accepted:Active:12:0:D,2026-10-15,,,139|2026-10-12|no"
+    AddCase "hoursasof,before-any-snapshot-estimated,2026-10-05:100;2026-10-12:118,2026-10-08:Refused:Active:12:21:D,2026-10-01,,,100|2026-10-05|yes"
+    AddCase "hoursasof,void-excluded,2026-10-05:100,2026-10-08:Refused:VOID:12:21:D;2026-10-09:Refused:Active:12:21:D,2026-10-11,,,121|2026-10-05|no"
+    AddCase "hoursasof,night-not-covered-on-through,2026-10-10:50,2026-10-10:Accepted:Active:12:0:N,2026-10-11,,,62|2026-10-10|no"
+    AddCase "hoursasof,night-covered-day-after,2026-10-11:50,2026-10-10:Accepted:Active:12:0:N,2026-10-12,,,50|2026-10-11|no"
+    AddCase "hoursasof,before-year-is-zero,2026-10-05:100,2026-10-08:Refused:Active:12:21:D,2025-12-20,,,0|none|no"
+    AddCase "hoursasof,no-history-at-all,,2026-10-08:Refused:Active:12:21:D,2026-10-11,,,21|none|yes"
+    AddCase "leavepeer,grade1,1,N,N,Y,,peer"
+    AddCase "leavepeer,grade2,2,N,N,Y,,peer"
+    AddCase "leavepeer,grade2.5,2.5,N,N,Y,,excluded"
+    AddCase "leavepeer,grade3,3,N,N,Y,,excluded"
+    AddCase "leavepeer,returner,1,Y,N,Y,,excluded"
+    AddCase "leavepeer,on-leave,1,N,Y,Y,,excluded"
+    AddCase "leavepeer,no-history,1,N,N,N,,excluded"
+    AddCase "leaveavg,mixed-set,1:N:N:Y:412.6;1:N:Y:Y:900;3:N:N:Y:50;2:N:N:N:10;1.5:N:N:Y:380;1:Y:N:Y:0,,,,,396.3"
+    AddCase "leaveavg,no-peers,3:N:N:Y:50;1:Y:N:Y:0,,,,,0"
+    AddCase "leaveavg,rounding,1:N:N:Y:100;1:N:N:Y:101;1:N:N:Y:101,,,,,100.7"
+    AddCase "merge,five-day-run,2026-11-02;2026-11-03;2026-11-04;2026-11-05;2026-11-06,,,,,2026-11-02..2026-11-06"
+    AddCase "merge,two-runs,2026-11-02;2026-11-03;2026-11-05;2026-11-06;2026-11-07,,,,,2026-11-02..2026-11-03;2026-11-05..2026-11-07"
+    AddCase "merge,unsorted-with-duplicate,2026-11-06;2026-11-05;2026-11-05;2026-11-09,,,,,2026-11-05..2026-11-06;2026-11-09..2026-11-09"
 ' <<< CASES
 End Sub

@@ -1,0 +1,203 @@
+Option Explicit
+' @version v22 (Oct 13)
+
+' ================================================================
+' SICK CALL (v22)
+'  Books the sick shift (Absences, type SIC, id SC-####), which keeps the
+'  person off call lists for that shift and any shift starting within
+'  24 h after it ends, puts an OPEN line on the calendar, and opens Log
+'  Call-Out already filled in so the supervisor can start calling.
+'  Every control is built in code below (new form: Insert > UserForm,
+'  name it frmSickCall, paste this).
+' ================================================================
+
+Private WithEvents mEmp As MSForms.ComboBox
+Private WithEvents mDate As MSForms.TextBox
+Private WithEvents mShift As MSForms.ComboBox
+Private WithEvents mSave As MSForms.CommandButton
+Private WithEvents mSaveOnly As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+
+Private Const LBL_L As Long = 14
+Private Const BOX_L As Long = 118
+Private Const ROW_H As Long = 26
+
+Private Function C(ByVal nm As String) As Object
+    Set C = Me.Controls("sc_" & nm)
+End Function
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single) As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "sc_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Function RowT(ByVal i As Long) As Single
+    RowT = 36 + (i - 1) * ROW_H
+End Function
+
+Private Sub FillCombo(ByVal cb As Object, ByVal items As Variant)
+    Dim i As Long
+    cb.Clear
+    If Not IsArray(items) Then Exit Sub
+    For i = LBound(items) To UBound(items)
+        cb.AddItem CStr(items(i))
+    Next i
+End Sub
+
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Me.Caption = "Sick Call"
+    Me.Width = 412
+    Me.Height = 330
+
+    Dim o As Object
+    Set o = AddLabel("hdr", "SICK CALL", LBL_L, 8, 300)
+    o.Font.Bold = True: o.ForeColor = RGB(230, 81, 0)
+
+    AddLabel "lEmp", "Who called in", LBL_L, RowT(1) + 3, 100
+    Set mEmp = AddCtl("Forms.ComboBox.1", "cboEmp", BOX_L, RowT(1), 230, 20)
+    mEmp.Style = 2: mEmp.ListRows = 20
+    FillCombo mEmp, RosterNames()
+
+    AddLabel "lDate", "Shift date", LBL_L, RowT(2) + 3, 100
+    Set mDate = AddCtl("Forms.TextBox.1", "txtDate", BOX_L, RowT(2), 110, 20)
+    mDate.Text = Format$(Date, "mm/dd/yyyy")
+    AddLabel "hDate", "", BOX_L + 118, RowT(2) + 3, 160
+
+    AddLabel "lShift", "Shift", LBL_L, RowT(3) + 3, 100
+    Set mShift = AddCtl("Forms.ComboBox.1", "cboShift", BOX_L, RowT(3), 100, 20)
+    mShift.Style = 2: FillCombo mShift, Array("Days", "Nights")
+    AddLabel "hShift", "", BOX_L + 108, RowT(3) + 3, 170
+
+    AddLabel "lUnit", "Unit to cover", LBL_L, RowT(4) + 3, 100
+    Set o = AddCtl("Forms.ComboBox.1", "cboUnit", BOX_L, RowT(4), 150, 20)
+    o.Style = 2: FillCombo o, DeptList()
+
+    AddLabel "lHrs", "Hours", LBL_L, RowT(5) + 3, 100
+    AddCtl "Forms.TextBox.1", "txtHours", BOX_L, RowT(5), 60, 20
+    AddLabel "hHrs", "", BOX_L + 68, RowT(5) + 3, 210
+
+    AddLabel "lNote", "Note (optional)", LBL_L, RowT(6) + 3, 100
+    AddCtl "Forms.TextBox.1", "txtNote", BOX_L, RowT(6), 268, 20
+
+    Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(7) + 2, 372)
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(30, 56, 100)
+
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(8) + 6, 200, 30)
+    mSave.Caption = "SAVE + START CALL-OUT"
+    mSave.Font.Bold = True: mSave.Font.Size = 10
+    Set mSaveOnly = AddCtl("Forms.CommandButton.1", "cmdSaveOnly", LBL_L + 206, RowT(8) + 6, 86, 30)
+    mSaveOnly.Caption = "Save only"
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 298, RowT(8) + 6, 74, 30)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+
+    ApplyFormTheme Me
+    mSave.BackColor = RGB(230, 81, 0): mSave.ForeColor = vbWhite
+    Dim h As Variant
+    For Each h In Array("hDate", "hShift", "hHrs")
+        C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
+    Next h
+End Sub
+
+' ---- live defaults from the rotation and the roster ----
+Private Sub mEmp_Change()
+    Refresh
+End Sub
+
+Private Sub mDate_Change()
+    Refresh
+End Sub
+
+Private Sub mShift_Change()
+    Dim d As Date
+    If PickedDate(d) Then
+        C("txtHours").Text = CStr(DefaultShiftHours(d, IsNightShift(mShift.Text), USUAL_SHIFT_HOURS))
+        C("hHrs").Caption = IIf(IsNightShift(mShift.Text), DstNote(d), "")
+    End If
+End Sub
+
+Private Function PickedDate(ByRef d As Date) As Boolean
+    Dim t As String: t = Trim$(mDate.Text)
+    If t = "" Or Not IsDate(t) Then Exit Function
+    d = Int(CDate(t))
+    PickedDate = True
+End Function
+
+Private Sub Refresh()
+    Dim d As Date
+    If Not PickedDate(d) Then
+        C("hDate").Caption = IIf(Trim$(mDate.Text) = "", "", "not a date")
+        Exit Sub
+    End If
+    C("hDate").Caption = "= " & Format$(d, "ddd mmm d, yyyy")
+    If mEmp.ListIndex < 0 Then Exit Sub
+    Dim sch As String: sch = ScheduledShift(mEmp.Text, d)
+    If sch <> "" Then
+        mShift.Value = sch
+        C("hShift").Caption = "scheduled " & LCase$(sch) & " (" & CrewStatus(mEmp.Text, d) & ")"
+    Else
+        If mShift.ListIndex < 0 Then mShift.Value = "Days"
+        C("hShift").Caption = "not scheduled that day - pick the shift they were to work"
+    End If
+    Dim hu As String: hu = HomeUnitOf(mEmp.Text)
+    If hu <> "" Then C("cboUnit").Value = hu
+    mShift_Change
+End Sub
+
+' ---- save ----
+Private Function SaveIt() As String
+    Dim d As Date, problems As String
+    If mEmp.ListIndex < 0 Then problems = problems & "- Who called in" & vbNewLine
+    If Not PickedDate(d) Then problems = problems & "- Shift date" & vbNewLine
+    If mShift.ListIndex < 0 Then problems = problems & "- Shift" & vbNewLine
+    If C("cboUnit").ListIndex < 0 Then problems = problems & "- Unit" & vbNewLine
+    Dim h As String: h = Trim$(C("txtHours").Text)
+    If h = "" Or Not IsNumeric(h) Then problems = problems & "- Hours" & vbNewLine
+    If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Sick Call": Exit Function
+    If Abs(Int(d) - Int(Date)) > 7 Then
+        If MsgBox("That date is " & Abs(Int(d) - Int(Date)) & " days from today. Save it anyway?", vbYesNo + vbQuestion) = vbNo Then Exit Function
+    End If
+    Dim hrs As Variant: hrs = CDbl(h)
+    If CDbl(h) >= USUAL_SHIFT_HOURS Then hrs = Empty           ' a full shift: no partial-hours mark on the line
+    SaveIt = SaveSickCall(mEmp.Text, d, mShift.Text, C("cboUnit").Text, hrs, Trim$(C("txtNote").Text))
+End Function
+
+Private Sub mSaveOnly_Click()
+    Dim id As String: id = SaveIt()
+    If id = "" Then Exit Sub
+    MsgBox id & " saved: " & mEmp.Text & " off " & Format$(CDate(mDate.Text), "ddd mmm d") & " " & mShift.Text & _
+           " and the 24 h after it. The line is OPEN on the calendar.", vbInformation, "Sick Call"
+    Unload Me
+End Sub
+
+Private Sub mSave_Click()
+    Dim id As String: id = SaveIt()
+    If id = "" Then Exit Sub
+    Dim unit As String: unit = C("cboUnit").Text
+    Dim d As Date: d = Int(CDate(mDate.Text))
+    Dim sh As String: sh = mShift.Text
+    Unload Me
+    If Not RequireWritable() Then Exit Sub
+    If LogTable() Is Nothing Then Exit Sub
+    Load frmOvertimeEntry
+    frmOvertimeEntry.Prefill unit, d, sh
+    frmOvertimeEntry.Show
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

@@ -19,7 +19,7 @@ Option Explicit
 '  when it last published. The members' file never reads the master.
 ' ====================================================================
 
-Public Const PUB_VERSION As String = "Publish v21 M1 (Oct 12)"
+Public Const PUB_VERSION As String = "Publish v22 (Oct 13)"
 
 Public Const DS_META As String = "dMeta"
 Public Const DS_ROSTER As String = "dRoster"
@@ -443,8 +443,8 @@ End Function
 ' leave of any kind is one public code; the members' calendar colours it "Leave"
 Private Function PublicType(ByVal code As String) As String
     Select Case UCase$(Trim$(code))
-        Case "LOA", "STD", "PAR": PublicType = "LV"
-        Case Else: PublicType = UCase$(Trim$(code))
+        Case "LOA", "STD", "PAR", "WSIB", "LTD": PublicType = "LV"
+        Case Else: PublicType = UCase$(Trim$(code))            ' SIC stays: "Sick" is shown by decision (Oct 13)
     End Select
 End Function
 
@@ -619,12 +619,12 @@ Private Function LeaveCodesIn(ByRef cal As Variant) As String
     Dim i As Long, t As String
     For i = 2 To UBound(cal, 1)
         t = UCase$(SafeStr(cal(i, 6)))
-        If t = "STD" Or t = "PAR" Or t = "LOA" Then
+        If IsLeaveCode(t) Then
             LeaveCodesIn = DS_CAL & " row " & i & ": leave type " & t & " would be visible"
             Exit Function
         End If
         t = UCase$(SafeStr(cal(i, 4)))
-        If InStr(t, "(STD") > 0 Or InStr(t, "(PAR") > 0 Or InStr(t, "(LOA") > 0 Then
+        If InStr(t, "(STD") > 0 Or InStr(t, "(PAR") > 0 Or InStr(t, "(LOA") > 0 Or InStr(t, "(WSIB") > 0 Or InStr(t, "(LTD") > 0 Then
             LeaveCodesIn = DS_CAL & " row " & i & ": leave type in the text"
             Exit Function
         End If

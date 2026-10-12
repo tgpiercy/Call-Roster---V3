@@ -18,7 +18,7 @@ Option Explicit
 ' ====================================================================
 
 Private Const STATUS_CELL As String = "D3"      ' status (3 lines, plain text) - in the frozen names column
-Public Const UI_VERSION As String = "Roster UI v21 (Oct 11)"
+Public Const UI_VERSION As String = "Roster UI v22 (Oct 13)"
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
 Private Const LIGHT As Long = 15787486          ' RGB(222, 229, 240)
@@ -260,11 +260,11 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     ' base widths (points), scaled down if the frozen area is narrower
     Const G As Double = 3          ' gap between buttons
     Const GG As Double = 8         ' gap between groups
-    Dim wSrt As Double, wL As Double, wP As Double, wA As Double, sc As Double
-    wSrt = 66: wL = 96: wP = 92: wA = 92
-    Dim fixedGaps As Double: fixedGaps = 2 * G + G + G + 3 * GG
+    Dim wSrt As Double, wL As Double, wP As Double, wA As Double, wE As Double, sc As Double
+    wSrt = 62: wL = 90: wP = 88: wA = 88: wE = 90          ' v22: a little narrower, room for the PEOPLE group
+    Dim fixedGaps As Double: fixedGaps = 2 * G + G + G + 4 * GG
     sc = 1
-    wSrt = wSrt * sc: wL = wL * sc: wP = wP * sc: wA = wA * sc
+    wSrt = wSrt * sc: wL = wL * sc: wP = wP * sc: wA = wA * sc: wE = wE * sc
 
     Dim y0 As Double: y0 = ws.Range("A1").Top + 3
     Dim y(1 To 3) As Double
@@ -290,6 +290,13 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_Switch", "Shift Switch", "modShiftSwitch.ShowShiftSwitchForm", x, y(2), wL, RGB(180, 100, 0), vbWhite, True
     Btn ws, "ui_adm_TimeOff", "Book Time Off", "modCalendar.ShowTimeOffForm", x, y(3), wL, RGB(31, 56, 100), vbWhite, True
     x = x + wL + GG
+
+    ' --- People (admin, v22) ---
+    GroupLabel ws, "ui_adm_lbl_people", "PEOPLE", x, y0, wE
+    Btn ws, "ui_adm_Sick", "Sick Call", "modLeave.ShowSickCallForm", x, y(1), wE, RGB(230, 81, 0), vbWhite, True
+    Btn ws, "ui_adm_Leave", "Leave", "modLeave.ShowLeaveForm", x, y(2), wE, RGB(106, 27, 154), vbWhite, True
+    Btn ws, "ui_adm_Convert", "Convert imports", "modLeave.ShowConvertForm", x, y(3), wE, RGB(21, 101, 192), vbWhite, False
+    x = x + wE + GG
 
     ' --- Postings (admin) ---
     Dim grn As Long: grn = RGB(0, 128, 70)

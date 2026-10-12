@@ -1,5 +1,5 @@
 Option Explicit
-' @version Members M1 (Oct 12)
+' @version Members v22 (Oct 13)
 ' Members' workbook - code-behind. Everything is in modMember; this only
 ' routes the workbook events. Nothing here reads the supervisors' master.
 

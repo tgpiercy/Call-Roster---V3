@@ -118,6 +118,28 @@ def evaluate(row: dict) -> str:
         return "covered" if rules.provisional_covered(d(i1), i2 == "N", d(i3)) else "counts"
     if suite == "provcount":                     # outcome, status, shift date, D|N, through -> counts / no
         return "counts" if rules.provisional_counts(i1, i2, d(i3), i4 == "N", d(i5), YEAR_FROM, YEAR_TO) else "no"
+    if suite == "sick":                          # sick date, D|N, candidate date, D|N -> blocked / free
+        return "blocked" if rules.sick_blocks(d(i1), i2 == "N", d(i3), i4 == "N") else "free"
+    if suite == "hoursasof":                     # hh 'through:hours;...', log 'date:outcome:status:hours:charged:D|N;...', as-of -> total|through|est
+        hh = [(d(p.split(":")[0]), float(p.split(":")[1])) for p in i1.split(";") if p]
+        lg = []
+        for rec in (p for p in i2.split(";") if p):
+            dt, outcome, status, hrs, chg, sh = rec.split(":")
+            lg.append(dict(date=d(dt), outcome=outcome, status=status, hours=float(hrs), charged=float(chg), night=(sh == "N")))
+        total, through, est = rules.hours_as_of(hh, lg, d(i3), YEAR_FROM, YEAR_TO)
+        return f"{fmt_num(total)}|{iso(through) if through else 'none'}|{'yes' if est else 'no'}"
+    if suite == "leavepeer":                     # grade, returner Y/N, overlapping leave Y/N, history before Y/N -> peer / excluded
+        return "peer" if rules.peer_eligible(float(i1), i2 == "Y", i3 == "Y", i4 == "Y") else "excluded"
+    if suite == "leaveavg":                      # 'grade:returner:onleave:hist:delta;...' -> average of the eligible
+        deltas = []
+        for rec in (p for p in i1.split(";") if p):
+            g, r, o, h, delta = rec.split(":")
+            if rules.peer_eligible(float(g), r == "Y", o == "Y", h == "Y"):
+                deltas.append(float(delta))
+        return fmt_num(rules.leave_average(deltas))
+    if suite == "merge":                         # 'date;date;...' -> 'start..end;...'
+        runs = rules.merge_runs([d(p) for p in i1.split(";") if p])
+        return ";".join(f"{iso(a)}..{iso(b)}" for a, b in runs)
     raise ValueError(f"unknown suite {suite}")
 
 

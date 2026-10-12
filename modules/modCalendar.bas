@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v21 M1 (Oct 12)"
+Public Const CAL_VERSION As String = "Calendar v22 (Oct 13)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -45,7 +45,10 @@ Public Const AB_STATUS As Long = 10
 Public Const AB_USER As Long = 11
 Public Const AB_STAMP As Long = 12
 Public Const AB_VOIDNOTE As Long = 13
-Public Const AB_N As Long = 13
+Public Const AB_HOME As Long = 14       ' v22: Home Unit locked in when the booking is made (leave top-up peers)
+Public Const AB_GROUP As Long = 15      ' v22: LV-#### linking a leave's going and return
+Public Const AB_SHIFT As Long = 16      ' v22: Days / Nights / Both (sick calls; converted imports)
+Public Const AB_N As Long = 16
 
 ' tblCoverage
 Public Const CV_ID As Long = 1
@@ -107,7 +110,21 @@ Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the
 ' ====================================================================
 Public Function AbsenceTypes() As Variant
     AbsenceTypes = Array("VAC - Vacation", "TRN - Training", "LOA - Leave of absence", _
-                         "STD - Short-term disability", "PAR - Parental leave", "OTH - Other")
+                         "STD - Short-term disability", "PAR - Parental leave", _
+                         "WSIB - Workplace injury leave", "LTD - Long-term disability", "OTH - Other")
+End Function
+
+' Leave of any kind: masked as "Leave" everywhere outside the Absences sheet (v22 adds WSIB, LTD)
+Public Function IsLeaveCode(ByVal code As String) As Boolean
+    Select Case UCase$(Left$(Trim$(code), 4))
+        Case "LOA", "STD", "PAR", "WSIB", "LTD": IsLeaveCode = True
+    End Select
+End Function
+
+' Leave types the Leave pop-up offers (v22)
+Public Function LeaveTypes() As Variant
+    LeaveTypes = Array("PAR - Parental leave", "STD - Short-term disability", "LOA - Leave of absence", _
+                       "WSIB - Workplace injury leave", "LTD - Long-term disability", "OTH - Other leave")
 End Function
 
 Public Function NeedTypes() As Variant
@@ -167,16 +184,19 @@ Public Function GroupOfUnit(ByVal unit As String) As String
     GroupOfUnit = unit
 End Function
 
+' "WSIB - ..." -> "WSIB"; everything else is its first three letters
 Public Function TypeCode(ByVal s As String) As String
-    TypeCode = UCase$(Left$(Trim$(s), 3))
+    s = UCase$(Trim$(s))
+    If Left$(s, 4) = "WSIB" Then TypeCode = "WSIB" Else TypeCode = Left$(s, 3)
 End Function
 
-' What the calendar shows (never "STD" / "PAR")
+' What the calendar shows (never "STD" / "PAR" / "WSIB" / "LTD"; sick calls say "Sick")
 Public Function TypeTag(ByVal code As String) As String
     Select Case UCase$(code)
         Case "VAC": TypeTag = "Vac"
         Case "TRN": TypeTag = "Trn"
-        Case "LOA", "STD", "PAR": TypeTag = "Leave"
+        Case "LOA", "STD", "PAR", "WSIB", "LTD": TypeTag = "Leave"
+        Case "SIC": TypeTag = "Sick"
         Case "SS": TypeTag = "S/S"
         Case "PHA": TypeTag = "PHA"
         Case "SUP": TypeTag = "Support"
@@ -187,7 +207,8 @@ End Function
 Public Function TypeColor(ByVal code As String) As Long
     Select Case UCase$(code)
         Case "VAC": TypeColor = RGB(21, 101, 192)              ' blue
-        Case "LOA", "STD", "PAR": TypeColor = RGB(106, 27, 154) ' purple
+        Case "LOA", "STD", "PAR", "WSIB", "LTD": TypeColor = RGB(106, 27, 154) ' purple
+        Case "SIC": TypeColor = RGB(230, 81, 0)                ' orange
         Case "TRN": TypeColor = RGB(0, 121, 107)               ' teal
         Case "PHA": TypeColor = RGB(46, 125, 50)               ' green
         Case "SUP": TypeColor = RGB(93, 64, 55)                ' brown
@@ -238,9 +259,90 @@ End Function
 ' ====================================================================
 Public Function AbsTable(Optional ByVal create As Boolean = False) As ListObject
     Set AbsTable = GetOrMakeTable(AB_SHEET, AB_TABLE, create, Array("Absence ID", "Employee", "Unit", "Type", _
-        "Start", "End", "Hours / Shift", "Times", "Note", "Status", "Logged By", "Timestamp", "Void Note"), _
-        Array(10, 24, 14, 8, 13, 13, 8, 9, 30, 8, 11, 18, 30), RGB(31, 56, 100))
+        "Start", "End", "Hours / Shift", "Times", "Note", "Status", "Logged By", "Timestamp", "Void Note", _
+        "Home Unit", "Leave Group", "Shift"), _
+        Array(10, 24, 14, 8, 13, 13, 8, 9, 30, 8, 11, 18, 30, 14, 10, 8), RGB(31, 56, 100))
 End Function
+
+' True when tblAbsence has the v22 columns (Home Unit, Leave Group, Shift)
+Public Function AbsenceColumnsCurrent() As Boolean
+    Dim lo As ListObject: Set lo = AbsTable(False)
+    If lo Is Nothing Then AbsenceColumnsCurrent = True: Exit Function    ' created fresh with all columns
+    AbsenceColumnsCurrent = (lo.ListColumns.Count >= AB_N)
+End Function
+
+' Alt+F8 > UpgradeAbsenceColumns (once, v22): appends the three columns.
+' Nothing moves - they go on the END - but it still follows the verified
+' pattern: backup copy, change, check row count and every roster total.
+Public Sub UpgradeAbsenceColumns()
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim lo As ListObject: Set lo = AbsTable(False)
+    If lo Is Nothing Then
+        MsgBox "There is no Absences table yet - it will be created with every column the first time time off is booked. Nothing to do.", vbInformation
+        Exit Sub
+    End If
+    If lo.ListColumns.Count >= AB_N Then MsgBox "The Absences table already has the v22 columns.", vbInformation: Exit Sub
+    If MsgBox("Add the Home Unit, Leave Group and Shift columns to the Absences table?" & vbNewLine & vbNewLine & _
+              "They go on the end, so nothing moves. A backup copy is saved first and the row count and roster totals are checked after.", _
+              vbOKCancel + vbQuestion, "Absences upgrade") <> vbOK Then Exit Sub
+    Dim bk As String
+    bk = EnsureSlash(ThisWorkbook.Path) & "Backup before Absences upgrade " & Format$(Now, "yyyy-mm-dd hhmm") & " - " & ThisWorkbook.Name
+    On Error Resume Next
+    ThisWorkbook.SaveCopyAs bk
+    If Err.Number <> 0 Then
+        Dim e As String: e = Err.Description
+        On Error GoTo 0
+        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical
+        Exit Sub
+    End If
+    On Error GoTo 0
+    Dim rs As Worksheet: Set rs = RosterSheet()
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    Dim before As Variant, nRows As Long
+    Application.Calculate
+    If lastRow >= R_FIRST Then before = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_TOTAL)).Value2
+    nRows = lo.ListRows.Count
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Dim names As Variant: names = Array("Home Unit", "Leave Group", "Shift")
+    Dim i As Long, em As String
+    On Error GoTo Failed
+    ws.Unprotect Password:=SHEET_PASSWORD
+    For i = lo.ListColumns.Count + 1 To AB_N
+        lo.ListColumns.Add.Name = names(i - AB_VOIDNOTE - 1)
+    Next i
+    ws.Columns(AB_HOME).ColumnWidth = 14: ws.Columns(AB_GROUP).ColumnWidth = 10: ws.Columns(AB_SHIFT).ColumnWidth = 8
+    ProtectSheet ws
+    Application.Calculate
+    Dim problems As String
+    If lo.ListRows.Count <> nRows Then problems = problems & "- absence rows: " & nRows & " before, " & lo.ListRows.Count & " after" & vbNewLine
+    If lo.ListColumns.Count <> AB_N Then problems = problems & "- column count is " & lo.ListColumns.Count & ", expected " & AB_N & vbNewLine
+    If lastRow >= R_FIRST Then
+        Dim after As Variant: after = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_TOTAL)).Value2
+        For i = 1 To UBound(before, 1)
+            If Abs(NumOr0(after(i, 1)) - NumOr0(before(i, 1))) > 0.001 Then problems = problems & "- roster Total Hours changed on row " & (R_FIRST + i - 1) & vbNewLine: Exit For
+        Next i
+    End If
+    If problems <> "" Then
+        MarkNoSave
+        MsgBox "The upgrade did NOT verify:" & vbNewLine & problems & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical
+        Exit Sub
+    End If
+    ResetCalCacheAll
+    SaveIfWritable
+    MsgBox "Absences table upgraded: " & lo.ListColumns.Count & " columns, " & nRows & " rows, roster totals unchanged." & vbNewLine & "Backup: " & bk, vbInformation
+    Exit Sub
+Failed:
+    em = Err.Description
+    On Error Resume Next
+    ProtectSheet ws
+    MarkNoSave
+    MsgBox "The upgrade stopped part-way: " & em & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical
+End Sub
+
+Public Sub ResetCalCacheAll()
+    mAbs = Empty: mCov = Empty: Set mShiftMap = Nothing
+End Sub
 
 Public Function CovTable(Optional ByVal create As Boolean = False) As ListObject
     Set CovTable = GetOrMakeTable(CV_SHEET, CV_TABLE, create, Array("Line ID", "Date", "Shift", "Unit", _
@@ -441,12 +543,36 @@ End Function
 '   days, DAYS Mon-Fri), the rest rule (coming off nights for a day shift,
 '   starting days the next morning for a night shift), working a shift
 '   switch that day, or gave up a shift that day in a switch.
+' Booked off for THIS shift: a sick call blocks every shift that starts within
+' 24 h after the sick shift ends (v22, SickBlocks in modLeave); other
+' absences block the whole date.
+Public Function AbsentForShift(ByVal empName As String, ByVal d As Date, ByVal shiftLbl As String, _
+                               Optional ByRef typ As String) As Boolean
+    If mShiftMap Is Nothing Then LoadCache
+    If Not IsArray(mAbs) Then Exit Function
+    Dim r As Long, code As String
+    For r = 1 To UBound(mAbs, 1)
+        If StrComp(Trim$(SafeStr(mAbs(r, AB_EMP))), Trim$(empName), vbTextCompare) = 0 Then
+            If UCase$(SafeStr(mAbs(r, AB_STATUS))) <> "VOID" And IsDate(mAbs(r, AB_START)) Then
+                code = UCase$(SafeStr(mAbs(r, AB_TYPE)))
+                If code = "SIC" And UBound(mAbs, 2) >= AB_SHIFT Then
+                    If SickBlocks(CDate(mAbs(r, AB_START)), IsNightShift(SafeStr(mAbs(r, AB_SHIFT))), d, IsNightShift(shiftLbl)) Then
+                        typ = TypeTag(code): AbsentForShift = True: Exit Function
+                    End If
+                ElseIf AbsActiveOn(r, d) Then
+                    typ = TypeTag(code): AbsentForShift = True: Exit Function
+                End If
+            End If
+        End If
+    Next r
+End Function
+
 Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String, _
                               ByVal d As Date, ByVal shiftLbl As String) As String
     If mShiftMap Is Nothing Then LoadCache
     Dim night As Boolean: night = IsNightShift(shiftLbl)
     Dim t As String
-    If AbsentOn(empName, d, t) Then NotFreeReason = t: Exit Function
+    If AbsentForShift(empName, d, shiftLbl, t) Then NotFreeReason = t: Exit Function
     NotFreeReason = RotationFreeReason(crewCode, d, shiftLbl)
     If NotFreeReason <> "" Then Exit Function
     If SwitchWorkingOn(empName, d, "") <> "" Then NotFreeReason = "S/S": Exit Function
@@ -645,11 +771,18 @@ End Function
 ' ====================================================================
 Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ As String, _
                             ByVal dStart As Date, ByVal dEnd As Variant, ByVal hrs As Variant, _
-                            ByVal times As String, ByVal note As String) As String
+                            ByVal times As String, ByVal note As String, _
+                            Optional ByVal homeUnit As String = "", Optional ByVal leaveGroup As String = "", _
+                            Optional ByVal shiftLbl As String = "", Optional ByVal idPrefix As String = "AB", _
+                            Optional ByVal quiet As Boolean = False) As String
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     Dim lo As ListObject: Set lo = AbsTable(True)
     If lo Is Nothing Then Exit Function
+    If lo.ListColumns.Count < AB_N Then
+        MsgBox "The Absences table needs its v22 columns first: run Alt+F8 > UpgradeAbsenceColumns.", vbExclamation
+        Exit Function
+    End If
 
     ' overlap warning
     LoadCache
@@ -667,12 +800,12 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
             End If
         Next r
     End If
-    If clash <> "" Then
+    If clash <> "" And Not quiet Then
         If MsgBox(emp & " already has time off in that range:" & vbNewLine & clash & vbNewLine & _
                   "Save this one too?", vbYesNo + vbExclamation, "Overlap") = vbNo Then Exit Function
     End If
 
-    Dim id As String: id = NextId(lo, "AB")
+    Dim id As String: id = NextId(lo, idPrefix)
     Dim rec() As Variant: ReDim rec(1 To 1, 1 To AB_N)
     rec(1, AB_ID) = id
     rec(1, AB_EMP) = emp
@@ -688,13 +821,84 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
     rec(1, AB_STATUS) = "Active"
     rec(1, AB_USER) = CurrentUser()
     rec(1, AB_STAMP) = Now
+    rec(1, AB_HOME) = homeUnit
+    rec(1, AB_GROUP) = leaveGroup
+    rec(1, AB_SHIFT) = shiftLbl
     If Not AppendTo(lo, rec, AB_N) Then Exit Function
     lo.Parent.Unprotect Password:=SHEET_PASSWORD
     lo.ListColumns(AB_START).DataBodyRange.NumberFormat = "ddd mmm d, yyyy"
     lo.ListColumns(AB_END).DataBodyRange.NumberFormat = "ddd mmm d, yyyy"
     ProtectSheet lo.Parent
-    SaveIfWritable
+    If Not quiet Then SaveIfWritable
     SaveAbsence = id
+End Function
+
+' Sets an absence's end date without asking (v22: leave return, sick call)
+Public Function SetAbsenceEndTo(ByVal id As String, ByVal dEnd As Date) As Boolean
+    Dim lo As ListObject: Set lo = AbsTable()
+    Dim v As Variant: v = TableData(lo)
+    Dim r As Long: r = RowOf(v, id)
+    If r = 0 Then Exit Function
+    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    lo.DataBodyRange.Cells(r, AB_END).Value = Int(dEnd)
+    lo.DataBodyRange.Cells(r, AB_END).NumberFormat = "ddd mmm d, yyyy"
+    ProtectSheet lo.Parent
+    SetAbsenceEndTo = True
+End Function
+
+' One absence row's fields (v22). False if not found.
+Public Function AbsenceInfo(ByVal id As String, ByRef emp As String, ByRef unit As String, ByRef code As String, _
+                            ByRef dStart As Date, ByRef dEnd As Variant, ByRef homeUnit As String, _
+                            ByRef leaveGroup As String, ByRef status As String) As Boolean
+    Dim v As Variant: v = TableData(AbsTable())
+    Dim r As Long: r = RowOf(v, id)
+    If r = 0 Then Exit Function
+    emp = SafeStr(v(r, AB_EMP)): unit = SafeStr(v(r, AB_UNIT)): code = UCase$(SafeStr(v(r, AB_TYPE)))
+    If IsDate(v(r, AB_START)) Then dStart = CDate(v(r, AB_START))
+    If IsDate(v(r, AB_END)) Then dEnd = CDate(v(r, AB_END)) Else dEnd = Empty
+    If UBound(v, 2) >= AB_GROUP Then homeUnit = SafeStr(v(r, AB_HOME)): leaveGroup = SafeStr(v(r, AB_GROUP))
+    status = UCase$(SafeStr(v(r, AB_STATUS)))
+    AbsenceInfo = True
+End Function
+
+' Open leave bookings (leave type, non-void, no end or end >= today) for the
+' Returning pop-up: display strings; ids() gets the Absence IDs.
+Public Function OpenLeaves(ByRef ids As Variant) As Variant
+    ids = Empty
+    Dim v As Variant: v = TableData(AbsTable())
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long, n As Long, d() As String, idArr() As String, eTxt As String
+    ReDim d(0 To UBound(v, 1) - 1): ReDim idArr(0 To UBound(v, 1) - 1)
+    For i = 1 To UBound(v, 1)
+        If IsLeaveCode(SafeStr(v(i, AB_TYPE))) And UCase$(SafeStr(v(i, AB_STATUS))) <> "VOID" And IsDate(v(i, AB_START)) Then
+            If Not IsDate(v(i, AB_END)) Or (IsDate(v(i, AB_END)) And CDate(v(i, AB_END)) >= Date - 60) Then
+                If IsDate(v(i, AB_END)) Then eTxt = "to " & Format$(v(i, AB_END), "mmm d") Else eTxt = "open-ended"
+                idArr(n) = SafeStr(v(i, AB_ID))
+                d(n) = idArr(n) & "   " & SafeStr(v(i, AB_EMP)) & "   Leave from " & Format$(v(i, AB_START), "mmm d, yyyy") & "   " & eTxt & _
+                       IIf(UBound(v, 2) >= AB_HOME, "   (" & SafeStr(v(i, AB_HOME)) & ")", "")
+                n = n + 1
+            End If
+        End If
+    Next i
+    If n = 0 Then Exit Function
+    ReDim Preserve d(0 To n - 1): ReDim Preserve idArr(0 To n - 1)
+    ids = idArr
+    OpenLeaves = d
+End Function
+
+' Leave-type absence rows for the top-up peer test: True if emp has one
+' overlapping dFrom..dTo (non-void)
+Public Function HasLeaveOverlapping(ByVal emp As String, ByVal dFrom As Date, ByVal dTo As Date) As Boolean
+    If mShiftMap Is Nothing Then LoadCache
+    If Not IsArray(mAbs) Then Exit Function
+    Dim r As Long, e2 As Date
+    For r = 1 To UBound(mAbs, 1)
+        If StrComp(Trim$(SafeStr(mAbs(r, AB_EMP))), Trim$(emp), vbTextCompare) = 0 And _
+           IsLeaveCode(SafeStr(mAbs(r, AB_TYPE))) And UCase$(SafeStr(mAbs(r, AB_STATUS))) <> "VOID" And IsDate(mAbs(r, AB_START)) Then
+            If IsDate(mAbs(r, AB_END)) Then e2 = CDate(mAbs(r, AB_END)) Else e2 = DateSerial(2999, 12, 31)
+            If CDate(mAbs(r, AB_START)) <= dTo And e2 >= dFrom Then HasLeaveOverlapping = True: Exit Function
+        End If
+    Next r
 End Function
 
 ' Shifts a person would have worked in a range (for the pop-up)
@@ -805,8 +1009,8 @@ Public Function AddCoverage(ByVal d As Date, ByVal shiftLbl As String, ByVal uni
             If typ = "" Then typ = SafeStr(mAbs(ar, AB_TYPE))
         End If
     End If
-    ' coverage lines never carry the medical / parental code - just "leave"
-    If TypeCode(typ) = "STD" Or TypeCode(typ) = "PAR" Then typ = "LOA"
+    ' coverage lines never carry the medical / parental / WSIB / LTD code - just "leave"
+    If IsLeaveCode(typ) Then typ = "LOA"
 
     Dim id As String: id = NextId(lo, "CV")
     Dim rec() As Variant: ReDim rec(1 To 1, 1 To CV_N)
@@ -2135,7 +2339,7 @@ Public Sub ImportUnitCalendar()
     If n = 0 Then MsgBox "No entries found on or after " & Format$(dFrom, "mmm d, yyyy") & ".", vbInformation: Exit Sub
     If MsgBox("Found " & n & " calendar lines for " & unit & " from " & Format$(dFrom, "mmm d, yyyy") & "." & vbNewLine & vbNewLine & _
               "They come in as written (e.g. 'Paul M 3rd' -> 'posted') and show on the calendar." & vbNewLine & _
-              "They don't remove anyone from call lists - book upcoming time off in Book Time Off for that." & vbNewLine & vbNewLine & _
+              "They don't remove anyone from call lists until you convert them (Convert imports button) or book the time off." & vbNewLine & vbNewLine & _
               "Import them?", vbOKCancel + vbQuestion, "Import calendar") <> vbOK Then Exit Sub
 
     Dim base As Long: base = CLng(Val(Mid$(NextId(lo, "CV"), 4)))
@@ -2305,7 +2509,8 @@ Private Function TypeLong(ByVal code As String) As String
     Select Case UCase$(code)
         Case "VAC": TypeLong = "Vacation"
         Case "TRN": TypeLong = "Training"
-        Case "LOA", "STD", "PAR": TypeLong = "Leave"
+        Case "LOA", "STD", "PAR", "WSIB", "LTD": TypeLong = "Leave"
+        Case "SIC": TypeLong = "Sick call"
         Case "PHA": TypeLong = "PHA"
         Case "SUP": TypeLong = "Unit operator support"
         Case "SS": TypeLong = "Shift switch"
@@ -2415,7 +2620,7 @@ Private Function LineDetails(ByVal keyTxt As String, Optional ByVal useCache As 
         End If
         If cov = "" Then cov = vbLf & "OPEN - nobody covering yet"
         s = s & cov
-        If code <> "LOA" And code <> "STD" And code <> "PAR" And SafeStr(mAbs(r, AB_NOTE)) <> "" Then
+        If Not IsLeaveCode(code) And code <> "SIC" And SafeStr(mAbs(r, AB_NOTE)) <> "" Then
             s = s & vbLf & "Note: " & SafeStr(mAbs(r, AB_NOTE))
         End If
         s = s & vbLf & "Booked by " & StampTxt(mAbs(r, AB_USER), mAbs(r, AB_STAMP)) & "  [" & id & "]"
@@ -2762,7 +2967,7 @@ Public Sub DrawNeeds()
                         If Int(sd) <= Date + nDays - 1 Then
                             st = "Open-ended - no return date": eD = sd: nOpenEnded = nOpenEnded + 1
                         End If
-                    ElseIf code = "LOA" Or code = "STD" Or code = "PAR" Then
+                    ElseIf IsLeaveCode(code) Then
                         eD = CDate(mAbs(i, AB_END)) + 1
                         If Int(eD) >= Date And Int(eD) <= Date + nDays - 1 Then st = "Returns " & Format$(eD, "ddd mmm d")
                     End If
@@ -2791,6 +2996,24 @@ Public Sub DrawNeeds()
                   "Set the weekday off", WhenText(hd), "H:" & Format$(hd, "yyyy-mm-dd"), CDbl(hd), _
                   RGB(176, 0, 32), RGB(176, 0, 32), Tint(RGB(176, 0, 32), 0.88), thMuted()
         Next hk
+    End If
+
+    ' H. imported vacation lines not yet booked (v22) - they don't keep people off call lists
+    Dim ir() As NARow, nI As Long, iv As Variant
+    ReDim ir(1 To 20)
+    On Error Resume Next
+    iv = ImportCandidates(Date, Date + IMPORT_WATCH_DAYS - 1)
+    On Error GoTo Failed
+    If IsArray(iv) Then
+        For i = 1 To UBound(iv, 1)
+            If UnitInGroup(SafeStr(iv(i, 4)), grp) Then
+                NAAdd ir, nI, Format$(Dt2(iv(i, 2)), "ddd mmm d"), SafeStr(iv(i, 3)), "", SafeStr(iv(i, 4)), _
+                      SafeStr(iv(i, 5)) & IIf(SafeStr(iv(i, 6)) = "", "   (no roster match)", IIf(SafeStr(iv(i, 6)) = "?", "   (several matches)", "   = " & SafeStr(iv(i, 6)))), _
+                      "Imported", "Not booked", WhenText(Dt2(iv(i, 2))), "I:" & SafeStr(iv(i, 1)), CDbl(Int(Dt2(iv(i, 2)))), _
+                      TypeColor("VAC"), thOpen(), thOpenFill(), WhenColor(Dt2(iv(i, 2)))
+            End If
+        Next i
+        NASort ir, nI
     End If
 
     ' G. members' file not published lately (M1)
@@ -2892,6 +3115,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "MEMBERS FILE  -  what the union sees is out of date (double-click to publish)", _
                       nM, thPosted(), Array("Today", "", "", "", "Members file", "Type", "Status", ""))
         r = NARows(ws, r, mr, nM, "")
+    End If
+    If nI > 0 Then
+        r = NASection(ws, r, "IMPORTED, NOT BOOKED  -  old-calendar vacations that don't keep people off call lists yet (double-click to convert)", _
+                      nI, TypeColor("VAC"), Array("Date", "Shift", "", "Unit", "As imported", "Type", "Status", "When"))
+        r = NARows(ws, r, ir, nI, "")
     End If
 
     ' ---- summary tiles (double-click one to jump to its list) ----
@@ -3166,6 +3394,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "I:" Then              ' v22: imported line - open the convert pop-up
+        ShowConvertForm
+        Exit Sub
+    End If
     ShowLineMenu keyTxt
 End Sub
 
@@ -3185,8 +3417,21 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
         If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "I:" Then
+        ShowConvertForm
+        Exit Sub
+    End If
     ShowLineMenu keyTxt
 End Sub
+
+' a Variant that may be a date serial or a date -> Date (0 if neither)
+Private Function Dt2(ByVal x As Variant) As Date
+    If IsDate(x) Then
+        Dt2 = CDate(x)
+    ElseIf IsNumeric(x) And Not IsEmpty(x) Then
+        Dt2 = CDate(CDbl(x))
+    End If
+End Function
 
 Private Function KeyDate(ByVal keyTxt As String) As Date
     Dim p As Variant: p = Split(keyTxt, "|")
@@ -3284,7 +3529,8 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
         Case "B:"
             title = "Time off " & Mid$(keyTxt, 3)
             AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-            AddChoice caps, macs, grpBreak, n, "Change end date...", "CalMenuEndDate", True
+            If MenuAbsIsLeave() Then AddChoice caps, macs, grpBreak, n, "Return from leave now (top-up)...", "CalMenuLeaveReturn", True
+            AddChoice caps, macs, grpBreak, n, "Change end date...", "CalMenuEndDate", Not MenuAbsIsLeave()
             AddChoice caps, macs, grpBreak, n, "Void this time off...", "CalMenuVoid", False
 
         Case Else
@@ -3402,7 +3648,7 @@ Private Function BookingDetails(ByVal id As String) As String
         "From " & Format$(mAbs(r, AB_START), "ddd mmm d, yyyy") & " to " & _
         IIf(IsDate(mAbs(r, AB_END)), Format$(mAbs(r, AB_END), "ddd mmm d, yyyy"), "open-ended (no return date)")
     If HrsTag(mAbs(r, AB_HOURS)) <> "" Then t = t & vbLf & "Off" & HrsTag(mAbs(r, AB_HOURS)) & " per shift"
-    If code <> "LOA" And code <> "STD" And code <> "PAR" And SafeStr(mAbs(r, AB_NOTE)) <> "" Then t = t & vbLf & "Note: " & SafeStr(mAbs(r, AB_NOTE))
+    If Not IsLeaveCode(code) And code <> "SIC" And SafeStr(mAbs(r, AB_NOTE)) <> "" Then t = t & vbLf & "Note: " & SafeStr(mAbs(r, AB_NOTE))
     t = t & vbLf & "Booked by " & StampTxt(mAbs(r, AB_USER), mAbs(r, AB_STAMP)) & "  [" & id & "]"
     BookingDetails = t
 End Function
@@ -3558,6 +3804,29 @@ Public Sub CalMenuEndDate()
     Dim id As String: id = MenuAbsId()
     If id = "" Then Exit Sub
     If SetAbsenceEnd(id) Then RefreshCalendar
+End Sub
+
+' v22: is the booking under the menu a leave (so "Return from leave" applies)?
+Private Function MenuAbsIsLeave() As Boolean
+    Dim id As String: id = MenuAbsId()
+    If id = "" Then Exit Function
+    Dim r As Long: r = RowOf(mAbs, id)
+    If r > 0 Then MenuAbsIsLeave = IsLeaveCode(SafeStr(mAbs(r, AB_TYPE)))
+End Function
+
+Public Sub CalMenuLeaveReturn()
+    Dim id As String: id = MenuAbsId()
+    If id = "" Then Exit Sub
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If Not AbsenceColumnsCurrent() Then
+        MsgBox "Run Alt+F8 > UpgradeAbsenceColumns first (the Absences table needs its v22 columns).", vbExclamation
+        Exit Sub
+    End If
+    Load frmLeave
+    frmLeave.StartReturn id
+    frmLeave.Show
+    RefreshCalendar
 End Sub
 
 Public Sub CalMenuVoid()

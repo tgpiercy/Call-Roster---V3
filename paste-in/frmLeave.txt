@@ -1,0 +1,291 @@
+Option Explicit
+' @version v22 (Oct 13)
+
+' ================================================================
+' LEAVE (v22) - two modes
+'  Going on leave: books the absence (shown as "Leave" everywhere outside
+'   the Absences sheet), locks in the Home Unit and a leave group (LV-####).
+'  Returning: picks an open leave, works out the top-up = the home unit's
+'   average Total Hours gained between the first day off and the return
+'   (grade 2 and below, not on leave, with Hours History), shows every
+'   number in a confirm, then logs ONE Adjustment (Ref LV-####, Reason
+'   "Leave return") and closes the absence. Void Entry LV-#### undoes it.
+'  Every control is built in code (new form: Insert > UserForm, name it
+'  frmLeave, paste this).
+' ================================================================
+
+Private WithEvents mOptGo As MSForms.OptionButton
+Private WithEvents mOptBack As MSForms.OptionButton
+Private WithEvents mEmp As MSForms.ComboBox
+Private WithEvents mLeave As MSForms.ComboBox
+Private WithEvents mCalcBtn As MSForms.CommandButton
+Private WithEvents mSave As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+Private WithEvents mOverride As MSForms.TextBox
+
+Private mGoCtls As Collection
+Private mBackCtls As Collection
+Private mLeaveIds As Variant
+Private mCalc As LeaveCalc
+Private mCalcOk As Boolean
+Private mStartId As String
+
+Private Const LBL_L As Long = 14
+Private Const BOX_L As Long = 128
+Private Const ROW_H As Long = 26
+
+Private Function C(ByVal nm As String) As Object
+    Set C = Me.Controls("lv_" & nm)
+End Function
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single, Optional ByVal grp As String = "") As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "lv_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    If grp = "G" Then mGoCtls.Add o
+    If grp = "B" Then mBackCtls.Add o
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, _
+                          ByVal W As Single, Optional ByVal grp As String = "") As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15, grp)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Function RowT(ByVal i As Long) As Single
+    RowT = 40 + (i - 1) * ROW_H
+End Function
+
+Private Sub FillCombo(ByVal cb As Object, ByVal items As Variant)
+    Dim i As Long
+    cb.Clear
+    If Not IsArray(items) Then Exit Sub
+    For i = LBound(items) To UBound(items)
+        cb.AddItem CStr(items(i))
+    Next i
+End Sub
+
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Set mGoCtls = New Collection
+    Set mBackCtls = New Collection
+    Me.Caption = "Leave"
+    Me.Width = 470
+    Me.Height = 470
+
+    Set mOptGo = AddCtl("Forms.OptionButton.1", "optG", LBL_L, 10, 140, 18)
+    mOptGo.Caption = "Going on leave": mOptGo.Font.Bold = True
+    Set mOptBack = AddCtl("Forms.OptionButton.1", "optB", 170, 10, 200, 18)
+    mOptBack.Caption = "Returning from leave (top-up)": mOptBack.Font.Bold = True
+
+    Dim o As Object
+    ' ---- going ----
+    AddLabel "lEmp", "Employee", LBL_L, RowT(1) + 3, 110, "G"
+    Set mEmp = AddCtl("Forms.ComboBox.1", "cboEmp", BOX_L, RowT(1), 250, 20, "G")
+    mEmp.Style = 2: mEmp.ListRows = 20
+    FillCombo mEmp, RosterNames()
+    AddLabel "hEmp", "", BOX_L, RowT(1) + 22, 320, "G"
+    AddLabel "lType", "Type", LBL_L, RowT(2) + 8, 110, "G"
+    Set o = AddCtl("Forms.ComboBox.1", "cboType", BOX_L, RowT(2) + 5, 250, 20, "G")
+    o.Style = 2: FillCombo o, LeaveTypes(): o.ListIndex = 0
+    AddLabel "lFirst", "First day off", LBL_L, RowT(3) + 8, 110, "G"
+    AddCtl "Forms.TextBox.1", "txtFirst", BOX_L, RowT(3) + 5, 110, 20, "G"
+    AddLabel "lRet", "Expected return", LBL_L, RowT(4) + 8, 110, "G"
+    AddCtl "Forms.TextBox.1", "txtExp", BOX_L, RowT(4) + 5, 110, 20, "G"
+    AddLabel "hRet", "optional - leave blank if unknown (open-ended)", BOX_L + 118, RowT(4) + 8, 220, "G"
+    AddLabel "lNote", "Note (optional)", LBL_L, RowT(5) + 8, 110, "G"
+    AddCtl "Forms.TextBox.1", "txtNote", BOX_L, RowT(5) + 5, 310, 20, "G"
+    Set o = AddLabel("infoG", "Shows as 'Leave' on the calendar and to members. Off call lists from the first day off. " & _
+                     "The Home Unit on the roster is locked in now for the return top-up.", LBL_L, RowT(6) + 8, 430, "G")
+    o.Height = 30: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(30, 56, 100)
+
+    ' ---- returning ----
+    AddLabel "lLeave", "Who's back", LBL_L, RowT(1) + 3, 110, "B"
+    Set mLeave = AddCtl("Forms.ComboBox.1", "cboLeave", BOX_L, RowT(1), 320, 20, "B")
+    mLeave.Style = 2: mLeave.ListRows = 12
+    AddLabel "lDate", "Return date", LBL_L, RowT(2) + 3, 110, "B"
+    AddCtl "Forms.TextBox.1", "txtReturn", BOX_L, RowT(2), 110, 20, "B"
+    AddLabel "hDate", "first day back at work", BOX_L + 118, RowT(2) + 3, 200, "B"
+    Set mCalcBtn = AddCtl("Forms.CommandButton.1", "cmdCalc", BOX_L, RowT(3), 150, 24, "B")
+    mCalcBtn.Caption = "Work out the top-up"
+    Set o = AddLabel("result", "Pick the person and the return date, then click Work out the top-up.", LBL_L, RowT(4) + 2, 430, "B")
+    o.Height = 110: o.WordWrap = True: o.Font.Size = 9
+    AddLabel "lOver", "Override hours", LBL_L, RowT(8) + 20, 110, "B"
+    Set mOverride = AddCtl("Forms.TextBox.1", "txtOver", BOX_L, RowT(8) + 17, 70, 20, "B")
+    AddLabel "hOver", "only if the average is wrong - a reason is required", BOX_L + 78, RowT(8) + 20, 260, "B"
+    AddLabel "lWhy", "Override reason", LBL_L, RowT(9) + 20, 110, "B"
+    AddCtl "Forms.TextBox.1", "txtWhy", BOX_L, RowT(9) + 17, 310, 20, "B"
+
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(11) + 14, 300, 30)
+    mSave.Caption = "SAVE"
+    mSave.Font.Bold = True: mSave.Font.Size = 11
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 310, RowT(11) + 14, 120, 30)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+    AddLabel "status", "", LBL_L, RowT(12) + 20, 430
+    C("status").Font.Size = 8
+
+    ApplyFormTheme Me
+    mSave.BackColor = RGB(106, 27, 154): mSave.ForeColor = vbWhite
+    mOptGo.BackStyle = 0: mOptBack.BackStyle = 0
+    Dim h As Variant
+    For Each h In Array("hEmp", "hRet", "hDate", "hOver")
+        C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
+    Next h
+    LoadLeaves
+    If mStartId <> "" Then
+        mOptBack.Value = True
+    Else
+        mOptGo.Value = True
+    End If
+    SetMode
+End Sub
+
+' CalMenuLeaveReturn: open straight on one leave booking
+Public Sub StartReturn(ByVal absId As String)
+    mStartId = absId
+    On Error Resume Next
+    mOptBack.Value = True
+    SetMode
+    SelectLeave absId
+    On Error GoTo 0
+End Sub
+
+Private Sub SetMode()
+    Dim o As Object, going As Boolean: going = mOptGo.Value
+    For Each o In mGoCtls
+        o.Visible = going
+    Next o
+    For Each o In mBackCtls
+        o.Visible = Not going
+    Next o
+    Me.Caption = IIf(going, "Leave - going", "Leave - returning")
+    mSave.Caption = IIf(going, "SAVE LEAVE", "SAVE TOP-UP")
+    mCalcOk = False
+End Sub
+
+Private Sub mOptGo_Click(): SetMode: End Sub
+Private Sub mOptBack_Click(): SetMode: End Sub
+
+Private Sub LoadLeaves()
+    Dim d As Variant, i As Long
+    mLeave.Clear
+    d = OpenLeaves(mLeaveIds)
+    If IsArray(d) Then
+        For i = LBound(d) To UBound(d)
+            mLeave.AddItem d(i)
+        Next i
+    End If
+    If mStartId <> "" Then SelectLeave mStartId
+End Sub
+
+Private Sub SelectLeave(ByVal absId As String)
+    If Not IsArray(mLeaveIds) Then Exit Sub
+    Dim i As Long
+    For i = LBound(mLeaveIds) To UBound(mLeaveIds)
+        If StrComp(CStr(mLeaveIds(i)), absId, vbTextCompare) = 0 Then mLeave.ListIndex = i: Exit Sub
+    Next i
+End Sub
+
+Private Sub mEmp_Change()
+    If mEmp.ListIndex < 0 Then C("hEmp").Caption = "": Exit Sub
+    Dim hu As String: hu = HomeUnitOf(mEmp.Text)
+    C("hEmp").Caption = IIf(hu = "", "NO HOME UNIT on the roster (column B) - fill it in first, the return top-up needs it", "home unit: " & hu)
+    C("hEmp").ForeColor = IIf(hu = "", RGB(190, 30, 30), RGB(120, 120, 120))
+End Sub
+
+Private Sub mLeave_Change()
+    mCalcOk = False
+    C("result").Caption = "Enter the return date, then click Work out the top-up."
+End Sub
+
+' ---- the calculation ----
+Private Sub mCalcBtn_Click()
+    mCalcOk = False
+    If mLeave.ListIndex < 0 Or Not IsArray(mLeaveIds) Then MsgBox "Pick who's back.", vbExclamation: Exit Sub
+    Dim t As String: t = Trim$(C("txtReturn").Text)
+    If t = "" Or Not IsDate(t) Then MsgBox "Enter the return date (first day back).", vbExclamation: Exit Sub
+    Me.MousePointer = fmMousePointerHourGlass
+    Dim ok As Boolean
+    ok = ComputeLeaveReturn(CStr(mLeaveIds(mLeave.ListIndex)), Int(CDate(t)), mCalc)
+    Me.MousePointer = fmMousePointerDefault
+    If Not ok Then
+        C("result").Caption = "Can't work it out: " & mCalc.Warnings
+        C("result").ForeColor = RGB(190, 30, 30)
+        Exit Sub
+    End If
+    C("result").ForeColor = RGB(30, 56, 100)
+    C("result").Caption = mCalc.Summary & vbLf & "Peers: " & mCalc.PeerNames & _
+                          IIf(mCalc.Warnings <> "", vbLf & "Check: " & mCalc.Warnings, "")
+    mOverride.Text = ""
+    C("txtWhy").Text = ""
+    mCalcOk = True
+End Sub
+
+' ---- save ----
+Private Sub mSave_Click()
+    If mOptGo.Value Then SaveGoing Else SaveReturning
+End Sub
+
+Private Sub SaveGoing()
+    Dim problems As String, d1 As Date, d2 As Variant
+    If mEmp.ListIndex < 0 Then problems = problems & "- Employee" & vbNewLine
+    If C("cboType").ListIndex < 0 Then problems = problems & "- Type" & vbNewLine
+    If Not IsDate(Trim$(C("txtFirst").Text)) Then problems = problems & "- First day off" & vbNewLine
+    If Trim$(C("txtExp").Text) <> "" And Not IsDate(Trim$(C("txtExp").Text)) Then problems = problems & "- Expected return (a date, or blank)" & vbNewLine
+    If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Leave": Exit Sub
+    d1 = Int(CDate(Trim$(C("txtFirst").Text)))
+    If Trim$(C("txtExp").Text) <> "" Then
+        d2 = Int(CDate(Trim$(C("txtExp").Text)))
+        If d2 <= d1 Then MsgBox "The expected return must be after the first day off.", vbExclamation: Exit Sub
+    Else
+        d2 = Empty
+    End If
+    If HomeUnitOf(mEmp.Text) = "" Then
+        If MsgBox(mEmp.Text & " has no Home Unit on the roster. The return top-up needs it. Save the leave anyway " & _
+                  "(fill in column B before they return)?", vbYesNo + vbExclamation, "Leave") = vbNo Then Exit Sub
+    End If
+    Dim hu As String, id As String
+    id = SaveLeaveGoing(mEmp.Text, C("cboType").Text, d1, d2, Trim$(C("txtNote").Text), hu)
+    If id = "" Then Exit Sub
+    RefreshCalendar
+    C("status").Caption = id & " saved - " & mEmp.Text & " on leave from " & Format$(d1, "mmm d") & _
+                          IIf(IsDate(d2), ", back " & Format$(d2, "mmm d"), ", open-ended") & ". Home unit " & IIf(hu = "", "(none)", hu) & "."
+    LoadLeaves
+    MsgBox C("status").Caption, vbInformation, "Leave"
+End Sub
+
+Private Sub SaveReturning()
+    If Not mCalcOk Then MsgBox "Click Work out the top-up first.", vbExclamation: Exit Sub
+    Dim hrs As Double: hrs = mCalc.Average
+    Dim why As String: why = Trim$(C("txtWhy").Text)
+    If Trim$(mOverride.Text) <> "" Then
+        If Not IsNumeric(Trim$(mOverride.Text)) Then MsgBox "The override must be a number of hours.", vbExclamation: Exit Sub
+        hrs = CDbl(Trim$(mOverride.Text))
+        If why = "" Then MsgBox "An override needs a reason (it goes in the OT Log).", vbExclamation: Exit Sub
+    End If
+    Dim msg As String
+    msg = mCalc.Emp & " returns " & Format$(mCalc.ReturnDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & mCalc.Summary & vbNewLine
+    If hrs <> mCalc.Average Then msg = msg & vbNewLine & "OVERRIDE: add " & Format$(hrs, "0.0") & " h instead (" & why & ")" & vbNewLine
+    msg = msg & vbNewLine & "This logs one Adjustment (" & IIf(hrs = 0, "none - nothing to add", "Ref LV-####, Reason 'Leave return'") & _
+          ") and closes the leave. Void Entry undoes the hours." & vbNewLine & vbNewLine & "Save?"
+    If MsgBox(msg, vbOKCancel + vbQuestion, "Confirm leave return") <> vbOK Then Exit Sub
+    Dim id As String: id = SaveLeaveReturn(mCalc, hrs, why)
+    If id = "" Then Exit Sub
+    RefreshCalendar
+    C("status").Caption = id & " saved: " & Format$(hrs, "0.0") & " h added to " & mCalc.Emp & "; leave closed."
+    mCalcOk = False
+    LoadLeaves
+    MsgBox C("status").Caption, vbInformation, "Leave"
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

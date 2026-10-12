@@ -1,5 +1,5 @@
 Option Explicit
-' @version v21 (Oct 11)
+' @version v22 (Oct 13)
 
 ' ================================================================
 ' CALLOUT SESSION FORM
@@ -181,6 +181,18 @@ Private Sub SetOutcomeButtons(ByVal on_ As Boolean)
     btnRefused.Enabled = on_
     btnLeftMsg.Enabled = on_
     btnUnavailable.Enabled = on_
+End Sub
+
+
+' v22: a sick call opens this form already filled in (unit, date, Days / Nights);
+' the crew fills from the rotation as usual, then the supervisor clicks LOAD LIST
+Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String)
+    On Error Resume Next
+    C("cmbDept").Value = unit
+    C("txtDate").Value = Format$(d, "MM/DD/YYYY")
+    C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
+    C("lblStatus").Caption = "Sick call: " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - enter the hours and click LOAD LIST."
+    On Error GoTo 0
 End Sub
 
 

@@ -23,9 +23,9 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v21 M1 (Oct 12)"
-Public Const EXPECTED_RELEASE As String = "v21"
-Private Const N_MODULES As Long = 13
+Public Const SYS_VERSION As String = "System v22 (Oct 13)"
+Public Const EXPECTED_RELEASE As String = "v22"
+Private Const N_MODULES As Long = 14
 
 Private mBackupWarned As Boolean
 
@@ -49,6 +49,7 @@ Public Sub SystemCheck()
     VerCheck "modSelfTest", ST_VERSION, warn, nOk
     VerCheck "Call_Out_Roster", CO_VERSION, warn, nOk
     VerCheck "modPublish", PUB_VERSION, warn, nOk
+    VerCheck "modLeave", LV_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), EXPECTED_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & EXPECTED_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
@@ -79,12 +80,13 @@ Public Sub SystemCheck()
                     warn = warn & "- '" & nm & "' is left over from an earlier version: remove it" & vbNewLine
             End Select
         Next comp
-        For Each f In Array("frmShiftSwitch", "frmOvertimeEntry", "frmNewPosting", "frmPostingEntry", "frmTimeOff")
+        For Each f In Array("frmShiftSwitch", "frmOvertimeEntry", "frmNewPosting", "frmPostingEntry", "frmTimeOff", _
+                            "frmLeave", "frmSickCall", "frmConvert")
             If InStr(compNames, "|" & LCase$(CStr(f)) & "|") = 0 Then
-                warn = warn & "- form " & f & " is missing" & vbNewLine
+                warn = warn & "- form " & f & " is missing (Insert > UserForm, name it, paste " & f & ".txt)" & vbNewLine
             End If
         Next f
-        For Each f In Array("frmShiftSwitch", "frmOvertimeEntry", "frmNewPosting", "frmPostingEntry", "frmTimeOff")   ' every form carries a version line from v21
+        For Each f In Array("frmOvertimeEntry", "frmLeave", "frmSickCall", "frmConvert")   ' forms changed or new in v22
             If InStr(compNames, "|" & LCase$(CStr(f)) & "|") > 0 Then
                 If InStr(FormMarker(proj, CStr(f)), EXPECTED_RELEASE) = 0 Then
                     warn = warn & "- " & f & " code is older than " & EXPECTED_RELEASE & ": re-paste " & f & ".txt" & vbNewLine
@@ -138,6 +140,13 @@ Public Sub SystemCheck()
         warn = warn & "- " & nHU & " with no Home Unit (column B): " & huTxt & vbNewLine
     End If
     info = info & "Grade change log: " & IIf(SheetExists(GL_SHEET), "present", "created on the first change") & vbNewLine
+    ' v22: absences table columns, imported lines not booked
+    If Not AbsenceColumnsCurrent() Then warn = warn & "- Absences table needs its v22 columns: run UpgradeAbsenceColumns" & vbNewLine
+    Dim nImp As Long
+    On Error Resume Next
+    nImp = ImportedNotBookedCount()
+    On Error GoTo 0
+    If nImp > 0 Then warn = warn & "- " & nImp & " imported vacation line(s) in the next " & IMPORT_WATCH_DAYS & " days not booked yet: Convert imports" & vbNewLine
     ' M1: members' file
     If Not MemberTemplateExists() Then
         warn = warn & "- members' template not found next to this workbook: " & MEMBER_TEMPLATE_NAME & " (see the M1 install notes)" & vbNewLine

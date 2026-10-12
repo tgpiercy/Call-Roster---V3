@@ -1,0 +1,217 @@
+Option Explicit
+' @version v22 (Oct 13)
+
+' ================================================================
+' CONVERT IMPORTED LINES (v22)
+'  Vacation lines brought in by Import Old Cal only SHOW on the calendar;
+'  they don't keep anyone off call lists. This pop-up turns the ticked
+'  lines into real Absences bookings (consecutive dates merge into one),
+'  and records the booking on each line so it is never converted twice.
+'  Names: "Paul M" on the old calendars is matched to the roster by first
+'  name + last initial; pick the name yourself when it's ambiguous.
+'  Every control is built in code (new form: Insert > UserForm, name it
+'  frmConvert, paste this).
+' ================================================================
+
+Private WithEvents mList As MSForms.ListBox
+Private WithEvents mName As MSForms.ComboBox
+Private WithEvents mAssign As MSForms.CommandButton
+Private WithEvents mConvert As MSForms.CommandButton
+Private WithEvents mDismiss As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+Private WithEvents mSelAll As MSForms.CommandButton
+
+Private mIds() As String
+Private mNames() As String
+Private mN As Long
+
+Private Const LBL_L As Long = 14
+Private Const INNER_W As Long = 560
+
+Private Function C(ByVal nm As String) As Object
+    Set C = Me.Controls("cv_" & nm)
+End Function
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single) As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "cv_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Me.Caption = "Convert imported calendar lines"
+    Me.Width = 600
+    Me.Height = 440
+
+    Dim o As Object
+    Set o = AddLabel("hdr", "IMPORTED VACATION LINES NOT BOOKED YET", LBL_L, 8, 400)
+    o.Font.Bold = True: o.ForeColor = RGB(21, 101, 192)
+    Set o = AddLabel("info", "Tick the lines to book (Ctrl-click for several). Lines with a roster match book straight away; " & _
+                     "for 'several matches' or 'no match' pick the name below and click Use this name first.", LBL_L, 26, INNER_W)
+    o.Height = 28: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(100, 100, 100)
+
+    AddLabel "h1", "Date", LBL_L + 2, 58, 70
+    AddLabel "h2", "Shift", LBL_L + 74, 58, 44
+    AddLabel "h3", "Unit", LBL_L + 120, 58, 90
+    AddLabel "h4", "As imported", LBL_L + 212, 58, 150
+    AddLabel "h5", "Roster name", LBL_L + 364, 58, 190
+    Dim h As Variant
+    For Each h In Array("h1", "h2", "h3", "h4", "h5")
+        C(CStr(h)).Font.Bold = True: C(CStr(h)).Font.Size = 8.5
+    Next h
+
+    Set mList = AddCtl("Forms.ListBox.1", "lst", LBL_L, 74, INNER_W, 200)
+    mList.ColumnCount = 5
+    mList.ColumnWidths = "72;46;92;152;190"
+    mList.MultiSelect = 1                                  ' fmMultiSelectMulti: click toggles
+    mList.Font.Size = 9
+
+    Set mSelAll = AddCtl("Forms.CommandButton.1", "cmdAll", LBL_L, 280, 90, 22)
+    mSelAll.Caption = "Tick all matched"
+    AddLabel "lName", "Name for the ticked lines:", LBL_L + 100, 284, 130
+    Set mName = AddCtl("Forms.ComboBox.1", "cboName", LBL_L + 232, 281, 200, 20)
+    mName.Style = 2: mName.ListRows = 20
+    Dim nms As Variant: nms = RosterNames()
+    Dim i As Long
+    If IsArray(nms) Then
+        For i = LBound(nms) To UBound(nms)
+            mName.AddItem CStr(nms(i))
+        Next i
+    End If
+    Set mAssign = AddCtl("Forms.CommandButton.1", "cmdAssign", LBL_L + 440, 280, 120, 22)
+    mAssign.Caption = "Use this name"
+
+    Set mConvert = AddCtl("Forms.CommandButton.1", "cmdConvert", LBL_L, 316, 220, 30)
+    mConvert.Caption = "BOOK THE TICKED LINES"
+    mConvert.Font.Bold = True: mConvert.Font.Size = 10
+    Set mDismiss = AddCtl("Forms.CommandButton.1", "cmdDismiss", LBL_L + 230, 316, 190, 30)
+    mDismiss.Caption = "Dismiss ticked (leave as display only)"
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 430, 316, 130, 30)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+    AddLabel "status", "", LBL_L, 356, INNER_W
+    C("status").Font.Size = 8
+    C("status").Height = 40
+    C("status").WordWrap = True
+
+    ApplyFormTheme Me
+    mConvert.BackColor = RGB(21, 101, 192): mConvert.ForeColor = vbWhite
+    LoadLines
+End Sub
+
+Private Sub LoadLines()
+    mList.Clear
+    mN = 0
+    Dim v As Variant: v = ImportCandidates(Date, Date + 365)
+    If Not IsArray(v) Then
+        C("status").Caption = "No imported vacation lines waiting (today onward). Everything from the old calendars is booked or dismissed."
+        mConvert.Enabled = False: mDismiss.Enabled = False
+        Exit Sub
+    End If
+    mN = UBound(v, 1)
+    ReDim mIds(1 To mN): ReDim mNames(1 To mN)
+    Dim i As Long, nMatch As Long
+    For i = 1 To mN
+        mIds(i) = CStr(v(i, 1))
+        mNames(i) = CStr(v(i, 6))
+        If mNames(i) = "?" Then mNames(i) = ""
+        mList.AddItem Format$(v(i, 2), "ddd mmm d")
+        mList.List(i - 1, 1) = CStr(v(i, 3))
+        mList.List(i - 1, 2) = CStr(v(i, 4))
+        mList.List(i - 1, 3) = CStr(v(i, 5))
+        mList.List(i - 1, 4) = NameShown(i, CStr(v(i, 6)))
+        If mNames(i) <> "" Then nMatch = nMatch + 1
+    Next i
+    C("status").Caption = mN & " line(s), " & nMatch & " matched to the roster. Unmatched lines need a name picked below."
+End Sub
+
+Private Function NameShown(ByVal i As Long, ByVal raw As String) As String
+    If mNames(i) <> "" Then
+        NameShown = mNames(i)
+    ElseIf raw = "?" Then
+        NameShown = "(several matches - pick)"
+    Else
+        NameShown = "(no match - pick)"
+    End If
+End Function
+
+Private Sub mSelAll_Click()
+    Dim i As Long
+    For i = 1 To mN
+        mList.Selected(i - 1) = (mNames(i) <> "")
+    Next i
+End Sub
+
+Private Sub mAssign_Click()
+    If mName.ListIndex < 0 Then MsgBox "Pick a roster name first.", vbInformation: Exit Sub
+    Dim i As Long, k As Long
+    For i = 1 To mN
+        If mList.Selected(i - 1) Then
+            mNames(i) = mName.Text
+            mList.List(i - 1, 4) = mName.Text
+            k = k + 1
+        End If
+    Next i
+    C("status").Caption = IIf(k = 0, "Tick the lines first.", k & " line(s) set to " & mName.Text & ".")
+End Sub
+
+Private Sub mConvert_Click()
+    Dim ids() As String, nms() As String, n As Long, i As Long, skipped As Long
+    ReDim ids(1 To IIf(mN > 0, mN, 1)): ReDim nms(1 To IIf(mN > 0, mN, 1))
+    For i = 1 To mN
+        If mList.Selected(i - 1) Then
+            If mNames(i) = "" Then
+                skipped = skipped + 1
+            Else
+                n = n + 1: ids(n) = mIds(i): nms(n) = mNames(i)
+            End If
+        End If
+    Next i
+    If n = 0 Then MsgBox "Tick at least one line that has a roster name.", vbInformation: Exit Sub
+    If MsgBox("Book " & n & " line(s) as vacation on the Absences sheet?" & vbNewLine & _
+              "Consecutive dates for one person become one booking. The people drop off call lists for those dates." & _
+              IIf(skipped > 0, vbNewLine & vbNewLine & skipped & " ticked line(s) have no name yet and are left alone.", ""), _
+              vbOKCancel + vbQuestion, "Convert") <> vbOK Then Exit Sub
+    Dim report As String, made As Long
+    Me.MousePointer = fmMousePointerHourGlass
+    made = ConvertImports(ids, nms, n, report)
+    Me.MousePointer = fmMousePointerDefault
+    RefreshCalendar
+    MsgBox made & " booking(s) made:" & vbNewLine & vbNewLine & report, vbInformation, "Convert"
+    LoadLines
+End Sub
+
+Private Sub mDismiss_Click()
+    Dim ids() As String, n As Long, i As Long
+    ReDim ids(1 To IIf(mN > 0, mN, 1))
+    For i = 1 To mN
+        If mList.Selected(i - 1) Then n = n + 1: ids(n) = mIds(i)
+    Next i
+    If n = 0 Then MsgBox "Tick the lines to dismiss first.", vbInformation: Exit Sub
+    If MsgBox("Leave " & n & " line(s) as display only? They stay on the calendar but won't be listed again, " & _
+              "and the people are NOT kept off call lists for those dates.", vbOKCancel + vbExclamation, "Dismiss") <> vbOK Then Exit Sub
+    DismissImports ids, n
+    RefreshCalendar
+    LoadLines
+End Sub
+
+Private Sub mList_Click()
+    ' nothing - selection only
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

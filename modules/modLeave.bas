@@ -227,7 +227,11 @@ Public Function TotalHoursAsOf(ByVal emp As String, ByVal d As Date, Optional By
     TotalHoursAsOf = HoursAsOfCore(mHH, mLG, emp, d, mYearFrom, mYearTo, snapThrough, est)
     note = ""
     If snapThrough = 0 Then
-        note = "no Hours History for " & emp & " - worked hours taken as 0"
+        If HasAnyHistory(emp) Then
+            note = "no Hours History for " & emp & " this year - worked hours taken as 0 (the year reset)"
+        Else
+            note = "no Hours History for " & emp & " - worked hours taken as 0"
+        End If
     ElseIf est Then
         note = "start figure estimated from the " & Format$(snapThrough, "mmm d") & " snapshot (none on or before " & Format$(d, "mmm d") & ")"
     ElseIf Abs(Int(d) - Int(snapThrough)) > SNAPSHOT_WARN_DAYS Then
@@ -284,6 +288,15 @@ Private Function HasHistoryBefore(ByVal emp As String, ByVal d As Date) As Boole
             t = Int(CDate(mHH(i, HH_THROUGH)))
             If t < Int(d) And t >= Int(mYearFrom) Then HasHistoryBefore = True: Exit Function
         End If
+    Next i
+End Function
+
+' True when emp has any Hours History snapshot at all (any year)
+Private Function HasAnyHistory(ByVal emp As String) As Boolean
+    If Not IsArray(mHH) Then Exit Function
+    Dim i As Long
+    For i = 1 To UBound(mHH, 1)
+        If StrComp(Trim$(SafeStr(mHH(i, HH_EMP))), Trim$(emp), vbTextCompare) = 0 And IsDate(mHH(i, HH_THROUGH)) Then HasAnyHistory = True: Exit Function
     Next i
 End Function
 
@@ -644,7 +657,7 @@ Public Function ConvertImports(ByRef lineIds() As String, ByRef empNames() As St
                 r = RowOfId(v, ids(1)): unit = SafeStr(v(r, CV_UNIT))
                 For q = 1 To nr
                     absId = SaveAbsence(empNames(i), unit, "VAC", runs(q, 1), runs(q, 2), Empty, "", "Converted from the imported calendar", _
-                                        HomeUnitOf(empNames(i)), "", IIf(InStr(shiftTxt, "/") > 0, "Both", shiftTxt), "AB", True)
+                                        HomeUnitOf(empNames(i)), "", IIf(InStr(shiftTxt, "/") > 0, "Both", shiftTxt), "AB", True, True)
                     If absId <> "" Then
                         made = made + 1
                         report = report & "  " & empNames(i) & ": " & Format$(runs(q, 1), "mmm d") & _

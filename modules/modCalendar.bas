@@ -794,7 +794,9 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
                             ByVal times As String, ByVal note As String, _
                             Optional ByVal homeUnit As String = "", Optional ByVal leaveGroup As String = "", _
                             Optional ByVal shiftLbl As String = "", Optional ByVal idPrefix As String = "AB", _
-                            Optional ByVal quiet As Boolean = False) As String
+                            Optional ByVal quiet As Boolean = False, Optional ByVal skipOnClash As Boolean = False) As String
+    ' quiet: no overlap prompt (saves anyway) and no save-to-disk; skipOnClash: an
+    ' overlapping booking wins and nothing is saved (Convert imports only)
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     Dim lo As ListObject: Set lo = AbsTable(True)
@@ -821,9 +823,11 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
         Next r
     End If
     If clash <> "" Then
-        If quiet Then Exit Function              ' no prompt possible: the existing booking wins
-        If MsgBox(emp & " already has time off in that range:" & vbNewLine & clash & vbNewLine & _
-                  "Save this one too?", vbYesNo + vbExclamation, "Overlap") = vbNo Then Exit Function
+        If skipOnClash Then Exit Function
+        If Not quiet Then
+            If MsgBox(emp & " already has time off in that range:" & vbNewLine & clash & vbNewLine & _
+                      "Save this one too?", vbYesNo + vbExclamation, "Overlap") = vbNo Then Exit Function
+        End If
     End If
 
     Dim id As String: id = NextId(lo, idPrefix)
@@ -2223,7 +2227,7 @@ Private Sub CalPostKey(ByVal keyTxt As String)
         Case "VAC": reason = "Vacation Coverage"
         Case "PHA": reason = "PHA"
         Case "TRN": reason = "Training Coverage"
-        Case "LOA", "STD", "PAR": reason = "Leave Coverage"
+        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": reason = "Leave Coverage"
         Case "SUP": reason = "Unit Operator Support"
         Case Else: reason = "Other"
     End Select

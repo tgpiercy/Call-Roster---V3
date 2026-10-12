@@ -403,9 +403,7 @@ Private Function AskReportUnit(ByRef unit As String, ByRef allUnits As Boolean) 
                                "Which unit? Enter the number:" & vbNewLine & vbNewLine & menu, "Refusals report", "0"))
         If s = "" Then Exit Function
         k = -1
-        If IsNumeric(s) Then
-            If Val(s) >= 0 And Val(s) <= 99 Then k = CLng(Val(s))
-        End If
+        If s Like "#" Or s Like "##" Then k = CLng(s)        ' digits only: "$5" or "1,5" must not pick a unit
         If k >= 0 Then
             If k = 0 Then allUnits = True: AskReportUnit = True: Exit Function
             If k >= 1 And k <= UBound(depts) - LBound(depts) + 1 Then

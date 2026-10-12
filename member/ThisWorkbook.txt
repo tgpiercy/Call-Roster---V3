@@ -19,5 +19,6 @@ End Sub
 ' Nothing here is ever worth saving, so closing never asks.
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
-    Me.Saved = True
+    ' not in the TEMPLATE: closing it after importing code or rebuilding must still ask to save
+    If InStr(1, Me.Name, "TEMPLATE", vbTextCompare) = 0 Then Me.Saved = True
 End Sub

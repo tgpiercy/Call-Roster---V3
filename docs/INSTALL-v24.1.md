@@ -48,7 +48,7 @@ The members' file gained data and sheets, so the old template can't be filled an
 1. Open `Call Out Roster - Members TEMPLATE.xlsm` (next to the roster). In the VBA editor remove **modMember** (No to export) and import `member/modMember.bas` from the zip. Then double-click its **ThisWorkbook**, Ctrl+A, and paste `member/ThisWorkbook.txt`.
 2. Debug > Compile VBAProject. No message expected.
 3. Alt+F8 > **BuildMemberTemplate** > OK. It rebuilds every sheet and button.
-4. Save and close the template.
+4. **Save** the template (Ctrl+S), then close it.
 5. In the roster, click **Member View**. It should publish as before, in about the same time.
 6. Open the published `Call Out Roster - Members.xlsm` and try part D's members' checks.
 
@@ -64,7 +64,7 @@ The members' file gained data and sheets, so the old template can't be filled an
 3. **Attendance** (ADMIN): only people with a sick or personal day show, A - Z. Each occurrence has its own column with its dates and paid days. Try **By department**, **Worst first**, **Show everyone**, and the filter arrows on the header.
 4. **Part of a call-out:** Log Call-Out, load a list, mark the first person Refused, select the second and click **ACCEPTED PART OF THE HOURS**, enter 8 (of 12). The third person now shows "Offering 4 of 12 h"; mark them Refused and submit. In the OT Log: the first refusal is charged 21, the acceptance shows Hours 8, the last refusal is charged 7.
 5. **Out of department, part of a shift:** Award Posting, LOAD a posting nobody signed, pick an out-of-department name, type 6 in the **hrs** box, AWARD OUT OF DEPT. The log row shows Hours 6; in-department people are charged the posting's full hours as before.
-6. **Publish reminder:** create a posting, then close the file. It asks whether to publish the members' file first. Answer No: it closes as usual.
+6. **Publish reminder:** this one can't be seen on the copy. It is deliberately silent on a file with COPY or DRY RUN in its name, on a daily backup and on a FINAL year file, so an old copy can never overwrite the members' file. Check it on the live roster the first time you create a posting and close: it asks whether to publish first; No closes as usual.
 7. **Members' file:** open the published copy.
    - **Find me** on Home: pick a name. The card below shows hours, Refused by kind, call positions and the sick-time counts (no dates). The Roster tab opens on that person's home unit with their row highlighted; Who's next and Calendar open on the same unit.
    - **Calendar:** a month grid, days above nights, like the roster's Calendar tab. Try `< Month`, `Month >` and Print.

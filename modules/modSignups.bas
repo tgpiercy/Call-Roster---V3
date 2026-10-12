@@ -315,7 +315,7 @@ Public Sub ArchiveSignups(ByVal postingId As String)
     postingId = UCase$(Trim$(postingId))
     Dim files() As String, n As Long, f As String, i As Long
     f = Dir$(folder & postingId & "__*.txt")
-    Do While f <> ""
+    Do While f <> "" And Err.Number = 0             ' (an error from Dir must end the loop, not repeat it)
         n = n + 1
         ReDim Preserve files(1 To n)
         files(n) = f
@@ -341,7 +341,7 @@ Public Sub RestoreSignups(ByVal postingId As String)
     If Not FolderExists(doneDir) Then Exit Sub
     Dim files() As String, n As Long, f As String, i As Long
     f = Dir$(doneDir & postingId & "__*.txt")
-    Do While f <> ""
+    Do While f <> "" And Err.Number = 0             ' (an error from Dir must end the loop, not repeat it)
         n = n + 1
         ReDim Preserve files(1 To n)
         files(n) = f
@@ -363,7 +363,7 @@ Public Function StaleSignups(ByVal minDays As Long, ByRef txt As String) As Long
     If Not FolderExists(folder) Then Exit Function
     Dim files() As String, n As Long, f As String, i As Long, id As String, p As Long, cnt As Long
     f = Dir$(folder & "*__*.txt")
-    Do While f <> ""
+    Do While f <> "" And Err.Number = 0             ' (an error from Dir must end the loop, not repeat it)
         n = n + 1
         ReDim Preserve files(1 To n)
         files(n) = f

@@ -845,3 +845,107 @@ def reduce_signups(rows: list[tuple[str, str, float, datetime]], closes_at: date
         if action.strip().lower() == "signup":
             out.append((emp.strip(), hours, closes_at is not None and stamp > closes_at))
     return out
+
+
+# ---------------------------------------------------------------------------
+# v24.2: the publish's privacy check (modPublish) and the Payroll # rules
+# (modOvertimeEntry)
+# ---------------------------------------------------------------------------
+def _single_run(s: str) -> int:
+    best = run = 0
+    for ch in s:
+        if ch.isdigit() and ch.isascii():
+            run += 1
+            best = max(best, run)
+        else:
+            run = 0
+    return best
+
+
+def _joined_digits(s: str) -> int:
+    """modPublish.JoinedDigits: digits counted across phone separators, yyyy-mm-dd blanked first."""
+    chars = list(s)
+    i = 0
+    while i <= len(chars) - 10:
+        w = chars[i:i + 10]
+        if all((c.isdigit() and c.isascii()) if k not in (4, 7) else c == "-" for k, c in enumerate(w)):
+            chars[i:i + 10] = [" "] * 10
+            i += 10
+        else:
+            i += 1
+    best = run = 0
+    for ch in chars:
+        if ch.isdigit() and ch.isascii():
+            run += 1
+            best = max(best, run)
+        elif ch in " -().":
+            pass
+        else:
+            run = 0
+    return best
+
+
+def longest_digit_run(s: str) -> int:
+    joined = _joined_digits(s)
+    return joined if joined >= 10 else _single_run(s)
+
+
+def private_value_kind(x) -> str:
+    """modPublish.PrivateValueKind: '' / email / phone / number."""
+    if isinstance(x, str):
+        if "@" in x:
+            return "email"
+        if longest_digit_run(x) >= 7:
+            return "phone"
+        return ""
+    if isinstance(x, (int, float)) and not isinstance(x, bool):
+        return "number" if abs(float(x)) >= 1_000_000 else ""
+    return ""                                   # dates, blanks, errors
+
+
+def attend_count_ok(x) -> bool:
+    """A sick-time count may be a number or blank - never text and never a date."""
+    return not isinstance(x, (str, date))
+
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def attend_status_ok(s: str) -> bool:
+    if s in ("Paid sick available", "Paid sick days used up", "Paid sick only while the current occurrence continues"):
+        return True
+    head = "No paid sick until "
+    if not s.startswith(head):
+        return False
+    rest = s[len(head):]                        # Like "[A-Z][a-z][a-z] *, ####"
+    if len(rest) < 4 + 2 + 4 or not (rest[0].isupper() and rest[1:3].islower() and rest[3] == " "):
+        return False
+    return rest[-6:-4] == ", " and rest[-4:].isdigit()
+
+
+def leave_text_shows(t: str) -> bool:
+    u = t.upper()
+    return any(k in u for k in ("(STD", "(PAR", "(LOA", "(WSIB", "(LTD", "(OLV"))
+
+
+def payroll_text(x) -> str:
+    """modOvertimeEntry.PayrollText."""
+    if x is None or isinstance(x, tuple):
+        return ""
+    if isinstance(x, str):
+        return x.strip()
+    if isinstance(x, (int, float)) and not isinstance(x, bool):
+        return str(int(round(float(x)))) if float(x) > 0 else ""
+    return ""
+
+
+def is_payroll_header(s: str) -> bool:
+    t = "".join(ch for ch in s.lower() if ch.isascii() and (ch.isalnum() or ch == "#"))
+    return t in ("payroll#", "payroll", "payrollno", "payrollnumber", "payrollnum", "payrollid")
+
+
+def payroll_decision(roster_num: str, num_in_kronos: bool, names_agree: bool) -> str:
+    if roster_num == "" or not num_in_kronos:
+        return "name"
+    return "number" if names_agree else "mismatch"
+

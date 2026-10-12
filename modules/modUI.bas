@@ -552,7 +552,8 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ws.Columns(C_PROV).Hidden = True
     ws.Columns(C_HOME).ColumnWidth = 14          ' Home Unit (v21)
     ws.Columns(C_HOME).Hidden = False
-    ws.Columns(1).Hidden = True                  ' A holds nothing (cleared by the migration)
+    ws.Columns(C_PAYROLL).ColumnWidth = 11       ' v24.2: Payroll # (filled by the Kronos import)
+    ws.Columns(C_PAYROLL).Hidden = Not gAdminUnlocked   ' admin view only; ApplyView hides it in every saved copy
     ws.Columns(C_EMAIL).ColumnWidth = 26           ' EMAIL (ApplyView hides it for non-admins)
     ws.Columns(C_NAME).ColumnWidth = 26
     ws.Columns(C_SHIFT).ColumnWidth = 6.5

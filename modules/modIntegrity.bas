@@ -361,6 +361,22 @@ End Sub
 ' ---- 3. IDs ----
 Private Sub CheckIds()
     Dim keys() As String, n As Long, i As Long, s As String
+    ' v24.2: the same Payroll # on two roster rows (the names are shown, never the number)
+    Dim seenPay As Object, pt As String
+    Set seenPay = CreateObject("Scripting.Dictionary")
+    For i = 1 To mRows
+        If mNames(i) <> "" Then
+            pt = PayrollText(mVals(i, C_PAYROLL))
+            If pt <> "" Then
+                If seenPay.Exists(pt) Then
+                    AddIssue SEV_WARN, "IDs", mNames(i) & " and " & CStr(seenPay(pt)) & " have the same Payroll # in roster column A", _
+                             "Correct column A for one of them (admin view); the next Kronos import fills a blank"
+                Else
+                    seenPay.Add pt, mNames(i)
+                End If
+            End If
+        End If
+    Next i
     ' Entry IDs
     n = LogRows()
     If n > 0 Then

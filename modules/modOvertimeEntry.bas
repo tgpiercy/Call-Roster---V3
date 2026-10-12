@@ -88,6 +88,7 @@ Public Const R_HDR As Long = 4          ' sort / filter header row (row just abo
 Public Const PERIOD_FMT As String = "General;-General;"   ' hides zeros; NO text (@) section
 ' Pay-period START and END dates live in rows 2 and 4 - see PStartRow / PEndRow
 Public Const R_FIRST As Long = 5        ' first employee row
+Public Const C_PAYROLL As Long = 1      ' A  Payroll # from Kronos (v24.2) - admin view only, never published, not a key yet
 Public Const C_HOME As Long = 2         ' B  Home Unit (v21) - one of DeptList; blank = Graeme fills it in
 Public Const C_PROV As Long = 3         ' C  (hidden) provisional accepted OT not yet in Kronos (v21)
 Public Const C_NAME As Long = 4         ' D
@@ -906,6 +907,45 @@ End Function
 
 
 ' ====================================================================
+'  PAYROLL #  (v24.2) - pure rules for the Kronos import
+' ====================================================================
+' A Payroll # as text: digits kept as they are (a number loses its decimals,
+' text keeps its leading zeros), anything else trimmed. "" = none.
+Public Function PayrollText(ByVal x As Variant) As String
+    If IsError(x) Or IsEmpty(x) Or IsNull(x) Then Exit Function
+    If VarType(x) = vbString Then
+        PayrollText = Trim$(x)
+    ElseIf IsNumeric(x) Then
+        If CDbl(x) > 0 Then PayrollText = Format$(CDbl(x), "0")
+    End If
+End Function
+
+' Is this header cell the Payroll # column? ("Payroll #", "PAYROLL NO.", "Payroll Number" ...)
+Public Function IsPayrollHeader(ByVal s As String) As Boolean
+    Dim t As String, i As Long, ch As String
+    For i = 1 To Len(s)
+        ch = LCase$(Mid$(s, i, 1))
+        If ch Like "[a-z0-9#]" Then t = t & ch
+    Next i
+    IsPayrollHeader = (t = "payroll#" Or t = "payroll" Or t = "payrollno" Or t = "payrollnumber" Or t = "payrollnum" Or t = "payrollid")
+End Function
+
+' How a roster row is matched to Kronos: "name" (no number on the row, or Kronos
+' doesn't have that number), "number" (the number is in Kronos under the same
+' name), "mismatch" (the number is in Kronos under a DIFFERENT name: nothing is
+' changed for that row and the import says so).
+Public Function PayrollDecision(ByVal rosterNum As String, ByVal numInKronos As Boolean, ByVal namesAgree As Boolean) As String
+    If rosterNum = "" Or Not numInKronos Then
+        PayrollDecision = "name"
+    ElseIf namesAgree Then
+        PayrollDecision = "number"
+    Else
+        PayrollDecision = "mismatch"
+    End If
+End Function
+
+
+' ====================================================================
 '  ONE CALL-OUT SESSION -> OT LOG ROWS + CALENDAR LINES  (v24.2)
 '  Moved here from the call-out pop-up so there is one copy: the pop-up
 '  and SmokeTest both call it. entries(1..n) is the call list in call
@@ -1136,6 +1176,7 @@ Public Sub ApplyView(ByVal adminView As Boolean)
     rs.Unprotect Password:=SHEET_PASSWORD
     rs.Columns(C_PHONE).Hidden = Not adminView
     rs.Columns(C_EMAIL).Hidden = Not adminView
+    rs.Columns(C_PAYROLL).Hidden = Not adminView       ' v24.2: a personal identifier, like phone and email
     Dim shp As Shape
     For Each shp In rs.Shapes
         If Left$(shp.Name, 7) = "ui_adm_" Then shp.Visible = IIf(adminView, msoTrue, msoFalse)

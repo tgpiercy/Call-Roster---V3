@@ -66,7 +66,8 @@ Public Const FM_USER As Long = 19
 Public Const FM_STAMP As Long = 20
 Public Const FM_STATUS As Long = 21         ' Former / Returned
 Public Const FM_BACK As Long = 22           ' Returned On
-Public Const FM_N As Long = 22
+Public Const FM_PAYROLL As Long = 23        ' v24.2: Payroll # (added on the end, so the columns before it keep their numbers)
+Public Const FM_N As Long = 23
 
 ' what the Employee pop-up shows before it saves a new hire or a unit move
 Public Type PeopleCalc
@@ -934,7 +935,7 @@ Public Function FormerTable(Optional ByVal create As Boolean = False) As ListObj
         Next c
         hdr(FM_TOTAL) = "Total Hours": hdr(FM_WORKED) = "Worked": hdr(FM_REFUSED) = "Refused": hdr(FM_PROV) = "Provisional"
         hdr(FM_YEAR) = "Roster Year": hdr(FM_USER) = "Removed By": hdr(FM_STAMP) = "Timestamp"
-        hdr(FM_STATUS) = "Status": hdr(FM_BACK) = "Returned On"
+        hdr(FM_STATUS) = "Status": hdr(FM_BACK) = "Returned On": hdr(FM_PAYROLL) = "Payroll #"
         ws.Range("A1").Resize(1, FM_N).Value = hdr
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, FM_N), , xlYes)
         lo.Name = FM_TABLE
@@ -948,8 +949,23 @@ Public Function FormerTable(Optional ByVal create As Boolean = False) As ListObj
         ProtectSheet ws
         ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
+    If Not lo Is Nothing Then EnsureFormerColumns lo
     Set FormerTable = lo
 End Function
+
+' A v24 Former table has 22 columns: Payroll # (v24.2) goes on the end, once
+Private Sub EnsureFormerColumns(ByVal lo As ListObject)
+    If lo.ListColumns.Count >= FM_N Then Exit Sub
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    On Error Resume Next
+    ws.Unprotect Password:=SHEET_PASSWORD
+    lo.ListColumns.Add.Name = "Payroll #"
+    ws.Columns(FM_PAYROLL).ColumnWidth = 12
+    ws.Columns(FM_PAYROLL).NumberFormat = "@"
+    ProtectSheet ws
+    On Error GoTo 0
+End Sub
 
 Private Sub FormatFormer(ByVal ws As Worksheet)
     ws.Columns(FM_LEFT).NumberFormat = "ddd mmm d, yyyy"
@@ -957,6 +973,7 @@ Private Sub FormatFormer(ByVal ws As Worksheet)
     ws.Columns(FM_SENIORITY).NumberFormat = "mmm d, yyyy"
     ws.Columns(FM_STAMP).NumberFormat = "mmm d, yyyy h:mm AM/PM"
     ws.Columns(FM_CREW).NumberFormat = "@"
+    ws.Columns(FM_PAYROLL).NumberFormat = "@"
 End Sub
 
 ' Row in tblFormer of a person who is still "Former" (0 = none)
@@ -1050,6 +1067,7 @@ End Function
 Private Function AppendFormerRow(ByRef rec() As Variant) As Boolean
     Dim lo As ListObject: Set lo = FormerTable(True)
     If lo Is Nothing Then Exit Function
+    If lo.ListColumns.Count < FM_N Then Exit Function      ' its Payroll # column couldn't be added (read-only?)
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim cnt As Long: cnt = lo.ListRows.Count
     If cnt = 1 Then
@@ -1073,7 +1091,8 @@ End Function
 ' roster column order (L:S). Returns the row number.
 Private Function AddRosterRow(ByVal ws As Worksheet, ByVal nm As String, ByVal crewTxt As String, ByVal homeUnit As String, _
                               ByVal seniority As Variant, ByRef codes() As String, ByVal phone As String, _
-                              ByVal email As String) As Long
+                              ByVal email As String, Optional ByVal payrollNo As String = "") As Long
+    ' payrollNo (v24.2): Bring back passes the number kept on the Former sheet; a new hire's is filled by the next Kronos import
     Dim r As Long: r = RosterLastRow() + 1
     If r < R_FIRST Then r = R_FIRST
     ws.Unprotect Password:=SHEET_PASSWORD
@@ -1089,6 +1108,8 @@ Private Function AddRosterRow(ByVal ws As Worksheet, ByVal nm As String, ByVal c
         ws.Rows(r).RowHeight = ws.Rows(r - 1).RowHeight
     End If
     ws.Cells(r, C_NAME).Interior.ColorIndex = xlNone        ' the Kronos import colours matched names
+    ws.Cells(r, C_PAYROLL).NumberFormat = "@"
+    ws.Cells(r, C_PAYROLL).Value = payrollNo
     ws.Cells(r, C_HOME).Value = homeUnit
     ws.Cells(r, C_NAME).Value = nm
     ws.Cells(r, C_SHIFT).Value = crewTxt
@@ -1833,6 +1854,7 @@ Public Function RemoveEmployee(ByVal emp As String, ByVal leftOn As Date, ByRef 
     rec(1, FM_USER) = CurrentUser()
     rec(1, FM_STAMP) = Now
     rec(1, FM_STATUS) = "Former"
+    rec(1, FM_PAYROLL) = PayrollText(ws.Cells(r, C_PAYROLL).Value)
     If Not AppendFormerRow(rec) Then Err.Raise vbObjectError + 731, , "the Former sheet couldn't be written"
 
     ws.Unprotect Password:=SHEET_PASSWORD
@@ -1907,7 +1929,9 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     mBusy = True
-    r = AddRosterRow(ws, emp, crewTxt, SafeStr(fv(fr, FM_HOME)), fv(fr, FM_SENIORITY), codes, "", "")
+    Dim payNo As String
+    If UBound(fv, 2) >= FM_PAYROLL Then payNo = PayrollText(fv(fr, FM_PAYROLL))
+    r = AddRosterRow(ws, emp, crewTxt, SafeStr(fv(fr, FM_HOME)), fv(fr, FM_SENIORITY), codes, "", "", payNo)
     EnsureRosterFilter ws
     ProtectSheet ws
     Set lo = FormerTable(False)

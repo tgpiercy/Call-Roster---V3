@@ -667,18 +667,28 @@ Private Function AttendPrivacy(ByRef att As Variant) As String
     Dim i As Long, j As Long, s As String
     For i = 2 To UBound(att, 1)
         For j = 2 To 5
-            If VarType(att(i, j)) = vbString Or VarType(att(i, j)) = vbDate Then
+            If Not AttendCountOk(att(i, j)) Then
                 AttendPrivacy = DS_ATT & " row " & i & ": column " & j & " must be a count"
                 Exit Function
             End If
         Next j
         s = SafeStr(att(i, 6))
-        If Not (s = "Paid sick available" Or s = "Paid sick days used up" Or _
-                s = "Paid sick only while the current occurrence continues" Or s Like "No paid sick until [A-Z][a-z][a-z] *, ####") Then
+        If Not AttendStatusOk(s) Then
             AttendPrivacy = DS_ATT & " row " & i & ": status isn't one of the four allowed phrases"
             Exit Function
         End If
     Next i
+End Function
+
+' A sick-time count may be a number or blank - never text and never a date
+Public Function AttendCountOk(ByVal x As Variant) As Boolean
+    AttendCountOk = Not (VarType(x) = vbString Or VarType(x) = vbDate)
+End Function
+
+' The four things the members' file may say about paid sick time
+Public Function AttendStatusOk(ByVal s As String) As Boolean
+    AttendStatusOk = (s = "Paid sick available" Or s = "Paid sick days used up" Or _
+                      s = "Paid sick only while the current occurrence continues" Or s Like "No paid sick until [A-Z][a-z][a-z] *, ####")
 End Function
 
 ' This year's (by Period Start) non-void log rows: Shift Date, Ref ID, Type, Unit, Shift, Hours, Employee,
@@ -758,22 +768,39 @@ End Function
 ' ====================================================================
 Private Function PrivateDataIn(ByRef a As Variant, ByVal tableName As String) As String
     If Not IsArray(a) Then Exit Function
-    Dim i As Long, j As Long, s As String
+    Dim i As Long, j As Long, kind As String
     For i = 2 To UBound(a, 1)
         For j = 1 To UBound(a, 2)
-            If VarType(a(i, j)) = vbString Then
-                s = a(i, j)
-                If InStr(s, "@") > 0 Then
-                    PrivateDataIn = tableName & " row " & i & ": looks like an email (" & Left$(s, 40) & ")"
+            kind = PrivateValueKind(a(i, j))
+            Select Case kind
+                Case "email"
+                    PrivateDataIn = tableName & " row " & i & ": looks like an email (" & Left$(CStr(a(i, j)), 40) & ")"
                     Exit Function
-                End If
-                If LongestDigitRun(s) >= 7 Then
-                    PrivateDataIn = tableName & " row " & i & ": looks like a phone number (" & Left$(s, 40) & ")"
+                Case "phone"
+                    PrivateDataIn = tableName & " row " & i & ": looks like a phone number (" & Left$(CStr(a(i, j)), 40) & ")"
                     Exit Function
-                End If
-            End If
+                Case "number"                      ' the value itself is not shown: it may be a Payroll #
+                    PrivateDataIn = tableName & " row " & i & ", column " & j & ": a number of 7 or more digits (a Payroll # or a phone number?)"
+                    Exit Function
+            End Select
         Next j
     Next i
+End Function
+
+' What one published value looks like: "" (fine), "email", "phone" (text with a
+' phone-like run of digits) or "number" (v24.2: a NUMBER of 1,000,000 or more -
+' no hours figure is that large, a Payroll # is; dates are a different type).
+Public Function PrivateValueKind(ByVal x As Variant) As String
+    Select Case VarType(x)
+        Case vbString
+            If InStr(x, "@") > 0 Then
+                PrivateValueKind = "email"
+            ElseIf LongestDigitRun(CStr(x)) >= 7 Then
+                PrivateValueKind = "phone"
+            End If
+        Case vbInteger, vbLong, vbSingle, vbDouble, vbCurrency, vbDecimal, 20       ' 20 = LongLong
+            If Abs(CDbl(x)) >= 1000000 Then PrivateValueKind = "number"
+    End Select
 End Function
 
 ' Phone-like = a single run of 7+ digits, or 10+ digits across groups joined
@@ -841,12 +868,18 @@ Private Function LeaveCodesIn(ByRef cal As Variant) As String
             LeaveCodesIn = DS_CAL & " row " & i & ": leave type " & t & " would be visible"
             Exit Function
         End If
-        t = UCase$(SafeStr(cal(i, 4)))
-        If InStr(t, "(STD") > 0 Or InStr(t, "(PAR") > 0 Or InStr(t, "(LOA") > 0 Or InStr(t, "(WSIB") > 0 Or InStr(t, "(LTD") > 0 Or InStr(t, "(OLV") > 0 Then
+        If LeaveTextShows(SafeStr(cal(i, 4))) Then
             LeaveCodesIn = DS_CAL & " row " & i & ": leave type in the text"
             Exit Function
         End If
     Next i
+End Function
+
+' True when a calendar line's text would show which kind of leave it is
+Public Function LeaveTextShows(ByVal lineTxt As String) As Boolean
+    Dim t As String: t = UCase$(lineTxt)
+    LeaveTextShows = (InStr(t, "(STD") > 0 Or InStr(t, "(PAR") > 0 Or InStr(t, "(LOA") > 0 Or InStr(t, "(WSIB") > 0 Or _
+                      InStr(t, "(LTD") > 0 Or InStr(t, "(OLV") > 0)
 End Function
 
 

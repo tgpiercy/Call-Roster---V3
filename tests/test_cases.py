@@ -192,6 +192,20 @@ def evaluate(row: dict) -> str:
         return rules.duplicates_in(i1.split(";")) or "none"
     if suite == "archive":                       # period start spec, cut date -> archive / keep
         return "archive" if rules.goes_to_archive(case_value(i1), d(i2)) else "keep"
+    if suite == "privacy":                       # one published value -> ok / email / phone / number
+        return rules.private_value_kind(case_value(i1)) or "ok"
+    if suite == "attendpriv":                    # count|status, value -> ok / stop
+        if i1 == "count":
+            return "ok" if rules.attend_count_ok(case_value(i2)) else "stop"
+        return "ok" if rules.attend_status_ok(i2[2:]) else "stop"
+    if suite == "leavetext":                     # calendar line text -> shows / ok
+        return "shows" if rules.leave_text_shows(i1) else "ok"
+    if suite == "paytext":                       # a cell value -> the Payroll # as text / blank
+        return rules.payroll_text(case_value(i1)) or "blank"
+    if suite == "payhdr":                        # header text -> yes / no
+        return "yes" if rules.is_payroll_header(i1) else "no"
+    if suite == "payroll":                       # roster number, in Kronos, names agree -> name / number / mismatch
+        return rules.payroll_decision(i1, i2 == "Y", i3 == "Y")
     if suite == "dryname":                       # file name -> yes / no
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use

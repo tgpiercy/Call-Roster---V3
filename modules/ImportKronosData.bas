@@ -74,10 +74,22 @@ Sub SyncKronosData()
     Dim lastSrc As Long: lastSrc = wsSource.Cells(wsSource.Rows.Count, 2).End(xlUp).Row
     Dim src As Variant: src = wsSource.Range("A1:M" & lastSrc).Value
     Dim i As Long, k As String, raw As String, a As String
+    ' v24.2: the Payroll # column, found by its header (not there = the import works as before)
+    Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary")        ' name key -> Payroll #
+    Dim keyOfNum As Object: Set keyOfNum = CreateObject("Scripting.Dictionary")  ' Payroll # -> name key ("" = two people share it)
+    Dim pCol As Long, hdrRow As Long, pn As String
+    pCol = PayrollColumn(src, hdrRow)
     For i = 1 To UBound(src, 1)
         raw = Trim$(SafeStr(src(i, 2)))
         k = NameKey(raw)
         If k <> "" Then
+            If pCol > 0 And i > hdrRow And Not dict.Exists(k) Then
+                pn = PayrollText(src(i, pCol))
+                If pn <> "" Then
+                    payOf(k) = pn
+                    If keyOfNum.Exists(pn) Then keyOfNum(pn) = "" Else keyOfNum.Add pn, k
+                End If
+            End If
             If Not dict.Exists(k) Then dict.Add k, src(i, 13): rawOf.Add k, raw
             If raw Like "* [A-Za-z]" Or raw Like "* [A-Za-z]." Then
                 a = NameKey(Left$(raw, InStrRev(raw, " ") - 1))
@@ -116,13 +128,48 @@ Sub SyncKronosData()
     wsDest.Range(wsDest.Cells(R_FIRST, C_NAME), wsDest.Cells(lastRow, C_NAME)).Interior.ColorIndex = xlNone
 
     Dim r As Long, nm As String, hit As String, found As Long, missing As String, kVal As Variant
+    Dim rosterNum As String, numKey As String, nameClash As String, nFilled As Long, noNum As String, nNoNum As Long
+    If pCol > 0 Then                               ' the column keeps text, so a leading zero survives
+        wsDest.Range(wsDest.Cells(R_FIRST, C_PAYROLL), wsDest.Cells(lastRow, C_PAYROLL)).NumberFormat = "@"
+        If Trim$(SafeStr(wsDest.Cells(2, C_PAYROLL).Value)) = "" Then
+            With wsDest.Cells(2, C_PAYROLL)
+                .Value = "PAYROLL #"
+                .Interior.Color = RGB(31, 56, 100): .Font.Color = vbWhite: .Font.Bold = True: .Font.Size = 8
+                .HorizontalAlignment = xlCenter: .VerticalAlignment = xlCenter
+            End With
+        End If
+    End If
     Dim histN As Long, histName() As String, histHrs() As Double
     ReDim histName(1 To lastRow - R_FIRST + 1): ReDim histHrs(1 To lastRow - R_FIRST + 1)
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value))
         If nm <> "" Then
             hit = FindKey(dict, alt, NameKey(nm))
-            If hit <> "" Then
+            ' v24.2: a row that has its Payroll # is matched by the number first
+            rosterNum = "": numKey = ""
+            If pCol > 0 Then
+                rosterNum = PayrollText(wsDest.Cells(r, C_PAYROLL).Value)
+                If rosterNum <> "" Then
+                    If keyOfNum.Exists(rosterNum) Then numKey = CStr(keyOfNum(rosterNum))
+                End If
+            End If
+            Select Case PayrollDecision(rosterNum, numKey <> "", (numKey <> "" And numKey = hit))
+                Case "number"
+                    hit = numKey
+                Case "mismatch"                    ' same number, another name: a rename in Kronos, or a typing slip
+                    used(numKey) = True
+                    nameClash = nameClash & "  " & nm & "   (Kronos has that Payroll # as " & rawOf(numKey) & ")" & vbNewLine
+                    hit = "~leave~"
+            End Select
+            If hit = "~leave~" Then
+                ' nothing is changed for this row
+            ElseIf hit <> "" Then
+                If pCol > 0 And rosterNum = "" Then
+                    If payOf.Exists(hit) Then
+                        wsDest.Cells(r, C_PAYROLL).Value = CStr(payOf(hit))
+                        nFilled = nFilled + 1
+                    End If
+                End If
                 used(hit) = True
                 kVal = dict(hit)
                 If Not IsError(kVal) And IsNumeric(kVal) And Not IsEmpty(kVal) Then
@@ -138,6 +185,15 @@ Sub SyncKronosData()
             End If
         End If
     Next r
+    If pCol > 0 Then                               ' who still has no Payroll #
+        For r = R_FIRST To lastRow
+            If Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value)) <> "" And PayrollText(wsDest.Cells(r, C_PAYROLL).Value) = "" Then
+                nNoNum = nNoNum + 1
+                If nNoNum <= 10 Then noNum = noNum & "  " & Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value)) & vbNewLine
+            End If
+        Next r
+        If nNoNum > 10 Then noNum = noNum & "  ... and " & (nNoNum - 10) & " more" & vbNewLine
+    End If
     wsDest.Rows(R_FIRST & ":" & lastRow).AutoFit
     ProtectSheet wsDest
 
@@ -185,11 +241,21 @@ Sub SyncKronosData()
           IIf(histId <> "", vbNewLine & "Snapshot " & histId & " added to Hours History.", "") & _
           IIf(awaitFrom > 0, vbNewLine & vbNewLine & "FIRST IMPORT OF THE NEW YEAR: check two or three people's Worked hours against Kronos. " & _
                              "They should be this year's hours only, not last year's total.", "")
+    If pCol = 0 Then
+        msg = msg & vbNewLine & "No 'Payroll #' column was found in the Kronos sheet, so names were matched as before."
+    ElseIf nFilled > 0 Then
+        msg = msg & vbNewLine & "Payroll # filled in for " & nFilled & " people (roster column A, admin view)."
+    End If
+    If nameClash <> "" Then msg = msg & vbNewLine & vbNewLine & _
+        "SAME Payroll #, DIFFERENT NAME - nothing changed for these (rename them with Employee > Rename, or fix column A):" & vbNewLine & nameClash
     If missing <> "" Then msg = msg & vbNewLine & vbNewLine & _
         "On the roster but not found in Kronos - Worked Hours NOT updated:" & vbNewLine & missing
     If extra <> "" Then msg = msg & vbNewLine & _
         "In Kronos but not on the roster (spelling different, or not on this roster):" & vbNewLine & extra
-    MsgBox msg, IIf(missing = "" And extra = "", vbInformation, vbExclamation), "Kronos import"
+    If noNum <> "" Then msg = msg & vbNewLine & _
+        "Roster rows with no Payroll # yet (" & nNoNum & "):" & vbNewLine & noNum
+    If Len(msg) > 1000 Then msg = Left$(msg, 980) & vbNewLine & "... (more)"
+    MsgBox msg, IIf(missing = "" And extra = "" And nameClash = "", vbInformation, vbExclamation), "Kronos import"
     Exit Sub
 Oops:
     ReportError "SyncKronosData"
@@ -481,6 +547,25 @@ Fail:
     On Error Resume Next
     ProtectSheet ws
     MsgBox "Worked hours were imported, but the Hours History snapshot couldn't be saved:" & vbNewLine & em, vbExclamation
+End Function
+
+' The column of the Kronos sheet whose header says Payroll # (0 = none). Looks in the first 10 rows.
+Private Function PayrollColumn(ByRef src As Variant, ByRef hdrRow As Long) As Long
+    Dim r As Long, c As Long, rMax As Long
+    hdrRow = 0
+    rMax = UBound(src, 1)
+    If rMax > 10 Then rMax = 10
+    For r = 1 To rMax
+        For c = 1 To UBound(src, 2)
+            If VarType(src(r, c)) = vbString Then
+                If IsPayrollHeader(CStr(src(r, c))) Then
+                    PayrollColumn = c
+                    hdrRow = r
+                    Exit Function
+                End If
+            End If
+        Next c
+    Next r
 End Function
 
 Private Function NameKey(ByVal s As String) As String

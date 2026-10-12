@@ -179,6 +179,24 @@ Private Function RunCase(f() As String) As String
             If RunCase = "" Then RunCase = "off"
         Case "eligcrew"
             RunCase = CaseEligCrew(i1, ParseD(i2), i3)
+        Case "privacy"                             ' v24.2: one published value -> ok / email / phone / number
+            RunCase = PrivateValueKind(CaseValue(i1))
+            If RunCase = "" Then RunCase = "ok"
+        Case "attendpriv"                          ' count|status, value -> ok / stop
+            If i1 = "count" Then
+                RunCase = IIf(AttendCountOk(CaseValue(i2)), "ok", "stop")
+            Else
+                RunCase = IIf(AttendStatusOk(Mid$(i2, 3)), "ok", "stop")
+            End If
+        Case "leavetext"                           ' calendar line text -> shows / ok
+            RunCase = IIf(LeaveTextShows(i1), "shows", "ok")
+        Case "paytext"                             ' a cell value -> the Payroll # as text / blank
+            RunCase = PayrollText(CaseValue(i1))
+            If RunCase = "" Then RunCase = "blank"
+        Case "payhdr"                              ' header text -> yes / no
+            RunCase = IIf(IsPayrollHeader(i1), "yes", "no")
+        Case "payroll"                             ' roster number, in Kronos Y|N, names agree Y|N -> name / number / mismatch
+            RunCase = PayrollDecision(i1, (i2 = "Y"), (i3 = "Y"))
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -963,5 +981,49 @@ Private Sub LoadCases()
     AddCase "signups,newest-wins-whatever-the-file-order,Ann:S:8:2027-01-11-07;Ann:S:0:2027-01-10-09,2027-01-12-08,,,,Ann=8"
     AddCase "signups,after-closing-is-late,Ann:S:0:2027-01-10-09;Bob:S:0:2027-01-12-09,2027-01-12-08,,,,Ann=F;Bob=FL"
     AddCase "signups,three-people,Ann:S:0:2027-01-10-09;Bob:S:4:2027-01-10-10;Cy:W:0:2027-01-10-11,2027-01-12-08,,,,Ann=F;Bob=4"
+    AddCase "privacy,plain-name,s:Smith Pat,,,,,ok"
+    AddCase "privacy,planted-email,s:pat.smith@example.com,,,,,email"
+    AddCase "privacy,planted-phone-dashes,s:905-555-0142,,,,,phone"
+    AddCase "privacy,planted-phone-brackets,s:(905) 555 0142,,,,,phone"
+    AddCase "privacy,planted-phone-seven-digits,s:call 5550142,,,,,phone"
+    AddCase "privacy,payroll-number-as-text,s:10045678,,,,,phone"
+    AddCase "privacy,payroll-number-as-number,n:10045678,,,,,number"
+    AddCase "privacy,hours-figure,n:1398.25,,,,,ok"
+    AddCase "privacy,times-are-fine,s:0700-1900,,,,,ok"
+    AddCase "privacy,posting-id-is-fine,s:P-0012,,,,,ok"
+    AddCase "privacy,iso-date-text-is-fine,s:2027-01-12 note,,,,,ok"
+    AddCase "privacy,a-date-is-not-a-number,d:2027-01-12,,,,,ok"
+    AddCase "privacy,blank,empty,,,,,ok"
+    AddCase "attendpriv,count-number,count,n:3,,,,ok"
+    AddCase "attendpriv,count-blank,count,empty,,,,ok"
+    AddCase "attendpriv,planted-sick-day-date,count,d:2027-02-03,,,,stop"
+    AddCase "attendpriv,planted-date-as-text,count,s:Feb 3,,,,stop"
+    AddCase "attendpriv,status-available,status,s:Paid sick available,,,,ok"
+    AddCase "attendpriv,status-until,status,s:No paid sick until Mar 4. 2028,,,,stop"
+    AddCase "attendpriv,status-reason-leaks,status,s:Off sick Feb 3 with flu,,,,stop"
+    AddCase "attendpriv,status-blank,status,s:,,,,stop"
+    AddCase "leavetext,plain-leave,Smith P Leave,,,,,ok"
+    AddCase "leavetext,planted-std,Smith P (STD),,,,,shows"
+    AddCase "leavetext,planted-parental-lowercase,Smith P (par leave),,,,,shows"
+    AddCase "leavetext,planted-wsib,Jones A (WSIB) days,,,,,shows"
+    AddCase "leavetext,vacation-is-fine,Smith P (VAC),,,,,ok"
+    AddCase "paytext,number,n:10045678,,,,,10045678"
+    AddCase "paytext,number-with-decimals,n:10045678.0,,,,,10045678"
+    AddCase "paytext,text-keeps-leading-zero,s:00456789,,,,,00456789"
+    AddCase "paytext,text-trimmed,s: 10045678 ,,,,,10045678"
+    AddCase "paytext,blank,empty,,,,,blank"
+    AddCase "paytext,zero,n:0,,,,,blank"
+    AddCase "paytext,error-cell,err,,,,,blank"
+    AddCase "payhdr,as-reported,Payroll #,,,,,yes"
+    AddCase "payhdr,upper-no-space,PAYROLL#,,,,,yes"
+    AddCase "payhdr,number-spelled,Payroll Number,,,,,yes"
+    AddCase "payhdr,no-dot,Payroll No.,,,,,yes"
+    AddCase "payhdr,employee-name,Employee Name,,,,,no"
+    AddCase "payhdr,grand-total,Grand Total,,,,,no"
+    AddCase "payhdr,payroll-hours-is-not-it,Payroll Hours,,,,,no"
+    AddCase "payroll,no-number-yet,,N,N,,,name"
+    AddCase "payroll,number-not-in-kronos,10045678,N,N,,,name"
+    AddCase "payroll,number-and-name-agree,10045678,Y,Y,,,number"
+    AddCase "payroll,number-under-another-name,10045678,Y,N,,,mismatch"
 ' <<< CASES
 End Sub

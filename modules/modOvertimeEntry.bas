@@ -42,7 +42,10 @@ Public Const USUAL_SHIFT_HOURS As Double = 12
 
 ' {YEAR} is replaced by the roster year (v23), so reports follow the rollover: use ReportFolder()
 Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\{YEAR}\"
-Public Const PUBLISH_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\"
+' Where Member View saves the members' file. "." = the folder the roster is in (for now: Oct 12, 2026).
+' At the network roll-out this becomes the members' folder, e.g.
+'   "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\"
+Public Const PUBLISH_FOLDER As String = "."
 Public Const PUBLISH_FILE As String = "Call Out Roster - Member View.xlsx"   ' the old values-only file (no longer written from M1)
 Public Const PUBLISH_REASONS As Boolean = False   ' False = leave Reason/Note column out of the member view
 

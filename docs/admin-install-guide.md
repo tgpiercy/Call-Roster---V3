@@ -180,7 +180,7 @@ The settings are constants at the top of `modOvertimeEntry`. Change them there a
 | `DST_USE_ACTUAL_HOURS` | True | True fills in 13 or 11 hours on clock-change nights. False keeps 12 and only warns. |
 | `USUAL_SHIFT_HOURS` | 12 | Normal shift length |
 | `REPORT_FOLDER` | A network folder ending in `{YEAR}` | Where posting PDFs and calendar PDFs go. `{YEAR}` is replaced by the roster year. If the folder cannot be reached, PDFs go next to the roster. |
-| `PUBLISH_FOLDER` | A network folder | Where the members' file is published |
+| `PUBLISH_FOLDER` | . | Where the members' file is published. "." is the roster's own folder (the setting for now). At the network roll-out it becomes the members' network folder. |
 | `PUBLISH_FILE` | (old file name) | The old Member View file. No longer written. |
 | `PUBLISH_REASONS` | False | False keeps log notes out of the members' file |
 | `MEMBER_TEMPLATE_NAME` | Call Out Roster - Members TEMPLATE.xlsm | The template. It must sit next to the roster. |

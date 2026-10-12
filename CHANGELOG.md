@@ -2,6 +2,7 @@
 
 ## Hotfix, Oct 12, 2026 (v22, v22.1 and v23 zips rebuilt twice)
 - **Two compile errors fixed, both in `modPublish` and both in the code since M1:** `BuildRoster` used a variable that was never declared ("Variable not defined"), and `LongestDigitRun` had a variable named `single`, a reserved word ("Syntax error"). Found by Graeme at Debug > Compile during the v22 install. The three release zips are rebuilt and their tags moved.
+- **Member View publishes next to the master for now** (`PUBLISH_FOLDER = "."`), so it works on a desktop with no P: drive. Change the one setting at the network roll-out.
 - Two new static checks, `tests/undeclcheck.py` (undeclared names, reserved words) and `tests/callcheck.py` (duplicate declarations, labels, argument counts, ByRef types, Type fields, statement calls with parentheses). Each was proven on planted mistakes; on v22, v22.1 and v23 they find these two errors and nothing else.
 
 ## v23 - integrity check and year-end rollover (Oct 2026; rollover live Dec 27, 2026)

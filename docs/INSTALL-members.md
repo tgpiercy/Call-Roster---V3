@@ -15,20 +15,14 @@ About 15 minutes.
 6. **Save** (Ctrl+S) and close it. The template holds no data. That is correct.
 
 ## 2. Where the published file goes
-The master publishes to `PUBLISH_FOLDER` (top of `modOvertimeEntry`). It ships pointing at the P: drive.
+For now Member View saves `Call Out Roster - Members.xlsm` **next to the master** (`PUBLISH_FOLDER = "."` at the top of `modOvertimeEntry`). Nothing to set.
 
-**While you are working on your desktop, P: is not there, so Member View stops with "Check the drive, or PUBLISH_FOLDER".** For local testing, change that one line to a folder that exists, for example:
-
-```vb
-Public Const PUBLISH_FOLDER As String = "C:\Users\Graeme\Desktop\Roster\Members\"
-```
-
-Create the folder first. Keep the trailing backslash. Each time you re-import `modOvertimeEntry` from a zip the line goes back to P:, so change it again, until the network paths are wired in at go-live.
+At the network roll-out, change that one line to the members' folder. The comment above the setting shows the P: path.
 
 ## 3. Publish
 1. In the master: Alt+F8 > **SystemCheck**. No "members' template not found" line. It shows "Members file: never published".
 2. Click **Member View** on the roster. After a few seconds: "Members' file published ..." with the counts. Allow 10-40 seconds the first time.
-3. Open `Call Out Roster - Members.xlsm` from the publish folder, **with the master closed**. Click Enable Content.
+3. Open `Call Out Roster - Members.xlsm` (next to the master), **with the master closed**. Click Enable Content.
 
 ## 4. Smoke test (members' file)
 1. **Home** shows "Updated <today's time> | Kronos data <date>".
@@ -45,7 +39,7 @@ Create the folder first. Keep the trailing backslash. Each time you re-import `m
 | Message | What to do |
 |---|---|
 | "The members' template wasn't found" | The template must be in the same folder as the master, with exactly the name in `MEMBER_TEMPLATE_NAME`. |
-| "Check the drive, or PUBLISH_FOLDER" | The publish folder can't be reached. See step 2. |
+| "Check the drive, or PUBLISH_FOLDER" | The publish folder can't be reached. Only possible once `PUBLISH_FOLDER` points at a network folder. |
 | "Is the file open on a plant PC?" | The publish saved a dated copy beside the members' file. Close the file there and publish again. |
 | "NOT published. Something private would have gone in" | The message names the table and row. Fix that entry (an email or phone number typed into a note or reason) and publish again. |
 | The members' views look stale after a publish | Open the file with macros enabled once. It redraws on open. |

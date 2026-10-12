@@ -183,6 +183,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - Member workbook (M1, built): plant PCs, desktop Excel, everyone's hours visible, master pushes values into the template next to the master, published to `PUBLISH_FOLDER`, My history shows anyone, member file has no rules.
 - Platform: stay on the Excel desktop master through Q1 2027; keep tables platform-ready.
 - Release zips hold the full set from v22 on.
+- `PUBLISH_FOLDER = "."` (Oct 12, 2026): Member View saves the members' file next to the master for now (`modPublish.PublishFolderPath`). It moves to the members' network folder at the next roll-out wave; the P: path is kept in the comment above the setting.
 - `BACKUP_FOLDER = "."`: daily backups go into the roster's own folder (`ResolveFolder` handles "." and ".\sub"). Can be pointed at a network folder later. `ARCHIVE_FOLDER = "."` the same way.
 - Year end (v23): old log rows are archived AND removed at the rollover (Graeme chose the brief's option over keeping one growing log); 26- and 27-period years are both handled now; nothing is built for OT worked Dec 27-31 or for Kronos year-to-date until the first January 2027 export is seen; the rollover is run by Graeme with his boss; IntegrityCheck PROBLEMs block it, Checks don't; the live file can't be rolled before the new year's first period starts.
 

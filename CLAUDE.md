@@ -148,6 +148,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - `py -3.14 -m pytest tests -q`: the Python mirror of the pure rules (`rules.py`) against `cases.csv`, the same table SelfTest uses. Add cases for every rule touched; run `python tests/gen_selftest_cases.py` to paste them into modSelfTest.
 - `python tests/vbacheck.py .`: blocks, Option Explicit, CRLF/ASCII, duplicate Publics (its hits on one-line `Sub X(): ...: End Sub` are false positives).
 - `python tests/shadowcheck.py .`: locals hiding procedures.
+- `python tests/undeclcheck.py .`: names used but declared nowhere ("Variable not defined"). Added after exactly that compile error shipped in M1 through v23 (`cap` in `modPublish.BuildRoster`, Oct 2026). **Run all three checkers before every review and every zip**; reviewers reading the code did not catch it.
 - `python tests/build_zip.py vNN vPREV`: builds `dist/Callout_Roster_vNN.zip` from `docs/INSTALL-vNN.md`. From v22 on every zip holds the **full** module, paste-in and member set, so it can serve as the master.
 - Python 3.12 is at `C:\Users\Graeme\AppData\Local\Programs\Python\Python312\python.exe` (no pytest); pytest is on `py -3.14`. GNU `sed -i` strips CRs in this shell: re-run the CRLF fix on any file it touches.
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## Hotfix, Oct 12, 2026 (v22, v22.1 and v23 zips rebuilt)
+- **Compile error fixed:** `modPublish.BuildRoster` used a variable that was never declared ("Variable not defined" on Debug > Compile). In the code since M1; the three release zips are rebuilt with the fix and their tags moved. New static check `tests/undeclcheck.py` scans every module for this class of mistake; it finds no other.
+
 ## v23 - integrity check and year-end rollover (Oct 2026; rollover live Dec 27, 2026)
 Brief: `briefs/v23.md`. Report-back: `docs/v23-report-back.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v23.zip` (full set). Rollover steps: `docs/rollover-one-pager.md`.
 

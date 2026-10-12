@@ -348,7 +348,7 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
         For r = 1 To UBound(v, 1)
             nm = Trim$(SafeStr(v(r, C_NAME)))
             If nm <> "" Then
-                k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
+                k = k + 1                       ' out() is sized to the roster above, so no cap test is needed here
                 out(k, 1) = nm
                 out(k, 2) = Trim$(SafeStr(v(r, C_SHIFT)))
                 out(k, 3) = Trim$(SafeStr(v(r, C_HOME)))

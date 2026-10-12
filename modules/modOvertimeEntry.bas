@@ -59,7 +59,8 @@ Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date 
 
 ' Daily backup (v21): the first admin open each day saves "Call Out Roster yyyy-mm-dd.xlsm"
 ' here and deletes copies older than BACKUP_KEEP_DAYS. Blank = backups off (SystemCheck says so).
-Public Const BACKUP_FOLDER As String = ""
+' "." = the folder the roster is in (Graeme, Oct 2026); ".\Backups" = a subfolder of it (must exist).
+Public Const BACKUP_FOLDER As String = "."
 Public Const BACKUP_KEEP_DAYS As Long = 30
 Public Const BACKUP_BASENAME As String = "Call Out Roster"
 

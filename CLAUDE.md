@@ -171,12 +171,13 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - Member workbook (M1, built): plant PCs, desktop Excel, everyone's hours visible, master pushes values into the template next to the master, published to `PUBLISH_FOLDER`, My history shows anyone, member file has no rules.
 - Platform: stay on the Excel desktop master through Q1 2027; keep tables platform-ready.
 - Release zips hold the full set from v22 on.
+- `BACKUP_FOLDER = "."`: daily backups go into the roster's own folder (`BackupFolderPath` resolves "." and ".\sub"). Can be pointed at a network folder later.
 
 ## Still open (use the default unless Graeme answers)
 | Question | Default |
 |---|---|
-| Boxing Day 2026 observed weekday | Data entry on the Holidays sheet, no code |
-| `BACKUP_FOLDER` | Blank (backups off; SystemCheck flags it) until Graeme gives the path |
+| Boxing Day 2026 observed weekday | **Answered:** Monday Dec 28, 2026 for day workers. Entered on the Holidays sheet ("Observed on"), no code. |
+| Network paths (`REPORT_FOLDER`, `PUBLISH_FOLDER`, `KRONOS_PATH` on P:) | Everything is built and tested locally on Graeme's desktop; the P: links are wired in at go-live. SystemCheck will flag them as unreachable until then. |
 | Who runs the rollover / where the frozen copy lives | Settings constants, blank until given |
 | Does Kronos export an employee number | Needed before v25 |
 | Kronos worked hours after Jan 1 (YTD or cumulative) | Check the first January export (v23) |

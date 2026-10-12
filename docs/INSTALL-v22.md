@@ -32,7 +32,10 @@ No message expected.
 2. **ApplyRosterLayout** - rebuilds the command bar with the new PEOPLE group (Sick Call, Leave, Convert imports).
 
 ## 7. SystemCheck (Alt+F8)
-Expect **"Modules: 14 of 14 on v22"** and no ThisWorkbook line. CHECK lines you may see: blank Home Units, `BACKUP_FOLDER`, and "imported vacation lines ... not booked yet" if old-calendar imports exist.
+Expect **"Modules: 14 of 14 on v22"** and no ThisWorkbook line. CHECK lines you may see: blank Home Units, "no backup copy taken today yet" (the first admin open each day now saves `Call Out Roster yyyy-mm-dd.xlsm` next to the roster), unreachable P: paths while working locally, and "imported vacation lines ... not booked yet" if old-calendar imports exist.
+
+## 7b. Holidays sheet
+Boxing Day 2026 falls on a Saturday: enter **Mon Dec 28, 2026** in its "Observed on" cell (Needs Attention lists it until you do).
 
 ## 8. SelfTest (Alt+F8)
 Expect **"182 passed, 0 failed"**.

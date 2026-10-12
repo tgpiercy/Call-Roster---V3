@@ -270,10 +270,22 @@ Private Function BackupOff() As Boolean
     BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or Not IsAdmin())
 End Function
 
+' BACKUP_FOLDER with "." / ".\sub" resolved against the roster's own folder
+Public Function BackupFolderPath() As String
+    Dim p As String: p = Trim$(BACKUP_FOLDER)
+    If p = "" Then Exit Function
+    If p = "." Then
+        p = ThisWorkbook.Path
+    ElseIf Left$(p, 2) = ".\" Then
+        p = EnsureSlash(ThisWorkbook.Path) & Mid$(p, 3)
+    End If
+    BackupFolderPath = EnsureSlash(p)
+End Function
+
 Public Sub BackupOnOpen()
     On Error Resume Next
     If BackupOff() Then Exit Sub
-    Dim folder As String: folder = EnsureSlash(Trim$(BACKUP_FOLDER))
+    Dim folder As String: folder = BackupFolderPath()
     If Not FolderExists(folder) Then
         If Not mBackupWarned Then
             mBackupWarned = True
@@ -331,7 +343,7 @@ Private Sub BackupStatus(ByRef warn As String, ByRef info As String)
         warn = warn & "- BACKUP_FOLDER isn't set (modOvertimeEntry), so daily backups are off" & vbNewLine
         Exit Sub
     End If
-    Dim folder As String: folder = EnsureSlash(Trim$(BACKUP_FOLDER))
+    Dim folder As String: folder = BackupFolderPath()
     If Not FolderExists(folder) Then
         warn = warn & "- backup folder can't be reached: " & folder & vbNewLine
     ElseIf Dir$(folder & BackupFileName(Date)) = "" Then

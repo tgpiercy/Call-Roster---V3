@@ -18,7 +18,7 @@ Option Explicit
 ' ====================================================================
 
 Private Const STATUS_CELL As String = "D3"      ' status (3 lines, plain text) - in the frozen names column
-Public Const UI_VERSION As String = "Roster UI v23 (Oct 20)"
+Public Const UI_VERSION As String = "Roster UI v24 (Jan 5)"
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
 Private Const LIGHT As Long = 15787486          ' RGB(222, 229, 240)

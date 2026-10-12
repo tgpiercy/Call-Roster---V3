@@ -232,6 +232,7 @@ class Listed:
     charged: float = field(default=0.0)
     result: str = ""
     exempt: bool = False       # v24: moved unit or left before the shift - never charged on this posting
+    signup_hrs: float = 0.0    # v24: 0 = signed up for the whole shift; otherwise the part they'll take
 
 
 def compute_award(hours: float, lst: list[Listed]) -> list[Listed]:
@@ -253,6 +254,47 @@ def compute_award(hours: float, lst: list[Listed]) -> list[Listed]:
         else:
             p.result = ""
     return lst
+
+
+def is_partial_signup(post_hours: float, signup_hrs: float) -> bool:
+    """modPostings.IsPartialSignup."""
+    return 0 < signup_hrs < post_hours
+
+
+def awarded_hours(post_hours: float, signup_hrs: float) -> float:
+    """modPostings.AwardedHours."""
+    return signup_hrs if is_partial_signup(post_hours, signup_hrs) else post_hours
+
+
+def award_order_problem(hours: float, positions: int, lst: list[Listed]) -> str:
+    """modPostings.AwardOrderProblem: '' / 'full-first' / 'filled' / 'over-hours'."""
+    n_full_aw = n_part_aw = n_full_waiting = 0
+    part_hrs = 0.0
+    for p in lst:
+        if p.awarded:
+            if is_partial_signup(hours, p.signup_hrs):
+                n_part_aw += 1
+                part_hrs += p.signup_hrs
+            else:
+                n_full_aw += 1
+        elif p.signed_up and not is_partial_signup(hours, p.signup_hrs):
+            n_full_waiting += 1
+    if n_part_aw == 0:
+        return ""
+    pos = max(positions, 1)
+    if n_full_waiting > 0:
+        return "full-first"
+    if n_full_aw >= pos:
+        return "filled"
+    if part_hrs > (pos - n_full_aw) * hours + 0.0001:
+        return "over-hours"
+    return ""
+
+
+def award_coverage(hours: float, positions: int, lst: list[Listed]) -> tuple[float, float]:
+    """modPostings.AwardCoverage: (hours covered, hours left uncovered)."""
+    covered = sum(awarded_hours(hours, p.signup_hrs) for p in lst if p.awarded)
+    return covered, max(0.0, max(positions, 1) * hours - covered)
 
 
 def compute_no_takers(hours: float, lst: list[Listed]) -> list[Listed]:

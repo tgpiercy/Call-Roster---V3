@@ -23,13 +23,13 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v23 (Oct 20)"
-Public Const EXPECTED_RELEASE As String = "v23"
-Private Const N_MODULES As Long = 17
+Public Const SYS_VERSION As String = "System v24 (Jan 5)"
+Public Const EXPECTED_RELEASE As String = "v24"
+Private Const N_MODULES As Long = 18
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v23"
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v22,frmNewPosting|v21,frmPostingEntry|v21,frmShiftSwitch|v21," & _
-                                        "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22"
+Private Const THISWB_RELEASE As String = "v24"
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v22,frmNewPosting|v21,frmPostingEntry|v24,frmShiftSwitch|v21," & _
+                                        "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22,frmEmployee|v24"
 
 Private mBackupWarned As Boolean
 
@@ -181,6 +181,7 @@ Public Sub SystemCheck()
     Else
         info = info & "Crew History: " & Format$(CrewTable(False).ListRows.Count, "#,##0") & " rows" & vbNewLine
     End If
+    If Not PostingListCurrent() Then warn = warn & "- posting lists need their Signup Hours column: run SetupPeople" & vbNewLine
     ' M1: members' file
     If Not MemberTemplateExists() Then
         warn = warn & "- members' template not found next to this workbook: " & MEMBER_TEMPLATE_NAME & " (see the M1 install notes)" & vbNewLine

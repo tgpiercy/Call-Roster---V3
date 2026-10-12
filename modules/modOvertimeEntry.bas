@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v23 (Oct 20)"
+Public Const CORE_VERSION As String = "Core v24 (Jan 5)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"

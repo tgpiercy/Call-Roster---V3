@@ -10,7 +10,7 @@ Option Explicit
 '  anyone who is working a switch on that date / shift.
 ' ====================================================================
 
-Public Const SS_VERSION As String = "Shift switches v23 (Oct 20)"
+Public Const SS_VERSION As String = "Shift switches v24 (Jan 5)"
 Public Const SS_SHEET As String = "Shift Switches"
 Public Const SS_TABLE As String = "tblShiftSwitch"
 

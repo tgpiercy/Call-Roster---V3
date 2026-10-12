@@ -16,7 +16,7 @@ Option Explicit
 ' ====================================================================
 
 ' ---------------- configuration ----------------
-Public Const POST_VERSION As String = "Postings v23 (Oct 20)"
+Public Const POST_VERSION As String = "Postings v24 (Jan 5)"
 Public Const POSTINGS_SHEET As String = "Postings"
 Public Const PT_TABLE As String = "tblPostings"
 Public Const PL_TABLE As String = "tblPostingList"
@@ -68,7 +68,8 @@ Public Const PL_HRS As Long = 6
 Public Const PL_SIGNED As Long = 7
 Public Const PL_RESULT As Long = 8
 Public Const PL_CHARGED As Long = 9
-Public Const PL_N As Long = 9
+Public Const PL_SIGNHRS As Long = 10        ' v24: hours signed up for when it is only PART of the shift (blank = the whole shift)
+Public Const PL_N As Long = 10
 
 Public Type PostRec
     ID As String
@@ -95,6 +96,7 @@ Public Type PListRec
     Awarded As Boolean
     Charged As Double
     Result As String
+    SignupHrs As Double         ' v24: 0 = signed up for the whole shift; otherwise the part they'll take
     ExemptNote As String        ' v24: "Exempt - moved Jan 12" / "Exempt - left Jan 12": never charged on this posting
 End Type
 
@@ -153,11 +155,11 @@ Private Sub CreatePostingTables()
         ws.Range("Q1").Value = "Posted lists (snapshot of hours when each posting went up)"
         ws.Range("Q1").Font.Bold = True
         ws.Range("Q3").Resize(1, PL_N).Value = Array("Posting ID", "Rank", "Employee", "Shift", _
-            "Dept Code", "Total Hrs (posted)", "Signed Up", "Result", "Hours Charged")
+            "Dept Code", "Total Hrs (posted)", "Signed Up", "Result", "Hours Charged", "Signup Hours")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("Q3").Resize(2, PL_N), , xlYes)
         lo.Name = PL_TABLE
         lo.TableStyle = "TableStyleLight9"
-        ws.Range("Q:Y").ColumnWidth = 11
+        ws.Range("Q:Z").ColumnWidth = 11
         ws.Columns("S").ColumnWidth = 24
     End If
     ws.Rows(3).WrapText = True
@@ -181,9 +183,50 @@ End Sub
 Public Function PostingTablesReady() As Boolean
     If GetTable(PT_TABLE) Is Nothing Or GetTable(PL_TABLE) Is Nothing Then
         MsgBox "Postings aren't set up yet. Run SetupPostings first (Alt+F8).", vbExclamation
+    ElseIf Not PostingListCurrent() Then
+        MsgBox "The posting lists need their Signup Hours column (v24). Run Alt+F8 > SetupPeople once, then try again.", vbExclamation
     Else
         PostingTablesReady = True
     End If
+End Function
+
+' True when tblPostingList has the v24 Signup Hours column (or doesn't exist yet)
+Public Function PostingListCurrent() As Boolean
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lr Is Nothing Then PostingListCurrent = True: Exit Function
+    PostingListCurrent = (lr.ListColumns.Count >= PL_N)
+End Function
+
+' Adds the Signup Hours column on the END of tblPostingList (v24; called by
+' SetupPeople, which takes the backup and checks the roster totals). Nothing
+' moves. False = not done, why says what is in the way.
+Public Function UpgradePostingList(ByRef why As String) As Boolean
+    why = ""
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lr Is Nothing Then UpgradePostingList = True: Exit Function          ' made with every column by SetupPostings
+    If lr.ListColumns.Count >= PL_N Then UpgradePostingList = True: Exit Function
+    If lr.ListColumns.Count <> PL_N - 1 Then
+        why = "the posting list table has " & lr.ListColumns.Count & " columns, expected " & (PL_N - 1)
+        Exit Function
+    End If
+    Dim ws As Worksheet: Set ws = lr.Parent
+    Dim nextCol As Range
+    Set nextCol = ws.Range(ws.Cells(lr.Range.Row, lr.Range.Column + lr.Range.Columns.Count), _
+                           ws.Cells(lr.Range.Row + lr.Range.Rows.Count, lr.Range.Column + lr.Range.Columns.Count))
+    If Application.WorksheetFunction.CountA(nextCol) > 0 Then
+        why = "column " & ColLetter(nextCol.Column) & " on the Postings sheet, right beside the posted lists, isn't empty. Clear it and run SetupPeople again"
+        Exit Function
+    End If
+    Dim nRows As Long: nRows = lr.ListRows.Count
+    ws.Unprotect Password:=SHEET_PASSWORD
+    lr.ListColumns.Add.Name = "Signup Hours"
+    ws.Columns(lr.Range.Column + PL_SIGNHRS - 1).ColumnWidth = 11
+    ProtectSheet ws
+    If lr.ListColumns.Count <> PL_N Or lr.ListRows.Count <> nRows Then
+        why = "the posting list table has " & lr.ListColumns.Count & " columns and " & lr.ListRows.Count & " rows after the change (expected " & PL_N & " and " & nRows & ")"
+        Exit Function
+    End If
+    UpgradePostingList = True
 End Function
 
 Sub GoToPostingSheet()
@@ -784,6 +827,7 @@ Public Function LoadPosting(ByVal id As String, ByRef p As PostRec, ByRef lst() 
                 .SignedUp = (UCase$(SafeStr(v(i, PL_SIGNED))) = "YES")
                 .Result = SafeStr(v(i, PL_RESULT))
                 If Left$(.Result, 6) = "Exempt" Then .ExemptNote = .Result
+                If UBound(v, 2) >= PL_SIGNHRS Then .SignupHrs = NumOr0(v(i, PL_SIGNHRS))
                 .Awarded = (.Result = "Awarded")
                 .Charged = NumOr0(v(i, PL_CHARGED))
             End With
@@ -949,6 +993,13 @@ End Function
 '    No takers - nobody took it: everyone eligible on the list is charged.
 '    Cancel    - the request was withdrawn: nobody is charged.
 '  Charges go in the pay period of the SHIFT DATE.
+'  Partial sign-ups (v24): someone can sign up for part of the shift.
+'    Full-shift sign-ups are awarded first; a partial only when no
+'    full-shift sign-up is left for the position (AwardOrderProblem).
+'    Charging doesn't change: people ahead of the last awarded person
+'    who didn't sign up AT ALL are charged the posting's FULL hours;
+'    a partial sign-up that isn't awarded is not charged; hours nobody
+'    covers drop off, uncharged.
 ' ====================================================================
 ' Works out Result / Charged for every person on the list (Award mode).
 ' maxRank / maxHrs = call-order position and hours of the last awarded person.
@@ -980,6 +1031,70 @@ Public Sub ComputeAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As 
             lst(i).Result = ""
         End If
     Next i
+End Sub
+
+' ---- partial sign-ups (v24) ----
+' A sign-up for only part of the shift: more than 0 and fewer hours than the posting
+Public Function IsPartialSignup(ByVal postHours As Double, ByVal signupHrs As Double) As Boolean
+    IsPartialSignup = (signupHrs > 0 And signupHrs < postHours)
+End Function
+
+' Hours one awarded person takes: the whole shift, or the part they signed up for
+Public Function AwardedHours(ByVal postHours As Double, ByVal signupHrs As Double) As Double
+    If IsPartialSignup(postHours, signupHrs) Then AwardedHours = signupHrs Else AwardedHours = postHours
+End Function
+
+' The decided order: full-shift sign-ups first; a partial is awarded only when
+' no full-shift sign-up is left for that position. Counted per position: with
+' 2 positions and 1 full sign-up, partials may take the second.
+'   ""           fine (or no partial is awarded)
+'   "full-first" a partial is awarded while a full-shift sign-up isn't (who = that person)
+'   "filled"     every position already has a full-shift award
+'   "over-hours" the awarded partials add up to more than the hours left
+Public Function AwardOrderProblem(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
+                                  Optional ByRef who As String) As String
+    Dim i As Long, nFullAw As Long, nPartAw As Long, partHrs As Double, nFullWaiting As Long, pos As Long
+    who = ""
+    For i = 1 To n
+        If lst(i).Awarded Then
+            If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
+                nPartAw = nPartAw + 1
+                partHrs = partHrs + lst(i).SignupHrs
+            Else
+                nFullAw = nFullAw + 1
+            End If
+        ElseIf lst(i).SignedUp And Not IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
+            nFullWaiting = nFullWaiting + 1
+            If who = "" Then who = "#" & lst(i).Rank & " " & lst(i).EmpName
+        End If
+    Next i
+    If nPartAw = 0 Then who = "": Exit Function
+    pos = p.Positions
+    If pos < 1 Then pos = 1
+    If nFullWaiting > 0 Then
+        AwardOrderProblem = "full-first"
+    ElseIf nFullAw >= pos Then
+        who = "": AwardOrderProblem = "filled"
+    ElseIf partHrs > (pos - nFullAw) * p.Hours + 0.0001 Then
+        who = "": AwardOrderProblem = "over-hours"
+    Else
+        who = ""
+    End If
+End Function
+
+' Hours the awards cover, and what is left of the posting. The remainder
+' drops off: nobody is charged for it.
+Public Sub AwardCoverage(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
+                         ByRef covered As Double, ByRef uncovered As Double)
+    Dim i As Long, pos As Long
+    covered = 0
+    For i = 1 To n
+        If lst(i).Awarded Then covered = covered + AwardedHours(p.Hours, lst(i).SignupHrs)
+    Next i
+    pos = p.Positions
+    If pos < 1 Then pos = 1
+    uncovered = pos * p.Hours - covered
+    If uncovered < 0 Then uncovered = 0
 End Sub
 
 ' No takers: everyone eligible is charged (nobody should be marked signed up).
@@ -1069,9 +1184,35 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
         Exit Function
     End If
 
-    Dim i As Long, awardNames As String, skipped As String
+    ' v24: full-shift sign-ups first; a partial only when no full-shift sign-up is left
+    Dim who As String, anyPartial As Boolean, covered As Double, uncovered As Double
+    Select Case AwardOrderProblem(p, lst, n, who)
+        Case "full-first"
+            MsgBox who & " signed up for the WHOLE shift and isn't awarded, but a partial sign-up is." & vbNewLine & vbNewLine & _
+                   "A full-shift sign-up comes first, even with more hours. Award " & who & " instead." & vbNewLine & _
+                   "If they withdrew, take their sign-up off (double-click the name), then submit again.", vbExclamation, "Award"
+            Exit Function
+        Case "filled"
+            MsgBox "Every position is already awarded to someone taking the whole shift, so a partial sign-up can't be awarded as well." & vbNewLine & _
+                   "Take the AWARD mark off the partial sign-up.", vbExclamation, "Award"
+            Exit Function
+        Case "over-hours"
+            MsgBox "The partial sign-ups marked AWARDED add up to more hours than the posting has left." & vbNewLine & _
+                   "Take one off, or correct the hours with PARTIAL HOURS.", vbExclamation, "Award"
+            Exit Function
+    End Select
+    AwardCoverage p, lst, n, covered, uncovered
+
+    Dim i As Long, awardNames As String, awardShow As String, skipped As String
     For i = 1 To n
-        If lst(i).Awarded Then awardNames = awardNames & IIf(awardNames = "", "", "; ") & lst(i).EmpName
+        If lst(i).Awarded Then
+            awardNames = awardNames & IIf(awardNames = "", "", "; ") & lst(i).EmpName
+            awardShow = awardShow & IIf(awardShow = "", "", "; ") & lst(i).EmpName
+            If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
+                anyPartial = True
+                awardShow = awardShow & " (" & Format$(lst(i).SignupHrs, "0.##") & " h)"
+            End If
+        End If
         If lst(i).SignedUp And Not lst(i).Awarded And lst(i).Rank < maxRank Then
             skipped = skipped & "  #" & lst(i).Rank & "  " & lst(i).EmpName & vbNewLine
         End If
@@ -1082,7 +1223,7 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
                   "but aren't awarded:" & vbNewLine & vbNewLine & skipped & vbNewLine & _
                   "They won't be charged. Continue?", vbYesNo + vbExclamation, "Award") = vbNo Then Exit Function
     End If
-    If nAw <> p.Positions Then
+    If nAw <> p.Positions And Not anyPartial Then
         If MsgBox(nAw & " awarded but the posting is for " & p.Positions & " position(s). Continue?", _
                   vbYesNo + vbExclamation, "Award") = vbNo Then Exit Function
     End If
@@ -1095,7 +1236,9 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
 
     Dim msg As String
     msg = p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
-          "Awarded: " & awardNames & vbNewLine & _
+          "Awarded: " & awardShow & vbNewLine & _
+          IIf(anyPartial, "Covered: " & Format$(covered, "0.##") & " h" & _
+              IIf(uncovered > 0, "; the other " & Format$(uncovered, "0.##") & " h are not covered and nobody is charged for them", "") & vbNewLine, "") & _
           "Charged (didn't sign up, ahead in call order): " & nCh & " x " & _
           Format$(p.Hours * CHARGE_MULTIPLIER, "0.##") & " hrs = " & Format$(tot, "0.##") & " hrs" & _
           IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "")
@@ -1104,11 +1247,15 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
     If Not WriteOutcome(p, lst, n, "Awarded", awardNames, ps, maxRank) Then Exit Function
     Dim calNames As String
     For i = 1 To n
-        If lst(i).Awarded Then calNames = calNames & IIf(calNames = "", "", " / ") & CalName(lst(i).EmpName)
+        If lst(i).Awarded Then
+            calNames = calNames & IIf(calNames = "", "", " / ") & CalName(lst(i).EmpName)
+            ' a partial award shows its hours beside the name: "Joe D 8h"
+            If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then calNames = calNames & " " & CDbl(lst(i).SignupHrs) & "h"
+        End If
     Next i
-    Dim calTxt As String: calTxt = CalendarOutcome(p, calNames)
-    EmailAward p, lst, n, awardNames
-    MsgBox p.ID & " awarded to " & awardNames & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
+    Dim calTxt As String: calTxt = CalendarOutcome(p, calNames, anyPartial)
+    EmailAward p, lst, n, awardShow
+    MsgBox p.ID & " awarded to " & awardShow & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
     SubmitAward = True
 End Function
 
@@ -1325,6 +1472,12 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                 data(k, L_EMPHRS) = lst(i).TotalHrs
                 If lst(i).Awarded Then
                     data(k, L_OUTCOME) = "Awarded"
+                    ' v24: provisional accepted OT (roster column C) sums this row's Hours, so a
+                    ' partial award must carry the hours awarded, not the posting's
+                    data(k, L_BASEHRS) = AwardedHours(p.Hours, lst(i).SignupHrs)
+                    If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
+                        data(k, L_REASON) = "Partial award: " & Format$(lst(i).SignupHrs, "0.##") & " of " & Format$(p.Hours, "0.##") & " h"
+                    End If
                 ElseIf lst(i).Charged > 0 Then
                     data(k, L_OUTCOME) = "Refused"
                     If newStatus = "No takers" Then
@@ -1336,6 +1489,9 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                     End If
                 Else
                     data(k, L_OUTCOME) = "Signed Up"
+                    If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
+                        data(k, L_REASON) = "Signed up for " & Format$(lst(i).SignupHrs, "0.##") & " of " & Format$(p.Hours, "0.##") & " h"
+                    End If
                 End If
                 data(k, L_CHARGED) = lst(i).Charged
                 data(k, L_PERIOD) = ps
@@ -1405,14 +1561,19 @@ End Function
 
 ' After an award / no takers: update the posting's calendar line, or put it
 ' on the calendar now if it never got there. Returns a line for the message.
-Private Function CalendarOutcome(ByRef p As PostRec, ByVal byText As String) As String
+' perNameHours (v24): byText already carries each partial award's hours ("Joe D 8h /
+' Sam K 4h"), so the line's own Hours cell is cleared instead of set.
+Private Function CalendarOutcome(ByRef p As PostRec, ByVal byText As String, _
+                                 Optional ByVal perNameHours As Boolean = False) As String
     On Error GoTo Failed
-    If UpdateCoverageBySource(p.ID, byText, p.Hours) > 0 Then
+    Dim lineHrs As Variant
+    If perNameHours Then lineHrs = Empty Else lineHrs = p.Hours
+    If UpdateCoverageBySource(p.ID, byText, lineHrs, perNameHours) > 0 Then
         CalendarOutcome = "updated to """ & byText & """"
     Else
         CalendarOutcome = CalendarPlace(p.ShiftDate, p.ShiftLbl, p.Unit, _
                                         p.ID & " wasn't on the calendar - which line does it cover?", _
-                                        byText, p.Hours, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason))
+                                        byText, lineHrs, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason))
         If CalendarOutcome = "" Then CalendarOutcome = "not on the calendar (left off)" Else CalendarOutcome = "added: " & CalendarOutcome
     End If
     SaveIfWritable
@@ -1541,10 +1702,18 @@ Private Sub UpdatePostingRecords(ByRef p As PostRec, ByRef lst() As PListRec, By
                             lr.DataBodyRange.Cells(i, PL_RESULT).ClearContents
                         End If
                         lr.DataBodyRange.Cells(i, PL_CHARGED).ClearContents
+                        If lr.ListColumns.Count >= PL_SIGNHRS Then lr.DataBodyRange.Cells(i, PL_SIGNHRS).ClearContents
                     Else
                         lr.DataBodyRange.Cells(i, PL_SIGNED).Value = IIf(lst(j).SignedUp, "Yes", "")
                         lr.DataBodyRange.Cells(i, PL_RESULT).Value = lst(j).Result
                         lr.DataBodyRange.Cells(i, PL_CHARGED).Value = lst(j).Charged
+                        If lr.ListColumns.Count >= PL_SIGNHRS Then
+                            If lst(j).SignedUp And IsPartialSignup(p.Hours, lst(j).SignupHrs) Then
+                                lr.DataBodyRange.Cells(i, PL_SIGNHRS).Value = lst(j).SignupHrs
+                            Else
+                                lr.DataBodyRange.Cells(i, PL_SIGNHRS).ClearContents
+                            End If
+                        End If
                     End If
                     Exit For
                 End If

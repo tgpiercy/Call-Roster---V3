@@ -20,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v23 (Oct 20)"
+Public Const ST_VERSION As String = "Self test v24 (Jan 5)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -151,6 +151,10 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
+        Case "awardorder"
+            RunCase = CaseAwardOrder(CDbl(i1), CLng(i2), i3, False)
+        Case "awardcover"
+            RunCase = CaseAwardOrder(CDbl(i1), CLng(i2), i3, True)
         Case "newhire"
             RunCase = CaseNewHire(i1)
         Case "unitmove"
@@ -377,6 +381,32 @@ Private Function CaseMerge(ByVal spec As String) As String
         s = s & IIf(i = 1, "", ";") & FmtD(runs(i, 1)) & ".." & FmtD(runs(i, 2))
     Next i
     CaseMerge = s
+End Function
+
+' hours, positions, "rank:signup:awarded;..." (signup = N not signed up, F whole shift, or the hours)
+' -> the award-order problem (or ok); with cover: "covered|uncovered"
+Private Function CaseAwardOrder(ByVal hours As Double, ByVal positions As Long, ByVal spec As String, ByVal cover As Boolean) As String
+    Dim items As Variant: items = Split(spec, ";")
+    Dim n As Long: n = UBound(items) + 1
+    Dim lst() As PListRec: ReDim lst(1 To n)
+    Dim i As Long, p As Variant
+    For i = 1 To n
+        p = Split(items(i - 1), ":")
+        lst(i).Rank = CLng(p(0))
+        lst(i).Grade = 1
+        lst(i).SignedUp = (CStr(p(1)) <> "N")
+        If CStr(p(1)) <> "N" And CStr(p(1)) <> "F" Then lst(i).SignupHrs = CDbl(p(1))
+        lst(i).Awarded = (CStr(p(2)) = "Y")
+    Next i
+    Dim pr As PostRec: pr.Hours = hours: pr.Positions = positions
+    If cover Then
+        Dim covered As Double, uncovered As Double
+        AwardCoverage pr, lst, n, covered, uncovered
+        CaseAwardOrder = NumText(covered) & "|" & NumText(uncovered)
+    Else
+        CaseAwardOrder = AwardOrderProblem(pr, lst, n)
+        If CaseAwardOrder = "" Then CaseAwardOrder = "ok"
+    End If
 End Function
 
 ' "grade:onleave:total;..." -> a new hire's starting hours
@@ -817,5 +847,19 @@ Private Sub LoadCases()
     AddCase "nametoken,inside-a-longer-name,Alfred C / Fred Carter,Fred C,Fred D,,,Alfred C / Fred Carter"
     AddCase "nametoken,switch-line,Fred C S/S,Fred C,Freddy C,,,Freddy C S/S"
     AddCase "nametoken,twice,Fred C; Fred C 4h,Fred C,Fred D,,,Fred D; Fred D 4h"
+    AddCase "awardorder,partial-only,12,1,1:N:N;2:8:Y,,,ok"
+    AddCase "awardorder,full-signup-waiting,12,1,1:F:N;2:8:Y,,,full-first"
+    AddCase "awardorder,full-with-more-hours-still-first,12,1,1:8:Y;2:F:N,,,full-first"
+    AddCase "awardorder,full-awarded-partial-signed-only,12,1,1:F:Y;2:8:N,,,ok"
+    AddCase "awardorder,position-filled-by-full,12,1,1:F:Y;2:8:Y,,,filled"
+    AddCase "awardorder,second-position-to-a-partial,12,2,1:F:Y;2:8:Y,,,ok"
+    AddCase "awardorder,two-partials-cover-the-shift,12,1,1:8:Y;2:4:Y,,,ok"
+    AddCase "awardorder,two-partials-too-many-hours,12,1,1:8:Y;2:6:Y,,,over-hours"
+    AddCase "awardorder,no-partial-awarded,12,1,1:F:Y;2:F:N,,,ok"
+    AddCase "awardcover,remainder-drops-off,12,1,1:8:Y;2:N:N,,,8|4"
+    AddCase "awardcover,full-plus-partial,12,2,1:F:Y;2:8:Y,,,20|4"
+    AddCase "awardcover,dst-night-partial,13,1,1:6.5:Y,,,6.5|6.5"
+    AddCase "awardcover,full-shift,12,1,1:F:Y,,,12|0"
+    AddCase "posting,partial-award-remainder-uncharged,award,12,1:1:N:N;2:1:Y:Y;3:1:N:N,,,1=21;2=0;3=0"
 ' <<< CASES
 End Sub

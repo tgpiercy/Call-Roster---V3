@@ -284,3 +284,17 @@ nametoken,with-hours,Fred C 8h / Sam K,Fred C,Fred D,,,Fred D 8h / Sam K
 nametoken,inside-a-longer-name,Alfred C / Fred Carter,Fred C,Fred D,,,Alfred C / Fred Carter
 nametoken,switch-line,Fred C S/S,Fred C,Freddy C,,,Freddy C S/S
 nametoken,twice,Fred C; Fred C 4h,Fred C,Fred D,,,Fred D; Fred D 4h
+awardorder,partial-only,12,1,1:N:N;2:8:Y,,,ok
+awardorder,full-signup-waiting,12,1,1:F:N;2:8:Y,,,full-first
+awardorder,full-with-more-hours-still-first,12,1,1:8:Y;2:F:N,,,full-first
+awardorder,full-awarded-partial-signed-only,12,1,1:F:Y;2:8:N,,,ok
+awardorder,position-filled-by-full,12,1,1:F:Y;2:8:Y,,,filled
+awardorder,second-position-to-a-partial,12,2,1:F:Y;2:8:Y,,,ok
+awardorder,two-partials-cover-the-shift,12,1,1:8:Y;2:4:Y,,,ok
+awardorder,two-partials-too-many-hours,12,1,1:8:Y;2:6:Y,,,over-hours
+awardorder,no-partial-awarded,12,1,1:F:Y;2:F:N,,,ok
+awardcover,remainder-drops-off,12,1,1:8:Y;2:N:N,,,8|4
+awardcover,full-plus-partial,12,2,1:F:Y;2:8:Y,,,20|4
+awardcover,dst-night-partial,13,1,1:6.5:Y,,,6.5|6.5
+awardcover,full-shift,12,1,1:F:Y,,,12|0
+posting,partial-award-remainder-uncharged,award,12,1:1:N:N;2:1:Y:Y;3:1:N:N,,,1=21;2=0;3=0

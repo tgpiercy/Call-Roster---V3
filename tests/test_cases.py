@@ -64,6 +64,16 @@ def parse_crew_hist(spec: str) -> list[tuple[str, date]]:
     return out
 
 
+def parse_signups(spec: str) -> list[rules.Listed]:
+    """'rank:signup:awarded;...' with signup = N (didn't sign up), F (whole shift) or the hours."""
+    out = []
+    for rec in spec.split(";"):
+        rank, signup, awarded = rec.split(":")
+        out.append(rules.Listed(int(rank), 1.0, signup != "N", awarded == "Y",
+                                signup_hrs=0.0 if signup in ("N", "F") else float(signup)))
+    return out
+
+
 def fmt_num(x: float) -> str:
     return str(int(x)) if float(x).is_integer() else repr(float(x))
 
@@ -186,6 +196,11 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
+    if suite == "awardorder":                    # hours, positions, sign-ups -> ok / the problem
+        return rules.award_order_problem(float(i1), int(i2), parse_signups(i3)) or "ok"
+    if suite == "awardcover":                    # hours, positions, sign-ups -> covered|uncovered
+        cov, unc = rules.award_coverage(float(i1), int(i2), parse_signups(i3))
+        return f"{fmt_num(cov)}|{fmt_num(unc)}"
     if suite == "newhire":                       # peers 'grade:onleave:total;...' -> starting hours
         peers = [(float(g), lv == "Y", float(tot)) for g, lv, tot in (r.split(":") for r in i1.split(";") if r)]
         return fmt_num(rules.new_hire_average(peers))

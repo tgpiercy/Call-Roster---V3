@@ -1,5 +1,5 @@
 Option Explicit
-' @version v21 (Oct 12)
+' @version v24 (Jan 5)
 
 ' ================================================================
 ' AWARD OVERTIME POSTING
@@ -14,15 +14,21 @@ Option Explicit
 '   AWARD OUT OF DEPT - nobody in the department took it; award to a
 '                    name from another department. In-department people
 '                    who didn't sign up are charged as for NO TAKERS.
+' PARTIAL HOURS (v24): someone signed up for only part of the shift.
+'   Select the name, click PARTIAL HOURS, enter the hours. Full-shift
+'   sign-ups are awarded first; a partial is awarded only when no
+'   full-shift sign-up is left. Charging doesn't change: people ahead who
+'   didn't sign up at all are charged the posting's full hours.
 ' Charges are previewed live. Uses modPostings for the rules and saving.
 ' (Design-time controls reused: btnLoad, lstEmployees, btnSignedUp,
-'  btnPassed = AWARD toggle, btnSubmit. NO TAKERS / CANCEL REQUEST are
-'  added in code.)
+'  btnPassed = AWARD toggle, btnSubmit. PARTIAL HOURS / NO TAKERS /
+'  CANCEL REQUEST are added in code.)
 ' ================================================================
 
 Private WithEvents mNoTakers As MSForms.CommandButton
 Private WithEvents mCancelReq As MSForms.CommandButton
 Private WithEvents mOutside As MSForms.CommandButton
+Private WithEvents mPartial As MSForms.CommandButton
 
 Private mP As PostRec
 Private mL() As PListRec
@@ -56,7 +62,7 @@ End Sub
 ' INITIALIZE
 ' ================================================================
 Private Sub UserForm_Initialize()
-    Me.Width = 480: Me.Height = 600
+    Me.Width = 480: Me.Height = 612
     Me.Caption = "Award Overtime Posting"
 
     MakeLabel "lblPick", "Posting:", 10, 13, 50
@@ -94,8 +100,8 @@ Private Sub UserForm_Initialize()
         .Font.Size = 10
     End With
 
-    MakeLabel "lblHint", "Double-click a name = signed up.  Select a name + AWARD for the winner(s).  " & _
-              "Anyone ahead of the awarded person who didn't sign up is charged.", 10, 315, 450
+    MakeLabel "lblHint", "Double-click a name = signed up.  PARTIAL HOURS = signed up for part of the shift.  " & _
+              "Select a name + AWARD for the winner(s).  Anyone ahead of the awarded person who didn't sign up is charged.", 10, 315, 450
     C("lblHint").Font.Italic = True
     C("lblHint").Font.Size = 8
     C("lblHint").Height = 26
@@ -103,14 +109,21 @@ Private Sub UserForm_Initialize()
 
     With btnSignedUp
         .Caption = "SIGNED UP  (on / off)"
-        .Left = 10: .Top = 344: .Width = 220: .Height = 34
+        .Left = 10: .Top = 344: .Width = 150: .Height = 34
         .Font.Bold = True: .Font.Size = 10
         .BackColor = RGB(0, 140, 50): .ForeColor = RGB(255, 255, 255)
         .Enabled = False
     End With
+    Set mPartial = Me.Controls.Add("Forms.CommandButton.1", "cmdPartial", True)
+    With mPartial
+        .Caption = "PARTIAL HOURS"
+        .Left = 166: .Top = 344: .Width = 138: .Height = 34
+        .Font.Bold = True: .Font.Size = 10
+        .Enabled = False
+    End With
     With btnPassed
         .Caption = "AWARD  (on / off)"
-        .Left = 240: .Top = 344: .Width = 220: .Height = 34
+        .Left = 310: .Top = 344: .Width = 150: .Height = 34
         .Font.Bold = True: .Font.Size = 10
         .BackColor = RGB(30, 56, 100): .ForeColor = RGB(255, 255, 255)
         .Enabled = False
@@ -118,7 +131,7 @@ Private Sub UserForm_Initialize()
 
     MakeLabel "lblSummary", "", 10, 386, 450
     With C("lblSummary")
-        .Height = 44
+        .Height = 46
         .WordWrap = True
         .Font.Bold = True
         .Font.Size = 9
@@ -176,6 +189,7 @@ Private Sub UserForm_Initialize()
     LoadChoices
     ApplyFormTheme Me
     mNoTakers.BackColor = RGB(190, 30, 30): mNoTakers.ForeColor = vbWhite
+    mPartial.BackColor = RGB(0, 110, 90): mPartial.ForeColor = vbWhite
     mOutside.BackColor = RGB(93, 64, 55): mOutside.ForeColor = vbWhite
     mCancelReq.BackColor = RGB(236, 239, 243): mCancelReq.ForeColor = RGB(40, 40, 40)
 End Sub
@@ -258,12 +272,22 @@ Private Sub RefreshList(ByVal keepIdx As Long)
         lstEmployees.List(i - 1, 1) = mL(i).EmpName
         lstEmployees.List(i - 1, 2) = mL(i).EmpShift
         lstEmployees.List(i - 1, 3) = Format$(mL(i).TotalHrs, "#,##0")
-        lstEmployees.List(i - 1, 4) = IIf(mL(i).SignedUp, "Yes", "")
+        If Not mL(i).SignedUp Then
+            lstEmployees.List(i - 1, 4) = ""
+        ElseIf IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then
+            lstEmployees.List(i - 1, 4) = Format$(mL(i).SignupHrs, "0.##") & " h"
+        Else
+            lstEmployees.List(i - 1, 4) = "Yes"
+        End If
         Select Case mL(i).Result
-            Case "Awarded": res = "AWARDED"
+            Case "Awarded"
+                res = "AWARDED"
+                If IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then res = res & "  " & Format$(mL(i).SignupHrs, "0.##") & " h"
             Case "Charged": res = "REFUSED  " & Format$(mL(i).Charged, "0.##")
             Case "Signed up": res = "not charged"
-            Case Else: res = ""
+            Case Else
+                res = ""
+                If mL(i).ExemptNote <> "" Then res = LCase$(Mid$(mL(i).ExemptNote, 10))     ' "Exempt - moved Jan 12" -> "moved jan 12"
         End Select
         lstEmployees.List(i - 1, 5) = res
     Next i
@@ -272,9 +296,20 @@ Private Sub RefreshList(ByVal keepIdx As Long)
     If nAw = 0 Then
         C("lblSummary").Caption = "No one awarded yet." & IIf(mP.Positions > 1, "  (" & mP.Positions & " positions)", "")
     Else
+        Dim covered As Double, uncovered As Double, who As String, coverTxt As String
+        AwardCoverage mP, mL, mN, covered, uncovered
+        Select Case AwardOrderProblem(mP, mL, mN, who)
+            Case "full-first": coverTxt = vbLf & "NOT ALLOWED: " & who & " signed up for the whole shift and comes first"
+            Case "filled": coverTxt = vbLf & "NOT ALLOWED: every position already has a full-shift award"
+            Case "over-hours": coverTxt = vbLf & "NOT ALLOWED: the partial awards add up to more than the hours left"
+            Case Else
+                If covered < mP.Positions * mP.Hours Then
+                    coverTxt = vbLf & "Covered " & Format$(covered, "0.##") & " h; " & Format$(uncovered, "0.##") & " h not covered (nobody charged for them)"
+                End If
+        End Select
         C("lblSummary").Caption = "Awarded " & nAw & " of " & mP.Positions & "   |   last awarded in call order: #" & _
             maxRank & " (" & Format$(maxHrs, "#,##0") & " hrs)" & vbLf & _
-            "Charged (didn't sign up, ahead of #" & maxRank & "): " & nCh & " operator(s), " & Format$(tot, "0.##") & " hrs total"
+            "Charged (didn't sign up, ahead of #" & maxRank & "): " & nCh & " operator(s), " & Format$(tot, "0.##") & " hrs total" & coverTxt
     End If
 End Sub
 
@@ -299,7 +334,34 @@ Private Sub ToggleSigned()
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then Exit Sub
     mL(i).SignedUp = Not mL(i).SignedUp
-    If Not mL(i).SignedUp Then mL(i).Awarded = False
+    If Not mL(i).SignedUp Then mL(i).Awarded = False: mL(i).SignupHrs = 0
+    mDirty = True
+    RefreshList i - 1
+End Sub
+
+' PARTIAL HOURS (v24): the selected person signed up for only part of the shift.
+' Blank or the posting's full hours = the whole shift.
+Private Sub mPartial_Click()
+    Dim i As Long: i = lstEmployees.ListIndex + 1
+    If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation: Exit Sub
+    Dim a As Variant, h As Double
+    a = Application.InputBox(Prompt:="Hours " & mL(i).EmpName & " signed up for." & vbNewLine & vbNewLine & _
+                             "The posting is " & mP.Hours & " h. Enter fewer hours for a partial sign-up, " & _
+                             "or leave it blank for the whole shift.", _
+                             Title:="Partial hours", Default:=IIf(mL(i).SignupHrs > 0, CStr(mL(i).SignupHrs), ""), Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub                 ' Cancel
+    If Trim$(CStr(a)) = "" Then
+        h = 0
+    ElseIf Not IsNumeric(Trim$(CStr(a))) Then
+        MsgBox "Enter a number of hours, e.g. 8.", vbExclamation, "Partial hours"
+        Exit Sub
+    Else
+        h = CDbl(Trim$(CStr(a)))
+        If h <= 0 Then MsgBox "The hours must be more than 0.", vbExclamation, "Partial hours": Exit Sub
+        If h >= mP.Hours Then h = 0                         ' the whole shift
+    End If
+    mL(i).SignedUp = True
+    mL(i).SignupHrs = h
     mDirty = True
     RefreshList i - 1
 End Sub
@@ -358,6 +420,7 @@ End Sub
 Private Sub SetActionButtons(ByVal on_ As Boolean)
     btnSignedUp.Enabled = on_
     btnPassed.Enabled = on_
+    mPartial.Enabled = on_
     btnSubmit.Enabled = on_
     mNoTakers.Enabled = on_
     mCancelReq.Enabled = on_

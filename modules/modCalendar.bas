@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v23 (Oct 20)"
+Public Const CAL_VERSION As String = "Calendar v24 (Jan 5)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -1098,7 +1098,8 @@ End Function
 
 ' Updates every live line from one source (posting award / no takers / cancel).
 ' Returns how many calendar lines it changed (0 = the source isn't on the calendar).
-Public Function UpdateCoverageBySource(ByVal source As String, ByVal coveredBy As String, Optional ByVal hrs As Variant) As Long
+Public Function UpdateCoverageBySource(ByVal source As String, ByVal coveredBy As String, Optional ByVal hrs As Variant, _
+                                       Optional ByVal clearHours As Boolean = False) As Long
     Dim lo As ListObject: Set lo = CovTable()
     If lo Is Nothing Then Exit Function
     Dim v As Variant: v = TableData(lo)
@@ -1109,7 +1110,9 @@ Public Function UpdateCoverageBySource(ByVal source As String, ByVal coveredBy A
             If Not hit Then lo.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
             UpdateCoverageBySource = UpdateCoverageBySource + 1
             lo.DataBodyRange.Cells(i, CV_BY).Value = coveredBy
-            If Not IsMissing(hrs) Then
+            If clearHours Then
+                lo.DataBodyRange.Cells(i, CV_HOURS).ClearContents      ' v24: partial awards carry their hours in the text
+            ElseIf Not IsMissing(hrs) Then
                 If IsNumeric(hrs) And Not IsEmpty(hrs) Then
                     If CDbl(hrs) > 0 And CDbl(hrs) < FULL_SHIFT Then lo.DataBodyRange.Cells(i, CV_HOURS).Value = CDbl(hrs)
                 End If
@@ -1159,7 +1162,9 @@ Private Function DropName(ByVal by As String, ByVal nm As String) As String
     For i = 0 To UBound(parts)
         t = Trim$(parts(i))
         core = t
-        If core Like "* #h" Or core Like "* ##h" Or core Like "* #.#h" Then core = Trim$(Left$(core, InStrRev(core, " ")))
+        If core Like "* #h" Or core Like "* ##h" Or core Like "* #.#h" Or core Like "* ##.#h" Or core Like "* #.##h" Then
+            core = Trim$(Left$(core, InStrRev(core, " ")))
+        End If
         If StrComp(core, nm, vbTextCompare) <> 0 And t <> "" Then outS = outS & IIf(outS = "", "", " / ") & t
     Next i
     DropName = outS

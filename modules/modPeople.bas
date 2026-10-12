@@ -1909,7 +1909,8 @@ Public Sub SetupPeople()
     If RosterLastRow() < R_FIRST Then MsgBox "No employees found on the roster.", vbExclamation, "Setup": Exit Sub
     If MsgBox("Set up the v24 people sheets?" & vbNewLine & vbNewLine & _
               "- Crew History: one row per person, their crew from " & Format$(RosterYearFrom(), "mmm d, yyyy") & vbNewLine & _
-              "- Former: empty, for people taken off the roster with Employee > Remove" & vbNewLine & vbNewLine & _
+              "- Former: empty, for people taken off the roster with Employee > Remove" & vbNewLine & _
+              "- Postings: a Signup Hours column on the end of the posted lists (partial sign-ups)" & vbNewLine & vbNewLine & _
               "Nothing on the roster or in the OT Log changes. A backup copy is saved first and every roster total is checked after.", _
               vbOKCancel + vbQuestion, "Setup People") <> vbOK Then Exit Sub
     Dim bk As String
@@ -1928,6 +1929,8 @@ Public Sub SetupPeople()
     nSeed = SeedCrewHistory()
     If nSeed < 0 Then Err.Raise vbObjectError + 702, , "the crew rows couldn't be written"
     If FormerTable(True) Is Nothing Then Err.Raise vbObjectError + 703, , "the Former sheet couldn't be created"
+    Dim whyNot As String
+    If Not UpgradePostingList(whyNot) Then Err.Raise vbObjectError + 704, , whyNot
     mBusy = False
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap())
@@ -1942,6 +1945,7 @@ Public Sub SetupPeople()
     SaveIfWritable
     MsgBox "People sheets are set up." & vbNewLine & vbNewLine & _
            "Crew History: " & nSeed & " row(s) added" & IIf(nSeed = 0, " (everyone already had one)", "") & "." & vbNewLine & _
+           "Former sheet and the posting lists' Signup Hours column: ready." & vbNewLine & _
            "Roster totals and the OT Log are unchanged." & vbNewLine & vbNewLine & "Backup: " & bk, vbInformation, "Setup People"
     Exit Sub
 Failed:

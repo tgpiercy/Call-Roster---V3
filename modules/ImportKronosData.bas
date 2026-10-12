@@ -29,6 +29,7 @@ Public Const HH_TABLE As String = "tblHoursHistory"
 Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)
 
 Sub SyncKronosData()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
 
@@ -41,12 +42,12 @@ Sub SyncKronosData()
     Dim wbSource As Workbook, openedHere As Boolean
     On Error Resume Next
     Set wbSource = Workbooks(fileName)
-    On Error GoTo 0
+    On Error GoTo Oops
     If wbSource Is Nothing Then
         Application.EnableEvents = False          ' don't run the Kronos file's own macros
         On Error Resume Next
         Set wbSource = Workbooks.Open(Filename:=KRONOS_PATH, ReadOnly:=True, UpdateLinks:=0)
-        On Error GoTo 0
+        On Error GoTo Oops
         Application.EnableEvents = True
         If wbSource Is Nothing Then
             MsgBox "Could not open the Kronos file:" & vbNewLine & KRONOS_PATH, vbCritical
@@ -58,7 +59,7 @@ Sub SyncKronosData()
     Dim wsSource As Worksheet
     On Error Resume Next
     Set wsSource = wbSource.Worksheets(KRONOS_SHEET)
-    On Error GoTo 0
+    On Error GoTo Oops
     If wsSource Is Nothing Then
         If openedHere Then wbSource.Close SaveChanges:=False
         MsgBox "Sheet '" & KRONOS_SHEET & "' not found in " & fileName, vbCritical
@@ -92,7 +93,7 @@ Sub SyncKronosData()
     On Error Resume Next
     fileDate = FileDateTime(KRONOS_PATH)
     If fileDate = 0 Then fileDate = FileDateTime(wbSource.FullName)
-    On Error GoTo 0
+    On Error GoTo Oops
     If openedHere Then wbSource.Close SaveChanges:=False
     ThisWorkbook.Activate
 
@@ -156,7 +157,7 @@ Sub SyncKronosData()
     wsDest.Activate
     On Error Resume Next
     SetRosterStatus
-    On Error GoTo 0
+    On Error GoTo Oops
 
     ' Kronos names that matched nobody on the roster
     Dim extra As String, nExtra As Long, kk As Variant
@@ -167,7 +168,7 @@ Sub SyncKronosData()
         fk = FindKey(dict, alt, NameKey(CStr(kk)))         ' the same match a roster name gets (middle initial in Kronos)
         If fk <> "" Then formerKeys(fk) = True
     Next kk
-    On Error GoTo 0
+    On Error GoTo Oops
     For Each kk In dict.Keys
         If Not used.Exists(kk) And Not formerKeys.Exists(kk) Then
             nExtra = nExtra + 1
@@ -189,6 +190,9 @@ Sub SyncKronosData()
     If extra <> "" Then msg = msg & vbNewLine & _
         "In Kronos but not on the roster (spelling different, or not on this roster):" & vbNewLine & extra
     MsgBox msg, IIf(missing = "" And extra = "", vbInformation, vbExclamation), "Kronos import"
+    Exit Sub
+Oops:
+    ReportError "SyncKronosData"
 End Sub
 
 
@@ -473,6 +477,7 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
     Exit Function
 Fail:
     em = Err.Description
+    LogError "AppendHoursHistory", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     MsgBox "Worked hours were imported, but the Hours History snapshot couldn't be saved:" & vbNewLine & em, vbExclamation

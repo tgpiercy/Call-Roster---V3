@@ -236,6 +236,7 @@ End Sub
 '  Replaces typing into pay-period cells / cell comments.
 ' --------------------------------------------------------------------
 Public Sub AddAdjustment()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
@@ -296,6 +297,9 @@ Public Sub AddAdjustment()
         SaveIfWritable
         MsgBox "Adjustment " & refId & " added.", vbInformation
     End If
+    Exit Sub
+Oops:
+    ReportError "AddAdjustment"
 End Sub
 
 
@@ -305,6 +309,7 @@ End Sub
 '  session, or #<Entry ID> (e.g. #245) to void a single row.
 ' --------------------------------------------------------------------
 Public Sub VoidEntry()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     Dim lo As ListObject: Set lo = LogTable()
@@ -375,11 +380,14 @@ Public Sub VoidEntry()
         End If
     Next i
     RefreshCalendar
-    On Error GoTo 0
+    On Error GoTo Oops
 
     SaveIfWritable
     MsgBox cnt & " row(s) voided. Roster totals updated." & _
            IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation
+    Exit Sub
+Oops:
+    ReportError "VoidEntry"
 End Sub
 
 
@@ -390,14 +398,18 @@ End Sub
 '  pop-up on Rename, with the person whose row is selected.
 ' --------------------------------------------------------------------
 Public Sub RenameEmployee()
+    On Error GoTo Oops
     Dim nm As String
     On Error Resume Next
     Dim ws As Worksheet: Set ws = RosterSheet()
     If ActiveSheet Is ws Then
         If ActiveCell.Row >= R_FIRST Then nm = Trim$(SafeStr(ws.Cells(ActiveCell.Row, C_NAME).Value))
     End If
-    On Error GoTo 0
+    On Error GoTo Oops
     ShowEmployeeRename nm
+    Exit Sub
+Oops:
+    ReportError "RenameEmployee"
 End Sub
 
 
@@ -408,7 +420,11 @@ End Sub
 '  carried Logged By and Timestamp) is no longer written.
 ' --------------------------------------------------------------------
 Public Sub PublishMemberView()
+    On Error GoTo Oops
     PublishMembers
+    Exit Sub
+Oops:
+    ReportError "PublishMemberView"
 End Sub
 
 

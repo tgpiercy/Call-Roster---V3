@@ -71,6 +71,7 @@ Done:
 
 Failed:
     Dim em As String: em = Err.Description
+    LogError "ApplyRosterLayout", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     Application.ScreenUpdating = True
@@ -715,6 +716,7 @@ Public Sub SetupHomeUnit()
 
 Failed:
     Dim em As String: em = Err.Description
+    LogError "SetupHomeUnit", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     Application.EnableEvents = evWas

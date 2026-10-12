@@ -500,23 +500,39 @@ End Function
 
 ' The sort buttons on the sheet
 Public Sub AttendanceSortAZ()
+    On Error GoTo Oops
     mAttSort = "AZ"
     ShowAttendance
+    Exit Sub
+Oops:
+    ReportError "AttendanceSortAZ"
 End Sub
 
 Public Sub AttendanceSortDept()
+    On Error GoTo Oops
     mAttSort = "DEPT"
     ShowAttendance
+    Exit Sub
+Oops:
+    ReportError "AttendanceSortDept"
 End Sub
 
 Public Sub AttendanceSortWorst()
+    On Error GoTo Oops
     mAttSort = "WORST"
     ShowAttendance
+    Exit Sub
+Oops:
+    ReportError "AttendanceSortWorst"
 End Sub
 
 Public Sub AttendanceToggleAll()
+    On Error GoTo Oops
     mAttAll = Not mAttAll
     ShowAttendance
+    Exit Sub
+Oops:
+    ReportError "AttendanceToggleAll"
 End Sub
 
 Private Sub AttBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
@@ -717,6 +733,7 @@ Public Sub ShowAttendance()
     Exit Sub
 Failed:
     Dim em As String: em = Err.Description
+    LogError "ShowAttendance", Err.Number, em
     On Error Resume Next
     EndAttendanceBatch                          ' never leave the stale snapshot behind
     If Not ws Is Nothing Then ProtectSheet ws

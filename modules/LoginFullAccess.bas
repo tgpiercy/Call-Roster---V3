@@ -5,6 +5,7 @@ Option Explicit
 ' Admin access now comes from your Windows login (ADMIN_USERS in
 ' modOvertimeEntry) instead of a typed password.
 Sub LoginFullAccess()
+    On Error GoTo Oops
     If IsAdmin() Then
         ApplyView True
         RosterSheet().Activate
@@ -13,4 +14,7 @@ Sub LoginFullAccess()
         ApplyView False
         MsgBox "Your Windows login (" & CurrentUser() & ") is not on the admin list.", vbExclamation
     End If
+    Exit Sub
+Oops:
+    ReportError "LoginFullAccess"
 End Sub

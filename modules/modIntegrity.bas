@@ -766,6 +766,7 @@ Public Sub DrawIntegritySheet(Optional ByVal fromCode As Boolean = True)
     Exit Sub
 Failed:
     Dim em As String: em = Err.Description
+    LogError "DrawIntegritySheet", Err.Number, em
     On Error Resume Next
     If Not ws Is Nothing Then ProtectSheet ws
     Application.ScreenUpdating = True

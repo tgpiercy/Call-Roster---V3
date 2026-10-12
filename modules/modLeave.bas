@@ -343,6 +343,7 @@ End Function
 '  LEAVE
 ' ====================================================================
 Public Sub ShowLeaveForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
@@ -351,6 +352,9 @@ Public Sub ShowLeaveForm()
         Exit Sub
     End If
     frmLeave.Show
+    Exit Sub
+Oops:
+    ReportError "ShowLeaveForm"
 End Sub
 
 ' Going on leave: the booking, with the home unit locked in and a leave group id
@@ -540,6 +544,7 @@ End Sub
 '  SICK CALL
 ' ====================================================================
 Public Sub ShowSickCallForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
@@ -548,6 +553,9 @@ Public Sub ShowSickCallForm()
         Exit Sub
     End If
     frmSickCall.Show
+    Exit Sub
+Oops:
+    ReportError "ShowSickCallForm"
 End Sub
 
 ' Books the sick shift (Absence ID SC-####, type SIC) and makes sure the
@@ -573,6 +581,7 @@ End Function
 '  IMPORTED CALENDAR LINES -> REAL BOOKINGS
 ' ====================================================================
 Public Sub ShowConvertForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If Not AbsenceColumnsCurrent() Then
@@ -580,6 +589,9 @@ Public Sub ShowConvertForm()
         Exit Sub
     End If
     frmConvert.Show
+    Exit Sub
+Oops:
+    ReportError "ShowConvertForm"
 End Sub
 
 ' Imported vacation lines dated today or later that aren't booked yet.

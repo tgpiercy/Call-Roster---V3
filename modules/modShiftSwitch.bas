@@ -39,11 +39,15 @@ Private mBatchRows As Variant
 
 ' ---------------- launcher (roster button) ----------------
 Public Sub ShowShiftSwitchForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If SwitchTable(True) Is Nothing Then Exit Sub
     SyncSwitchesToCalendar
     frmShiftSwitch.Show
+    Exit Sub
+Oops:
+    ReportError "ShowShiftSwitchForm"
 End Sub
 
 ' Any active switch without a calendar line (e.g. logged before the
@@ -574,6 +578,7 @@ Public Function SaveSwitch(ByVal d As Date, ByVal shiftLbl As String, ByVal unit
     Exit Function
 Fail:
     em = Err.Description
+    LogError "SaveSwitch", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     MsgBox "Could not save the shift switch: " & em, vbCritical

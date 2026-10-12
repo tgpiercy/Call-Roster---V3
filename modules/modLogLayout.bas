@@ -176,6 +176,7 @@ Public Sub UpgradeOTLogLayout()
 
 Failed:
     Dim em As String: em = Err.Description
+    LogError "UpgradeOTLogLayout", Err.Number, em
     On Error Resume Next
     Application.Calculation = calcMode
     Application.ScreenUpdating = True

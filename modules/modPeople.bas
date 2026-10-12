@@ -342,6 +342,7 @@ Private Function AppendCrewRows(ByRef rows() As Variant, ByVal n As Long) As Boo
     Exit Function
 Fail:
     em = Err.Description
+    LogError "AppendCrewRows", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     Application.EnableEvents = evWas
@@ -1255,6 +1256,7 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
     Exit Function
 Failed:
     em = Err.Description
+    LogError "SaveNewHire", Err.Number, em
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectSheet ws
@@ -1444,6 +1446,7 @@ Public Function SaveUnitMove(ByVal emp As String, ByVal newUnit As String, ByVal
     Exit Function
 Failed:
     em = Err.Description
+    LogError "SaveUnitMove", Err.Number, em
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     gSuppressGradeLog = suppressWas
@@ -1759,6 +1762,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     Exit Function
 Failed:
     em = Err.Description
+    LogError "RenameEverywhere", Err.Number, em
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
@@ -1858,6 +1862,7 @@ Public Function RemoveEmployee(ByVal emp As String, ByVal leftOn As Date, ByRef 
     Exit Function
 Failed:
     em = Err.Description
+    LogError "RemoveEmployee", Err.Number, em
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
@@ -1935,6 +1940,7 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     Exit Function
 Failed:
     em = Err.Description
+    LogError "BringBack", Err.Number, em
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
@@ -1948,6 +1954,7 @@ End Function
 '  LAUNCHER (ADMIN > Employee)
 ' ====================================================================
 Public Sub ShowEmployeeForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
@@ -1956,6 +1963,9 @@ Public Sub ShowEmployeeForm()
         Exit Sub
     End If
     frmEmployee.Show
+    Exit Sub
+Oops:
+    ReportError "ShowEmployeeForm"
 End Sub
 
 ' The old Rename Employee macro: the pop-up opens on Rename with that person picked
@@ -2023,6 +2033,7 @@ Public Sub SetupPeople()
     Exit Sub
 Failed:
     em = Err.Description
+    LogError "SetupPeople", Err.Number, em
     On Error Resume Next
     mBusy = False
     Application.ScreenUpdating = scrWas

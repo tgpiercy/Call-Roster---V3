@@ -25,9 +25,9 @@ Option Explicit
 
 Public Const SYS_VERSION As String = "System v24.1 (Jan 5)"
 Public Const EXPECTED_RELEASE As String = "v24.1"
-Private Const N_MODULES As Long = 20
+Private Const N_MODULES As Long = 21
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v24.1"
+Private Const THISWB_RELEASE As String = "v24.2"
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.1,frmNewPosting|v21,frmPostingEntry|v24.1,frmShiftSwitch|v24," & _
                                         "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22,frmEmployee|v24"
 
@@ -60,6 +60,7 @@ Public Sub SystemCheck()
     VerCheck "modPeople", PPL_VERSION, warn, nOk
     VerCheck "modReports", REP_VERSION, warn, nOk
     VerCheck "modSignups", SG_VERSION, warn, nOk
+    VerCheck "modErrorLog", EL_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
@@ -203,6 +204,8 @@ Public Sub SystemCheck()
     BackupStatus bkWarn, bkInfo
     warn = warn & bkWarn
     info = info & bkInfo
+    Dim nUnseen As Long: nUnseen = UnseenErrorCount()
+    If nUnseen > 0 Then warn = warn & "- " & nUnseen & " new line(s) in the Error Log: run ShowErrorLog" & vbNewLine
     If ThisWorkbook.ReadOnly Then warn = warn & "- This copy is read-only" & vbNewLine
 
     If Len(warn) > 700 Then warn = Left$(warn, InStrRev(Left$(warn, 700), vbNewLine)) & "- ...and more" & vbNewLine

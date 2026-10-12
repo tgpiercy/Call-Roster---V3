@@ -355,6 +355,7 @@ Public Sub RefusalsReport()
     Exit Sub
 Failed:
     em = Err.Description
+    LogError "RefusalsReport", Err.Number, em
     On Error Resume Next
     If Not ws Is Nothing Then ProtectSheet ws
     Application.EnableEvents = evWas

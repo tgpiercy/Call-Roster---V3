@@ -42,6 +42,7 @@ End Sub
 
 ' Show All: everyone, A - Z
 Sub ShowAllRows()
+    On Error GoTo Oops
     Dim ws As Worksheet: Set ws = RosterSheet()
     Application.ScreenUpdating = False
     ws.Unprotect Password:=SHEET_PASSWORD
@@ -54,6 +55,9 @@ Sub ShowAllRows()
     ws.Activate
     ActiveWindow.ScrollRow = 1
     Application.ScreenUpdating = True
+    Exit Sub
+Oops:
+    ReportError "ShowAllRows"
 End Sub
 
 ' kept so any old button pointing at it still works

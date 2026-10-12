@@ -299,6 +299,7 @@ Public Sub PublishMembers()
 
 Failed:
     em = Err.Description
+    LogError "PublishMembers", Err.Number, em
     On Error Resume Next
     EndSwitchBatch
     Application.StatusBar = False
@@ -309,6 +310,7 @@ Failed:
     Exit Sub
 OpenFailed:
     em = Err.Description
+    LogError "PublishMembers", Err.Number, em
     Application.AutomationSecurity = secWas
     Application.EnableEvents = evWas
     Application.StatusBar = False
@@ -319,6 +321,7 @@ OpenFailed:
     Exit Sub
 WriteFailed:
     em = Err.Description
+    LogError "PublishMembers", Err.Number, em
     On Error Resume Next
     Application.DisplayAlerts = False
     If Not wb Is Nothing Then wb.Close SaveChanges:=False
@@ -628,6 +631,7 @@ Private Function BuildAttend(ByRef nA As Long) As Variant
     Exit Function
 Failed:
     Dim em As String: em = Err.Description
+    LogError "BuildAttend", Err.Number, em
     On Error Resume Next
     EndAttendanceBatch
     On Error GoTo 0

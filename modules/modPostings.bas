@@ -232,10 +232,14 @@ Public Function UpgradePostingList(ByRef why As String) As Boolean
 End Function
 
 Sub GoToPostingSheet()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not SheetExists(POSTING_SHEET) Then MsgBox "Sheet '" & POSTING_SHEET & "' not found.": Exit Sub
     ThisWorkbook.Worksheets(POSTING_SHEET).Visible = xlSheetVisible
     ThisWorkbook.Worksheets(POSTING_SHEET).Activate
+    Exit Sub
+Oops:
+    ReportError "GoToPostingSheet"
 End Sub
 
 
@@ -243,27 +247,43 @@ End Sub
 '  CREATE A POSTING  (New Posting pop-up on the OT Roster)
 ' ====================================================================
 Public Sub ShowNewPostingForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
     frmNewPosting.Show
+    Exit Sub
+Oops:
+    ReportError "ShowNewPostingForm"
 End Sub
 
 Public Sub ShowLoadPostingForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
     frmNewPosting.LoadOnly
     frmNewPosting.Show
+    Exit Sub
+Oops:
+    ReportError "ShowLoadPostingForm"
 End Sub
 
 ' old macro names still work
 Public Sub CreatePosting()
+    On Error GoTo Oops
     ShowNewPostingForm
+    Exit Sub
+Oops:
+    ReportError "CreatePosting"
 End Sub
 
 Public Sub ShowPosting()
+    On Error GoTo Oops
     ShowLoadPostingForm
+    Exit Sub
+Oops:
+    ReportError "ShowPosting"
 End Sub
 
 ' How many people would be on the list right now (pop-up preview)
@@ -1592,6 +1612,7 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
 
 Failed:
     Dim em As String: em = Err.Description
+    LogError "WriteOutcome", Err.Number, em
     On Error Resume Next
     MarkNoSave
     MsgBox "Closing " & p.ID & " stopped part-way: " & em & vbNewLine & vbNewLine & _
@@ -1830,6 +1851,7 @@ End Sub
 
 ' Reopen an awarded posting (after its log rows have been voided)
 Public Sub ReopenPosting()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
@@ -1878,11 +1900,14 @@ Public Sub ReopenPosting()
     On Error Resume Next
     UpdateCoverageBySource p.ID, "POSTED " & p.ID
     RefreshCalendar
-    On Error GoTo 0
+    On Error GoTo Oops
     RestoreSignups CStr(id)             ' v24.1: its electronic sign-ups count again
     MarkMembersDirty
     SaveIfWritable
     MsgBox id & " is open again.", vbInformation
+    Exit Sub
+Oops:
+    ReportError "ReopenPosting"
 End Sub
 
 
@@ -2098,6 +2123,7 @@ Private Function AppendRows(ByVal lo As ListObject, data As Variant, ByVal nCols
     Exit Function
 Fail:
     em = Err.Description
+    LogError "AppendRows", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     MsgBox "Could not write to " & lo.Name & ": " & em, vbCritical

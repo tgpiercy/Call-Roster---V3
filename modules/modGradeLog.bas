@@ -297,6 +297,7 @@ Private Function AppendGradeRows(ByRef outA() As Variant, ByVal n As Long) As Bo
     Exit Function
 Fail:
     em = Err.Description
+    LogError "AppendGradeRows", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     Application.EnableEvents = evWas

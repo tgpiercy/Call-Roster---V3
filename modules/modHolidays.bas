@@ -324,6 +324,7 @@ Public Function EnsureHolidayYears(ByVal y1 As Long, ByVal y2 As Long) As Long
     Exit Function
 Fail:
     Dim em As String: em = Err.Description
+    LogError "EnsureHolidayYears", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     Application.EnableEvents = evOn

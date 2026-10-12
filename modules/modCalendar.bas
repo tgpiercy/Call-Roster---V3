@@ -344,6 +344,7 @@ Public Sub UpgradeAbsenceColumns()
     Exit Sub
 Failed:
     em = Err.Description
+    LogError "UpgradeAbsenceColumns", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     MarkNoSave
@@ -441,6 +442,7 @@ Private Function AppendTo(ByVal lo As ListObject, ByVal data As Variant, ByVal n
     Exit Function
 Fail:
     em = Err.Description
+    LogError "AppendTo", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
     MsgBox "Could not write to " & lo.Name & ": " & em, vbCritical
@@ -1343,15 +1345,19 @@ Public Sub CalendarCheck()
 End Sub
 
 Public Sub ShowCalendar()
+    On Error GoTo Oops
     Dim ws As Worksheet: Set ws = CalendarSheet()
     If gAdminUnlocked Then
         On Error Resume Next
         SyncSwitchesToCalendar           ' switches logged before the calendar existed
-        On Error GoTo 0
+        On Error GoTo Oops
     End If
     ws.Visible = xlSheetVisible
     ws.Activate                          ' the tab-switch check runs here (ThisWorkbook)
     If CalStale() Then DrawCalendar Else SetCalHint ws
+    Exit Sub
+Oops:
+    ReportError "ShowCalendar"
 End Sub
 
 ' Something changed: mark the calendar out of date. Only the tab you're
@@ -1517,45 +1523,65 @@ Private Function SingleUnitOf(ByVal grp As String) As String
 End Function
 
 Public Sub CalPrev()
+    On Error GoTo Oops
     CalendarSheet
     MapSheet().Range("Z1").Value = DateAdd("m", -1, CalMonth())
     DrawCalendar
+    Exit Sub
+Oops:
+    ReportError "CalPrev"
 End Sub
 
 Public Sub CalNext()
+    On Error GoTo Oops
     CalendarSheet
     MapSheet().Range("Z1").Value = DateAdd("m", 1, CalMonth())
     DrawCalendar
+    Exit Sub
+Oops:
+    ReportError "CalNext"
 End Sub
 
 Public Sub CalToday()
+    On Error GoTo Oops
     CalendarSheet
     MapSheet().Range("Z1").Value = DateSerial(Year(Date), Month(Date), 1)
     DrawCalendar
+    Exit Sub
+Oops:
+    ReportError "CalToday"
 End Sub
 
 Public Sub CalUnitChanged()
+    On Error GoTo Oops
     Dim ws As Worksheet: Set ws = CalendarSheet()
     Dim dd As Object
     On Error Resume Next
     Set dd = ws.DropDowns("cal_unit")
-    On Error GoTo 0
+    On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
     MapSheet().Range("Z2").Value = dd.List(dd.ListIndex)
     DrawCalendar
+    Exit Sub
+Oops:
+    ReportError "CalUnitChanged"
 End Sub
 
 Public Sub CalMonthChanged()
+    On Error GoTo Oops
     Dim ws As Worksheet: Set ws = CalendarSheet()
     Dim dd As Object
     On Error Resume Next
     Set dd = ws.DropDowns("cal_month")
-    On Error GoTo 0
+    On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
     MapSheet().Range("Z1").Value = DateSerial(Year(Date) - 1, dd.ListIndex, 1)   ' list starts January last year
     DrawCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMonthChanged"
 End Sub
 
 
@@ -2131,8 +2157,12 @@ End Sub
 
 ' Admin: click a calendar line, then Set Coverage
 Public Sub CalSetCoverage()
+    On Error GoTo Oops
     If Not ActiveSheet.Name = CAL_SHEET Then MsgBox "Click a line on the Calendar first.", vbInformation: Exit Sub
     CalSetCoverageKey SafeStr(MapSheet().Range(ActiveCell.Address).Value)
+    Exit Sub
+Oops:
+    ReportError "CalSetCoverage"
 End Sub
 
 Private Sub CalSetCoverageKey(ByVal keyTxt As String)
@@ -2199,8 +2229,12 @@ End Sub
 
 ' Admin: click an open line, then Post Line -> New Posting, pre-filled
 Public Sub CalPostLine()
+    On Error GoTo Oops
     If ActiveSheet.Name <> CAL_SHEET Then MsgBox "Click a line on the Calendar first.", vbInformation: Exit Sub
     CalPostKey SafeStr(MapSheet().Range(ActiveCell.Address).Value)
+    Exit Sub
+Oops:
+    ReportError "CalPostLine"
 End Sub
 
 Private Sub CalPostKey(ByVal keyTxt As String)
@@ -2272,6 +2306,7 @@ Private Sub CalPostKey(ByVal keyTxt As String)
 End Sub
 
 Public Sub CalPrintPdf()
+    On Error GoTo Oops
     Dim ws As Worksheet: Set ws = CalendarSheet()
     Dim ans As VbMsgBoxResult
     ans = MsgBox("Yes = print AND save a PDF" & vbNewLine & "No = save a PDF only", vbYesNoCancel + vbQuestion, "Calendar")
@@ -2283,7 +2318,7 @@ Public Sub CalPrintPdf()
         If Not FolderExists(subF) Then
             On Error Resume Next
             MkDir subF
-            On Error GoTo 0
+            On Error GoTo Oops
         End If
         If FolderExists(subF) Then folder = subF
     Else
@@ -2307,17 +2342,24 @@ Public Sub CalPrintPdf()
     End If
     ws.Rows("3:" & hideTo).Hidden = False
     ProtectSheet ws
-    On Error GoTo 0
+    On Error GoTo Oops
     MsgBox msg, vbInformation, "Calendar"
+    Exit Sub
+Oops:
+    ReportError "CalPrintPdf"
 End Sub
 
 Public Sub ShowTimeOffForm()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If AbsTable(True) Is Nothing Then Exit Sub
     If CovTable(True) Is Nothing Then Exit Sub
     frmTimeOff.Show
     RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "ShowTimeOffForm"
 End Sub
 
 
@@ -2325,6 +2367,7 @@ End Sub
 '  ONE-TIME IMPORT of an old monthly calendar workbook
 ' ====================================================================
 Public Sub ImportUnitCalendar()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
 
@@ -2391,7 +2434,7 @@ Public Sub ImportUnitCalendar()
     Dim wb As Workbook
     On Error Resume Next
     Set wb = Workbooks.Open(Filename:=f, ReadOnly:=True, UpdateLinks:=0)
-    On Error GoTo 0
+    On Error GoTo Oops
     If wb Is Nothing Then Application.ScreenUpdating = True: MsgBox "Couldn't open that file.", vbCritical: Exit Sub
 
     Dim buf() As Variant: ReDim buf(1 To 5000, 1 To CV_N)
@@ -2426,6 +2469,9 @@ Public Sub ImportUnitCalendar()
     SaveIfWritable
     MsgBox n & " lines imported for " & unit & ".", vbInformation
     RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "ImportUnitCalendar"
 End Sub
 
 ' Reads one month tab: finds the SUNDAY..SATURDAY header, date rows, and
@@ -2791,12 +2837,16 @@ Private Function NeedsSheet() As Worksheet
 End Function
 
 Public Sub ShowNeedsAttention()
+    On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     CalendarSheet
     Dim ws As Worksheet: Set ws = NeedsSheet()
     ws.Visible = xlSheetVisible
     ws.Activate                          ' the tab-switch check runs here (ThisWorkbook)
     If NAStale() Then DrawNeeds
+    Exit Sub
+Oops:
+    ReportError "ShowNeedsAttention"
 End Sub
 
 Private Function NAGroup() As String
@@ -2814,33 +2864,49 @@ Private Function NARanges() As Variant
 End Function
 
 Public Sub NAUnitChanged()
+    On Error GoTo Oops
     Dim dd As Object
     On Error Resume Next
     Set dd = NeedsSheet().DropDowns("na_unit")
-    On Error GoTo 0
+    On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
     MapSheet().Range("Z5").Value = dd.List(dd.ListIndex)
     DrawNeeds
+    Exit Sub
+Oops:
+    ReportError "NAUnitChanged"
 End Sub
 
 Public Sub NARangeChanged()
+    On Error GoTo Oops
     Dim dd As Object
     On Error Resume Next
     Set dd = NeedsSheet().DropDowns("na_range")
-    On Error GoTo 0
+    On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
     MapSheet().Range("Z6").Value = NARanges()(dd.ListIndex - 1)
     DrawNeeds
+    Exit Sub
+Oops:
+    ReportError "NARangeChanged"
 End Sub
 
 Public Sub NARefresh()
+    On Error GoTo Oops
     DrawNeeds
+    Exit Sub
+Oops:
+    ReportError "NARefresh"
 End Sub
 
 Public Sub NAGoCalendar()
+    On Error GoTo Oops
     ShowCalendar
+    Exit Sub
+Oops:
+    ReportError "NAGoCalendar"
 End Sub
 
 ' "Today", "Tomorrow", "in 5 days", "3 days ago"
@@ -3098,6 +3164,15 @@ Public Sub DrawNeeds()
               "Publish again", "", "M:publish", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
     End If
 
+    ' E. errors nobody has looked at yet (v24.2)
+    Dim er() As NARow, nE As Long, nErrLines As Long
+    ReDim er(1 To 2)
+    nErrLines = UnseenErrorCount()
+    If nErrLines > 0 Then
+        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
+              "Open the log", "", "E:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+    End If
+
     ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
     Dim ur() As NARow, nU As Long, uv As Variant, uk As Variant
     ReDim ur(1 To 20)
@@ -3208,6 +3283,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "HOME UNIT NOT SET  -  pick it from the drop-down in column B of the roster (double-click a name)", _
                       nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
         r = NARows(ws, r, ur, nU, "")
+    End If
+    If nE > 0 Then
+        r = NASection(ws, r, "ERRORS  -  something didn't finish (double-click to open the Error Log)", _
+                      nE, RGB(176, 0, 32), Array("Today", "", "", "", "What", "Type", "Status", ""))
+        r = NARows(ws, r, er, nE, "")
     End If
     If nM > 0 Then
         r = NASection(ws, r, "MEMBERS FILE  -  what the union sees is out of date (double-click to publish)", _
@@ -3497,6 +3577,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "E:" Then              ' v24.2: errors - open the Error Log
+        ShowErrorLog
+        Exit Sub
+    End If
     If Left$(keyTxt, 2) = "I:" Then              ' v22: imported line - open the convert pop-up
         ShowConvertForm
         Exit Sub
@@ -3522,6 +3606,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "M:" Then
         If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "E:" Then
+        ShowErrorLog
         Exit Sub
     End If
     If Left$(keyTxt, 2) = "I:" Then

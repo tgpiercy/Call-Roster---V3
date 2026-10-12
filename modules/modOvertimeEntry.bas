@@ -387,7 +387,10 @@ End Function
 Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                              ByRef recs() As EmpRec, _
                              Optional ByVal maxGrade As Double = 999, _
-                             Optional ByVal includeDays As Boolean = True) As Long
+                             Optional ByVal includeDays As Boolean = True, _
+                             Optional ByVal asOf As Variant) As Long
+    ' asOf (v24): a shift date. Each person's crew is then the crew they are on
+    ' that day (crew history); left out, it is the roster's crew column.
     Dim dc As Long: dc = DeptCol(dept)
     If dc = 0 Then Exit Function
 
@@ -400,14 +403,20 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
     ' column C only means "provisional" once RefreshRosterFormulas has written it (v21)
     Dim provLive As Boolean: provLive = ProvisionalLive()
 
-    Dim n As Long, i As Long, nm As String, code As String, g As Double
+    Dim n As Long, i As Long, nm As String, code As String, g As Double, crewTxt As String
+    Dim hasAsOf As Boolean, asOfDate As Date
+    If Not IsMissing(asOf) Then
+        If IsDate(asOf) Then hasAsOf = True: asOfDate = CDate(asOf)
+    End If
     ReDim recs(1 To UBound(v, 1))
 
     For i = 1 To UBound(v, 1)
         nm = Trim$(SafeStr(v(i, C_NAME)))
         code = Trim$(SafeStr(v(i, dc)))
         If nm <> "" And code <> "" Then
-            If ShiftMatches(SafeStr(v(i, C_SHIFT)), shiftSel, includeDays) Then
+            crewTxt = Trim$(SafeStr(v(i, C_SHIFT)))
+            If hasAsOf Then crewTxt = CrewOn(nm, asOfDate, crewTxt)
+            If ShiftMatches(crewTxt, shiftSel, includeDays) Then
                 g = DeptCodeValue(code)
                 If g <= maxGrade Then
                     n = n + 1
@@ -420,7 +429,7 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                         If provLive Then .ProvHrs = NumOr0(v(i, C_PROV)) Else .ProvHrs = 0
                         .Seniority = SeniorityKey(v(i, C_SENIORITY))
                         .Phone = Trim$(SafeStr(v(i, C_PHONE)))
-                        .EmpShift = Trim$(SafeStr(v(i, C_SHIFT)))
+                        .EmpShift = crewTxt
                         .Outcome = ""
                         .Reason = ""
                     End With
@@ -950,7 +959,7 @@ End Sub
 Public Sub ApplyView(ByVal adminView As Boolean)
     gAdminUnlocked = adminView
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET)   ' absences hold leave types - admin only
+    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET)   ' absences hold leave types - admin only
         If SheetExists(CStr(nm)) Then
             If adminView Then
                 ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible

@@ -201,29 +201,29 @@ Public Function RosterNames() As Variant
     RosterNames = a
 End Function
 
-' Rotation crew (A-D) from the roster Shift column; "" for DAYS / unknown
-Public Function EmpCrew(ByVal empName As String) As String
-    Dim ws As Worksheet: Set ws = RosterSheet()
-    Dim r As Long, s As String
-    For r = R_FIRST To RosterLastRow()
-        If StrComp(Trim$(SafeStr(ws.Cells(r, C_NAME).Value)), Trim$(empName), vbTextCompare) = 0 Then
-            s = UCase$(Trim$(SafeStr(ws.Cells(r, C_SHIFT).Value)))
-            If Len(s) = 1 And InStr("ABCD", s) > 0 Then EmpCrew = s
-            Exit Function
-        End If
-    Next r
+' Rotation crew (A-D); "" for DAYS / unknown. With a date (v24): the crew
+' they are on that day (crew history); without: the roster's crew column.
+Public Function EmpCrew(ByVal empName As String, Optional ByVal asOf As Variant) As String
+    Dim s As String
+    If IsMissing(asOf) Then s = EmpCrewCode(empName) Else s = EmpCrewCode(empName, asOf)
+    If Len(s) = 1 And InStr("ABCD", s) > 0 Then EmpCrew = s
 End Function
 
-' Roster Shift code as typed, upper case: "A".."D", "A/B", "C/D", "DAYS" ...
-Public Function EmpCrewCode(ByVal empName As String) As String
+' Crew code, upper case, no spaces: "A".."D", "A/B", "C/D", "DAYS" ...
+' With a date (v24): the crew they are on that day (crew history).
+' Without: the roster's crew column as typed.
+Public Function EmpCrewCode(ByVal empName As String, Optional ByVal asOf As Variant) As String
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim r As Long
     For r = R_FIRST To RosterLastRow()
         If StrComp(Trim$(SafeStr(ws.Cells(r, C_NAME).Value)), Trim$(empName), vbTextCompare) = 0 Then
             EmpCrewCode = UCase$(Replace(Trim$(SafeStr(ws.Cells(r, C_SHIFT).Value)), " ", ""))
-            Exit Function
+            Exit For
         End If
     Next r
+    If Not IsMissing(asOf) Then
+        If IsDate(asOf) Then EmpCrewCode = UCase$(Replace(CrewOn(empName, CDate(asOf), EmpCrewCode), " ", ""))
+    End If
 End Function
 
 Private Function IsPairCrew(ByVal code As String) As Boolean
@@ -232,7 +232,7 @@ End Function
 
 ' What the rotation says about a person on date d, e.g. "Crew C - off" / "Crew A - on days"
 Public Function CrewStatus(ByVal empName As String, ByVal d As Date) As String
-    Dim code As String: code = EmpCrewCode(empName)
+    Dim code As String: code = EmpCrewCode(empName, d)
     If IsPairCrew(code) Then
         If CrewShiftOn(code, d) = "Days" Then
             CrewStatus = code & " days - on DAYS"
@@ -251,7 +251,7 @@ Public Function CrewStatus(ByVal empName As String, ByVal d As Date) As String
         End If
         Exit Function
     End If
-    Dim c As String: c = EmpCrew(empName)
+    Dim c As String: c = EmpCrew(empName, d)
     If c = "" Then CrewStatus = "not on the 4-crew rotation": Exit Function
     If c = DaysCrew(d) Then
         CrewStatus = "Crew " & c & " - on DAYS"
@@ -264,7 +264,7 @@ End Function
 
 ' Problems with "works" covering the shift (blank = looks fine)
 Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal isNight As Boolean) As String
-    Dim code As String: code = EmpCrewCode(empName)
+    Dim code As String: code = EmpCrewCode(empName, d)
     If IsPairCrew(code) Or code = "DAYS" Then   ' DAYS: Mon-Fri days (v20)
         If CrewShiftOn(code, d) = "Days" Then
             WorksConflict = code & " is already working days that day"
@@ -273,7 +273,7 @@ Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal is
         End If
         Exit Function
     End If
-    Dim c As String: c = EmpCrew(empName)
+    Dim c As String: c = EmpCrew(empName, d)
     If c = "" Then Exit Function
     If c = DaysCrew(d) Or c = NightsCrew(d) Then
         WorksConflict = "crew " & c & " is already working that day"
@@ -286,7 +286,7 @@ End Function
 
 ' Problems with "gives up" (blank = they're scheduled on that shift)
 Public Function OffConflict(ByVal empName As String, ByVal d As Date, ByVal isNight As Boolean) As String
-    Dim code As String: code = EmpCrewCode(empName)
+    Dim code As String: code = EmpCrewCode(empName, d)
     If IsPairCrew(code) Or code = "DAYS" Then   ' DAYS: Mon-Fri days (v20)
         If isNight Then
             OffConflict = code & " works days only"
@@ -295,7 +295,7 @@ Public Function OffConflict(ByVal empName As String, ByVal d As Date, ByVal isNi
         End If
         Exit Function
     End If
-    Dim c As String: c = EmpCrew(empName)
+    Dim c As String: c = EmpCrew(empName, d)
     If c = "" Then Exit Function
     If isNight And c <> NightsCrew(d) Then OffConflict = "crew " & c & " isn't on nights that day"
     If Not isNight And c <> DaysCrew(d) Then OffConflict = "crew " & c & " isn't on days that day"
@@ -303,7 +303,7 @@ End Function
 
 ' Days / Nights the person is scheduled for on d ("" if off)
 Public Function ScheduledShift(ByVal empName As String, ByVal d As Date) As String
-    Dim code As String: code = EmpCrewCode(empName)
+    Dim code As String: code = EmpCrewCode(empName, d)
     If Len(code) = 1 Or IsPairCrew(code) Or code = "DAYS" Then
         ScheduledShift = CrewShiftOn(code, d)
         If ScheduledShift = "?" Then ScheduledShift = ""
@@ -530,9 +530,9 @@ Public Function SaveSwitch(ByVal d As Date, ByVal shiftLbl As String, ByVal unit
     rec(1, SW_SHIFT) = shiftLbl
     rec(1, SW_UNIT) = unit
     rec(1, SW_OFF) = offName
-    rec(1, SW_OFFCREW) = EmpCrewCode(offName)
+    rec(1, SW_OFFCREW) = EmpCrewCode(offName, d)
     rec(1, SW_WORKS) = worksName
-    rec(1, SW_WORKSCREW) = EmpCrewCode(worksName)
+    rec(1, SW_WORKSCREW) = EmpCrewCode(worksName, d)
     rec(1, SW_PAYFOR) = payFor
     rec(1, SW_NOTE) = note
     rec(1, SW_STATUS) = "Active"

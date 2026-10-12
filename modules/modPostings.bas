@@ -229,10 +229,14 @@ Public Function EligibleCount(ByVal unit As String, ByVal crew As String, Option
     nProv = 0
     If DeptCol(unit) = 0 Then Exit Function
     Dim recs() As EmpRec, n As Long, i As Long
-    n = LoadEligible(unit, CrewFilter(crew), recs, DeptPostingMaxGrade(unit), True)
-    If n > 0 And Not IsMissing(d) And shiftLbl <> "" Then
-        If IsDate(d) Then n = FilterNotFree(recs, n, CDate(d), shiftLbl, notFree)
+    Dim hasDate As Boolean
+    If Not IsMissing(d) Then hasDate = IsDate(d)
+    If hasDate Then
+        n = LoadEligible(unit, CrewFilter(crew), recs, DeptPostingMaxGrade(unit), True, CDate(d))   ' v24: crews as of the shift date
+    Else
+        n = LoadEligible(unit, CrewFilter(crew), recs, DeptPostingMaxGrade(unit), True)
     End If
+    If n > 0 And hasDate And shiftLbl <> "" Then n = FilterNotFree(recs, n, CDate(d), shiftLbl, notFree)
     For i = 1 To n
         If recs(i).ProvHrs > 0 Then nProv = nProv + 1      ' v21: totals that include provisional accepted OT
     Next i
@@ -261,7 +265,7 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     Dim recs() As EmpRec, n As Long
     ' everyone with the department code (any grade) who is free that day:
     ' not scheduled, not under the rest rule, not booked off, not on a shift switch
-    n = LoadEligible(p.Unit, CrewFilter(p.Crew), recs, DeptPostingMaxGrade(p.Unit), True)
+    n = LoadEligible(p.Unit, CrewFilter(p.Crew), recs, DeptPostingMaxGrade(p.Unit), True, p.ShiftDate)
     Dim offList As String
     If n > 0 Then n = FilterNotFree(recs, n, p.ShiftDate, p.ShiftLbl, offList)
     If n = 0 Then MsgBox "No one is free to sign up for " & p.Unit & " / " & p.Crew & "." & _
@@ -1177,7 +1181,7 @@ End Function
 ' name, unit code, crew, total hours (now) - lowest hours first. Empty if nobody.
 Public Function OutsideCandidates(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long) As Variant
     Dim recs() As EmpRec, k As Long, i As Long, j As Long, onList As Boolean, why As String
-    k = LoadEligible(p.Unit, "ALL", recs, 999, True)
+    k = LoadEligible(p.Unit, "ALL", recs, 999, True, p.ShiftDate)
     If k > 0 Then k = FilterNotFree(recs, k, p.ShiftDate, p.ShiftLbl, why)
     If k = 0 Then Exit Function
     Dim keep() As Long, m As Long

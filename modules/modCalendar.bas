@@ -351,6 +351,7 @@ Failed:
 End Sub
 
 Public Sub ResetCalCacheAll()
+    If mTestMode Then Exit Sub              ' SelfTest's fixtures stay until it clears them
     mAbs = Empty: mCov = Empty: Set mShiftMap = Nothing
 End Sub
 
@@ -504,6 +505,7 @@ Public Function EmpShiftOn(ByVal empName As String, ByVal d As Date) As String
     If mShiftMap Is Nothing Then LoadCache
     Dim s As String
     If mShiftMap.Exists(Trim$(empName)) Then s = mShiftMap(Trim$(empName))
+    s = CrewOn(empName, d, s)                   ' v24: the crew they were on that day (crew history)
     EmpShiftOn = CrewShiftOn(s, d)              ' A-D rotation, A/B or C/D days only, DAYS = Mon-Fri
     If EmpShiftOn = "?" Then EmpShiftOn = "Days" ' unknown crew: show on Days so it's never hidden
 End Function
@@ -544,12 +546,19 @@ End Function
 '   "" otherwise. A/B, C/D and DAYS codes are handled by CrewShiftOn,
 '   including plant holidays for DAYS.
 Public Function RotationFreeReason(ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String) As String
+    RotationFreeReason = RotationFreeReason3(crewCode, crewCode, crewCode, d, shiftLbl)
+End Function
+
+' The same rule when the person's crew can differ from one day to the next
+' (v24, crew history): crewPrev / crewOnD / crewNext = their crew on d - 1, d, d + 1.
+Public Function RotationFreeReason3(ByVal crewPrev As String, ByVal crewOnD As String, ByVal crewNext As String, _
+                                    ByVal d As Date, ByVal shiftLbl As String) As String
     Dim night As Boolean: night = IsNightShift(shiftLbl)
-    Dim onD As String: onD = CrewShiftOn(crewCode, d)
-    If onD = "Days" Or onD = "Nights" Then RotationFreeReason = "scheduled": Exit Function
+    Dim onD As String: onD = CrewShiftOn(crewOnD, d)
+    If onD = "Days" Or onD = "Nights" Then RotationFreeReason3 = "scheduled": Exit Function
     If onD <> "?" Then
-        If Not night And CrewShiftOn(crewCode, d - 1) = "Nights" Then RotationFreeReason = "rest": Exit Function
-        If night And CrewShiftOn(crewCode, d + 1) = "Days" Then RotationFreeReason = "rest": Exit Function
+        If Not night And CrewShiftOn(crewPrev, d - 1) = "Nights" Then RotationFreeReason3 = "rest": Exit Function
+        If night And CrewShiftOn(crewNext, d + 1) = "Days" Then RotationFreeReason3 = "rest": Exit Function
     End If
 End Function
 
@@ -588,7 +597,10 @@ Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String,
     Dim night As Boolean: night = IsNightShift(shiftLbl)
     Dim t As String
     If AbsentForShift(empName, d, shiftLbl, t) Then NotFreeReason = t: Exit Function
-    NotFreeReason = RotationFreeReason(crewCode, d, shiftLbl)
+    ' v24: the crew on each of the three days comes from the crew history; crewCode
+    ' (the roster's crew) is only the answer for someone with no history rows
+    NotFreeReason = RotationFreeReason3(CrewOn(empName, d - 1, crewCode), CrewOn(empName, d, crewCode), _
+                                        CrewOn(empName, d + 1, crewCode), d, shiftLbl)
     If NotFreeReason <> "" Then Exit Function
     If SwitchWorkingOn(empName, d, "") <> "" Then NotFreeReason = "S/S": Exit Function
     If SwitchOffOn(empName, d) <> "" Then NotFreeReason = "S/S off": Exit Function
@@ -608,11 +620,15 @@ Public Function SwitchPickList(ByVal unit As String, ByVal d As Variant, ByVal r
                                ByVal shiftLbl As String, ByVal sisterSwap As Boolean) As Variant
     Dim recs() As EmpRec, n As Long, i As Long, j As Long, k As Long
     If DeptCol(unit) = 0 Then Exit Function
-    n = LoadEligible(unit, "ALL", recs, 999, True)
-    If n = 0 Then Exit Function
-    LoadCache
     Dim hasDate As Boolean, dd As Date
     If IsDate(d) Then hasDate = True: dd = CDate(d)
+    If hasDate Then
+        n = LoadEligible(unit, "ALL", recs, 999, True, dd)      ' v24: crews as of that date
+    Else
+        n = LoadEligible(unit, "ALL", recs, 999, True)
+    End If
+    If n = 0 Then Exit Function
+    LoadCache
     Dim names() As String: ReDim names(1 To n)
     Dim keep As Boolean, onD As String, t As String, why As String
     For i = 1 To n

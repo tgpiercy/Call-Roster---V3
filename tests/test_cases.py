@@ -10,7 +10,7 @@ field (lists use '/', records use ';', fields inside a record use ':').
 from __future__ import annotations
 
 import csv
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -50,6 +50,16 @@ def parse_listed(spec: str) -> list[rules.Listed]:
     for rec in spec.split(";"):
         rank, grade, signed, awarded = rec.split(":")
         out.append(rules.Listed(int(rank), float(grade), signed == "Y", awarded == "Y"))
+    return out
+
+
+def parse_crew_hist(spec: str) -> list[tuple[str, date]]:
+    """'C:2026-12-27;A:2027-02-01' -> [(crew, effective from), ...] in table order."""
+    out = []
+    for rec in spec.split(";"):
+        if rec:
+            crew, frm = rec.split(":")
+            out.append((crew, d(frm)))
     return out
 
 
@@ -175,6 +185,15 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
+    if suite == "crewon":                        # history 'crew:from;...', date, fallback -> crew / none
+        return rules.crew_on(parse_crew_hist(i1), d(i2), i3) or "none"
+    if suite == "crewsched":                     # history, date -> Days / Nights / off on that date
+        return rules.crew_shift_on(rules.crew_on(parse_crew_hist(i1), d(i2)), d(i2)) or "off"
+    if suite == "eligcrew":                      # history, date, shift -> scheduled / rest / free
+        h = parse_crew_hist(i1)
+        one = timedelta(days=1)
+        return rules.rotation_free_reason3(rules.crew_on(h, d(i2) - one), rules.crew_on(h, d(i2)),
+                                           rules.crew_on(h, d(i2) + one), d(i2), i3) or "free"
     if suite == "merge":                         # 'date;date;...' -> 'start..end;...'
         runs = rules.merge_runs([d(p) for p in i1.split(";") if p])
         return ";".join(f"{iso(a)}..{iso(b)}" for a, b in runs)

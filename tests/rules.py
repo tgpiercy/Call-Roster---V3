@@ -293,16 +293,49 @@ def is_night_shift(shift_lbl: str) -> bool:
 
 def rotation_free_reason(code: str, d: date, shift_lbl: str, observed: dict | None = None) -> str:
     """modCalendar.RotationFreeReason: 'scheduled', 'rest' or ''."""
+    return rotation_free_reason3(code, code, code, d, shift_lbl, observed)
+
+
+def rotation_free_reason3(crew_prev: str, crew_on_d: str, crew_next: str, d: date, shift_lbl: str,
+                          observed: dict | None = None) -> str:
+    """modCalendar.RotationFreeReason3 (v24): the same rule when the crew on
+    d - 1, d and d + 1 can differ (crew history)."""
     night = is_night_shift(shift_lbl)
-    on_d = crew_shift_on(code, d, observed)
+    on_d = crew_shift_on(crew_on_d, d, observed)
     if on_d in ("Days", "Nights"):
         return "scheduled"
     if on_d != "?":
-        if not night and crew_shift_on(code, d - timedelta(days=1), observed) == "Nights":
+        if not night and crew_shift_on(crew_prev, d - timedelta(days=1), observed) == "Nights":
             return "rest"
-        if night and crew_shift_on(code, d + timedelta(days=1), observed) == "Days":
+        if night and crew_shift_on(crew_next, d + timedelta(days=1), observed) == "Days":
             return "rest"
     return ""
+
+
+# ---------------------------------------------------------------- crew history (v24)
+def norm_crew(s: str) -> str:
+    """modPeople.NormCrew."""
+    s = s.strip().replace(" ", "").upper().replace("&", "/")
+    return "DAYS" if s == "DAY" else s
+
+
+def crew_on(hist: list[tuple[str, date]], d: date, fallback: str = "") -> str:
+    """modPeople.CrewOnCore for ONE person's rows (crew, effective from), in
+    table order: the row with the latest date on or before d (of two rows
+    with the same date, the later row); before the first row, the first
+    row's crew; no rows, the fallback."""
+    le = None
+    first = None
+    for crew, frm in hist:
+        if frm <= d and (le is None or frm >= le[0]):
+            le = (frm, norm_crew(crew))
+        if first is None or frm < first[0]:
+            first = (frm, norm_crew(crew))
+    if le is not None:
+        return le[1]
+    if first is not None:
+        return first[1]
+    return fallback
 
 
 def type_tag(code: str) -> str:

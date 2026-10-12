@@ -41,6 +41,7 @@ Public Sub SelfTest()
     Dim nPass As Long, nFail As Long, fails As String, suite As String
     Dim bySuite As Object: Set bySuite = CreateObject("Scripting.Dictionary")
     On Error GoTo Finally
+    SetTestCrewHistory Empty                ' v24: no case reads the Crew History sheet
     For i = 1 To mN
         f = Split(mCases(i), ",")
         If UBound(f) <> 7 Then
@@ -71,6 +72,7 @@ Finally:
     ClearTestFixtures
     ClearTestSwitches
     ClearTestHolidays
+    ClearTestCrewHistory
     Dim k As Variant, summary As String, nSuites As Long
     For Each k In bySuite.Keys          ' only the suites with a failure are listed (the box holds about 1,000 characters)
         nSuites = nSuites + 1
@@ -148,6 +150,14 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
+        Case "crewon"
+            RunCase = CrewOnCore(CaseCrewHist(i1), ST_NAME, ParseD(i2), i3)
+            If RunCase = "" Then RunCase = "none"
+        Case "crewsched"
+            RunCase = CrewShiftOn(CrewOnCore(CaseCrewHist(i1), ST_NAME, ParseD(i2), ""), ParseD(i2))
+            If RunCase = "" Then RunCase = "off"
+        Case "eligcrew"
+            RunCase = CaseEligCrew(i1, ParseD(i2), i3)
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -355,6 +365,31 @@ Private Function CaseMerge(ByVal spec As String) As String
         s = s & IIf(i = 1, "", ";") & FmtD(runs(i, 1)) & ".." & FmtD(runs(i, 2))
     Next i
     CaseMerge = s
+End Function
+
+' "crew:yyyy-mm-dd;..." -> rows in the tblCrewHistory layout for ST_NAME (Empty when blank)
+Private Function CaseCrewHist(ByVal spec As String) As Variant
+    If spec = "" Then Exit Function
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim h() As Variant: ReDim h(1 To n, 1 To CH_N)
+    Dim i As Long, p As Variant
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        h(i, CH_EMP) = ST_NAME
+        h(i, CH_CREW) = CStr(p(0))
+        h(i, CH_FROM) = ParseD(CStr(p(1)))
+    Next i
+    CaseCrewHist = h
+End Function
+
+' history, date, shift -> the rotation part of "who is free" with the crew
+' taken from the history on each of the three days
+Private Function CaseEligCrew(ByVal spec As String, ByVal d As Date, ByVal shiftLbl As String) As String
+    Dim h As Variant: h = CaseCrewHist(spec)
+    CaseEligCrew = RotationFreeReason3(CrewOnCore(h, ST_NAME, d - 1, ""), CrewOnCore(h, ST_NAME, d, ""), _
+                                       CrewOnCore(h, ST_NAME, d + 1, ""), d, shiftLbl)
+    If CaseEligCrew = "" Then CaseEligCrew = "free"
 End Function
 
 ' ---------------- helpers ----------------
@@ -704,5 +739,22 @@ Private Sub LoadCases()
     AddCase "hoursasof,reset-before-first-import,2025-12-20:900;2026-01-10:30,2026-01-03:Refused:Active:12:21:D,2026-01-05,,,21|none|no"
     AddCase "hoursasof,after-first-period-estimated,2025-12-20:900;2026-02-10:30,2026-01-03:Refused:Active:12:21:D,2026-01-20,,,51|2026-02-10|yes"
     AddCase "archive,date-typed-as-text-stays,s:12/13/2026,2026-12-27,,,,keep"
+    AddCase "crewon,before-first-row,C:2026-12-27;A:2027-02-01,2026-10-31,,,,C"
+    AddCase "crewon,old-crew-day-before,C:2026-12-27;A:2027-02-01,2027-01-31,,,,C"
+    AddCase "crewon,new-crew-on-the-day,C:2026-12-27;A:2027-02-01,2027-02-01,,,,A"
+    AddCase "crewon,new-crew-after,C:2026-12-27;A:2027-02-01,2027-03-01,,,,A"
+    AddCase "crewon,same-date-later-row-wins,C:2026-12-27;A:2027-02-01;B:2027-02-01,2027-02-01,,,,B"
+    AddCase "crewon,rows-out-of-order,A:2027-02-01;C:2026-12-27,2027-01-15,,,,C"
+    AddCase "crewon,typed-lower-case,c/d:2026-12-27,2027-01-15,,,,C/D"
+    AddCase "crewon,no-rows-uses-roster,,2027-01-15,DAYS,,,DAYS"
+    AddCase "crewon,no-rows-no-roster,,2027-01-15,,,,none"
+    AddCase "crewsched,past-absence-old-crew-days,C:2026-12-27;A:2027-02-01,2027-01-30,,,,Days"
+    AddCase "crewsched,past-date-new-crew-day-is-off,C:2026-12-27;A:2027-02-01,2027-01-28,,,,off"
+    AddCase "crewsched,after-change-new-crew-days,C:2026-12-27;A:2027-02-01,2027-02-05,,,,Days"
+    AddCase "crewsched,after-change-old-crew-day-is-off,C:2026-12-27;A:2027-02-01,2027-02-08,,,,off"
+    AddCase "eligcrew,night-ot-new-crew-days-next-morning,B:2026-12-27;A:2027-02-05,2027-02-04,Nights,,,rest"
+    AddCase "eligcrew,day-ot-old-crew-off-nights,C:2026-12-27;B:2027-02-04,2027-02-04,Days,,,rest"
+    AddCase "eligcrew,scheduled-on-new-crew,C:2026-12-27;B:2027-02-04,2027-02-05,Nights,,,scheduled"
+    AddCase "eligcrew,free-before-change,B:2026-12-27;A:2027-02-05,2027-02-03,Days,,,free"
 ' <<< CASES
 End Sub

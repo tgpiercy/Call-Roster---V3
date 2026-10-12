@@ -14,6 +14,7 @@ Private Sub Workbook_Open()
     ApplyView IsAdmin()
     EnsureDataThrough                  ' v21: the provisional-OT formulas need the data-through name
     GradeLogOnOpen                     ' v21: grade-change snapshot (and anything changed with macros off)
+    PeopleOnOpen                       ' v24: crew history (new names, a crew changed with macros off)
     HolidaysOnOpen                     ' v20: this year's and next year's holidays listed (admins)
     CalOnOpen                          ' calendar: this month, fresh needs-attention box
     IntegrityOnOpen                    ' v23: quiet integrity check for admins (result on the status line)
@@ -89,9 +90,11 @@ End Sub
 ' Any change to Absences / Coverage / Postings / Shift Switches / Holidays
 ' marks the calendar out of date (it redraws the next time you look at it).
 ' A changed unit code on the roster goes into the grade change log (v21).
+' A changed crew on the roster goes into the crew history (v24).
 Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
     CalSheetChanged Sh
     GradeSheetChanged Sh, Target
+    PeopleSheetChanged Sh, Target      ' v24: a crew typed on the roster asks for its effective date
 End Sub
 
 Private Sub Workbook_SheetBeforeDoubleClick(ByVal Sh As Object, ByVal Target As Range, Cancel As Boolean)

@@ -959,7 +959,7 @@ End Sub
 Public Sub ApplyView(ByVal adminView As Boolean)
     gAdminUnlocked = adminView
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET)   ' absences hold leave types - admin only
+    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET)   ' absences hold leave types - admin only
         If SheetExists(CStr(nm)) Then
             If adminView Then
                 ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible

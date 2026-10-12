@@ -160,8 +160,14 @@ Sub SyncKronosData()
 
     ' Kronos names that matched nobody on the roster
     Dim extra As String, nExtra As Long, kk As Variant
+    Dim formerKeys As Object: Set formerKeys = CreateObject("Scripting.Dictionary")     ' v24: people on the Former sheet are known
+    On Error Resume Next
+    For Each kk In FormerNameSet().Keys
+        formerKeys(NameKey(CStr(kk))) = True
+    Next kk
+    On Error GoTo 0
     For Each kk In dict.Keys
-        If Not used.Exists(kk) Then
+        If Not used.Exists(kk) And Not formerKeys.Exists(kk) Then
             nExtra = nExtra + 1
             If nExtra <= 15 Then extra = extra & "  " & rawOf(kk) & vbNewLine
         End If

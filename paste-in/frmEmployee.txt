@@ -1,0 +1,540 @@
+Option Explicit
+' @version v24 (Jan 5)
+
+' ================================================================
+' EMPLOYEE (v24, admin) - five jobs in one pop-up
+'  Add employee  roster row with formulas, crew history row, and starting
+'                hours = the home unit's average Total Hours (grade 2 and
+'                below, not on leave) on the start date: ONE Adjustment,
+'                Ref NH-####, Reason "New hire".
+'  Move to unit  a FULL move: old code cleared, new code set, Home Unit
+'                changed, Grade Log rows, crew change if any, and hours
+'                raised to the highest Total Hours among grade 2 and below
+'                in the new unit (never lowered): ONE Adjustment, UM-####.
+'                An extra sign-off is NOT a move: type the code on the roster.
+'  Rename        every table together, with a backup and a check.
+'  Remove        retired / left: the row goes to the Former sheet.
+'  Bring back    a former person returns to the roster with their history.
+' The rules and every write are in modPeople; this form only collects the
+' answers and shows the calculation before anything is saved.
+' Every control is built in code (new form: Insert > UserForm, name it
+' frmEmployee, paste this).
+' ================================================================
+
+Private WithEvents mOptAdd As MSForms.OptionButton
+Private WithEvents mOptMove As MSForms.OptionButton
+Private WithEvents mOptRename As MSForms.OptionButton
+Private WithEvents mOptRemove As MSForms.OptionButton
+Private WithEvents mOptBack As MSForms.OptionButton
+Private WithEvents mMoveEmp As MSForms.ComboBox
+Private WithEvents mCalcBtn As MSForms.CommandButton
+Private WithEvents mSave As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+
+Private mGroups As Object               ' "A" / "M" / "R" / "X" / "B" -> Collection of controls
+Private mMoveUnits() As String          ' units behind the "codes to clear" list
+Private mMoveN As Long
+
+Private Const LBL_L As Long = 14
+Private Const BOX_L As Long = 128
+Private Const ROW_H As Long = 26
+Private Const NO_CREW_CHANGE As String = "(no change)"
+
+Private Function C(ByVal nm As String) As Object
+    Set C = Me.Controls("em_" & nm)
+End Function
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single, Optional ByVal grp As String = "") As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "em_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Dim i As Long, bag As Collection
+    For i = 1 To Len(grp)                       ' "AM" = shown in Add and in Move
+        Set bag = mGroups(Mid$(grp, i, 1))
+        bag.Add o
+    Next i
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, _
+                          ByVal W As Single, Optional ByVal grp As String = "") As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15, grp)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Function AddText(ByVal nm As String, ByVal L As Single, ByVal T As Single, ByVal W As Single, _
+                         ByVal grp As String) As Object
+    Set AddText = AddCtl("Forms.TextBox.1", nm, L, T, W, 20, grp)
+End Function
+
+Private Function AddCombo(ByVal nm As String, ByVal L As Single, ByVal T As Single, ByVal W As Single, _
+                          ByVal grp As String, ByVal items As Variant) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.ComboBox.1", nm, L, T, W, 20, grp)
+    o.Style = 2
+    o.ListRows = 20
+    FillCombo o, items
+    Set AddCombo = o
+End Function
+
+Private Function RowT(ByVal i As Long) As Single
+    RowT = 40 + (i - 1) * ROW_H
+End Function
+
+Private Sub FillCombo(ByVal cb As Object, ByVal items As Variant)
+    Dim i As Long
+    cb.Clear
+    If Not IsArray(items) Then Exit Sub
+    For i = LBound(items) To UBound(items)
+        cb.AddItem CStr(items(i))
+    Next i
+End Sub
+
+Private Function ModeKey() As String
+    If mOptMove.Value Then
+        ModeKey = "M"
+    ElseIf mOptRename.Value Then
+        ModeKey = "R"
+    ElseIf mOptRemove.Value Then
+        ModeKey = "X"
+    ElseIf mOptBack.Value Then
+        ModeKey = "B"
+    Else
+        ModeKey = "A"
+    End If
+End Function
+
+
+' ================================================================
+' BUILD
+' ================================================================
+Private Sub UserForm_Initialize()
+    Dim old As Object, k As Variant, o As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Set mGroups = CreateObject("Scripting.Dictionary")
+    For Each k In Array("A", "M", "R", "X", "B")
+        mGroups.Add CStr(k), New Collection
+    Next k
+    Me.Caption = "Employee"
+    Me.Width = 500
+    Me.Height = 530
+
+    Set mOptAdd = AddCtl("Forms.OptionButton.1", "optA", LBL_L, 10, 70, 18)
+    mOptAdd.Caption = "Add"
+    Set mOptMove = AddCtl("Forms.OptionButton.1", "optM", 86, 10, 100, 18)
+    mOptMove.Caption = "Move to unit"
+    Set mOptRename = AddCtl("Forms.OptionButton.1", "optR", 190, 10, 80, 18)
+    mOptRename.Caption = "Rename"
+    Set mOptRemove = AddCtl("Forms.OptionButton.1", "optX", 272, 10, 80, 18)
+    mOptRemove.Caption = "Remove"
+    Set mOptBack = AddCtl("Forms.OptionButton.1", "optB", 354, 10, 100, 18)
+    mOptBack.Caption = "Bring back"
+
+    ' ---- Add ----
+    AddLabel "aLName", "Name", LBL_L, RowT(1) + 3, 110, "A"
+    AddText "aName", BOX_L, RowT(1), 200, "A"
+    AddLabel "aHName", "as Kronos spells it", BOX_L + 208, RowT(1) + 3, 140, "A"
+    AddLabel "aLPhone", "Phone", LBL_L, RowT(2) + 3, 110, "A"
+    AddText "aPhone", BOX_L, RowT(2), 110, "A"
+    AddLabel "aLEmail", "Email", BOX_L + 122, RowT(2) + 3, 34, "A"
+    AddText "aEmail", BOX_L + 158, RowT(2), 180, "A"
+    AddLabel "aLCrew", "Crew", LBL_L, RowT(3) + 3, 110, "A"
+    AddCombo "aCrew", BOX_L, RowT(3), 70, "A", ShiftList()
+    AddLabel "aLSen", "Seniority date", BOX_L + 82, RowT(3) + 3, 74, "A"
+    AddText "aSen", BOX_L + 158, RowT(3), 110, "A"
+    AddLabel "aLUnit", "Home unit", LBL_L, RowT(4) + 3, 110, "A"
+    AddCombo "aUnit", BOX_L, RowT(4), 150, "A", DeptList()
+    AddLabel "aLCode", "Grade code", BOX_L + 162, RowT(4) + 3, 60, "A"
+    AddText "aCode", BOX_L + 224, RowT(4), 60, "A"
+    AddLabel "aHCode", "e.g. D2", BOX_L + 290, RowT(4) + 3, 60, "A"
+    AddLabel "aLStart", "Start date", LBL_L, RowT(5) + 3, 110, "A"
+    Set o = AddText("aStart", BOX_L, RowT(5), 110, "A")
+    o.Text = Format$(Date, "mmm d, yyyy")
+
+    ' ---- Move to unit ----
+    AddLabel "mLEmp", "Employee", LBL_L, RowT(1) + 3, 110, "M"
+    Set mMoveEmp = AddCombo("mEmp", BOX_L, RowT(1), 250, "M", RosterNames())
+    Set o = AddLabel("mHEmp", "", BOX_L, RowT(1) + 22, 350, "M")
+    o.Height = 24: o.WordWrap = True
+    AddLabel "mLUnit", "New unit", LBL_L, RowT(3) + 3, 110, "M"
+    AddCombo "mUnit", BOX_L, RowT(3), 150, "M", DeptList()
+    AddLabel "mLCode", "Grade code", BOX_L + 162, RowT(3) + 3, 60, "M"
+    AddText "mCode", BOX_L + 224, RowT(3), 60, "M"
+    AddLabel "mLDate", "Effective date", LBL_L, RowT(4) + 3, 110, "M"
+    Set o = AddText("mDate", BOX_L, RowT(4), 110, "M")
+    o.Text = Format$(Date, "mmm d, yyyy")
+    AddLabel "mLCrew", "New crew", BOX_L + 122, RowT(4) + 3, 50, "M"
+    Set o = AddCombo("mCrew", BOX_L + 174, RowT(4), 90, "M", Empty)
+    o.AddItem NO_CREW_CHANGE
+    For Each k In ShiftList()
+        o.AddItem CStr(k)
+    Next k
+    o.ListIndex = 0
+    AddLabel "mLClear", "Codes to clear", LBL_L, RowT(5) + 3, 110, "M"
+    Set o = AddCtl("Forms.ListBox.1", "mClear", BOX_L, RowT(5), 250, 50, "M")
+    o.MultiSelect = 1                           ' fmMultiSelectMulti
+    AddLabel "mHClear", "ticked = cleared", BOX_L + 258, RowT(5) + 3, 90, "M"
+
+    ' ---- Rename ----
+    AddLabel "rLEmp", "Employee", LBL_L, RowT(1) + 3, 110, "R"
+    AddCombo "rEmp", BOX_L, RowT(1), 250, "R", RosterNames()
+    AddLabel "rLNew", "New name", LBL_L, RowT(2) + 3, 110, "R"
+    AddText "rNew", BOX_L, RowT(2), 250, "R"
+    Set o = AddLabel("rInfo", "Changes the name on the roster and in every table at once (OT Log, postings, absences, switches, " & _
+                     "calendar lines, Grade Log, Hours History, crew history). A backup copy is saved first and everyone's totals are " & _
+                     "checked after. Spell it the way Kronos does, or Worked hours stop updating for this person.", _
+                     LBL_L, RowT(3) + 6, 460, "R")
+    o.Height = 50: o.WordWrap = True
+
+    ' ---- Remove ----
+    AddLabel "xLEmp", "Employee", LBL_L, RowT(1) + 3, 110, "X"
+    AddCombo "xEmp", BOX_L, RowT(1), 250, "X", RosterNames()
+    AddLabel "xLDate", "Left on", LBL_L, RowT(2) + 3, 110, "X"
+    Set o = AddText("xDate", BOX_L, RowT(2), 110, "X")
+    o.Text = Format$(Date, "mmm d, yyyy")
+    AddLabel "xHDate", "their last day (today or earlier)", BOX_L + 118, RowT(2) + 3, 220, "X"
+    Set o = AddLabel("xInfo", "Retired or left. The roster row moves to the Former sheet (values only) and the person is off every " & _
+                     "list and the members' file. Their OT Log, time off and switch rows are kept. A backup copy is saved first and " & _
+                     "everyone else's totals are checked after. Use it on or after their last day; until then, book them off.", _
+                     LBL_L, RowT(3) + 6, 460, "X")
+    o.Height = 62: o.WordWrap = True
+
+    ' ---- Bring back ----
+    AddLabel "bLEmp", "Former employee", LBL_L, RowT(1) + 3, 110, "B"
+    AddCombo "bEmp", BOX_L, RowT(1), 320, "B", FormerNames()
+    Set o = AddLabel("bInfo", "Puts the person back on the roster with the same formulas as everyone else, so this year's OT Log hours " & _
+                     "show again. Phone and email are not kept on the Former sheet: type them in afterwards.", _
+                     LBL_L, RowT(2) + 6, 460, "B")
+    o.Height = 40: o.WordWrap = True
+
+    ' ---- the calculation (Add, Move) ----
+    Set mCalcBtn = AddCtl("Forms.CommandButton.1", "cmdCalc", BOX_L, RowT(8), 150, 24, "AM")
+    mCalcBtn.Caption = "Work out the hours"
+    Set o = AddLabel("result", "", LBL_L, RowT(9) + 4, 460, "AM")
+    o.Height = 104: o.WordWrap = True: o.Font.Size = 9
+    AddLabel "aLOver", "Override hours", LBL_L, RowT(13) + 12, 110, "A"
+    AddText "aOver", BOX_L, RowT(13) + 9, 60, "A"
+    AddLabel "aLWhy", "reason", BOX_L + 68, RowT(13) + 12, 40, "A"
+    AddText "aWhy", BOX_L + 110, RowT(13) + 9, 230, "A"
+    Set o = AddLabel("mInfo", "A FULL move only. An extra sign-off isn't a move: type the code on the roster, no hours change.", _
+                     LBL_L, RowT(13) + 12, 460, "M")
+    o.ForeColor = RGB(190, 30, 30)
+
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(15) + 4, 320, 30)
+    mSave.Caption = "SAVE"
+    mSave.Font.Bold = True: mSave.Font.Size = 11
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 330, RowT(15) + 4, 130, 30)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+    Set o = AddLabel("status", "", LBL_L, RowT(16) + 14, 460)
+    o.Font.Size = 8
+
+    ApplyFormTheme Me
+    mSave.BackColor = RGB(30, 56, 100): mSave.ForeColor = vbWhite
+    For Each k In Array("optA", "optM", "optR", "optX", "optB")
+        C(CStr(k)).BackStyle = 0
+        C(CStr(k)).Font.Bold = True
+    Next k
+    For Each k In Array("aHName", "aHCode", "mHEmp", "mHClear", "xHDate")
+        C(CStr(k)).Font.Size = 8: C(CStr(k)).ForeColor = RGB(120, 120, 120)
+    Next k
+    For Each k In Array("rInfo", "xInfo", "bInfo")
+        C(CStr(k)).Font.Size = 8.5: C(CStr(k)).ForeColor = RGB(30, 56, 100)
+    Next k
+    mOptAdd.Value = True
+    SetMode
+End Sub
+
+' RenameEmployee (the old macro name) opens straight on Rename for one person
+Public Sub StartRename(ByVal emp As String)
+    On Error Resume Next
+    mOptRename.Value = True
+    SetMode
+    SelectIn C("rEmp"), emp
+    On Error GoTo 0
+End Sub
+
+Private Sub SelectIn(ByVal cb As Object, ByVal txt As String)
+    Dim i As Long
+    For i = 0 To cb.ListCount - 1
+        If StrComp(CStr(cb.List(i)), txt, vbTextCompare) = 0 Then cb.ListIndex = i: Exit Sub
+    Next i
+End Sub
+
+Private Sub SetMode()
+    Dim key As String: key = ModeKey()
+    Dim k As Variant, o As Object, bag As Collection
+    For Each k In mGroups.Keys                  ' hide every group, then show this mode's
+        Set bag = mGroups(k)
+        For Each o In bag
+            o.Visible = False
+        Next o
+    Next k
+    Set bag = mGroups(key)
+    For Each o In bag
+        o.Visible = True
+    Next o
+    Select Case key
+        Case "A": Me.Caption = "Employee - add": mSave.Caption = "ADD EMPLOYEE"
+        Case "M": Me.Caption = "Employee - move to unit": mSave.Caption = "SAVE MOVE"
+        Case "R": Me.Caption = "Employee - rename": mSave.Caption = "RENAME"
+        Case "X": Me.Caption = "Employee - remove": mSave.Caption = "REMOVE FROM ROSTER"
+        Case "B": Me.Caption = "Employee - bring back": mSave.Caption = "BRING BACK"
+    End Select
+    C("result").Caption = IIf(key = "A" Or key = "M", "Fill in the boxes, then click Work out the hours. Nothing is saved until you click " & mSave.Caption & ".", "")
+    C("result").ForeColor = RGB(30, 56, 100)
+End Sub
+
+Private Sub mOptAdd_Click()
+    SetMode
+End Sub
+
+Private Sub mOptMove_Click()
+    SetMode
+End Sub
+
+Private Sub mOptRename_Click()
+    SetMode
+End Sub
+
+Private Sub mOptRemove_Click()
+    SetMode
+End Sub
+
+Private Sub mOptBack_Click()
+    SetMode
+End Sub
+
+' Move: show what the person holds now and list their codes (Home Unit's code ticked)
+Private Sub mMoveEmp_Change()
+    Dim lb As Object: Set lb = C("mClear")
+    lb.Clear
+    mMoveN = 0
+    If mMoveEmp.ListIndex < 0 Then C("mHEmp").Caption = "": Exit Sub
+    C("mHEmp").Caption = PersonSummary(mMoveEmp.Text)
+    Dim codes() As String, i As Long, hu As String
+    mMoveN = PersonCodes(mMoveEmp.Text, mMoveUnits, codes)
+    hu = HomeUnitOf(mMoveEmp.Text)
+    For i = 1 To mMoveN
+        lb.AddItem mMoveUnits(i) & "   (" & codes(i) & ")"
+        If StrComp(mMoveUnits(i), hu, vbTextCompare) = 0 Then lb.Selected(i - 1) = True
+    Next i
+End Sub
+
+Private Function ClearList() As String          ' "Unit A|Unit B" from the ticked codes
+    Dim lb As Object: Set lb = C("mClear")
+    Dim i As Long, s As String
+    For i = 1 To mMoveN
+        If lb.Selected(i - 1) Then s = s & IIf(s = "", "", "|") & mMoveUnits(i)
+    Next i
+    ClearList = s
+End Function
+
+Private Function PickedCrew() As String         ' "" = no change
+    If C("mCrew").ListIndex > 0 Then PickedCrew = C("mCrew").Text
+End Function
+
+
+' ================================================================
+' THE CALCULATION (shown before anything is saved)
+' ================================================================
+Private Function CalcAdd(ByRef pc As PeopleCalc, ByRef startDate As Date) As Boolean
+    If C("aUnit").ListIndex < 0 Then MsgBox "Pick the home unit.", vbExclamation, "Add employee": Exit Function
+    If Not ParseTypedDate(C("aStart").Text, startDate) Then
+        MsgBox "Enter the start date, e.g. " & Format$(Date, "mmm d, yyyy") & ".", vbExclamation, "Add employee"
+        Exit Function
+    End If
+    Me.MousePointer = fmMousePointerHourGlass
+    CalcAdd = ComputeNewHire(C("aUnit").Text, startDate, Trim$(C("aName").Text), pc)
+    Me.MousePointer = fmMousePointerDefault
+    ShowCalc CalcAdd, pc
+End Function
+
+Private Function CalcMove(ByRef pc As PeopleCalc) As Boolean
+    Dim eff As Date
+    If mMoveEmp.ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Move to unit": Exit Function
+    If C("mUnit").ListIndex < 0 Then MsgBox "Pick the new unit.", vbExclamation, "Move to unit": Exit Function
+    If Not ParseTypedDate(C("mDate").Text, eff) Then
+        MsgBox "Enter the effective date, e.g. " & Format$(Date, "mmm d, yyyy") & ".", vbExclamation, "Move to unit"
+        Exit Function
+    End If
+    Me.MousePointer = fmMousePointerHourGlass
+    CalcMove = ComputeUnitMove(mMoveEmp.Text, C("mUnit").Text, eff, pc)
+    Me.MousePointer = fmMousePointerDefault
+    ShowCalc CalcMove, pc
+End Function
+
+Private Sub ShowCalc(ByVal ok As Boolean, ByRef pc As PeopleCalc)
+    If Not ok Then
+        C("result").Caption = "Can't work it out: " & pc.Warnings
+        C("result").ForeColor = RGB(190, 30, 30)
+        Exit Sub
+    End If
+    C("result").ForeColor = RGB(30, 56, 100)
+    C("result").Caption = pc.Summary & IIf(pc.PeerNames <> "", vbLf & "Peers: " & pc.PeerNames, "") & _
+                          IIf(pc.Warnings <> "", vbLf & "Check: " & pc.Warnings, "")
+End Sub
+
+Private Sub mCalcBtn_Click()
+    Dim pc As PeopleCalc, d As Date
+    If ModeKey() = "A" Then
+        CalcAdd pc, d
+    ElseIf ModeKey() = "M" Then
+        CalcMove pc
+    End If
+End Sub
+
+
+' ================================================================
+' SAVE
+' ================================================================
+Private Sub mSave_Click()
+    Select Case ModeKey()
+        Case "A": SaveAdd
+        Case "M": SaveMove
+        Case "R": SaveRename
+        Case "X": SaveRemove
+        Case "B": SaveBack
+    End Select
+End Sub
+
+Private Sub Finished(ByVal report As String, ByVal title As String)
+    C("status").Caption = Split(report, vbNewLine)(0)
+    ' the lists follow the roster
+    Dim keepMove As String: keepMove = mMoveEmp.Text
+    FillCombo mMoveEmp, RosterNames()
+    FillCombo C("rEmp"), RosterNames()
+    FillCombo C("xEmp"), RosterNames()
+    FillCombo C("bEmp"), FormerNames()
+    C("mClear").Clear: mMoveN = 0: C("mHEmp").Caption = ""
+    C("rNew").Text = ""
+    If keepMove <> "" Then SelectIn mMoveEmp, keepMove
+    MsgBox report, vbInformation, title
+End Sub
+
+Private Sub SaveAdd()
+    Dim problems As String, nm As String, sen As Variant, senDate As Date
+    nm = Trim$(C("aName").Text)
+    If nm = "" Then problems = problems & "- Name" & vbNewLine
+    If C("aCrew").ListIndex < 0 Then problems = problems & "- Crew" & vbNewLine
+    If C("aUnit").ListIndex < 0 Then problems = problems & "- Home unit" & vbNewLine
+    If Trim$(C("aCode").Text) = "" Then problems = problems & "- Grade code" & vbNewLine
+    If Trim$(C("aSen").Text) = "" Then
+        problems = problems & "- Seniority date" & vbNewLine
+    ElseIf Not ParseFullDate(C("aSen").Text, senDate) Then
+        problems = problems & "- Seniority date (with the year, e.g. Mar 3, 2011)" & vbNewLine
+    End If
+    If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Add employee": Exit Sub
+    sen = senDate
+
+    Dim pc As PeopleCalc, startDate As Date
+    If Not CalcAdd(pc, startDate) Then Exit Sub
+    Dim hrs As Double: hrs = pc.AddHours
+    Dim why As String: why = Trim$(C("aWhy").Text)
+    If Trim$(C("aOver").Text) <> "" Then
+        If Not IsNumeric(Trim$(C("aOver").Text)) Then MsgBox "The override must be a number of hours.", vbExclamation, "Add employee": Exit Sub
+        hrs = CDbl(Trim$(C("aOver").Text))
+        If hrs < 0 Then MsgBox "The starting hours can't be negative.", vbExclamation, "Add employee": Exit Sub
+        If why = "" Then MsgBox "An override needs a reason (it goes in the OT Log).", vbExclamation, "Add employee": Exit Sub
+    End If
+
+    Dim msg As String
+    msg = "Add " & nm & "?" & vbNewLine & vbNewLine & _
+          "Crew " & C("aCrew").Text & "   |   " & C("aUnit").Text & " " & Trim$(C("aCode").Text) & vbNewLine & _
+          "Seniority " & Format$(senDate, "mmm d, yyyy") & "   |   starts " & Format$(startDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
+          pc.Summary & vbNewLine
+    If pc.Warnings <> "" Then msg = msg & "Check: " & pc.Warnings & vbNewLine
+    If hrs <> pc.AddHours Then msg = msg & vbNewLine & "OVERRIDE: start at " & Format$(hrs, "0.0") & " h instead (" & why & ")" & vbNewLine
+    msg = msg & vbNewLine & "This adds the roster row and logs " & _
+          IIf(hrs = 0, "no hours.", "one Adjustment (Ref NH-####, Reason 'New hire'). Void Entry undoes the hours.")
+    If MsgBox(msg, vbOKCancel + vbQuestion, "Confirm new employee") <> vbOK Then Exit Sub
+
+    Dim report As String
+    If Not SaveNewHire(nm, C("aPhone").Text, C("aEmail").Text, C("aCrew").Text, sen, C("aUnit").Text, _
+                       C("aCode").Text, startDate, pc, hrs, why, report) Then Exit Sub
+    C("aName").Text = "": C("aPhone").Text = "": C("aEmail").Text = "": C("aSen").Text = ""
+    C("aOver").Text = "": C("aWhy").Text = ""
+    C("result").Caption = ""
+    Finished report, "Add employee"
+End Sub
+
+Private Sub SaveMove()
+    Dim pc As PeopleCalc
+    If Trim$(C("mCode").Text) = "" Then MsgBox "Enter the grade code in the new unit (e.g. D2).", vbExclamation, "Move to unit": Exit Sub
+    If Not CalcMove(pc) Then Exit Sub
+    Dim clearTxt As String: clearTxt = ClearList()
+    Dim crewTxt As String: crewTxt = PickedCrew()
+    Dim msg As String
+    msg = pc.Summary & vbNewLine & vbNewLine & _
+          "New code: " & Trim$(C("mCode").Text) & " in " & pc.Unit & " (Home Unit becomes " & pc.Unit & ")" & vbNewLine & _
+          "Codes cleared: " & IIf(clearTxt = "", "none", Replace(clearTxt, "|", ", ")) & vbNewLine & _
+          "Crew: " & IIf(crewTxt = "", "no change", "changes to " & crewTxt & " from " & Format$(pc.AsOf, "mmm d, yyyy")) & vbNewLine
+    If pc.Warnings <> "" Then msg = msg & "Check: " & pc.Warnings & vbNewLine
+    If clearTxt = "" Then msg = msg & vbNewLine & "NOTE: no code is being cleared. If this is only an extra sign-off, Cancel and type the code on the roster instead." & vbNewLine
+    msg = msg & vbNewLine & IIf(pc.AddHours > 0, "This logs one Adjustment (Ref UM-####, Reason 'Unit move'). Void Entry undoes the hours.", "No hours are logged.") & _
+          vbNewLine & "The code changes go in the Grade Log." & vbNewLine & vbNewLine & "Save?"
+    If MsgBox(msg, vbOKCancel + vbQuestion, "Confirm unit move") <> vbOK Then Exit Sub
+
+    Dim report As String
+    If Not SaveUnitMove(pc.Emp, pc.Unit, C("mCode").Text, clearTxt, crewTxt, pc, report) Then Exit Sub
+    C("mCode").Text = "": C("mCrew").ListIndex = 0
+    C("result").Caption = ""
+    Finished report, "Move to unit"
+End Sub
+
+Private Sub SaveRename()
+    If C("rEmp").ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Rename": Exit Sub
+    Dim txt As String, report As String
+    If Not RenamePreview(C("rEmp").Text, C("rNew").Text, txt) Then MsgBox txt, vbExclamation, "Rename": Exit Sub
+    If MsgBox(txt & vbNewLine & vbNewLine & "A backup copy is saved first. Rename?", vbOKCancel + vbQuestion, "Confirm rename") <> vbOK Then Exit Sub
+    Me.MousePointer = fmMousePointerHourGlass
+    Dim ok As Boolean: ok = RenameEverywhere(C("rEmp").Text, C("rNew").Text, report)
+    Me.MousePointer = fmMousePointerDefault
+    If ok Then Finished report, "Rename"
+End Sub
+
+Private Sub SaveRemove()
+    If C("xEmp").ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Remove": Exit Sub
+    Dim leftOn As Date, emp As String, posts As String, report As String
+    emp = C("xEmp").Text
+    If Not ParseTypedDate(C("xDate").Text, leftOn) Then
+        MsgBox "Enter the day they left, e.g. " & Format$(Date, "mmm d, yyyy") & ".", vbExclamation, "Remove"
+        Exit Sub
+    End If
+    posts = ExemptFromOpenPostings(emp, leftOn, "", "", True)
+    If MsgBox("Remove " & emp & " from the roster?" & vbNewLine & vbNewLine & _
+              "Left on " & Format$(leftOn, "ddd mmm d, yyyy") & vbNewLine & PersonSummary(emp) & vbNewLine & vbNewLine & _
+              "The row moves to the Former sheet. They come off every call list, posting list and the members' file, for every date." & vbNewLine & _
+              "Their OT Log, time off and switch rows are kept." & _
+              IIf(posts <> "", vbNewLine & "Open posting(s) they are listed on, where they will not be charged: " & posts, "") & _
+              vbNewLine & vbNewLine & "A backup copy is saved first. Bring back undoes it." & vbNewLine & vbNewLine & "Remove?", _
+              vbOKCancel + vbExclamation, "Confirm remove") <> vbOK Then Exit Sub
+    Me.MousePointer = fmMousePointerHourGlass
+    Dim ok As Boolean: ok = RemoveEmployee(emp, leftOn, report)
+    Me.MousePointer = fmMousePointerDefault
+    If ok Then Finished report, "Remove"
+End Sub
+
+Private Sub SaveBack()
+    If C("bEmp").ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Bring back": Exit Sub
+    Dim emp As String, p As Long, report As String
+    emp = C("bEmp").Text
+    p = InStr(emp, "   (left ")
+    If p > 0 Then emp = Left$(emp, p - 1)
+    If MsgBox("Bring " & emp & " back onto the roster?" & vbNewLine & vbNewLine & _
+              "Their crew, home unit, codes and seniority come back from the Former sheet, and this year's OT Log hours show again." & vbNewLine & _
+              "A backup copy is saved first.", vbOKCancel + vbQuestion, "Confirm bring back") <> vbOK Then Exit Sub
+    Me.MousePointer = fmMousePointerHourGlass
+    Dim ok As Boolean: ok = BringBack(emp, report)
+    Me.MousePointer = fmMousePointerDefault
+    If ok Then Finished report, "Bring back"
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

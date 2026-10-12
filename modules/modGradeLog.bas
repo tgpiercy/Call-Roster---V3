@@ -107,6 +107,33 @@ Private Function RecordChanges(ByVal ws As Worksheet, ByVal r1 As Long, ByVal r2
 End Function
 
 
+' The Employee pop-up (v24) writes unit codes with events off, then asks
+' for the same comparison a typed change gets.
+Public Sub RecordGradeRows(ByVal r1 As Long, ByVal r2 As Long, ByVal who As String)
+    If mBusy Then Exit Sub
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    On Error GoTo Quit
+    mBusy = True
+    RecordChanges RosterSheet(), r1, r2, who
+Quit:
+    mBusy = False
+End Sub
+
+' A rename (v24) leaves a line here, so a name in a closed year's archive
+' can be traced to the person's name today: Unit "(renamed)", Old / New = the names.
+Public Sub LogRename(ByVal oldName As String, ByVal newName As String)
+    On Error Resume Next
+    Dim outA() As Variant: ReDim outA(1 To 1, 1 To GL_N)
+    outA(1, 1) = Now
+    outA(1, 2) = newName
+    outA(1, 3) = "(renamed)"
+    outA(1, 4) = oldName
+    outA(1, 5) = newName
+    outA(1, 6) = CurrentUser()
+    AppendGradeRows outA, 1
+End Sub
+
+
 ' ---------------- snapshot ----------------
 ' name -> "L|M|N|O|P|Q|R|S" from the GradeSnap sheet (Nothing if there is none yet)
 Private Function SnapshotDict() As Object

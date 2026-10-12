@@ -29,6 +29,7 @@ Private Const ST_NAME As String = "Test Person"
 
 Private mCases() As String
 Private mN As Long
+Private mHits As Long               ' the rename helpers count their replacements here
 
 
 ' ---------------- entry ----------------
@@ -150,6 +151,14 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
+        Case "newhire"
+            RunCase = CaseNewHire(i1)
+        Case "unitmove"
+            RunCase = CaseUnitMove(CDbl(i1), i2)
+        Case "renamelist"
+            RunCase = RenameInList(i1, i2, i3, mHits)
+        Case "nametoken"
+            RunCase = ReplaceNameToken(i1, i2, i3, mHits)
         Case "crewon"
             RunCase = CrewOnCore(CaseCrewHist(i1), ST_NAME, ParseD(i2), i3)
             If RunCase = "" Then RunCase = "none"
@@ -212,7 +221,7 @@ Private Function CaseCallOrder(ByVal spec As String) As String
     CaseCallOrder = s
 End Function
 
-' mode (award / notakers / outside / cancel), hours, "rank:grade:signed:awarded;..."
+' mode (award / notakers / outside / cancel), hours, "rank:grade:signed:awarded[:X];..." (X = exempt)
 Private Function CasePosting(ByVal mode As String, ByVal hours As Double, ByVal spec As String) As String
     Dim items As Variant: items = Split(spec, ";")
     Dim n As Long: n = UBound(items) + 1
@@ -224,6 +233,9 @@ Private Function CasePosting(ByVal mode As String, ByVal hours As Double, ByVal 
         lst(i).Grade = CDbl(p(1))
         lst(i).SignedUp = (CStr(p(2)) = "Y")
         lst(i).Awarded = (CStr(p(3)) = "Y")
+        If UBound(p) >= 4 Then
+            If CStr(p(4)) = "X" Then lst(i).ExemptNote = "Exempt - test"      ' v24: moved unit or left
+        End If
     Next i
     Dim pr As PostRec: pr.Hours = hours
     Dim maxRank As Long, maxHrs As Double, nAw As Long, nCh As Long, tot As Double
@@ -365,6 +377,35 @@ Private Function CaseMerge(ByVal spec As String) As String
         s = s & IIf(i = 1, "", ";") & FmtD(runs(i, 1)) & ".." & FmtD(runs(i, 2))
     Next i
     CaseMerge = s
+End Function
+
+' "grade:onleave:total;..." -> a new hire's starting hours
+Private Function CaseNewHire(ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim grades() As Double, onLeave() As Boolean, totals() As Double
+    ReDim grades(1 To n): ReDim onLeave(1 To n): ReDim totals(1 To n)
+    Dim i As Long, p As Variant, nP As Long
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        grades(i) = CDbl(p(0)): onLeave(i) = (CStr(p(1)) = "Y"): totals(i) = CDbl(p(2))
+    Next i
+    CaseNewHire = NumText(NewHireAverage(grades, onLeave, totals, n, nP))
+End Function
+
+' own total, "grade:mover:total;..." -> hours added on a unit move
+Private Function CaseUnitMove(ByVal own As Double, ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim grades() As Double, isMover() As Boolean, totals() As Double
+    ReDim grades(1 To n): ReDim isMover(1 To n): ReDim totals(1 To n)
+    Dim i As Long, p As Variant, found As Boolean, top As Double
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        grades(i) = CDbl(p(0)): isMover(i) = (CStr(p(1)) = "Y"): totals(i) = CDbl(p(2))
+    Next i
+    top = HighestPeerTotal(grades, isMover, totals, n, found)
+    If found Then CaseUnitMove = NumText(UnitMoveTopUp(own, top)) Else CaseUnitMove = "0"
 End Function
 
 ' "crew:yyyy-mm-dd;..." -> rows in the tblCrewHistory layout for ST_NAME (Empty when blank)
@@ -756,5 +797,25 @@ Private Sub LoadCases()
     AddCase "eligcrew,day-ot-old-crew-off-nights,C:2026-12-27;B:2027-02-04,2027-02-04,Days,,,rest"
     AddCase "eligcrew,scheduled-on-new-crew,C:2026-12-27;B:2027-02-04,2027-02-05,Nights,,,scheduled"
     AddCase "eligcrew,free-before-change,B:2026-12-27;A:2027-02-05,2027-02-03,Days,,,free"
+    AddCase "posting,exempt-ahead-not-charged,award,12,1:1:N:N:X;2:1:N:N;3:1:Y:Y,,,1=0;2=21;3=0"
+    AddCase "posting,exempt-no-takers,notakers,12,1:1:N:N:X;2:1:N:N,,,1=0;2=21"
+    AddCase "posting,exempt-out-of-dept,outside,12,1:1:N:N:X;2:1:N:N,,,1=0;2=21"
+    AddCase "newhire,average,1:N:100;2:N:50;1.5:N:30,,,,,60"
+    AddCase "newhire,grade-3-not-counted,1:N:100;3:N:0,,,,,100"
+    AddCase "newhire,on-leave-not-counted,1:N:100;1:Y:10,,,,,100"
+    AddCase "newhire,rounds-to-a-tenth,1:N:10;1:N:10;1:N:11,,,,,10.3"
+    AddCase "newhire,no-peers,3:N:50,,,,,0"
+    AddCase "unitmove,move-up,40,1:N:100;2:N:60,,,,60"
+    AddCase "unitmove,own-hours-higher-no-change,120,1:N:100,,,,0"
+    AddCase "unitmove,mover-not-their-own-target,40,1:Y:500;1:N:55.25,,,,15.25"
+    AddCase "unitmove,grade-3-not-a-target,40,3:N:900;2:N:50,,,,10"
+    AddCase "unitmove,nobody-to-match,40,3:N:900,,,,0"
+    AddCase "renamelist,one-of-two,Smith Joe; Jones Al,Jones Al,Jones Alan,,,Smith Joe; Jones Alan"
+    AddCase "renamelist,out-of-dept-kept,Jones Al (out of dept),Jones Al,Jones Alan,,,Jones Alan (out of dept)"
+    AddCase "renamelist,longer-name-untouched,Jones Alfred; Smith Joe,Jones Al,Jones Alan,,,Jones Alfred; Smith Joe"
+    AddCase "nametoken,with-hours,Fred C 8h / Sam K,Fred C,Fred D,,,Fred D 8h / Sam K"
+    AddCase "nametoken,inside-a-longer-name,Alfred C / Fred Carter,Fred C,Fred D,,,Alfred C / Fred Carter"
+    AddCase "nametoken,switch-line,Fred C S/S,Fred C,Freddy C,,,Freddy C S/S"
+    AddCase "nametoken,twice,Fred C; Fred C 4h,Fred C,Fred D,,,Fred D; Fred D 4h"
 ' <<< CASES
 End Sub

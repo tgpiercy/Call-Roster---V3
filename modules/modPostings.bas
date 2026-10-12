@@ -95,6 +95,7 @@ Public Type PListRec
     Awarded As Boolean
     Charged As Double
     Result As String
+    ExemptNote As String        ' v24: "Exempt - moved Jan 12" / "Exempt - left Jan 12": never charged on this posting
 End Type
 
 
@@ -782,6 +783,7 @@ Public Function LoadPosting(ByVal id As String, ByRef p As PostRec, ByRef lst() 
                 .TotalHrs = NumOr0(v(i, PL_HRS))
                 .SignedUp = (UCase$(SafeStr(v(i, PL_SIGNED))) = "YES")
                 .Result = SafeStr(v(i, PL_RESULT))
+                If Left$(.Result, 6) = "Exempt" Then .ExemptNote = .Result
                 .Awarded = (.Result = "Awarded")
                 .Charged = NumOr0(v(i, PL_CHARGED))
             End With
@@ -967,6 +969,8 @@ Public Sub ComputeAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As 
             lst(i).Result = "Awarded"
         ElseIf lst(i).SignedUp Then
             lst(i).Result = "Signed up"
+        ElseIf lst(i).ExemptNote <> "" Then
+            lst(i).Result = lst(i).ExemptNote             ' moved unit or left before the shift (v24)
         ElseIf nAwarded > 0 And lst(i).Rank < maxRank And lst(i).Grade <= CHARGE_MAX_GRADE Then
             lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
             lst(i).Result = "Charged"
@@ -986,8 +990,8 @@ Public Sub ComputeNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n 
     For i = 1 To n
         lst(i).Awarded = False
         lst(i).Charged = 0
-        lst(i).Result = ""
-        If lst(i).Grade <= CHARGE_MAX_GRADE Then
+        lst(i).Result = lst(i).ExemptNote
+        If lst(i).ExemptNote = "" And lst(i).Grade <= CHARGE_MAX_GRADE Then
             lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
             lst(i).Result = "Charged"
             nCharged = nCharged + 1
@@ -1006,10 +1010,10 @@ Public Sub ComputeOutside(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n A
     For i = 1 To n
         lst(i).Awarded = False
         lst(i).Charged = 0
-        lst(i).Result = ""
+        lst(i).Result = lst(i).ExemptNote
         If lst(i).SignedUp Then
             lst(i).Result = "Signed up"
-        ElseIf lst(i).Grade <= CHARGE_MAX_GRADE Then
+        ElseIf lst(i).ExemptNote = "" And lst(i).Grade <= CHARGE_MAX_GRADE Then
             lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
             lst(i).Result = "Charged"
             nCharged = nCharged + 1
@@ -1024,7 +1028,7 @@ Public Sub ComputeCancel(ByRef lst() As PListRec, ByVal n As Long)
     For i = 1 To n
         lst(i).Awarded = False
         lst(i).Charged = 0
-        lst(i).Result = ""
+        lst(i).Result = lst(i).ExemptNote
     Next i
 End Sub
 
@@ -1442,6 +1446,49 @@ Public Function IsSupportReason(ByVal reason As String) As Boolean
 End Function
 
 
+' v24: someone who moved out of a unit, or left, is still on the frozen list
+' of that unit's open postings. For shifts on or after fromDate their list
+' row is marked "Exempt - <note>", and ComputeAward / ComputeNoTakers /
+' ComputeOutside never charge an exempt row.
+'   units    "" = every unit; else "|Unit A|Unit B|"
+'   listOnly True = change nothing, just say which postings
+' Returns the posting IDs, e.g. "P-0012, P-0014" ("" = none).
+Public Function ExemptFromOpenPostings(ByVal emp As String, ByVal fromDate As Date, ByVal units As String, _
+                                       ByVal noteTxt As String, Optional ByVal listOnly As Boolean = False) As String
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lo Is Nothing Or lr Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Or lr.DataBodyRange Is Nothing Then Exit Function
+    Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
+    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+    Dim openIds As Object: Set openIds = CreateObject("Scripting.Dictionary")
+    openIds.CompareMode = 1
+    Dim i As Long, id As String, hit As Boolean, outS As String
+    For i = 1 To UBound(pv, 1)
+        id = Trim$(SafeStr(pv(i, PS_ID)))
+        If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then
+            If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) Then
+                If units = "" Or InStr(1, units, "|" & SafeStr(pv(i, PS_UNIT)) & "|", vbTextCompare) > 0 Then openIds(id) = True
+            End If
+        End If
+    Next i
+    If openIds.Count = 0 Then Exit Function
+    For i = 1 To UBound(lv, 1)
+        id = Trim$(SafeStr(lv(i, PL_ID)))
+        If openIds.Exists(id) Then
+            If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 And Left$(SafeStr(lv(i, PL_RESULT)), 6) <> "Exempt" Then
+                outS = outS & IIf(outS = "", "", ", ") & id
+                If Not listOnly Then
+                    If Not hit Then lr.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
+                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = "Exempt - " & noteTxt
+                End If
+            End If
+        End If
+    Next i
+    If hit Then ProtectSheet lr.Parent
+    ExemptFromOpenPostings = outS
+End Function
+
 Public Function HasActiveLogRows(ByVal id As String) As Boolean
     Dim lo As ListObject: Set lo = LogTable()
     If lo Is Nothing Then Exit Function
@@ -1488,7 +1535,11 @@ Private Sub UpdatePostingRecords(ByRef p As PostRec, ByRef lst() As PListRec, By
                 If CLng(NumOr0(v(i, PL_RANK))) = lst(j).Rank Then
                     If newStatus = "Open" Then
                         lr.DataBodyRange.Cells(i, PL_SIGNED).ClearContents
-                        lr.DataBodyRange.Cells(i, PL_RESULT).ClearContents
+                        If lst(j).ExemptNote <> "" Then          ' a reopened posting keeps "moved / left" (v24)
+                            lr.DataBodyRange.Cells(i, PL_RESULT).Value = lst(j).ExemptNote
+                        Else
+                            lr.DataBodyRange.Cells(i, PL_RESULT).ClearContents
+                        End If
                         lr.DataBodyRange.Cells(i, PL_CHARGED).ClearContents
                     Else
                         lr.DataBodyRange.Cells(i, PL_SIGNED).Value = IIf(lst(j).SignedUp, "Yes", "")

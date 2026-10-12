@@ -434,11 +434,12 @@ Private Sub CheckOrphans()
     Dim hrs As Object: Set hrs = CreateObject("Scripting.Dictionary")
     hrs.CompareMode = 1
     Dim i As Long, emp As String, kk As Variant, nShown As Long
+    Dim former As Object: Set former = FormerNameSet()       ' v24: moved to the Former sheet = known, their log rows stay
     For i = 1 To LogRows()
         emp = Trim$(SafeStr(mLog(i, L_EMP)))
         If emp <> "" And Not IsVoidRow(i) Then
             If RowPeriod(i) >= CLng(mYearFrom) And RowPeriod(i) <= CLng(mLastStart) Then
-                If Not mOnRoster.Exists(emp) Then
+                If Not mOnRoster.Exists(emp) And Not former.Exists(emp) Then
                     seen(emp) = NumOr0(seen(emp)) + 1
                     hrs(emp) = NumOr0(hrs(emp)) + NumOr0(mLog(i, L_CHARGED))
                 End If
@@ -449,7 +450,7 @@ Private Sub CheckOrphans()
         nShown = nShown + 1
         If nShown <= 15 Then
             AddIssue SEV_WARN, "Not on roster", CStr(kk) & " has " & seen(kk) & " OT Log row(s) this year (" & hrs(kk) & _
-                     " h charged) but isn't on the roster", "Fine if they left. If the name was changed by hand, use Rename Employee"
+                     " h charged) but isn't on the roster", "If they left, put the roster row back and use Employee > Remove. If the name was typed over by hand, type the old name back and use Employee > Rename"
         End If
     Next kk
     If nShown > 15 Then AddIssue SEV_WARN, "Not on roster", "... and " & (nShown - 15) & " more names in the OT Log", ""

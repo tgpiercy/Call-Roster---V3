@@ -8,12 +8,14 @@ part of eligibility and the provisional-OT date logic are all arithmetic.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 # ---------------------------------------------------------------- settings
 CHARGE_MULTIPLIER = 1.75        # modOvertimeEntry.CHARGE_MULTIPLIER
 CHARGE_MAX_GRADE = 2            # modOvertimeEntry.CHARGE_MAX_GRADE
+PEER_MAX_GRADE = 2              # modLeave.PEER_MAX_GRADE
 DST_USE_ACTUAL_HOURS = True     # modOvertimeEntry.DST_USE_ACTUAL_HOURS
 USUAL_SHIFT_HOURS = 12.0
 
@@ -229,6 +231,7 @@ class Listed:
     awarded: bool = False
     charged: float = field(default=0.0)
     result: str = ""
+    exempt: bool = False       # v24: moved unit or left before the shift - never charged on this posting
 
 
 def compute_award(hours: float, lst: list[Listed]) -> list[Listed]:
@@ -242,6 +245,8 @@ def compute_award(hours: float, lst: list[Listed]) -> list[Listed]:
             p.result = "Awarded"
         elif p.signed_up:
             p.result = "Signed up"
+        elif p.exempt:
+            p.result = "Exempt"
         elif n_awarded > 0 and p.rank < max_rank and p.grade <= CHARGE_MAX_GRADE:
             p.charged = hours * CHARGE_MULTIPLIER
             p.result = "Charged"
@@ -255,8 +260,8 @@ def compute_no_takers(hours: float, lst: list[Listed]) -> list[Listed]:
     for p in lst:
         p.awarded = False
         p.charged = 0.0
-        p.result = ""
-        if p.grade <= CHARGE_MAX_GRADE:
+        p.result = "Exempt" if p.exempt else ""
+        if not p.exempt and p.grade <= CHARGE_MAX_GRADE:
             p.charged = hours * CHARGE_MULTIPLIER
             p.result = "Charged"
     return lst
@@ -268,10 +273,10 @@ def compute_outside(hours: float, lst: list[Listed]) -> list[Listed]:
     for p in lst:
         p.awarded = False
         p.charged = 0.0
-        p.result = ""
+        p.result = "Exempt" if p.exempt else ""
         if p.signed_up:
             p.result = "Signed up"
-        elif p.grade <= CHARGE_MAX_GRADE:
+        elif not p.exempt and p.grade <= CHARGE_MAX_GRADE:
             p.charged = hours * CHARGE_MULTIPLIER
             p.result = "Charged"
     return lst
@@ -671,3 +676,64 @@ def snapshot_through_for_year(through: date, snap_yr: int, cur_yr: int, yr_from:
     if snap_yr <= 0 or snap_yr >= cur_yr:
         return through
     return yr_from - timedelta(days=1) if through >= yr_from else through
+
+
+
+# ---------------------------------------------------------------- people changes (v24)
+def new_hire_average(peers: list[tuple[float, bool, float]]) -> float:
+    """modPeople.NewHireAverage. peers = (grade, on leave on the start date,
+    Total Hours on the start date): the average over grade 2 and below, not
+    on leave, rounded like the leave top-up. 0 with no peers."""
+    return leave_average([tot for grade, on_leave, tot in peers if peer_eligible(grade, False, on_leave, True)])
+
+
+def highest_peer_total(peers: list[tuple[float, bool, float]]):
+    """modPeople.HighestPeerTotal. peers = (grade, is the mover, Total Hours):
+    the highest among grade 2 and below who aren't the mover; None if nobody."""
+    vals = [tot for grade, mover, tot in peers if grade <= PEER_MAX_GRADE and not mover]
+    return max(vals) if vals else None
+
+
+def unit_move_top_up(own: float, highest_peer) -> float:
+    """modPeople.UnitMoveTopUp: up to the target, never lowered (2 decimals)."""
+    if highest_peer is None or highest_peer <= own:
+        return 0.0
+    return math.floor((highest_peer - own) * 100 + 0.5 + 0.000001) / 100
+
+
+def rename_in_list(txt: str, old: str, new: str) -> str:
+    """modPeople.RenameInList: one full name inside 'A; B (out of dept)'."""
+    if not txt.strip():
+        return txt
+    out = []
+    for part in txt.split(";"):
+        p = part.strip()
+        tail = ""
+        if p.lower().endswith(" (out of dept)"):
+            tail = p[-14:]
+            p = p[:-14].strip()
+        if p.casefold() == old.casefold():
+            p = new
+        out.append(p + tail)
+    return "; ".join(out)
+
+
+def replace_name_token(txt: str, old: str, new: str) -> str:
+    """modPeople.ReplaceNameToken: a short calendar name replaced only where
+    it stands as a whole name."""
+    if not old:
+        return txt
+    start = 0
+    low_old = old.lower()
+    while True:
+        p = txt.lower().find(low_old, start)
+        if p < 0:
+            break
+        before = txt[p - 1] if p > 0 else ""
+        after = txt[p + len(old)] if p + len(old) < len(txt) else ""
+        if before in ("", " ", "/", ";") and after in ("", " ", "/", ";", "("):
+            txt = txt[:p] + new + txt[p + len(old):]
+            start = p + len(new)
+        else:
+            start = p + 1
+    return txt

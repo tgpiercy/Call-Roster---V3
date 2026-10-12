@@ -57,6 +57,7 @@ Public Sub SystemCheck()
     VerCheck "modAttendance", AT_VERSION, warn, nOk
     VerCheck "modIntegrity", IC_VERSION, warn, nOk
     VerCheck "modRollover", RO_VERSION, warn, nOk
+    VerCheck "modPeople", PPL_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
@@ -88,7 +89,7 @@ Public Sub SystemCheck()
             End Select
         Next comp
         For Each f In Array("frmShiftSwitch", "frmOvertimeEntry", "frmNewPosting", "frmPostingEntry", "frmTimeOff", _
-                            "frmLeave", "frmSickCall", "frmConvert")
+                            "frmLeave", "frmSickCall", "frmConvert", "frmEmployee")
             If InStr(compNames, "|" & LCase$(CStr(f)) & "|") = 0 Then
                 warn = warn & "- form " & f & " is missing (Insert > UserForm, name it, paste " & f & ".txt)" & vbNewLine
             End If
@@ -174,6 +175,12 @@ Public Sub SystemCheck()
     nImp = ImportedNotBookedCount()
     On Error GoTo 0
     If nImp > 0 Then warn = warn & "- " & nImp & " imported vacation line(s) in the next " & IMPORT_WATCH_DAYS & " days not booked yet: Convert imports" & vbNewLine
+    ' v24: crew history and the Former sheet
+    If CrewTable(False) Is Nothing Or FormerTable(False) Is Nothing Then
+        warn = warn & "- Crew History / Former sheets not set up: run SetupPeople" & vbNewLine
+    Else
+        info = info & "Crew History: " & Format$(CrewTable(False).ListRows.Count, "#,##0") & " rows" & vbNewLine
+    End If
     ' M1: members' file
     If Not MemberTemplateExists() Then
         warn = warn & "- members' template not found next to this workbook: " & MEMBER_TEMPLATE_NAME & " (see the M1 install notes)" & vbNewLine

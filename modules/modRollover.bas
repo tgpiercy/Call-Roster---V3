@@ -241,6 +241,7 @@ Public Sub RolloverYear()
     Next r
     changed = True
     AppendYearEnd oldYear, blk, nm, fG, fH, fI, fC, nRows
+    AppendYearEndFormer oldYear             ' v24: people moved to the Former sheet during the year
 
     ' ---- 3. frozen copy (saved in the restricted view, like every save) ----
     stepTxt = "saving the frozen copy"
@@ -470,6 +471,41 @@ Private Sub AppendYearEnd(ByVal y As Long, ByRef blk As Variant, ByRef nm() As S
             out(k, 9) = CurrentUser()
         End If
     Next r
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Dim cnt As Long: cnt = lo.ListRows.Count
+    If Not lo.DataBodyRange Is Nothing Then
+        If cnt = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then cnt = 0
+    End If
+    ws.Unprotect Password:=SHEET_PASSWORD
+    lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
+    With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, YE_NCOLS)
+        .Columns(2).NumberFormat = "@"
+        .Columns(3).NumberFormat = "@"
+        .Value = out
+        .Columns(8).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+    End With
+    ProtectSheet ws
+End Sub
+
+' v24: someone moved to the Former sheet during the closing year has no roster
+' row at the rollover. Their final figures were kept when they were removed
+' (modPeople.RemoveEmployee) and go on the Year End sheet with everyone else's.
+Private Sub AppendYearEndFormer(ByVal y As Long)
+    Dim fin() As Variant, n As Long, k As Long
+    n = FormerFinals(y, fin)
+    If n = 0 Then Exit Sub
+    Dim lo As ListObject: Set lo = YearEndTable(True)
+    If lo Is Nothing Then Err.Raise vbObjectError + 720, , "the Year End sheet couldn't be created"
+    Dim out() As Variant: ReDim out(1 To n, 1 To YE_NCOLS)
+    Dim stamp As Date: stamp = Now
+    For k = 1 To n
+        out(k, 1) = y
+        out(k, 2) = fin(k, 1)
+        out(k, 3) = fin(k, 2)
+        out(k, 4) = fin(k, 3): out(k, 5) = fin(k, 4): out(k, 6) = fin(k, 5): out(k, 7) = fin(k, 6)
+        out(k, 8) = stamp
+        out(k, 9) = CurrentUser() & " (left during the year)"
+    Next k
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim cnt As Long: cnt = lo.ListRows.Count
     If Not lo.DataBodyRange Is Nothing Then

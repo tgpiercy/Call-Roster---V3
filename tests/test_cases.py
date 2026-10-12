@@ -48,8 +48,9 @@ def parse_people(spec: str) -> list[rules.Emp]:
 def parse_listed(spec: str) -> list[rules.Listed]:
     out = []
     for rec in spec.split(";"):
-        rank, grade, signed, awarded = rec.split(":")
-        out.append(rules.Listed(int(rank), float(grade), signed == "Y", awarded == "Y"))
+        f = rec.split(":")                      # rank:grade:signed:awarded[:X = exempt]
+        out.append(rules.Listed(int(f[0]), float(f[1]), f[2] == "Y", f[3] == "Y",
+                                exempt=(len(f) > 4 and f[4] == "X")))
     return out
 
 
@@ -185,6 +186,16 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
+    if suite == "newhire":                       # peers 'grade:onleave:total;...' -> starting hours
+        peers = [(float(g), lv == "Y", float(tot)) for g, lv, tot in (r.split(":") for r in i1.split(";") if r)]
+        return fmt_num(rules.new_hire_average(peers))
+    if suite == "unitmove":                      # own total, peers 'grade:mover:total;...' -> hours added
+        peers = [(float(g), mv == "Y", float(tot)) for g, mv, tot in (r.split(":") for r in i2.split(";") if r)]
+        return fmt_num(rules.unit_move_top_up(float(i1), rules.highest_peer_total(peers)))
+    if suite == "renamelist":                    # text, old name, new name -> text
+        return rules.rename_in_list(i1, i2, i3)
+    if suite == "nametoken":                     # text, old short name, new short name -> text
+        return rules.replace_name_token(i1, i2, i3)
     if suite == "crewon":                        # history 'crew:from;...', date, fallback -> crew / none
         return rules.crew_on(parse_crew_hist(i1), d(i2), i3) or "none"
     if suite == "crewsched":                     # history, date -> Days / Nights / off on that date

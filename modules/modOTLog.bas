@@ -384,56 +384,20 @@ End Sub
 
 
 ' --------------------------------------------------------------------
-'  RENAME - the log matches on the name in column D, so a name must be
-'  changed here (roster + every log row together), not just in the cell.
+'  RENAME - the name is the key in every table, so it is changed in all
+'  of them together by the Employee pop-up (v24: modPeople.RenameEverywhere).
+'  This macro keeps its name (old buttons, install notes): it opens the
+'  pop-up on Rename, with the person whose row is selected.
 ' --------------------------------------------------------------------
 Public Sub RenameEmployee()
-    If Not RequireAdmin() Then Exit Sub
-    If Not RequireWritable() Then Exit Sub
-    Dim lo As ListObject: Set lo = LogTable()
-    If lo Is Nothing Then Exit Sub
-
-    Dim ws As Worksheet: Set ws = RosterSheet()
-    If Not ActiveSheet Is ws Then MsgBox "Click a cell in the employee's row on the roster first.": Exit Sub
-    Dim r As Long: r = ActiveCell.Row
-    Dim oldName As String: oldName = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
-    If r < R_FIRST Or oldName = "" Then MsgBox "Click a cell in an employee's row first.": Exit Sub
-
-    Dim newName As String
-    newName = Trim$(SafeStr(Application.InputBox(Prompt:="New name for " & oldName & ":", _
-                Title:="Rename employee", Default:=oldName, Type:=2)))
-    If newName = "" Or newName = "False" Or newName = oldName Then Exit Sub
-
-    Dim rr As Long
-    For rr = R_FIRST To RosterLastRow()
-        If rr <> r And StrComp(Trim$(SafeStr(ws.Cells(rr, C_NAME).Value)), newName, vbTextCompare) = 0 Then
-            MsgBox newName & " is already on the roster (row " & rr & ").", vbExclamation
-            Exit Sub
-        End If
-    Next rr
-
-    Dim cnt As Long, i As Long, v As Variant
-    Dim logWs As Worksheet: Set logWs = lo.Parent
-    logWs.Unprotect Password:=SHEET_PASSWORD
-    If Not lo.DataBodyRange Is Nothing Then
-        v = RangeTo2D(lo.ListColumns(L_EMP).DataBodyRange)
-        For i = 1 To UBound(v, 1)
-            If StrComp(Trim$(SafeStr(v(i, 1))), oldName, vbTextCompare) = 0 Then
-                lo.ListColumns(L_EMP).DataBodyRange.Cells(i, 1).Value = newName
-                cnt = cnt + 1
-            End If
-        Next i
-    End If
-    ProtectSheet logWs
-    ws.Unprotect Password:=SHEET_PASSWORD
-    ws.Cells(r, C_NAME).Value = newName
-    ProtectSheet ws
-    Application.Calculate
+    Dim nm As String
     On Error Resume Next
-    RefreshGradeSnapshot                   ' v21: the grade-change log keys on the name
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    If ActiveSheet Is ws Then
+        If ActiveCell.Row >= R_FIRST Then nm = Trim$(SafeStr(ws.Cells(ActiveCell.Row, C_NAME).Value))
+    End If
     On Error GoTo 0
-    SaveIfWritable
-    MsgBox "Renamed to " & newName & ". " & cnt & " log row(s) updated.", vbInformation
+    ShowEmployeeRename nm
 End Sub
 
 

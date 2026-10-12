@@ -264,3 +264,23 @@ eligcrew,night-ot-new-crew-days-next-morning,B:2026-12-27;A:2027-02-05,2027-02-0
 eligcrew,day-ot-old-crew-off-nights,C:2026-12-27;B:2027-02-04,2027-02-04,Days,,,rest
 eligcrew,scheduled-on-new-crew,C:2026-12-27;B:2027-02-04,2027-02-05,Nights,,,scheduled
 eligcrew,free-before-change,B:2026-12-27;A:2027-02-05,2027-02-03,Days,,,free
+posting,exempt-ahead-not-charged,award,12,1:1:N:N:X;2:1:N:N;3:1:Y:Y,,,1=0;2=21;3=0
+posting,exempt-no-takers,notakers,12,1:1:N:N:X;2:1:N:N,,,1=0;2=21
+posting,exempt-out-of-dept,outside,12,1:1:N:N:X;2:1:N:N,,,1=0;2=21
+newhire,average,1:N:100;2:N:50;1.5:N:30,,,,,60
+newhire,grade-3-not-counted,1:N:100;3:N:0,,,,,100
+newhire,on-leave-not-counted,1:N:100;1:Y:10,,,,,100
+newhire,rounds-to-a-tenth,1:N:10;1:N:10;1:N:11,,,,,10.3
+newhire,no-peers,3:N:50,,,,,0
+unitmove,move-up,40,1:N:100;2:N:60,,,,60
+unitmove,own-hours-higher-no-change,120,1:N:100,,,,0
+unitmove,mover-not-their-own-target,40,1:Y:500;1:N:55.25,,,,15.25
+unitmove,grade-3-not-a-target,40,3:N:900;2:N:50,,,,10
+unitmove,nobody-to-match,40,3:N:900,,,,0
+renamelist,one-of-two,Smith Joe; Jones Al,Jones Al,Jones Alan,,,Smith Joe; Jones Alan
+renamelist,out-of-dept-kept,Jones Al (out of dept),Jones Al,Jones Alan,,,Jones Alan (out of dept)
+renamelist,longer-name-untouched,Jones Alfred; Smith Joe,Jones Al,Jones Alan,,,Jones Alfred; Smith Joe
+nametoken,with-hours,Fred C 8h / Sam K,Fred C,Fred D,,,Fred D 8h / Sam K
+nametoken,inside-a-longer-name,Alfred C / Fred Carter,Fred C,Fred D,,,Alfred C / Fred Carter
+nametoken,switch-line,Fred C S/S,Fred C,Freddy C,,,Freddy C S/S
+nametoken,twice,Fred C; Fred C 4h,Fred C,Fred D,,,Fred D; Fred D 4h

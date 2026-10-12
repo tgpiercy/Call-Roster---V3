@@ -324,7 +324,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_Kronos", "Import Kronos", "SyncKronosData", x, y(1), wA, gry, INK, False
     Btn ws, "ui_adm_Adjust", "Add Adjustment", "AddAdjustment", x + wA + G, y(1), wA, gry, INK, False
     Btn ws, "ui_adm_Void", "Void Entry", "VoidEntry", x, y(2), wA, gry, INK, False
-    Btn ws, "ui_adm_Rename", "Rename Employee", "RenameEmployee", x + wA + G, y(2), wA, gry, INK, False
+    Btn ws, "ui_adm_Employee", "Employee", "modPeople.ShowEmployeeForm", x + wA + G, y(2), wA, gry, INK, False   ' v24: add / move / rename / remove
     Btn ws, "ui_adm_Access", "Full Access", "LoginFullAccess.LoginFullAccess", x, y(3), wA, gry, INK, False
     Btn ws, "ui_adm_Attend", "Attendance", "modAttendance.ShowAttendance", x + wA + G, y(3), wA, gry, INK, False   ' v22.1
     ' Refresh Formulas is a repair tool now (roster totals are live formulas): Alt+F8 > RefreshRosterFormulas

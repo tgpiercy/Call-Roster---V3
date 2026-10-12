@@ -59,6 +59,17 @@ Private Sub SetPublishedAt(ByVal d As Date)
     On Error GoTo 0
 End Sub
 
+' PUBLISH_FOLDER with "." (the roster's own folder) and ".\sub" resolved
+Public Function PublishFolderPath() As String
+    Dim pf As String: pf = Trim$(PUBLISH_FOLDER)
+    If pf = "" Or pf = "." Then
+        pf = ThisWorkbook.Path
+    ElseIf Left$(pf, 2) = ".\" Then
+        pf = EnsureSlash(ThisWorkbook.Path) & Mid$(pf, 3)
+    End If
+    PublishFolderPath = EnsureSlash(pf)
+End Function
+
 Public Function MemberTemplatePath() As String
     MemberTemplatePath = EnsureSlash(ThisWorkbook.Path) & MEMBER_TEMPLATE_NAME
 End Function
@@ -91,7 +102,7 @@ Public Sub PublishMembers()
                "code, run BuildMemberTemplate, save as that name next to this workbook).", vbExclamation, "Member View"
         Exit Sub
     End If
-    Dim folder As String: folder = EnsureSlash(PUBLISH_FOLDER)
+    Dim folder As String: folder = PublishFolderPath()
     If Not FolderExists(folder) Then
         MsgBox "The members' folder can't be reached:" & vbNewLine & folder & vbNewLine & vbNewLine & _
                "Check the drive, or PUBLISH_FOLDER in modOvertimeEntry.", vbExclamation, "Member View"

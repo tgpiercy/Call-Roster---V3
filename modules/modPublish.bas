@@ -125,12 +125,20 @@ Public Sub PublishMembers()
     If why = "" Then why = PrivateDataIn(plist, DS_PLIST)
     If why = "" Then why = PrivateDataIn(lg, DS_LOG)
     If why = "" Then why = LeaveCodesIn(cal)
-    If why = "" Then why = OrderSelfCheck(roster)
     If why <> "" Then
         Application.StatusBar = False
         Application.ScreenUpdating = True
         MsgBox "NOT published. Something private would have gone into the members' file:" & vbNewLine & vbNewLine & why & _
                vbNewLine & vbNewLine & "Fix that entry (or send me this message) and publish again.", vbCritical, "Member View"
+        Exit Sub
+    End If
+    why = OrderSelfCheck(roster)
+    If why <> "" Then
+        Application.StatusBar = False
+        Application.ScreenUpdating = True
+        MsgBox "NOT published. The call positions worked out for the members' file don't match the roster's own call order:" & _
+               vbNewLine & vbNewLine & why & vbNewLine & vbNewLine & _
+               "Nothing was written. Run SystemCheck and SelfTest, then send me this message.", vbCritical, "Member View"
         Exit Sub
     End If
 
@@ -340,7 +348,7 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
         For r = 1 To UBound(v, 1)
             nm = Trim$(SafeStr(v(r, C_NAME)))
             If nm <> "" Then
-                k = k + 1
+                k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                 out(k, 1) = nm
                 out(k, 2) = Trim$(SafeStr(v(r, C_SHIFT)))
                 out(k, 3) = Trim$(SafeStr(v(r, C_HOME)))
@@ -381,7 +389,7 @@ Private Function BuildNext(ByRef nN As Long) As Variant
                     recs = base
                     m = FilterNotFree(recs, n, d, CStr(sh), removed, True)
                     For i = 1 To m
-                        k = k + 1
+                        k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                         out(k, 1) = depts(u): out(k, 2) = d: out(k, 3) = CStr(sh): out(k, 4) = i
                         out(k, 5) = recs(i).EmpName: out(k, 6) = recs(i).TotalHrs
                         out(k, 7) = recs(i).ProvHrs: out(k, 8) = recs(i).DeptCode
@@ -413,14 +421,14 @@ Private Function BuildCal(ByRef nC As Long) As Variant
     For d = d0 To d1
         hl = HolidayLabel(d)
         If hl <> "" Then
-            k = k + 1
+            k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
             out(k, 1) = d: out(k, 2) = "": out(k, 3) = "*": out(k, 4) = hl: out(k, 5) = "": out(k, 6) = "HOL": out(k, 7) = False
         End If
         For u = 0 To UBound(depts)
             For Each sh In Array("Days", "Nights")
                 n = SlotsFor(d, CStr(sh), CStr(depts(u)), slots, True)
                 For i = 1 To n
-                    k = k + 1
+                    k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                     out(k, 1) = d: out(k, 2) = CStr(sh): out(k, 3) = depts(u)
                     out(k, 4) = slots(i).LeftText: out(k, 5) = slots(i).RightText
                     out(k, 6) = PublicType(slots(i).TypeCode): out(k, 7) = slots(i).IsOpen
@@ -460,11 +468,11 @@ Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist A
             pr = blank                              ' LoadPosting leaves pr untouched when the id isn't found
             n = LoadPosting(CStr(ids(i)), pr, lst)
             If pr.ID <> "" Then                     ' a posting with an empty list still shows (as "list not published")
-                kP = kP + 1
+                kP = kP + 1: If kP > capP Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " postings - raise CAP_ROWS in modPublish"
                 p(kP, 1) = pr.ID: p(kP, 2) = pr.Unit: p(kP, 3) = pr.ShiftDate: p(kP, 4) = pr.ShiftLbl
                 p(kP, 5) = pr.Hours: p(kP, 6) = pr.Positions: p(kP, 7) = pr.Reason: p(kP, 8) = pr.ClosesOn
                 For j = 1 To n
-                    kL = kL + 1
+                    kL = kL + 1: If kL > capL Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " posting list rows - raise CAP_ROWS in modPublish"
                     l(kL, 1) = pr.ID: l(kL, 2) = lst(j).Rank: l(kL, 3) = lst(j).EmpName: l(kL, 4) = lst(j).TotalHrs
                 Next j
             End If
@@ -498,7 +506,7 @@ Private Function BuildLog(ByRef nL As Long) As Variant
                 If SafeStr(v(r, L_ENTRY)) <> "" And UCase$(SafeStr(v(r, L_STATUS))) <> "VOID" Then
                     sd = NumOr0(v(r, L_DATE))
                     If (yFrom = 0 Or sd >= yFrom) And (yTo = 0 Or sd <= yTo) Then
-                        k = k + 1
+                        k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                         out(k, 1) = v(r, L_DATE): out(k, 2) = SafeStr(v(r, L_REF)): out(k, 3) = SafeStr(v(r, L_TYPE))
                         out(k, 4) = SafeStr(v(r, L_DEPT)): out(k, 5) = SafeStr(v(r, L_SHIFTLBL)): out(k, 6) = NumOr0(v(r, L_BASEHRS))
                         out(k, 7) = SafeStr(v(r, L_EMP)): out(k, 8) = SafeStr(v(r, L_OUTCOME))
@@ -550,10 +558,37 @@ Private Function PrivateDataIn(ByRef a As Variant, ByVal tableName As String) As
     Next i
 End Function
 
-' Longest run of digits once phone separators (space - ( ) .) are removed.
-' Times like "07:00-15:00" keep their colons, so they stay short runs;
-' dates written yyyy-mm-dd are blanked first so they don't count.
+' Phone-like = a single run of 7+ digits, or 10+ digits across groups joined
+' by phone separators (space - ( ) .): "905-555-1234" and "(905) 555 1234"
+' are caught; "0700-1900", "07:00-15:00" and "P-0012" are not. Dates written
+' yyyy-mm-dd are blanked first so they never count.
 Private Function LongestDigitRun(ByVal s As String) As Long
+    Dim joined As Long: joined = JoinedDigits(s)
+    Dim single As Long: single = SingleRun(s)
+    If joined >= 10 Then
+        LongestDigitRun = joined
+    Else
+        LongestDigitRun = single
+    End If
+End Function
+
+' longest run of digits with no separator at all
+Private Function SingleRun(ByVal s As String) As Long
+    Dim p As Long, ch As String, run As Long, best As Long
+    For p = 1 To Len(s)
+        ch = Mid$(s, p, 1)
+        If ch Like "#" Then
+            run = run + 1
+            If run > best Then best = run
+        Else
+            run = 0
+        End If
+    Next p
+    SingleRun = best
+End Function
+
+' longest run of digits counting across phone separators
+Private Function JoinedDigits(ByVal s As String) As Long
     Dim p As Long
     p = 1
     Do While p <= Len(s) - 9
@@ -576,7 +611,7 @@ Private Function LongestDigitRun(ByVal s As String) As Long
             run = 0
         End If
     Next p
-    LongestDigitRun = best
+    JoinedDigits = best
 End Function
 
 Private Function LeaveCodesIn(ByRef cal As Variant) As String

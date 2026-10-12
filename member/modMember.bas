@@ -580,9 +580,12 @@ End Sub
 Public Sub MemberFindFromHome()
     Dim nm As String: nm = Txt(WsOf(SH_HOME).Range("C14").Value)
     If nm = "" Then MsgBox "Pick your name first.", vbInformation: Exit Sub
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Application.EnableEvents = False                   ' writing the picker must not trigger a second draw
     UnprotectWs WsOf(SH_ROSTER)
     WsOf(SH_ROSTER).Range(ROSTER_FIND).Value = nm
     ProtectWs WsOf(SH_ROSTER)
+    Application.EnableEvents = evWas
     DrawRoster "", "A - Z", nm
     WsOf(SH_ROSTER).Activate
 End Sub
@@ -602,11 +605,14 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
 
     ' buttons: one per unit, inside row 4 (rebuilt each draw so the active one shows)
     Dim i As Long, x As Double, y As Double
+    For i = ws.Shapes.Count To 1 Step -1               ' old unit buttons go first (the unit list may change)
+        If Left$(ws.Shapes(i).Name, 4) = "mb_u" Then ws.Shapes(i).Delete
+    Next i
     ws.Rows(4).RowHeight = 30
     x = ws.Range("A4").Left: y = ws.Range("A4").Top + 4
     If UBound(units) >= LBound(units) Then
         For i = 0 To nU - 1
-            Btn ws, "mb_u" & i, Txt(units(i)), "'MemberSortUnit """ & Txt(units(i)) & """'", x + i * 92, y, 88, 22, _
+            Btn ws, "mb_u" & i, Txt(units(i)), "'MemberSortUnit """ & Txt(units(i)) & """'", x + i * 100, y, 96, 22, _
                 IIf(Txt(units(i)) = unit, NAVY, LIGHT), IIf(Txt(units(i)) = unit, vbWhite, INK)
         Next i
     End If
@@ -621,7 +627,7 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
     ws.Range("A3").Value = "View: " & viewTxt & IIf(crew <> "", "  |  crew " & crew, "") & _
                            ".  * = total includes accepted overtime not yet in Kronos."
 
-    If Not IsArray(v) Then ProtectWs ws: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
+    If Not IsArray(v) Then ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
     ' collect rows
     Dim idx() As Long, keys() As Double, n As Long, uCode As Long, uPos As Long
     ReDim idx(1 To UBound(v, 1)): ReDim keys(1 To UBound(v, 1))
@@ -662,7 +668,7 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
     Dim out() As Variant, nc As Long: nc = UBound(heads) + 1
     If n = 0 Then
         ws.Cells(6, 1).Value = "Nobody to show."
-        ProtectWs ws: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
+        ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
     End If
     ReDim out(1 To n, 1 To nc)
     Dim r As Long, hiRow As Long
@@ -722,6 +728,7 @@ End Function
 '  WHO'S NEXT
 ' ====================================================================
 Private Sub DrawNextDefault()
+    If Not HasData() Then Exit Sub                     ' template build: nothing to show yet
     Dim ws As Worksheet: Set ws = WsOf(SH_NEXT)
     Dim u As Variant: u = UnitList()
     UnprotectWs ws
@@ -800,6 +807,7 @@ End Sub
 '  CALENDAR
 ' ====================================================================
 Private Sub DrawCalendarDefault()
+    If Not HasData() Then Exit Sub                     ' template build: nothing to show yet
     Dim ws As Worksheet: Set ws = WsOf(SH_CAL)
     Dim u As Variant: u = UnitList()
     UnprotectWs ws
@@ -1000,7 +1008,7 @@ Private Sub DrawHistory(ByVal nm As String)
     ClearBelow ws, 4
     If nm = "" Then
         ws.Cells(5, 1).Value = "Pick a name above."
-        ProtectWs ws: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
+        ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
     End If
     Dim v As Variant: v = Data("dLog")
     Dim hasNote As Boolean
@@ -1025,7 +1033,7 @@ Private Sub DrawHistory(ByVal nm As String)
     ws.Range("A3").Value = nm & ": " & n & " entries this year, newest first."
     If n = 0 Then
         ws.Cells(6, 1).Value = "Nothing logged for " & nm & " this year."
-        ProtectWs ws: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
+        ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
     End If
     ' newest first (by shift date)
     Dim j As Long, t As Long
@@ -1125,10 +1133,13 @@ Public Sub MemberSheetChanged(ByVal Sh As Object, ByVal Target As Range)
             If Not Application.Intersect(Target, Sh.Range(CAL_MONTH & "," & CAL_UNIT)) Is Nothing Then MemberShowCalendar
         Case SH_HIST
             If Not Application.Intersect(Target, Sh.Range(HIST_NAME)) Is Nothing Then MemberShowHistory
+        Case SH_HOME
+            MarkClean                                  ' picking a name on Home changes nothing worth saving
     End Select
 End Sub
 
 Public Sub MemberSheetActivated(ByVal Sh As Object)
     On Error Resume Next
     ActiveWindow.DisplayGridlines = False
+    MarkClean
 End Sub

@@ -151,6 +151,11 @@ End Type
 ' Session flags
 Public gAdminUnlocked As Boolean    ' admin view: sheets left unprotected (except the OT Log)
 Public gNoSaveOnClose As Boolean    ' set when a migration/verification fails - never save this state
+' v24.2: SmokeTest (modSmokeTest) sets gSmokeRun on a practice copy only. While it is True
+' nothing is saved to disk, confirms answer themselves (Ask) and success messages stay quiet (Tell).
+Public gSmokeRun As Boolean
+Public gSmokeFolder As String       ' where the publish step writes its scratch members' file
+Public gSmokeSaved As String        ' ...and the file it wrote ("" = it didn't)
 
 
 ' ====================================================================
@@ -890,12 +895,114 @@ End Function
 ' True if the period is on this roster, or the user agrees to log it anyway
 Public Function ConfirmPeriod(ByVal ps As Date) As Boolean
     If PeriodColumn(ps) > 0 Then ConfirmPeriod = True: Exit Function
+    If gSmokeRun Then ConfirmPeriod = True: Exit Function
     ConfirmPeriod = (MsgBox("These hours fall in the pay period starting " & _
         Format$(ps, "mmm d, yyyy") & ", which is not one of this roster's columns." & _
         vbNewLine & vbNewLine & _
         "They will be saved in the OT Log but won't appear in this roster's totals " & _
         "until a roster with that period exists." & vbNewLine & vbNewLine & _
         "Log them anyway?", vbYesNo + vbExclamation, "Pay Period") = vbYes)
+End Function
+
+
+' ====================================================================
+'  ONE CALL-OUT SESSION -> OT LOG ROWS + CALENDAR LINES  (v24.2)
+'  Moved here from the call-out pop-up so there is one copy: the pop-up
+'  and SmokeTest both call it. entries(1..n) is the call list in call
+'  order with each Outcome ("" = not reached); taken(i) = hours an
+'  Accepted person took when it was only part of what was on offer
+'  (0 = all of it). False = nothing was written.
+' ====================================================================
+Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As String, ByVal crewSel As String, _
+                                     ByVal entryDate As Date, ByVal hours As Double, ByRef entries() As EmpRec, _
+                                     ByRef taken() As Double, ByVal n As Long, ByRef sessionID As String, _
+                                     ByRef summary As String) As Boolean
+    Dim i As Long, k As Long, logged As Long
+    For i = 1 To n
+        If entries(i).Outcome <> "" Then logged = logged + 1
+    Next i
+    If logged = 0 Then Exit Function
+
+    Dim ps As Date: ps = PeriodStartFor(entryDate)
+    If Not ConfirmPeriod(ps) Then Exit Function
+
+    sessionID = NextRefID("S")
+    Dim user As String: user = CurrentUser()
+    Dim submTime As Date: submTime = Now
+
+    Dim data() As Variant: ReDim data(1 To logged, 1 To L_NCOLS)
+    Dim charged As Double, totalCharged As Double
+    Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long, accTxt As String
+    ' v24.1: the hours each person was offered (less than the call-out's below a partial acceptance)
+    Dim oc() As String, offers() As Double, worked As Double
+    ReDim oc(1 To n)
+    For i = 1 To n
+        oc(i) = entries(i).Outcome
+    Next i
+    CalloutOffers hours, oc, taken, n, offers
+
+    For i = 1 To n
+        If entries(i).Outcome <> "" Then
+            k = k + 1
+            charged = CalloutCharge(entries(i).Outcome, entries(i).Grade, offers(i))   ' v21: one rule; v24.1: on the hours offered
+            totalCharged = totalCharged + charged
+
+            data(k, L_REF) = sessionID
+            data(k, L_TYPE) = "Callout"
+            data(k, L_DATE) = entryDate
+            data(k, L_DEPT) = dept
+            data(k, L_SHIFTLBL) = shiftLbl
+            data(k, L_CREW) = crewSel
+            data(k, L_BASEHRS) = offers(i)                 ' the hours this person was offered
+            If entries(i).Outcome = "Accepted" Then data(k, L_BASEHRS) = AcceptedHours(offers(i), taken(i))   ' provisional OT sums this
+            data(k, L_ORDER) = i          ' position in the call list
+            data(k, L_EMP) = entries(i).EmpName
+            data(k, L_CODE) = entries(i).DeptCode
+            data(k, L_EMPHRS) = entries(i).TotalHrs
+            data(k, L_OUTCOME) = entries(i).Outcome
+            data(k, L_REASON) = entries(i).Reason
+            If entries(i).Outcome = "Accepted" And taken(i) > 0 And taken(i) < offers(i) Then
+                data(k, L_REASON) = "Took " & HoursText(taken(i)) & " of " & HoursText(offers(i)) & " h"
+            ElseIf offers(i) < hours And entries(i).Reason = "" Then
+                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (part already taken)"
+            End If
+            data(k, L_CHARGED) = charged
+            data(k, L_PERIOD) = ps
+            data(k, L_USER) = user
+            data(k, L_STAMP) = submTime
+
+            Select Case entries(i).Outcome
+                Case "Accepted": nAcc = nAcc + 1
+                Case "Refused": nRef = nRef + 1
+                Case "Left Message": nMsg = nMsg + 1
+                Case "Unavailable": nUna = nUna + 1
+            End Select
+        End If
+    Next i
+
+    If Not AppendLogRows(data) Then Exit Function     ' the caller keeps its entries so nothing is lost
+    SaveIfWritable
+
+    ' accepted -> onto the calendar
+    Dim calTxt As String
+    For i = 1 To n
+        If entries(i).Outcome = "Accepted" Then
+            worked = AcceptedHours(offers(i), taken(i))
+            accTxt = accTxt & vbNewLine & "      " & entries(i).EmpName & ": " & HoursText(worked) & " h"
+            calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, shiftLbl, entries(i).EmpName, worked, sessionID)
+        End If
+    Next i
+
+    summary = "Session " & sessionID & " submitted!" & vbNewLine & vbNewLine & _
+              dept & " | " & shiftLbl & " | Crew: " & crewSel & " | " & Format$(entryDate, "MM/DD/YYYY") & vbNewLine & _
+              "Base hours: " & hours & "   Rate: " & CHARGE_MULTIPLIER & "x" & vbNewLine & vbNewLine & _
+              "  Accepted: " & nAcc & accTxt & vbNewLine & _
+              "  Refused: " & nRef & vbNewLine & _
+              "  Left Message: " & nMsg & vbNewLine & _
+              "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
+              "  Total charged: " & HoursText(totalCharged) & " hrs" & _
+              IIf(calTxt <> "", vbNewLine & vbNewLine & "Calendar:" & calTxt, "")
+    SubmitCalloutSession = True
 End Function
 
 
@@ -931,6 +1038,20 @@ Public Function RequireWritable() As Boolean
     End If
 End Function
 
+' v24.2: a confirm. SmokeTest answers it itself (smokeAnswer); everyone else sees the box.
+Public Function Ask(ByVal prompt As String, ByVal buttons As Long, ByVal title As String, ByVal smokeAnswer As Long) As Long
+    If gSmokeRun Then
+        Ask = smokeAnswer
+    Else
+        Ask = MsgBox(prompt, buttons, title)
+    End If
+End Function
+
+' v24.2: a message that only reports success. Quiet under SmokeTest.
+Public Sub Tell(ByVal prompt As String, ByVal buttons As Long, ByVal title As String)
+    If Not gSmokeRun Then MsgBox prompt, buttons, title
+End Sub
+
 ' A failed conversion must never be saved. The flag is also kept as a
 ' hidden workbook name so it survives a VBA reset ("End" on an error).
 Public Sub MarkNoSave()
@@ -958,6 +1079,7 @@ Public Sub ClearNoSave()
 End Sub
 
 Public Sub SaveIfWritable()
+    If gSmokeRun Then Exit Sub                     ' v24.2: SmokeTest never saves
     If NoSave() Then
         MsgBox "Not saved - saving is blocked because an earlier check failed in this session." & vbNewLine & _
                "Close WITHOUT saving and reopen.", vbExclamation

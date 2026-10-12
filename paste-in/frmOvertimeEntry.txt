@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24.1 (Jan 5)
+' @version v24.2 (Jan 5)
 
 ' ================================================================
 ' CALLOUT SESSION FORM
@@ -518,91 +518,10 @@ Private Sub btnSubmit_Click()
                   vbNewLine & vbNewLine & "(No = cancel; click LOAD LIST again to use the new values.)", _
                   vbYesNo + vbExclamation, "Inputs changed") = vbNo Then Exit Sub
     End If
-    Dim entryDate As Date: entryDate = mDate
-    Dim shiftSel As String: shiftSel = mShift
-    Dim dept As String: dept = mDept
-    Dim hours As Double: hours = mHours
-
-    Dim ps As Date: ps = PeriodStartFor(entryDate)
-    If Not ConfirmPeriod(ps) Then Exit Sub
-
-    Dim sessionID As String: sessionID = NextRefID("S")
-    Dim user As String: user = CurrentUser()
-    Dim submTime As Date: submTime = Now
-
-    Dim data() As Variant: ReDim data(1 To logged, 1 To L_NCOLS)
-    Dim i As Long, k As Long, charged As Double, totalCharged As Double
-    Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long, accTxt As String
-    ' v24.1: the hours each person was offered (less than the call-out's below a partial acceptance)
-    Dim oc() As String, offers() As Double, worked As Double
-    ReDim oc(1 To mCount)
-    For i = 1 To mCount
-        oc(i) = mEntries(i).Outcome
-    Next i
-    CalloutOffers hours, oc, mTaken, mCount, offers
-
-    For i = 1 To mCount
-        If mEntries(i).Outcome <> "" Then
-            k = k + 1
-            charged = CalloutCharge(mEntries(i).Outcome, mEntries(i).Grade, offers(i))   ' v21: one rule; v24.1: on the hours offered
-            totalCharged = totalCharged + charged
-
-            data(k, L_REF) = sessionID
-            data(k, L_TYPE) = "Callout"
-            data(k, L_DATE) = entryDate
-            data(k, L_DEPT) = dept
-            data(k, L_SHIFTLBL) = mShiftLbl
-            data(k, L_CREW) = shiftSel
-            data(k, L_BASEHRS) = offers(i)                 ' the hours this person was offered
-            If mEntries(i).Outcome = "Accepted" Then data(k, L_BASEHRS) = AcceptedHours(offers(i), mTaken(i))   ' provisional OT sums this
-            data(k, L_ORDER) = i          ' position in the call list
-            data(k, L_EMP) = mEntries(i).EmpName
-            data(k, L_CODE) = mEntries(i).DeptCode
-            data(k, L_EMPHRS) = mEntries(i).TotalHrs
-            data(k, L_OUTCOME) = mEntries(i).Outcome
-            data(k, L_REASON) = mEntries(i).Reason
-            If mEntries(i).Outcome = "Accepted" And mTaken(i) > 0 And mTaken(i) < offers(i) Then
-                data(k, L_REASON) = "Took " & HoursText(mTaken(i)) & " of " & HoursText(offers(i)) & " h"
-            ElseIf offers(i) < hours And mEntries(i).Reason = "" Then
-                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (part already taken)"
-            End If
-            data(k, L_CHARGED) = charged
-            data(k, L_PERIOD) = ps
-            data(k, L_USER) = user
-            data(k, L_STAMP) = submTime
-
-            Select Case mEntries(i).Outcome
-                Case "Accepted": nAcc = nAcc + 1
-                Case "Refused": nRef = nRef + 1
-                Case "Left Message": nMsg = nMsg + 1
-                Case "Unavailable": nUna = nUna + 1
-            End Select
-        End If
-    Next i
-
-    If Not AppendLogRows(data) Then Exit Sub     ' form keeps its entries so nothing is lost
-    SaveIfWritable
-
-    ' accepted -> onto the calendar
-    Dim calTxt As String
-    For i = 1 To mCount
-        If mEntries(i).Outcome = "Accepted" Then
-            worked = AcceptedHours(offers(i), mTaken(i))
-            accTxt = accTxt & vbNewLine & "      " & mEntries(i).EmpName & ": " & HoursText(worked) & " h"
-            calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, mShiftLbl, mEntries(i).EmpName, worked, sessionID)
-        End If
-    Next i
-
-    MsgBox "Session " & sessionID & " submitted!" & vbNewLine & vbNewLine & _
-           dept & " | " & mShiftLbl & " | Crew: " & shiftSel & " | " & Format$(entryDate, "MM/DD/YYYY") & vbNewLine & _
-           "Base hours: " & hours & "   Rate: " & CHARGE_MULTIPLIER & "x" & vbNewLine & vbNewLine & _
-           "  Accepted: " & nAcc & accTxt & vbNewLine & _
-           "  Refused: " & nRef & vbNewLine & _
-           "  Left Message: " & nMsg & vbNewLine & _
-           "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
-           "  Total charged: " & HoursText(totalCharged) & " hrs" & _
-           IIf(calTxt <> "", vbNewLine & vbNewLine & "Calendar:" & calTxt, ""), _
-           vbInformation, "Session Complete"
+    ' v24.2: the rows are built and written by ONE function in modOvertimeEntry (SmokeTest uses it too)
+    Dim sessionID As String, summary As String
+    If Not SubmitCalloutSession(mDept, mShiftLbl, mShift, mDate, mHours, mEntries, mTaken, mCount, sessionID, summary) Then Exit Sub   ' form keeps its entries so nothing is lost
+    MsgBox summary, vbInformation, "Session Complete"
 
     ResetForm
 End Sub

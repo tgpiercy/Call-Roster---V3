@@ -25,10 +25,10 @@ Option Explicit
 
 Public Const SYS_VERSION As String = "System v24.1 (Jan 5)"
 Public Const EXPECTED_RELEASE As String = "v24.1"
-Private Const N_MODULES As Long = 21
+Private Const N_MODULES As Long = 22
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24.2"
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.1,frmNewPosting|v21,frmPostingEntry|v24.1,frmShiftSwitch|v24," & _
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.2,frmNewPosting|v21,frmPostingEntry|v24.1,frmShiftSwitch|v24," & _
                                         "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22,frmEmployee|v24"
 
 Private mBackupWarned As Boolean
@@ -61,6 +61,7 @@ Public Sub SystemCheck()
     VerCheck "modReports", REP_VERSION, warn, nOk
     VerCheck "modSignups", SG_VERSION, warn, nOk
     VerCheck "modErrorLog", EL_VERSION, warn, nOk
+    VerCheck "modSmokeTest", SMK_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine

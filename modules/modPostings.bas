@@ -323,7 +323,7 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     p.Status = "Open"
 
     If p.ClosesOn > p.ShiftDate Then
-        If MsgBox("The posting closes after the shift date. Continue anyway?", vbYesNo + vbExclamation) = vbNo Then Exit Function
+        If Ask("The posting closes after the shift date. Continue anyway?", vbYesNo + vbExclamation, "Create Posting", vbYes) = vbNo Then Exit Function
     End If
 
     ' eligible list = same rules and order as before (call order, posting grade cutoffs)
@@ -348,14 +348,14 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     Else
         outTxt = "It will be put on the Overtime Posting tab (not printed)."
     End If
-    If MsgBox("Create posting " & p.ID & "?" & vbNewLine & vbNewLine & _
+    If Ask("Create posting " & p.ID & "?" & vbNewLine & vbNewLine & _
               p.Unit & "  |  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & "  |  " & p.ShiftLbl & vbNewLine & _
               "Crew: " & p.Crew & "   Hours: " & p.Hours & "   Positions: " & p.Positions & vbNewLine & _
               "Reason: " & p.Reason & vbNewLine & _
               "Closes: " & Format$(p.ClosesOn, "ddd mmm d, yyyy") & " @ " & POSTING_CLOSE_TIME & vbNewLine & vbNewLine & _
               n & " eligible employees will be listed. " & outTxt & _
               IIf(offList <> "", vbNewLine & vbNewLine & "Not listed: " & offList, ""), _
-              vbOKCancel + vbQuestion, "Create Posting") <> vbOK Then Exit Function
+              vbOKCancel + vbQuestion, "Create Posting", vbOK) <> vbOK Then Exit Function
 
     ' --- save posting + snapshot list ---
     Dim pr() As Variant: ReDim pr(1 To 1, 1 To PS_N)
@@ -400,8 +400,8 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
 
     Dim report As String
     OutputPosting p, lst, n, False, doPrint, doPdf, report
-    MsgBox "Posting " & p.ID & " created." & vbNewLine & vbNewLine & report & vbNewLine & vbNewLine & _
-           "Calendar: " & calTxt, vbInformation, "Create Posting"
+    Tell "Posting " & p.ID & " created." & vbNewLine & vbNewLine & report & vbNewLine & vbNewLine & _
+         "Calendar: " & calTxt, vbInformation, "Create Posting"
 End Function
 
 
@@ -1217,8 +1217,8 @@ End Function
 Private Function EarlyOK(ByRef p As PostRec, ByVal what As String) As Boolean
     EarlyOK = True
     If Date <= p.ClosesOn Then
-        EarlyOK = (MsgBox(p.ID & " doesn't close until " & Format$(p.ClosesOn, "mmm d") & " @ " & POSTING_CLOSE_TIME & _
-                   ". " & what & " it now anyway?", vbYesNo + vbExclamation, what) = vbYes)
+        EarlyOK = (Ask(p.ID & " doesn't close until " & Format$(p.ClosesOn, "mmm d") & " @ " & POSTING_CLOSE_TIME & _
+                   ". " & what & " it now anyway?", vbYesNo + vbExclamation, what, vbYes) = vbYes)
     End If
 End Function
 
@@ -1270,13 +1270,13 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
     Next i
 
     If skipped <> "" Then
-        If MsgBox("These people signed up and are AHEAD of the awarded person in call order, " & _
-                  "but aren't awarded:" & vbNewLine & vbNewLine & skipped & vbNewLine & _
-                  "They won't be charged. Continue?", vbYesNo + vbExclamation, "Award") = vbNo Then Exit Function
+        If Ask("These people signed up and are AHEAD of the awarded person in call order, " & _
+               "but aren't awarded:" & vbNewLine & vbNewLine & skipped & vbNewLine & _
+               "They won't be charged. Continue?", vbYesNo + vbExclamation, "Award", vbYes) = vbNo Then Exit Function
     End If
     If nAw <> p.Positions And Not anyPartial Then
-        If MsgBox(nAw & " awarded but the posting is for " & p.Positions & " position(s). Continue?", _
-                  vbYesNo + vbExclamation, "Award") = vbNo Then Exit Function
+        If Ask(nAw & " awarded but the posting is for " & p.Positions & " position(s). Continue?", _
+               vbYesNo + vbExclamation, "Award", vbYes) = vbNo Then Exit Function
     End If
     If Not EarlyOK(p, "Award") Then Exit Function
 
@@ -1293,7 +1293,7 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
           "Charged (didn't sign up, ahead in call order): " & nCh & " x " & _
           HoursText(p.Hours * CHARGE_MULTIPLIER) & " hrs = " & HoursText(tot) & " hrs" & _
           IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "")
-    If MsgBox(msg & vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm award") <> vbOK Then Exit Function
+    If Ask(msg & vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm award", vbOK) <> vbOK Then Exit Function
 
     If Not WriteOutcome(p, lst, n, "Awarded", awardNames, ps, maxRank) Then Exit Function
     Dim calNames As String
@@ -1309,8 +1309,8 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
         End If
     Next i
     Dim calTxt As String: calTxt = CalendarOutcome(p, calNames, anyPartial)
-    EmailAward p, lst, n, awardShow
-    MsgBox p.ID & " awarded to " & awardShow & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
+    If Not gSmokeRun Then EmailAward p, lst, n, awardShow      ' v24.2: SmokeTest opens no email draft
+    Tell p.ID & " awarded to " & awardShow & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
     SubmitAward = True
 End Function
 

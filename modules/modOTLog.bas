@@ -326,8 +326,38 @@ Public Sub VoidEntry()
     If k = "" Then Exit Sub
 
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
-    Dim i As Long, cnt As Long, hrs As Double, nameList As String
-    Dim hit() As Boolean: ReDim hit(1 To UBound(v, 1))
+    Dim cnt As Long, hrs As Double, nameList As String
+    Dim hit() As Boolean
+    cnt = VoidHits(v, k, hit, hrs, nameList)
+
+    If cnt = 0 Then MsgBox "No active (non-void) rows found for " & k & ".", vbInformation: Exit Sub
+
+    Dim warn As String
+    If Left$(k, 3) = "OB-" Then warn = vbNewLine & "WARNING: this is the opening balance carried over from the old roster." & vbNewLine
+
+    If MsgBox("Void " & cnt & " row(s) for " & k & "?" & vbNewLine & vbNewLine & nameList & vbNewLine & _
+              "Total hours charged coming off the roster: " & HoursText(hrs) & vbNewLine & warn & vbNewLine & _
+              "The rows stay in the log, marked VOID.", vbOKCancel + vbExclamation, "Confirm void") <> vbOK Then Exit Sub
+
+    Dim why As String: why = AskRequired("Reason for voiding " & k & ":", "Void Entry")
+    If why = "" Then Exit Sub
+
+    Dim calN As Long
+    cnt = VoidRef(k, why, calN)
+    MsgBox cnt & " row(s) voided. Roster totals updated." & _
+           IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation
+    Exit Sub
+Oops:
+    ReportError "VoidEntry"
+End Sub
+
+' Which non-void rows a key means: "S-0012" = every row of that Ref ID, "#245" = one
+' Entry ID. Fills hit(1..rows); returns how many, their charged hours and a short list.
+Private Function VoidHits(ByRef v As Variant, ByVal k As String, ByRef hit() As Boolean, ByRef hrs As Double, _
+                          ByRef nameList As String) As Long
+    Dim i As Long, cnt As Long
+    ReDim hit(1 To UBound(v, 1))
+    hrs = 0: nameList = ""
     For i = 1 To UBound(v, 1)
         If UCase$(SafeStr(v(i, L_STATUS))) <> "VOID" Then
             If Left$(k, 1) = "#" Then
@@ -342,19 +372,25 @@ Public Sub VoidEntry()
             End If
         End If
     Next i
-
-    If cnt = 0 Then MsgBox "No active (non-void) rows found for " & k & ".", vbInformation: Exit Sub
     If cnt > 15 Then nameList = nameList & "  ...and " & (cnt - 15) & " more" & vbNewLine
+    VoidHits = cnt
+End Function
 
-    Dim warn As String
-    If Left$(k, 3) = "OB-" Then warn = vbNewLine & "WARNING: this is the opening balance carried over from the old roster." & vbNewLine
-
-    If MsgBox("Void " & cnt & " row(s) for " & k & "?" & vbNewLine & vbNewLine & nameList & vbNewLine & _
-              "Total hours charged coming off the roster: " & HoursText(hrs) & vbNewLine & warn & vbNewLine & _
-              "The rows stay in the log, marked VOID.", vbOKCancel + vbExclamation, "Confirm void") <> vbOK Then Exit Sub
-
-    Dim why As String: why = AskRequired("Reason for voiding " & k & ":", "Void Entry")
-    If why = "" Then Exit Sub
+' v24.2: the voiding itself, with no questions. Marks every non-void row of the key
+' VOID with the reason, takes voided call-outs / awards back off the calendar and
+' saves. Returns the number of rows voided. Void Entry and SmokeTest both call it.
+Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Long) As Long
+    calN = 0
+    k = UCase$(Trim$(k))
+    If k = "" Or Trim$(why) = "" Then Exit Function
+    Dim lo As ListObject: Set lo = LogTable()
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long, cnt As Long, hrs As Double, nameList As String
+    Dim hit() As Boolean
+    cnt = VoidHits(v, k, hit, hrs, nameList)
+    If cnt = 0 Then Exit Function
 
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim stampText As String: stampText = why & " - " & CurrentUser() & " " & Format$(Now, "mm/dd/yyyy hh:mm")
@@ -369,7 +405,6 @@ Public Sub VoidEntry()
     Application.Calculate
 
     ' take voided call-outs / awards back off the calendar
-    Dim calN As Long
     On Error Resume Next
     For i = 1 To UBound(v, 1)
         If hit(i) Then
@@ -380,15 +415,11 @@ Public Sub VoidEntry()
         End If
     Next i
     RefreshCalendar
-    On Error GoTo Oops
+    On Error GoTo 0
 
     SaveIfWritable
-    MsgBox cnt & " row(s) voided. Roster totals updated." & _
-           IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation
-    Exit Sub
-Oops:
-    ReportError "VoidEntry"
-End Sub
+    VoidRef = cnt
+End Function
 
 
 ' --------------------------------------------------------------------

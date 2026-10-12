@@ -1179,6 +1179,7 @@ Public Function CalendarPlace(ByVal d As Date, ByVal shiftLbl As String, ByVal u
                               ByVal source As String, ByVal typ As String, ByVal needText As String, _
                               Optional ByVal preferNew As Boolean = False, Optional ByVal slotKey As String = "") As String
     Dim k As String: k = slotKey
+    If k = "" And gSmokeRun Then k = "NEW"          ' v24.2: SmokeTest takes a new line without asking
     If k = "" Then k = PickSlot(d, shiftLbl, unit, what, preferNew)
     If k = "" Then Exit Function
     Dim lt As String, rt As String, lbl As String
@@ -1311,15 +1312,16 @@ Public Function SetAbsenceEnd(ByVal id As String) As Boolean
     SetAbsenceEnd = True
 End Function
 
-Public Function VoidAbsence(ByVal id As String) As Boolean
+Public Function VoidAbsence(ByVal id As String, Optional ByVal reasonTxt As String = "") As Boolean
+    ' reasonTxt (v24.2): given by code (SmokeTest); left out, the reason is asked for
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     Dim lo As ListObject: Set lo = AbsTable()
     Dim v As Variant: v = TableData(lo)
     Dim r As Long: r = RowOf(v, id)
     If r = 0 Then Exit Function
-    Dim why As String
-    why = InputBox("Why is " & id & " (" & SafeStr(v(r, AB_EMP)) & ") being removed?", "Void time off")
+    Dim why As String: why = reasonTxt
+    If Trim$(why) = "" Then why = InputBox("Why is " & id & " (" & SafeStr(v(r, AB_EMP)) & ") being removed?", "Void time off")
     If Trim$(why) = "" Then Exit Function
     lo.Parent.Unprotect Password:=SHEET_PASSWORD
     lo.DataBodyRange.Cells(r, AB_STATUS).Value = "VOID"

@@ -150,6 +150,11 @@ Public Sub PublishMembers()
         Exit Sub
     End If
     Dim folder As String: folder = PublishFolderPath()
+    If gSmokeRun Then                              ' v24.2: SmokeTest publishes a scratch copy, never the members' file
+        gSmokeSaved = ""
+        If Trim$(gSmokeFolder) = "" Then Exit Sub
+        folder = EnsureSlash(gSmokeFolder)
+    End If
     If Not FolderExists(folder) Then
         MsgBox "The members' folder can't be reached:" & vbNewLine & folder & vbNewLine & vbNewLine & _
                "Check the drive, or PUBLISH_FOLDER in modOvertimeEntry.", vbExclamation, "Member View"
@@ -277,6 +282,10 @@ Public Sub PublishMembers()
     If savedAs = "" Then
         MsgBox "The members' file couldn't be saved:" & vbNewLine & em & vbNewLine & vbNewLine & _
                "Is " & MEMBER_FILE_NAME & " open on a plant PC? Close it there and publish again.", vbCritical, "Member View"
+        Exit Sub
+    End If
+    If gSmokeRun Then                              ' the scratch copy is written: nothing about the real publish changes
+        gSmokeSaved = savedAs
         Exit Sub
     End If
     SetPublishedAt Now

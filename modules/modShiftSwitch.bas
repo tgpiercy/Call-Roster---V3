@@ -595,7 +595,8 @@ Private Sub SetPaidBy(ByVal lo As ListObject, ByVal origId As String, ByVal newI
     Next i
 End Sub
 
-Public Function VoidSwitch(ByVal id As String) As Boolean
+Public Function VoidSwitch(ByVal id As String, Optional ByVal reasonTxt As String = "") As Boolean
+    ' reasonTxt (v24.2): given by code (SmokeTest); left out, the reason is asked for
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     Dim lo As ListObject: Set lo = SwitchTable()
@@ -609,10 +610,12 @@ Public Function VoidSwitch(ByVal id As String) As Boolean
     If r = 0 Then Exit Function
     If UCase$(SafeStr(v(r, SW_STATUS))) = "VOID" Then MsgBox id & " is already void.", vbInformation: Exit Function
 
-    Dim why As String
-    why = InputBox("Why is " & id & " being voided?" & vbNewLine & _
-                   Format$(v(r, SW_DATE), "ddd mmm d") & " " & SafeStr(v(r, SW_SHIFT)) & ": " & _
-                   SafeStr(v(r, SW_WORKS)) & " for " & SafeStr(v(r, SW_OFF)), "Void shift switch")
+    Dim why As String: why = reasonTxt
+    If Trim$(why) = "" Then
+        why = InputBox("Why is " & id & " being voided?" & vbNewLine & _
+                       Format$(v(r, SW_DATE), "ddd mmm d") & " " & SafeStr(v(r, SW_SHIFT)) & ": " & _
+                       SafeStr(v(r, SW_WORKS)) & " for " & SafeStr(v(r, SW_OFF)), "Void shift switch")
+    End If
     If Trim$(why) = "" Then Exit Function
 
     Dim ws As Worksheet: Set ws = lo.Parent

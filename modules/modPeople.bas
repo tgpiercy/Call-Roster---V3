@@ -625,6 +625,11 @@ End Function
 ' ====================================================================
 ' Saves a dated backup copy next to the roster. False (and says why) if it couldn't.
 Public Function PeopleBackup(ByVal what As String, ByRef bk As String) As Boolean
+    If gSmokeRun Then                              ' v24.2: SmokeTest runs on a throw-away copy and never saves
+        bk = "(none: SmokeTest)"
+        PeopleBackup = True
+        Exit Function
+    End If
     bk = EnsureSlash(ThisWorkbook.Path) & "Backup before " & what & " " & Format$(Now, "yyyy-mm-dd hhmmss") & " - " & ThisWorkbook.Name
     Dim e As String
     On Error Resume Next

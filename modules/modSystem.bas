@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v24.1 (Jan 5)"
-Public Const EXPECTED_RELEASE As String = "v24.1"
+Public Const SYS_VERSION As String = "System v24.2 (Jan 5)"
+Public Const EXPECTED_RELEASE As String = "v24.2"
 Private Const N_MODULES As Long = 22
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24.2"
@@ -249,6 +249,54 @@ Private Function FormMarker(ByVal proj As Object, ByVal formName As String) As S
     Next i
     FormMarker = "no version line (before v20)"
 End Function
+
+' ---------------- a practice copy (v24.2) ----------------
+' Alt+F8 > MakePracticeCopy (admin): saves "<name> COPY <date time>.xlsm" in a
+' Practice folder beside the roster, puts a copy of the members' template next
+' to it, and opens it. Daily backups, the publish reminder and SmokeTest's
+' guard all key on COPY in the name, so nothing done in it touches the roster.
+Public Sub MakePracticeCopy()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If ThisWorkbook.Path = "" Or LCase$(Left$(ThisWorkbook.Path, 4)) = "http" Then
+        MsgBox "Open the roster from an ordinary folder first (not SharePoint / OneDrive).", vbExclamation, "Practice copy"
+        Exit Sub
+    End If
+    Dim folder As String: folder = EnsureSlash(ThisWorkbook.Path) & "Practice\"
+    If Not FolderExists(folder) Then
+        On Error Resume Next
+        MkDir folder
+        On Error GoTo Oops
+    End If
+    If Not FolderExists(folder) Then
+        MsgBox "The Practice folder couldn't be made:" & vbNewLine & folder, vbExclamation, "Practice copy"
+        Exit Sub
+    End If
+    Dim baseName As String: baseName = ThisWorkbook.Name
+    If InStrRev(baseName, ".") > 1 Then baseName = Left$(baseName, InStrRev(baseName, ".") - 1)
+    Dim target As String: target = folder & baseName & " COPY " & Format$(Now, "yyyy-mm-dd hhmm") & ".xlsm"
+    If MsgBox("Make a practice copy and open it?" & vbNewLine & vbNewLine & target & vbNewLine & vbNewLine & _
+              "It is a separate file with the roster as it is right now (saved or not). Nothing you do in it reaches the real roster " & _
+              "or the members' file. Its title bar says COPY: check that before you test anything.", _
+              vbOKCancel + vbQuestion, "Practice copy") <> vbOK Then Exit Sub
+    ThisWorkbook.SaveCopyAs target
+    Dim tplNote As String
+    If MemberTemplateExists() Then
+        On Error Resume Next
+        FileCopy MemberTemplatePath(), folder & MEMBER_TEMPLATE_NAME
+        If Err.Number <> 0 Then tplNote = vbNewLine & "The members' template couldn't be copied (" & Err.Description & "): close it and copy it by hand if you want to test Member View."
+        On Error GoTo Oops
+    Else
+        tplNote = vbNewLine & "There is no members' template beside the roster, so Member View can't be tested in the copy."
+    End If
+    Workbooks.Open Filename:=target
+    MsgBox "You are now in the practice copy:" & vbNewLine & target & tplNote & vbNewLine & vbNewLine & _
+           "Run SmokeTest here (Alt+F8), or try things by hand. Close it when you are done; delete the Practice folder whenever you like.", _
+           vbInformation, "Practice copy"
+    Exit Sub
+Oops:
+    ReportError "MakePracticeCopy"
+End Sub
 
 ' ---------------- opening checks ----------------
 Public Sub OpenChecks()

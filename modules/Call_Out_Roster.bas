@@ -14,7 +14,7 @@ Option Explicit
 '  (CALLOUT_PHONE_COL in modOvertimeEntry).
 ' ====================================================================
 
-Public Const CO_VERSION As String = "Call out roster v24.1 (Jan 5)"
+Public Const CO_VERSION As String = "Call out roster v24.2 (Jan 5)"
 
 Private Const NAVY_C As Long = 6567966        ' RGB(30, 56, 100)
 Private Const HDR_ROWS As Long = 4            ' title block repeated on every printed page

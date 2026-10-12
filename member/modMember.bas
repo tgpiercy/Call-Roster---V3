@@ -67,6 +67,7 @@ Private Const HOME_FIND As String = "C14"
 Private Const POST_PICK As String = "C2"           ' Postings: "show the list for"
 Private Const CARD_ROW As Long = 21                ' Home: the Where I stand card starts here
 Private Const CAL_COLW As Double = 17              ' calendar: width of each half of a day
+Private Const CAL_MAX_LINES As Long = 6            ' calendar: lines shown per day half; the rest become "... and N more"
 Private Const US As String = "~|~"                 ' separators for the calendar's per-day line lists
 Private Const RS As String = "~#~"
 
@@ -1159,12 +1160,17 @@ Private Function LineCount(ByVal lines As String) As Long
     If lines <> "" Then LineCount = UBound(Split(lines, RS)) + 1
 End Function
 
-' Writes one block of lines (a day's days or nights) into the pair of columns c, c + 1
-Private Sub PaintLines(ByVal ws As Worksheet, ByVal r As Long, ByVal c As Long, ByVal lines As String)
+' Writes one block of lines (a day's days or nights) into the pair of columns c, c + 1.
+' maxRows (M2.1): the block's height; when there are more lines than that, the last row says how many more.
+Private Sub PaintLines(ByVal ws As Worksheet, ByVal r As Long, ByVal c As Long, ByVal lines As String, _
+                       Optional ByVal maxRows As Long = 0)
     If lines = "" Then Exit Sub
     Dim arr As Variant: arr = Split(lines, RS)
     Dim i As Long, p As Variant, col As Long
-    For i = 0 To UBound(arr)
+    Dim nAll As Long: nAll = UBound(arr) + 1
+    Dim nShow As Long: nShow = nAll
+    If maxRows > 0 And nAll > maxRows Then nShow = maxRows - 1
+    For i = 0 To nShow - 1
         p = Split(CStr(arr(i)), US)
         If UBound(p) >= 2 Then
             col = LineColour(CStr(p(2)))
@@ -1179,6 +1185,13 @@ Private Sub PaintLines(ByVal ws As Worksheet, ByVal r As Long, ByVal c As Long, 
             End If
         End If
     Next i
+    If nShow < nAll Then
+        With ws.Cells(r + nShow, c)
+            .Value = "... and " & (nAll - nShow) & " more (pick one group to see them)"
+            .Font.Italic = True
+            .Font.Color = RGB(100, 100, 100)
+        End With
+    End If
 End Sub
 
 ' M2: the master's month grid. Week rows, Sunday to Saturday; each day is two
@@ -1241,6 +1254,8 @@ Public Sub MemberShowCalendar()
                 DayLines v, bag, grp, dTxt(k), nTxt(k), hol(k), cD(k), cN(k)
                 If LineCount(dTxt(k)) > mxD Then mxD = LineCount(dTxt(k))
                 If LineCount(nTxt(k)) > mxN Then mxN = LineCount(nTxt(k))
+                If mxD > CAL_MAX_LINES Then mxD = CAL_MAX_LINES       ' M2.1: a crowded day doesn't stretch the whole week
+                If mxN > CAL_MAX_LINES Then mxN = CAL_MAX_LINES
             End If
         Next k
         ' the date row: the day number (and holiday) | the crews on days / nights
@@ -1282,8 +1297,8 @@ Public Sub MemberShowCalendar()
             If Month(d) = Month(m0) Then
                 ws.Range(ws.Cells(r, c), ws.Cells(r + mxD - 1, c + 1)).Interior.Color = RGB(255, 249, 196)
                 ws.Range(ws.Cells(r + mxD, c), ws.Cells(r + mxD + mxN - 1, c + 1)).Interior.Color = RGB(227, 236, 250)
-                PaintLines ws, r, c, dTxt(k)
-                PaintLines ws, r + mxD, c, nTxt(k)
+                PaintLines ws, r, c, dTxt(k), mxD
+                PaintLines ws, r + mxD, c, nTxt(k), mxN
             Else
                 ws.Range(ws.Cells(r, c), ws.Cells(r + mxD + mxN - 1, c + 1)).Interior.Color = RGB(236, 239, 243)
             End If
@@ -1461,6 +1476,24 @@ Private Function MyStatus(ByVal postId As String, ByVal nm As String, ByVal sign
     If signedTxt <> "" Then MyStatus = "Signed up" & IIf(StrComp(signedTxt, "Yes", vbTextCompare) = 0, "", " (" & signedTxt & ")")
 End Function
 
+' dPost rows in shift-date order: ord(1..nP) = row numbers of p, soonest first
+Private Sub SoonestFirst(ByRef p As Variant, ByVal nP As Long, ByRef ord() As Long)
+    Dim i As Long, j As Long, t As Long
+    If nP < 1 Then Exit Sub
+    ReDim ord(1 To nP)
+    For i = 1 To nP
+        ord(i) = i + 1
+    Next i
+    For i = 2 To nP
+        t = ord(i): j = i - 1
+        Do While j >= 1
+            If Dt(p(ord(j), 3)) <= Dt(p(t, 3)) Then Exit Do
+            ord(j + 1) = ord(j): j = j - 1
+        Loop
+        ord(j + 1) = t
+    Next i
+End Sub
+
 ' M2: mine first (the postings the picked person is qualified for: on the list,
 ' or holding a code in the unit = out of department), then ONE table of every
 ' open posting, then the full list of the posting picked in the box at the top.
@@ -1489,19 +1522,8 @@ Public Sub MemberShowPostings()
         GoTo Finish
     End If
     ' soonest shift first
-    Dim ord() As Long, t As Long
-    ReDim ord(1 To nP)
-    For i = 1 To nP
-        ord(i) = i + 1
-    Next i
-    For i = 2 To nP
-        t = ord(i): j = i - 1
-        Do While j >= 1
-            If Dt(p(ord(j), 3)) <= Dt(p(t, 3)) Then Exit Do
-            ord(j + 1) = ord(j): j = j - 1
-        Loop
-        ord(j + 1) = t
-    Next i
+    Dim ord() As Long
+    SoonestFirst p, nP, ord
 
     ' ---- 1. the postings this person can sign up for ----
     Dim meRow As Long, place As Long, signedTxt As String, statusTxt As String, isSigned As Boolean
@@ -1669,6 +1691,29 @@ Private Function SafeName(ByVal s As String) As String
     If SafeName = "" Then SafeName = "user"
 End Function
 
+' M2.1: the last question before a request is sent. Yes = send it for who. No = it is
+' for someone else: the name is asked for and must be on the published roster.
+' askTxt carries {who} where the name goes. False = nothing is sent.
+Private Function ConfirmFor(ByRef who As String, ByVal askTxt As String, ByVal ttl As String) As Boolean
+    Dim ans As Long, a As Variant, rv As Variant, r As Long
+    ans = MsgBox(Replace(askTxt, "{who}", who) & vbNewLine & vbNewLine & _
+                 "Yes = send it for " & who & "." & vbNewLine & "No = it is for someone else.", vbYesNoCancel + vbQuestion, ttl)
+    If ans = vbCancel Then Exit Function
+    If ans = vbNo Then
+        a = Application.InputBox("Whose is it? Type the name exactly as it is on the Roster sheet.", ttl, Type:=2)
+        If VarType(a) = vbBoolean Then Exit Function
+        rv = Data("dRoster")
+        r = RosterRowOf(rv, Trim$(CStr(a)))
+        If r = 0 Then
+            MsgBox "'" & Trim$(CStr(a)) & "' isn't on the published roster. Nothing was sent.", vbExclamation, ttl
+            Exit Function
+        End If
+        who = Txt(rv(r, RC_NAME))
+        If MsgBox(Replace(askTxt, "{who}", who), vbOKCancel + vbQuestion, ttl) <> vbOK Then Exit Function
+    End If
+    ConfirmFor = True
+End Function
+
 Private Sub SendSignup(ByVal postId As String, ByVal action As String)
     Const TTL As String = "Overtime posting"
     Dim who As String: who = WhoAmI()
@@ -1702,7 +1747,7 @@ Private Sub SendSignup(ByVal postId As String, ByVal action As String)
 
     Dim hrs As Double, a As Variant
     If action = "signup" Then
-        a = Application.InputBox(what & vbNewLine & vbNewLine & "Signing up: " & who & vbNewLine & vbNewLine & _
+        a = Application.InputBox(what & vbNewLine & vbNewLine & "Signing up: " & who & "  (the next box lets you change the name)" & vbNewLine & vbNewLine & _
                                  "For the WHOLE shift, leave this blank and click OK." & vbNewLine & _
                                  "For PART of it, enter the hours you can work.", TTL, Type:=2)
         If VarType(a) = vbBoolean Then Exit Sub                    ' Cancel
@@ -1712,12 +1757,11 @@ Private Sub SendSignup(ByVal postId As String, ByVal action As String)
             If hrs <= 0 Then MsgBox "The hours must be more than 0.", vbExclamation, TTL: Exit Sub
             If hrs >= Num(p(k, 5)) Then hrs = 0                    ' the whole shift
         End If
-        If MsgBox("Sign up " & who & " for" & vbNewLine & what & vbNewLine & _
-                  IIf(hrs > 0, "for " & NumTxt(hrs) & " of the " & NumTxt(Num(p(k, 5))) & " hours?", "for the whole shift?") & vbNewLine & vbNewLine & _
-                  "Your request goes to the supervisors' roster with this PC's login (" & Environ$("USERNAME") & ").", _
-                  vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
+        If Not ConfirmFor(who, "Sign up {who} for" & vbNewLine & what & vbNewLine & _
+                          IIf(hrs > 0, "for " & NumTxt(hrs) & " of the " & NumTxt(Num(p(k, 5))) & " hours?", "for the whole shift?") & vbNewLine & vbNewLine & _
+                          "The request goes to the supervisors' roster with this PC's login (" & Environ$("USERNAME") & ").", TTL) Then Exit Sub
     Else
-        If MsgBox("Withdraw " & who & "'s sign-up for" & vbNewLine & what & "?", vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
+        If Not ConfirmFor(who, "Withdraw {who}'s sign-up for" & vbNewLine & what & "?", TTL) Then Exit Sub
     End If
 
     ' one new file; never an existing one
@@ -1842,8 +1886,12 @@ Private Sub DrawHomeCard()
     ws.Cells(r, 2).Value = "Open postings I can sign up for"
     ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Color = NAVY
     r = r + 1
-    If IsArray(p) Then
-        For i = 2 To UBound(p, 1)
+    Dim ordC() As Long, nPc As Long, q As Long       ' M2.1: soonest shift first, as on the Postings sheet
+    If IsArray(p) Then nPc = UBound(p, 1) - 1
+    If nPc > 0 Then
+        SoonestFirst p, nPc, ordC
+        For q = 1 To nPc
+            i = ordC(q)
             place = MyPlace(l, Txt(p(i, 1)), who, signedTxt)
             placeTxt = ""
             If place > 0 Then
@@ -1863,7 +1911,7 @@ Private Sub DrawHomeCard()
                                        "   |   closes " & Format$(Dt(p(i, 8)), "ddd mmm d") & IIf(statusTxt <> "", "   |   " & statusTxt, "")
                 r = r + 1
             End If
-        Next i
+        Next q
     End If
     If nMine = 0 Then
         ws.Cells(r, 3).Value = "none right now"

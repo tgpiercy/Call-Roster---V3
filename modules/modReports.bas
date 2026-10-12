@@ -22,7 +22,7 @@ Option Explicit
 '  SplitTotals.
 ' ====================================================================
 
-Public Const REP_VERSION As String = "Reports v24.1 (Jan 5)"
+Public Const REP_VERSION As String = "Reports v24.2 (Jan 5)"
 
 ' what SplitTotals keeps per person: a Variant array with these indexes
 Public Const SP_CALLOUT As Long = 0     ' hours
@@ -118,6 +118,56 @@ Public Function SplitNow() As Object
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim sRow As Long: sRow = PStartRow()
     Set SplitNow = SplitTotals(lg, CLng(ws.Cells(sRow, C_PERIOD1).Value2), CLng(ws.Cells(sRow, PeriodLastCol()).Value2))
+End Function
+
+' v24.2: the same split for part of the year (period start numbers, both ends included)
+Public Function SplitBetween(ByVal firstStart As Long, ByVal lastStart As Long) As Object
+    Dim lo As ListObject: Set lo = QuietLog()
+    Dim lg As Variant
+    If Not lo Is Nothing Then
+        If LogLayoutCurrent(lo) Then
+            If Not lo.DataBodyRange Is Nothing Then lg = RangeTo2D(lo.DataBodyRange)
+        End If
+    End If
+    Set SplitBetween = SplitTotals(lg, firstStart, lastStart)
+End Function
+
+' v24.2: which pay periods the report covers. The box opens on "1-<current period>"
+' (year to date). False = cancelled.
+Private Function AskReportRange(ByRef firstStart As Long, ByRef lastStart As Long, ByRef rangeTxt As String, _
+                                ByRef wholeYear As Boolean) As Boolean
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim nPer As Long: nPer = PeriodLastCol() - C_PERIOD1 + 1
+    Dim base As Long: base = CLng(ws.Cells(PStartRow(), C_PERIOD1).Value2)
+    Dim cur As Long: cur = PeriodColumn(PeriodStartFor(Date)) - C_PERIOD1 + 1
+    If cur < 1 Or cur > nPer Then cur = nPer
+    Dim a As Variant, t As String, dash As Long, pFrom As Long, pTo As Long, s1 As String, s2 As String
+    Do
+        a = Application.InputBox("Pay periods to include, as  from-to  (1 to " & nPer & ")." & vbNewLine & vbNewLine & _
+                                 "Period " & cur & " is the current one, so  1-" & cur & "  is the year to date." & vbNewLine & _
+                                 "For the whole year enter  1-" & nPer & ".", "Refusals Report", "1-" & cur, Type:=2)
+        If VarType(a) = vbBoolean Then Exit Function
+        t = Replace(Trim$(CStr(a)), " ", "")
+        pFrom = 0: pTo = 0
+        dash = InStr(t, "-")
+        If dash > 1 Then
+            s1 = Left$(t, dash - 1): s2 = Mid$(t, dash + 1)
+        Else
+            s1 = t: s2 = t
+        End If
+        If Len(s1) >= 1 And Len(s1) <= 2 And Len(s2) >= 1 And Len(s2) <= 2 Then
+            If s1 Like String$(Len(s1), "#") And s2 Like String$(Len(s2), "#") Then pFrom = CLng(s1): pTo = CLng(s2)
+        End If
+        If pFrom >= 1 And pTo >= pFrom And pTo <= nPer Then Exit Do
+        MsgBox "Enter two period numbers with a dash between them, for example  1-" & cur & ".  They run from 1 to " & nPer & ".", _
+               vbExclamation, "Refusals Report"
+    Loop
+    firstStart = base + 14 * (pFrom - 1)
+    lastStart = base + 14 * (pTo - 1)
+    wholeYear = (pFrom = 1 And pTo = nPer)
+    rangeTxt = "pay periods " & pFrom & " to " & pTo & " (" & Format$(CDate(firstStart), "mmm d, yyyy") & " to " & _
+               Format$(CDate(lastStart + 13), "mmm d, yyyy") & ")"
+    AskReportRange = True
 End Function
 
 ' One person's split. False when they have nothing charged this year.
@@ -221,6 +271,8 @@ Public Sub RefusalsReport()
     If LogTable() Is Nothing Then Exit Sub
     Dim unit As String, allUnits As Boolean
     If Not AskReportUnit(unit, allUnits) Then Exit Sub
+    Dim firstStart As Long, lastStart As Long, rangeTxt As String, wholeYear As Boolean
+    If Not AskReportRange(firstStart, lastStart, rangeTxt, wholeYear) Then Exit Sub
 
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -230,7 +282,7 @@ Public Sub RefusalsReport()
     Application.EnableEvents = False
 
     ' ---- who, and their home unit ----
-    Dim splitMap As Object: Set splitMap = SplitNow()
+    Dim splitMap As Object: Set splitMap = SplitBetween(firstStart, lastStart)
     Dim homeOf As Object: Set homeOf = CreateObject("Scripting.Dictionary")
     homeOf.CompareMode = 1
     Dim rs As Worksheet: Set rs = RosterSheet()
@@ -279,8 +331,9 @@ Public Sub RefusalsReport()
     Const NC As Long = 8
     ws.Range("A1").Value = "REFUSED HOURS BY KIND  -  " & IIf(allUnits, "all units", unit) & "  -  " & RosterYear()
     ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 13
-    ws.Range("A2").Value = "Charged hours in the OT Log for pay periods " & Format$(RosterYearFrom(), "mmm d, yyyy") & " to " & _
-                           Format$(RosterYearTo(), "mmm d, yyyy") & ", not void.  Call-out + Posting + Other = Refused on the roster.  " & _
+    ws.Range("A2").Value = "Charged hours in the OT Log for " & rangeTxt & ", not void.  " & _
+                           IIf(wholeYear, "Call-out + Posting + Other = Refused on the roster.  ", _
+                               "Part of the year: the totals are less than Refused on the roster for anyone charged outside these periods.  ") & _
                            "Drawn " & Format$(Now, "mmm d, yyyy h:mm AM/PM") & "."
     ws.Range("A2").Font.Italic = True: ws.Range("A2").Font.Size = 8.5
     ws.Range("A4").Resize(1, NC).Value = Array("Home Unit", "Employee", "Call-out hours", "Call-out refusals", _

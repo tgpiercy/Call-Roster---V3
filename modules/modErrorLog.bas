@@ -73,7 +73,6 @@ Public Function ErrorLogTable(Optional ByVal create As Boolean = False) As ListO
         ws.Columns(6).ColumnWidth = 9
         ws.Columns(7).ColumnWidth = 7
         ws.Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
-        ws.Range(ws.Columns(3), ws.Columns(5)).NumberFormat = "@"      ' text: an error message starting "=" or "-" is not a formula
         ProtectSheet ws
         ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
@@ -102,9 +101,9 @@ Public Function LogError(ByVal proc As String, ByVal errNumber As Long, ByVal er
     Dim rec(1 To 1, 1 To EL_N) As Variant
     rec(1, 1) = Now
     rec(1, 2) = CurrentUser()
-    rec(1, 3) = Left$(proc, 120)
-    rec(1, 4) = IIf(errNumber <> 0, "#" & errNumber & "  ", "") & Left$(errText, EL_MAX_TEXT)
-    rec(1, 5) = Left$(detail, EL_MAX_TEXT)
+    rec(1, 3) = AsCellText(Left$(proc, 120))
+    rec(1, 4) = AsCellText(IIf(errNumber <> 0, "#" & errNumber & "  ", "") & Left$(errText, EL_MAX_TEXT))
+    rec(1, 5) = AsCellText(Left$(detail, EL_MAX_TEXT))
     rec(1, 6) = EXPECTED_RELEASE
     rec(1, EL_SEEN) = ""
     ws.Unprotect Password:=SHEET_PASSWORD
@@ -117,6 +116,14 @@ Quit:
     On Error Resume Next
     Application.EnableEvents = evWas
     MarkCalDirty                                   ' Needs Attention's error line
+End Function
+
+' Text that starts like a formula ("=", "+", "-", "@") gets a leading apostrophe, so Excel keeps it as text
+Private Function AsCellText(ByVal s As String) As String
+    If s <> "" Then
+        If InStr("=+-@", Left$(s, 1)) > 0 Then s = "'" & s
+    End If
+    AsCellText = s
 End Function
 
 ' One line appended to "Roster error log.txt" beside the workbook. Quiet on any failure.
@@ -156,7 +163,8 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
     gCalPostKey = ""                               ' a calendar line picked for a posting that never got made
     Dim lineNo As Long: lineNo = LogError(proc, en, em, detail)
     MsgBox "This didn't finish." & vbNewLine & vbNewLine & _
-           "Anything it did before the error is still in the workbook and is saved when you close." & vbNewLine & _
+           "Anything it did before the error is still in the workbook" & _
+           IIf(NoSave() Or ThisWorkbook.ReadOnly, " (this copy can't be saved).", " and is saved when you close.") & vbNewLine & _
            "Check what you were doing (run it again if it was an import), and tell Graeme:" & vbNewLine & _
            "Error Log line " & IIf(lineNo > 0, CStr(lineNo), "(not written)") & "  -  " & proc & vbNewLine & vbNewLine & _
            Left$(em, 200), vbExclamation, "Call Out Roster"

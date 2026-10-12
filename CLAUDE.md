@@ -20,6 +20,7 @@ An Excel desktop `.xlsm` (VBA) overtime call-out system for Syensqo's Niagara Fa
 modules/     *.bas  standard modules (file name = VB_Name), imported via File > Import
 paste-in/    *.txt  code for ThisWorkbook and each UserForm (pasted with Ctrl+A); no Attribute lines
 member/      the members' workbook: modMember.bas + its ThisWorkbook.txt (a separate .xlsm, no master names)
+updater/     modUpdater.bas: the Roster Updater, imported into its OWN workbook (never into the roster)
 briefs/      one brief per update (v21.md, M1.md, v22.md ...)
 docs/        planning docs, install notes (INSTALL-vNN.md), report-backs, the code kit as supplied
 tests/       Python mirrors of the pure rules + known-answer cases + static checks (see Tooling)
@@ -29,7 +30,7 @@ CHANGELOG.md
 **Never commit data:** no `*.xls*`, Kronos exports, posting PDFs or plant CSVs (names, phones, emails, leave codes). Test fixtures use made-up names only.
 
 ## Workbook map (as built, v21 + M1)
-### Modules (20 checked by SystemCheck, plus 6 legacy)
+### Modules (22 checked by SystemCheck, plus 6 legacy; the updater lives in its own workbook)
 | Module | Holds |
 |---|---|
 | `modOvertimeEntry` | **All settings** at the top (`ADMIN_USERS`, folders, Kronos path, `KRONOS_STALE_DAYS`, `DST_USE_ACTUAL_HOURS`, `BACKUP_FOLDER`, member file names ...), roster column constants, `EmpRec`, `LoadEligible` (the one call order), `CalloutCharge`, provisional-OT formulas, OT Log access (`AppendLogRows`), protection, `ApplyView`. Every other module depends on it. |
@@ -54,6 +55,8 @@ CHANGELOG.md
 | `modPeople` | v24: crew history (`tblCrewHistory`, `CrewOn`, pure `CrewOnCore`, the typed-crew prompt), the Employee pop-up's work (`SaveNewHire`, `SaveUnitMove`, `RenameEverywhere`, `RemoveEmployee`, `BringBack`), the Former sheet (`tblFormer`, `FormerNameSet`), `SetupPeople`, the shared before/after check (`RosterTotalsMap`, `TotalsDifference`) |
 | `modReports` | v24.1: Refused hours by kind, display only (`RefusedBucket`, `SplitTotals`, the status-bar line for the selected row, `RefusalsReport`) |
 | `modSignups` | v24.1: the electronic sign-up inbox (`ReadSignups`, pure `ReduceSignups`, `ApplySignups` for the Award pop-up, `ArchiveSignups`); off unless `SIGNUPS_ON` |
+| `modErrorLog` | v24.2: `LogError` (never raises), `ReportError` (the entry points' handler: logs, closes pop-ups, plain message), `ShowErrorLog`, `ErrorLogTest`; also writes `Roster error log.txt` beside the roster |
+| `modSmokeTest` | v24.2: `SmokeTest`, practice copies only, never saves: 13 steps through the pop-ups' own functions, totals must come back. Holds no rules |
 | `Call_Out_Roster` | Printed call-out roster (`Call_Out`), redrawn from the data |
 | `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess`, `modCleanup` | Sort buttons, legacy posting print, admin, one-time cleanup (not version-checked) |
 
@@ -63,7 +66,7 @@ CHANGELOG.md
 ### Sheets and tables
 | Sheet | Notes |
 |---|---|
-| `OT Roster` | Rows 1-4 command bar + navy date block (period start / "to" / end); frozen panes. **A hidden (empty), B = Home Unit, C hidden = Provisional accepted OT (formula)**, D name, E crew, F phone, G Total Hours = H + I + C, H Worked (Kronos), I Refused = SUM(periods), J Plant Seniority, K EMAIL, L:S unit code columns (grade codes like D1.5, P2), T:AS pay-period columns = **SUMIFS over the OT Log**. |
+| `OT Roster` | Rows 1-4 command bar + navy date block (period start / "to" / end); frozen panes. **A = Payroll # (v24.2, `C_PAYROLL`: admin view only, filled by the Kronos import, not a key yet), B = Home Unit, C hidden = Provisional accepted OT (formula)**, D name, E crew, F phone, G Total Hours = H + I + C, H Worked (Kronos), I Refused = SUM(periods), J Plant Seniority, K EMAIL, L:S unit code columns (grade codes like D1.5, P2), T:AS pay-period columns = **SUMIFS over the OT Log**. |
 | `OT Log` (`tblOTLog`) | **Append-only, newest first.** Event: Ref ID, Type, Shift Date, Unit, Shift, Crew, Reason, Hours. Person: Call Order, Employee, Dept Code, Total Hrs Then, Outcome, Note, Hours Charged, Period Start. Audit (grouped): Entry ID, Logged By, Timestamp, Status, Void Note. Adjustment rows carry their type in **Reason** (column 7). |
 | `Postings` (`tblPostings`, `tblPostingList`) | Posting header + frozen list with hours at posting time. v24: the list's 10th column `Signup Hours` (blank = whole shift); a Result starting `Exempt` = moved unit or left, never charged on that posting |
 | `Absences` (`tblAbsence`) | One row per booking; start/end (blank end = open-ended), hours per shift, times note. Admin only, hidden in saved copies. |
@@ -76,6 +79,7 @@ CHANGELOG.md
 | `Attendance` | v22.1: drawn sick / personal day counters per person (admin, hidden in saved copies). v24.1: one row per person with a column per occurrence, only people with something logged, three sorts. The SHEET is never published; since M2 the five COUNTS per person are (see Privacy) |
 | `Refusal Report` | v24.1: output-only, redrawn by `RefusalsReport` (admin) |
 | `Integrity` | v23: the last IntegrityCheck report (admin, drawn) |
+| `Error Log` (`tblErrorLog`) | v24.2: When, User, Procedure, Error, Detail, Release, Seen. Admin, never published |
 | `Year End` (`tblYearEnd`) | v23: each person's final G / H / I / C per closed year (admin) |
 | `OT Log 2026` ... (`tblOTLog2026`) | v23: one per closed year, the archived log rows; protected even in admin view |
 | `Crew History` (`tblCrewHistory`) | v24: Employee, Crew, Effective From (+ who, when). Admin. Roster column E shows the newest row |
@@ -141,6 +145,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 11. **Flat, list-shaped tables** (one header row, stable names, no merged cells) so they can become SharePoint Lists later.
 12. **Messages** tell a supervisor what to do next, in plain words.
 13. **Names are an interface.** Public procedure names that buttons call (OnAction in `BuildCommandBar`) and macro names in install notes don't change. If a rename is unavoidable, `ApplyRosterLayout` must rebuild the buttons and the install note must say so.
+15. **Entry points catch errors (v24.2).** A button macro, a macro that opens a pop-up, or a workbook event starts with `On Error GoTo Oops` and ends `Exit Sub / Oops: / ReportError "Name"`. Inside it, restore a handler with `On Error GoTo Oops`, never `On Error GoTo 0`. A handler that already restores state and shows its own message adds `LogError "Name", Err.Number, em` right AFTER it has captured `em = Err.Description` (LogError clears Err). An error inside a pop-up travels up to the macro that opened it.
+16. **SmokeTest switch (v24.2).** `gSmokeRun` is True only while SmokeTest runs on a practice copy. New confirms on a path SmokeTest uses go through `Ask(prompt, buttons, title, smokeAnswer)` and success messages through `Tell`; `SaveIfWritable` does nothing while it is on. Never test `gSmokeRun` to change a rule.
 14. **File format:** CRLF and ASCII only in `.bas` and paste-in `.txt` (`.gitattributes` enforces CRLF; write `->`, `-`, `...`). Every `.bas` starts with `Attribute VB_Name`. Every file has `Option Explicit`.
 
 ### VBA compile and runtime traps to check in review
@@ -163,6 +169,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - `python tests/shadowcheck.py .`: locals hiding procedures.
 - `python tests/undeclcheck.py .`: names used but declared nowhere ("Variable not defined"), and declared names that are VBA reserved words ("Syntax error").
 - `python tests/callcheck.py .`: duplicate declarations, missing GoTo labels, ambiguous names inside a module, wrong argument counts on calls to our own procedures, `Foo(a, b)` called as a statement, ByRef argument type mismatches, fields a Type doesn't have.
+- Patch scripts: write them with the Write tool into the scratchpad and run them as files. Heredocs in this shell mangle quotes and backslashes.
 - **Run all four checkers (vbacheck, shadowcheck, undeclcheck, callcheck) before every review and every zip.** Two compile errors shipped in M1 through v23 and were found by Graeme at install (Oct 12, 2026: an undeclared `cap` and a variable named `single` in modPublish). Three rounds of reviewers reading the code missed both; the checkers find both. A clean run is good evidence, not proof: nothing here is a compiler.
 - `python tests/build_zip.py vNN vPREV`: builds `dist/Callout_Roster_vNN.zip` from `docs/INSTALL-vNN.md`. From v22 on every zip holds the **full** module, paste-in and member set, so it can serve as the master.
 - Python 3.12 is at `C:\Users\Graeme\AppData\Local\Programs\Python\Python312\python.exe` (no pytest); pytest is on `py -3.14`. GNU `sed -i` strips CRs in this shell: re-run the CRLF fix on any file it touches.
@@ -200,6 +207,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - `BACKUP_FOLDER = "."`: daily backups go into the roster's own folder (`ResolveFolder` handles "." and ".\sub"). Can be pointed at a network folder later. `ARCHIVE_FOLDER = "."` the same way.
 - v24 (Oct 12, 2026): refusers are charged the posting's full hours when only a partial is awarded; a partial award while a full-shift sign-up is free is **blocked**; Remove **moves the row to a Former sheet** (Graeme chose it over the brief's inactive flag: not date-aware, so it is run on or after the last day); someone who moves or leaves is never charged on open postings from that date; a rename leaves closed-year sheets (`OT Log 2026`, `Year End`) under the old name with a note on the Grade Log; a unit move's date is today or earlier (unit codes aren't dated), a crew change may be future-dated; one v24 install.
 - v24.1 + M2 (Oct 12, 2026): Refused split shown on the **status bar + members' file + report, no roster columns**; "other" only when not zero; members see **who** signed up (as on paper); call-out refusers after a partial acceptance are charged **the hours on offer** (postings stay at the full posting hours); Find me does **not** remember the person; members' postings = the ones they are qualified for (listed, then out of department = a code in the unit) plus one plain table; **sick-time counts only** are published for the picked name; planned unit moves are **v24.2**.
+- v24.2 (Oct 12, 2026): install kit first, planned moves as v24.3; Payroll # captured now, lookups switch in v25.1; **the updater never lives in the roster** (v1 ran inside it and crashed Excel: it is a separate workbook, and it swaps code in place rather than remove + import); rules that live only in pop-ups stay there until v25 and SmokeTest lists them as not covered; a practice copy publishes only `PRACTICE - ...` beside itself; `Roster error log.txt` sits beside the roster (decide where it goes when `PUBLISH_FOLDER` moves to the members' network folder: it must not end up where members can read it).
 - Year end (v23): old log rows are archived AND removed at the rollover (Graeme chose the brief's option over keeping one growing log); 26- and 27-period years are both handled now; nothing is built for OT worked Dec 27-31 or for Kronos year-to-date until the first January 2027 export is seen; the rollover is run by Graeme with his boss; IntegrityCheck PROBLEMs block it, Checks don't; the live file can't be rolled before the new year's first period starts.
 
 ## Still open (use the default unless Graeme answers)
@@ -223,7 +231,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | built, tagged `v23`; dry run on a copy first week of December |
 | v24 | install Jan 5 - 15, 2027 | Employee pop-up, crew history, partial OT | built, tagged `v24`; needs the rollover done first |
 | v24.1 + M2 | with v24, or after Jan 23 | Refused by kind + report, Attendance tab, part-accepted call-outs, sign-up inbox, publish reminder; members: Find me, month grid, my postings, Sign me up, sick-time counts | built, tagged `v24.1` |
-| v24.2 | after v24.1 | Unit moves entered ahead of time (planned moves, applied on the day) | brief: section 7 of `briefs/v24.1.md` |
+| v24.2 + M2.1 | with or after v24.1 | Install kit: error log, SmokeTest, practice copy, Roster Updater (own workbook); Payroll # capture; Refusals Report range; members' fixes from the Oct 12 test | built, tagged `v24.2` |
+| v24.3 | after v24.2 | Unit moves entered ahead of time (planned moves, applied on the day) | brief: item 4 of `briefs/v24.2.md` and section 7 of `briefs/v24.1.md`; open question: the mover's hours on new-unit lists before the move |
 | v25 | Feb-Mar 2027 | Employee ID key, protection, calendar speed | kit brief 06 |
 | v26 | Mar 2027+ | History report, staffing check, board print, payback aging | kit brief 07 |
 

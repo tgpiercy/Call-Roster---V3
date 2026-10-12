@@ -136,14 +136,16 @@ Public Sub SmokeTest()
 
     Dim head As String
     If failedAt > 0 Then
-        head = "SMOKE TEST FAILED at step " & failedAt & "." & vbNewLine & "Send me this box (a photo is fine)."
+        head = "SMOKE TEST FAILED at step " & failedAt & " (" & SmkName(failedAt) & "):" & vbNewLine & Left$(why, 250) & vbNewLine & _
+               "Send me this box (a photo is fine)."
     ElseIf diff <> "" Then
         head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
     Else
         head = "SMOKE TEST PASSED: all steps OK, totals unchanged."
     End If
     If Len(head) > 420 Then head = Left$(head, 400) & " ..." & vbNewLine
-    MsgBox head & vbNewLine & vbNewLine & Left$(rep, 480) & vbNewLine & _
+    If Len(rep) > 880 - Len(head) Then rep = Left$(rep, 860 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters
+    MsgBox head & vbNewLine & vbNewLine & rep & vbNewLine & _
            "Saving is blocked in this copy. Close it; nothing is kept.", _
            IIf(failedAt = 0 And diff = "", vbInformation, vbCritical), TTL & "  (" & EXPECTED_RELEASE & ")"
     Exit Sub

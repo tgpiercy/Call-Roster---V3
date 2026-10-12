@@ -329,8 +329,7 @@ Private Sub UpdRun(ByVal checkOnly As Boolean)
            "2. NO message: Alt+F8 > UpdateFinished. It saves and tells you what is next." & vbNewLine & _
            "    A message: note the line it highlights, then Alt+F8 > UpdateDrop." & vbNewLine & _
            "    It closes without saving; your file stays exactly as it was." & vbNewLine & _
-           "    Do NOT press Ctrl+S: with a compile error the save block may not hold." & vbNewLine & _
-           "    (Closing by hand instead? Click DON'T SAVE.)" & vbNewLine & vbNewLine & _
+           "    Do NOT press Ctrl+S (with a compile error the block may not hold). Closing by hand: DON'T SAVE." & vbNewLine & vbNewLine & _
            "Backup: " & bk & vbNewLine & "Report: " & repPath, vbInformation, UPD_TITLE
 End Sub
 

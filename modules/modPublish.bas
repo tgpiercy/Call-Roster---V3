@@ -108,6 +108,12 @@ End Sub
 
 ' PUBLISH_FOLDER with "." (the roster's own folder) and ".\sub" resolved
 Public Function PublishFolderPath() As String
+    ' v24.2: a practice copy (COPY / DRY RUN in its name) only ever uses its own folder, wherever
+    ' PUBLISH_FOLDER points - so its publish and its sign-up inbox can't reach the real ones
+    If IsDryRunName(ThisWorkbook.Name) Then
+        PublishFolderPath = EnsureSlash(ThisWorkbook.Path)
+        Exit Function
+    End If
     Dim pf As String: pf = Trim$(PUBLISH_FOLDER)
     If pf = "" Or pf = "." Then
         pf = ThisWorkbook.Path
@@ -150,8 +156,8 @@ Public Sub PublishMembers()
         Exit Sub
     End If
     Dim folder As String: folder = PublishFolderPath()
-    ' v24.2: a practice copy only ever writes beside itself, wherever PUBLISH_FOLDER points
-    If IsDryRunName(ThisWorkbook.Name) Then folder = EnsureSlash(ThisWorkbook.Path)
+    ' v24.2: a practice copy writes "PRACTICE - ..." beside itself (see PublishFolderPath), never the members' file
+    Dim outName As String: outName = IIf(IsDryRunName(ThisWorkbook.Name), "PRACTICE - ", "") & MEMBER_FILE_NAME
     If gSmokeRun Then                              ' v24.2: SmokeTest publishes a scratch copy, never the members' file
         gSmokeSaved = ""
         If Trim$(gSmokeFolder) = "" Then Exit Sub
@@ -212,7 +218,7 @@ Public Sub PublishMembers()
     End If
 
     ' ---- 3. fill the template and save it as the members' file ----
-    Application.StatusBar = "Publishing the members' file: writing " & MEMBER_FILE_NAME & " ..."
+    Application.StatusBar = "Publishing the members' file: writing " & outName & " ..."
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim secWas As Long: secWas = Application.AutomationSecurity
     Dim wb As Workbook, em As String, savedAs As String, redrawn As Boolean
@@ -267,13 +273,13 @@ Public Sub PublishMembers()
 
     Application.DisplayAlerts = False
     On Error Resume Next
-    wb.SaveAs Filename:=folder & MEMBER_FILE_NAME, FileFormat:=52    ' 52 = .xlsm
+    wb.SaveAs Filename:=folder & outName, FileFormat:=52    ' 52 = .xlsm
     If Err.Number = 0 Then
-        savedAs = folder & MEMBER_FILE_NAME
+        savedAs = folder & outName
     Else
         em = Err.Description
         Err.Clear
-        savedAs = folder & Replace(MEMBER_FILE_NAME, ".xlsm", "") & " " & Format$(Now, "yyyy-mm-dd hhmm") & ".xlsm"
+        savedAs = folder & Replace(outName, ".xlsm", "") & " " & Format$(Now, "yyyy-mm-dd hhmm") & ".xlsm"
         wb.SaveAs Filename:=savedAs, FileFormat:=52
         If Err.Number <> 0 Then em = em & " / " & Err.Description: savedAs = ""
         Err.Clear
@@ -288,7 +294,7 @@ Public Sub PublishMembers()
 
     If savedAs = "" Then
         MsgBox "The members' file couldn't be saved:" & vbNewLine & em & vbNewLine & vbNewLine & _
-               "Is " & MEMBER_FILE_NAME & " open on a plant PC? Close it there and publish again.", vbCritical, "Member View"
+               "Is " & outName & " open on a plant PC? Close it there and publish again.", vbCritical, "Member View"
         Exit Sub
     End If
     If gSmokeRun Then                              ' the scratch copy is written: nothing about the real publish changes
@@ -296,7 +302,7 @@ Public Sub PublishMembers()
         Exit Sub
     End If
     SetPublishedAt Now
-    If savedAs = folder & MEMBER_FILE_NAME Then ClearMembersDirty     ' a dated copy (file open on a plant PC) leaves members behind
+    If savedAs = folder & outName Then ClearMembersDirty     ' a dated copy (file open on a plant PC) leaves members behind
     On Error Resume Next
     MarkCalDirty                                   ' Needs Attention's "members file" line
     SaveIfWritable                                 ' keeps the published-at stamp
@@ -306,8 +312,8 @@ Public Sub PublishMembers()
           nR & " people, " & nN & " who's-next rows, " & nC & " calendar lines, " & nP & " open posting(s), " & nL & " log rows." & _
           IIf(redrawn, "", vbNewLine & vbNewLine & "Its views couldn't be redrawn (macros didn't run in the template); " & _
           "members will see them refresh when they open it with macros on.")
-    If savedAs <> folder & MEMBER_FILE_NAME Then
-        msg = msg & vbNewLine & vbNewLine & "NOTE: " & MEMBER_FILE_NAME & " is open somewhere (" & em & "), so this copy was " & _
+    If savedAs <> folder & outName Then
+        msg = msg & vbNewLine & vbNewLine & "NOTE: " & outName & " is open somewhere (" & em & "), so this copy was " & _
               "saved with the date in its name. Members still see the old one until it's closed and you publish again."
     End If
     MsgBox msg, vbInformation, "Member View"
@@ -337,8 +343,8 @@ OpenFailed:
     Exit Sub
 WriteFailed:
     em = Err.Description
-    ' 601 - 606 are refusals that say what to do (an old template): not errors for the log
-    If Err.Number < vbObjectError + 601 Or Err.Number > vbObjectError + 606 Then LogError "PublishMembers", Err.Number, em
+    ' 601 - 605 are refusals that say what to do (an old template): not errors for the log
+    If Err.Number < vbObjectError + 601 Or Err.Number > vbObjectError + 605 Then LogError "PublishMembers", Err.Number, em
     On Error Resume Next
     Application.DisplayAlerts = False
     If Not wb Is Nothing Then wb.Close SaveChanges:=False

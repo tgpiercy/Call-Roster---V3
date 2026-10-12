@@ -393,6 +393,10 @@ Private Sub LayoutHome()
     End With
     ws.Range("B3").Font.Size = 9: ws.Range("B3").Font.Color = RGB(100, 100, 100)
     ws.Range("B4").Font.Size = 9: ws.Range("B4").Font.Color = RGB(100, 100, 100)
+    ws.Range("B5:H5").Merge                          ' M2.1: the warning line (HomeNote). Row heights are set
+    ws.Range("B5").WrapText = True                   ' BEFORE the buttons are placed: they don't move with cells
+    ws.Range("B5").VerticalAlignment = xlTop
+    ws.Rows(5).RowHeight = 30
     Dim top As Double: top = ws.Range("B7").Top
     Dim lft As Double: lft = ws.Range("B7").Left
     Btn ws, "mb_roster", "ROSTER", "MemberGoRoster", lft, top, 150, 44, NAVY, vbWhite
@@ -415,10 +419,6 @@ Private Sub LayoutHome()
     ws.Rows(17).RowHeight = 30
     ws.Range("B19").Value = MEM_VERSION
     ws.Range("B19").Font.Size = 8: ws.Range("B19").Font.Color = RGB(160, 165, 175)
-    ws.Range("B5:H5").Merge                          ' M2.1: the warning line (HomeNote)
-    ws.Range("B5").WrapText = True
-    ws.Range("B5").VerticalAlignment = xlTop
-    ws.Rows(5).RowHeight = 30
     ProtectWs ws
 End Sub
 
@@ -1103,6 +1103,7 @@ Public Sub MemberShowNext()
         ws.Cells(6, 2).Value = "No one is free for that shift (or the date is outside the published " & Txt(Meta("Who's next days")) & " days)."
         ws.Cells(6, 2).Font.Italic = True
     End If
+    Err.Clear                                    ' (a normal arrival carries no error)
 Fail:                                            ' reached normally, or from an error anywhere above
     If Err.Number <> 0 Then mViewErr = "Who's next: " & Err.Description
     On Error Resume Next
@@ -1551,6 +1552,7 @@ Public Sub MemberShowPostings()
     If IsArray(p) Then nP = UBound(p, 1) - 1
     If nP < 1 Then
         ws.Cells(r, 1).Value = "No open postings."
+        Err.Clear
         GoTo Finish
     End If
     ' soonest shift first
@@ -1681,6 +1683,7 @@ Public Sub MemberShowPostings()
         ws.Cells(r, 1).Value = "Pick a posting in the box at the top to see everyone listed on it."
         ws.Cells(r, 1).Font.Size = 8.5: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = RGB(100, 100, 100)
     End If
+    Err.Clear                                    ' (a normal arrival carries no error)
 Finish:
     If Err.Number <> 0 Then mViewErr = "the Postings: " & Err.Description
     On Error Resume Next
@@ -2102,6 +2105,7 @@ Private Sub DrawHistory(ByVal nm As String)
         r = r + 1
         ws.Cells(r, 1).Value = "  other (adjustments)": ws.Cells(r, 2).Value = kOther: ws.Cells(r, 2).HorizontalAlignment = xlCenter
     End If
+    Err.Clear                                    ' (a normal arrival carries no error)
 Fail:                                            ' reached normally, or from an error anywhere above
     If Err.Number <> 0 Then mViewErr = "My history: " & Err.Description
     On Error Resume Next
@@ -2123,7 +2127,7 @@ Public Sub MemberGoHistory(): WsOf(SH_HIST).Activate: End Sub
 
 Public Sub MemberOnOpen()
     On Error Resume Next
-    Application.EnableEvents = True                ' M2.1: a session left with events off would make this file ignore every pick
+    Application.EnableEvents = True                ' (only matters when this is run by hand: with events off, Excel never calls it on open)
     MemberRefreshAll
     WsOf(SH_HOME).Activate
     ActiveWindow.DisplayGridlines = False

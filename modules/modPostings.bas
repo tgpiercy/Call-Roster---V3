@@ -1879,6 +1879,7 @@ Public Sub ReopenPosting()
     UpdateCoverageBySource p.ID, "POSTED " & p.ID
     RefreshCalendar
     On Error GoTo 0
+    RestoreSignups CStr(id)             ' v24.1: its electronic sign-ups count again
     MarkMembersDirty
     SaveIfWritable
     MsgBox id & " is open again.", vbInformation

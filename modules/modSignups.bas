@@ -57,7 +57,7 @@ Public Const SR_N As Long = 5
 ' rows(1..n, 1..SG_N) in any order. For each employee the action with the
 ' latest stamp wins (of two with the same stamp, the later row). People
 ' whose newest action is "signup" come back in out(1..m, 1..SR_N), in the
-' order their newest action was found. closesAt = 0 means "never late".
+' order each name first appeared. closesAt = 0 means "never late".
 Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByRef out() As Variant) As Long
     If Not IsArray(rows) Then Exit Function
     Dim newest As Object: Set newest = CreateObject("Scripting.Dictionary")
@@ -132,55 +132,43 @@ Private Function StampOf(ByVal s As String) As Date
               TimeSerial(CLng(Mid$(s, 12, 2)), CLng(Mid$(s, 15, 2)), CLng(Mid$(s, 18, 2)))
 End Function
 
-' The inbox files for one posting: rows(1..n, 1..SG_N), or Empty.
-Public Function ReadSignups(ByVal postingId As String) As Variant
+' The inbox files for one posting: rows(1..n, 1..SG_N), or Empty. A file that
+' can't be opened or read (locked by the PC still writing it, antivirus) is
+' skipped on its own, so it never hides the others; skipped says how many.
+Public Function ReadSignups(ByVal postingId As String, Optional ByRef skipped As Long) As Variant
+    skipped = 0
     Dim folder As String: folder = SignupFolderPath()
     If folder = "" Then Exit Function
     If Not FolderExists(folder) Then Exit Function
     postingId = UCase$(Trim$(postingId))
     Dim files() As String, n As Long, f As String
-    On Error GoTo Quit
+    On Error Resume Next
     f = Dir$(folder & postingId & "__*.txt")
-    Do While f <> ""
+    Do While f <> "" And Err.Number = 0
         n = n + 1
         ReDim Preserve files(1 To n)
         files(n) = f
         f = Dir$()
     Loop
+    On Error GoTo 0
     If n = 0 Then Exit Function
     Dim rows() As Variant: ReDim rows(1 To n, 1 To SG_N)
-    Dim i As Long, k As Long, ff As Integer, ln As String, p As Long, key As String, valTxt As String
+    Dim i As Long, k As Long, p As Long
     Dim post As String, emp As String, hrs As Double, act As String, login As String, stamp As Date
     For i = 1 To n
-        post = "": emp = "": hrs = 0: act = "": login = "": stamp = 0
-        ff = FreeFile
-        Open folder & files(i) For Input Access Read Shared As #ff
-        Do While Not EOF(ff)
-            Line Input #ff, ln
-            p = InStr(ln, "=")
-            If p > 1 Then
-                key = LCase$(Trim$(Left$(ln, p - 1)))
-                valTxt = Trim$(Mid$(ln, p + 1))
-                Select Case key
-                    Case "posting": post = UCase$(valTxt)
-                    Case "employee": emp = valTxt
-                    Case "hours": If IsNumeric(valTxt) Then hrs = CDbl(valTxt)
-                    Case "action": act = LCase$(valTxt)
-                    Case "login": login = Left$(valTxt, 40)
-                    Case "stamp": stamp = StampOf(valTxt)
-                End Select
+        If ReadOneSignup(folder & files(i), post, emp, hrs, act, login, stamp) Then
+            ' the file must say the same posting as its name, and be complete
+            If post = postingId And emp <> "" And stamp > 0 And (act = "signup" Or act = "withdraw") Then
+                k = k + 1
+                rows(k, SG_EMP) = Left$(emp, 80)
+                rows(k, SG_HOURS) = IIf(hrs > 0, hrs, 0)
+                rows(k, SG_ACTION) = act
+                rows(k, SG_LOGIN) = login
+                rows(k, SG_STAMP) = stamp
+                rows(k, SG_FILE) = files(i)
             End If
-        Loop
-        Close #ff
-        ' the file must say the same posting as its name, and be complete
-        If post = postingId And emp <> "" And stamp > 0 And (act = "signup" Or act = "withdraw") Then
-            k = k + 1
-            rows(k, SG_EMP) = Left$(emp, 80)
-            rows(k, SG_HOURS) = IIf(hrs > 0, hrs, 0)
-            rows(k, SG_ACTION) = act
-            rows(k, SG_LOGIN) = login
-            rows(k, SG_STAMP) = stamp
-            rows(k, SG_FILE) = files(i)
+        Else
+            skipped = skipped + 1
         End If
     Next i
     If k = 0 Then Exit Function
@@ -191,10 +179,54 @@ Public Function ReadSignups(ByVal postingId As String) As Variant
         Next p
     Next i
     ReadSignups = out
+End Function
+
+' Reads one inbox file. False = it couldn't be opened or read.
+Private Function ReadOneSignup(ByVal fullPath As String, ByRef post As String, ByRef emp As String, ByRef hrs As Double, _
+                               ByRef act As String, ByRef login As String, ByRef stamp As Date) As Boolean
+    post = "": emp = "": hrs = 0: act = "": login = "": stamp = 0
+    Dim ff As Integer, ln As String, p As Long, valTxt As String, opened As Boolean, nLines As Long
+    On Error GoTo Quit
+    ff = FreeFile
+    Open fullPath For Input Access Read Shared As #ff
+    opened = True
+    Do While Not EOF(ff) And nLines < 50
+        Line Input #ff, ln
+        nLines = nLines + 1
+        p = InStr(ln, "=")
+        If p > 1 Then
+            valTxt = Trim$(Mid$(ln, p + 1))
+            Select Case LCase$(Trim$(Left$(ln, p - 1)))
+                Case "posting": post = UCase$(valTxt)
+                Case "employee": emp = valTxt
+                Case "hours": hrs = Val(valTxt)          ' Val reads "8.5" the same on every PC, whatever its decimal sign
+                Case "action": act = LCase$(valTxt)
+                Case "login": login = Left$(valTxt, 40)
+                Case "stamp": stamp = StampOf(valTxt)
+            End Select
+        End If
+    Loop
+    Close #ff
+    ReadOneSignup = True
     Exit Function
 Quit:
     On Error Resume Next
-    Close #ff
+    If opened Then Close #ff
+End Function
+
+' Roster names, lower case -> as spelled on the roster. A sign-up counts only
+' for a name that is on the roster: the inbox folder is writable by everyone,
+' so nothing typed into a file is ever shown or published as it stands.
+Private Function RosterNameMap() As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1
+    Set RosterNameMap = d
+    Dim names As Variant: names = RosterNames()
+    If Not IsArray(names) Then Exit Function
+    Dim i As Long
+    For i = LBound(names) To UBound(names)
+        d(Trim$(CStr(names(i)))) = Trim$(CStr(names(i)))
+    Next i
 End Function
 
 
@@ -206,10 +238,15 @@ End Function
 Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, ByRef summary As String) As Long
     summary = ""
     If Not SIGNUPS_ON Then Exit Function
-    Dim rows As Variant: rows = ReadSignups(p.ID)
-    If Not IsArray(rows) Then summary = "No electronic sign-ups in the inbox.": Exit Function
+    Dim skipped As Long
+    Dim rows As Variant: rows = ReadSignups(p.ID, skipped)
+    If Not IsArray(rows) Then
+        summary = IIf(skipped > 0, skipped & " sign-up file(s) couldn't be read just now - LOAD again in a minute.", "No electronic sign-ups in the inbox.")
+        Exit Function
+    End If
     Dim red() As Variant, m As Long, k As Long, i As Long, hit As Long
-    Dim nTick As Long, nPart As Long, lateTxt As String, outTxt As String, nm As String
+    Dim nTick As Long, nPart As Long, lateTxt As String, outTxt As String, nm As String, nUnknown As Long
+    Dim onRoster As Object: Set onRoster = RosterNameMap()
     m = ReduceSignups(rows, PostingCloseAt(p.ClosesOn), red)
     For k = 1 To m
         nm = CStr(red(k, SR_EMP))
@@ -217,8 +254,10 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
         For i = 1 To n
             If StrComp(Trim$(lst(i).EmpName), nm, vbTextCompare) = 0 Then hit = i: Exit For
         Next i
-        If hit = 0 Then
-            outTxt = outTxt & IIf(outTxt = "", "", ", ") & nm & IIf(NumOr0(red(k, SR_HOURS)) > 0, " (" & HoursText(NumOr0(red(k, SR_HOURS))) & " h)", "")
+        If hit = 0 And Not onRoster.Exists(nm) Then
+            nUnknown = nUnknown + 1                     ' not a roster name: never shown as typed
+        ElseIf hit = 0 Then
+            outTxt = outTxt & IIf(outTxt = "", "", ", ") & onRoster(nm) & IIf(NumOr0(red(k, SR_HOURS)) > 0, " (" & HoursText(NumOr0(red(k, SR_HOURS))) & " h)", "")
         ElseIf CBool(red(k, SR_LATE)) Then
             lateTxt = lateTxt & IIf(lateTxt = "", "", ", ") & nm
         Else
@@ -232,6 +271,8 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
     summary = nTick & " electronic sign-up" & IIf(nTick = 1, "", "s") & " ticked" & IIf(nPart > 0, " (" & nPart & " partial)", "") & "." & _
               IIf(lateTxt <> "", "  AFTER CLOSING, not ticked: " & lateTxt & ".", "") & _
               IIf(outTxt <> "", "  Not on the list (out of department box): " & outTxt & ".", "") & _
+              IIf(nUnknown > 0, "  " & nUnknown & " file(s) name someone who isn't on the roster: ignored.", "") & _
+              IIf(skipped > 0, "  " & skipped & " file(s) couldn't be read: LOAD again in a minute.", "") & _
               "  Check them against the paper sheet."
     ApplySignups = nTick
 End Function
@@ -245,14 +286,18 @@ Public Function SignupStatusMap(ByVal postingId As String, ByVal postHours As Do
     If Not SIGNUPS_ON Then Exit Function
     Dim rows As Variant: rows = ReadSignups(postingId)
     If Not IsArray(rows) Then Exit Function
-    Dim red() As Variant, m As Long, k As Long
+    Dim red() As Variant, m As Long, k As Long, nm As String
+    Dim onRoster As Object: Set onRoster = RosterNameMap()
     m = ReduceSignups(rows, PostingCloseAt(closesOn), red)
     For k = 1 To m
-        If Not CBool(red(k, SR_LATE)) Then
+        ' only a name that is on the roster is ever published, and in the roster's own spelling:
+        ' whatever else a file holds (a formula, a phone number, anything typed) goes nowhere
+        If Not CBool(red(k, SR_LATE)) And onRoster.Exists(CStr(red(k, SR_EMP))) Then
+            nm = CStr(onRoster(CStr(red(k, SR_EMP))))
             If IsPartialSignup(postHours, NumOr0(red(k, SR_HOURS))) Then
-                d(CStr(red(k, SR_EMP))) = HoursText(NumOr0(red(k, SR_HOURS))) & " h"
+                d(nm) = HoursText(NumOr0(red(k, SR_HOURS))) & " h"
             Else
-                d(CStr(red(k, SR_EMP))) = "Yes"
+                d(nm) = "Yes"
             End If
         End If
     Next k
@@ -281,6 +326,29 @@ Public Sub ArchiveSignups(ByVal postingId As String)
     If Not FolderExists(folder & "Done\" & postingId & "\") Then MkDir folder & "Done\" & postingId
     For i = 1 To n
         Name folder & files(i) As folder & "Done\" & postingId & "\" & files(i)
+    Next i
+End Sub
+
+' A posting was reopened: its sign-up files come back from Done\<posting>\ into
+' the inbox, so the people who signed up electronically are ticked again.
+Public Sub RestoreSignups(ByVal postingId As String)
+    On Error Resume Next
+    If Not SIGNUPS_ON Then Exit Sub
+    Dim folder As String: folder = SignupFolderPath()
+    If folder = "" Then Exit Sub
+    postingId = UCase$(Trim$(postingId))
+    Dim doneDir As String: doneDir = folder & "Done\" & postingId & "\"
+    If Not FolderExists(doneDir) Then Exit Sub
+    Dim files() As String, n As Long, f As String, i As Long
+    f = Dir$(doneDir & postingId & "__*.txt")
+    Do While f <> ""
+        n = n + 1
+        ReDim Preserve files(1 To n)
+        files(n) = f
+        f = Dir$()
+    Loop
+    For i = 1 To n
+        Name doneDir & files(i) As folder & files(i)
     Next i
 End Sub
 

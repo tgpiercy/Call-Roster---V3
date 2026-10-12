@@ -145,6 +145,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | Who is awarded | The supervisor marks who signed up and who is awarded. The system does not pick. |
 | Signed up, ahead, not awarded | The system warns. These people are not charged. |
 | More than one position | "Ahead" means ahead of the last awarded person in call order. |
+| Electronic sign-ups | When switched on, members can sign up from their own file. The roster reads those requests when the posting is loaded for award and ticks the names; the supervisor confirms each one. The paper sheet still counts. A request sent after the closing time is shown but not ticked. |
 | Partial sign-ups | Someone can sign up for part of the shift. Full-shift sign-ups are awarded first, in call order, even with more hours. A partial is awarded only when no full-shift sign-up is left for that position; the system refuses otherwise. Several partials can share a shift. |
 | Hours nobody covers | They drop off. Nobody is charged for them. |
 | Charging with a partial award | The same people as any award: ahead of the last awarded person and did not sign up at all. They are charged the posting's full hours x 1.75. A partial sign-up that is not awarded is not charged. |
@@ -287,6 +288,7 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | A void | The row stays, marked VOID, with the reason, who voided it and when. It stops counting in every total. |
 | Who can void | The admin, with Void Entry. A reason is required. |
 | Roster cells | Hours are never typed into the roster. The totals are formulas over the log. |
+| Refused by kind | Refused is one figure. For information it is also shown as call-out refusals, posting refusals and other (adjustments, opening balance), on the status bar for the selected person, in the members' file and in the Refusals Report. The parts always add up to Refused. |
 | Name changes | Employee > Rename changes the name on the roster and in every table together: the log, postings, time off, switches, calendar lines, grade log, hours history and crew history. Hours do not change. Closed years keep the old name. |
 | Grade changes | A change to a unit code on the roster is logged with the old code, the new code, who and when. |
 

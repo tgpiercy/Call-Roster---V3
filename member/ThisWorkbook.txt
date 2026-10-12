@@ -1,5 +1,5 @@
 Option Explicit
-' @version Members v22 (Oct 13)
+' @version Members M2 (Jan 5)
 ' Members' workbook - code-behind. Everything is in modMember; this only
 ' routes the workbook events. Nothing here reads the supervisors' master.
 
@@ -13,4 +13,11 @@ End Sub
 
 Private Sub Workbook_SheetActivate(ByVal Sh As Object)
     MemberSheetActivated Sh
+End Sub
+
+' M2: a filter arrow marks the file changed with no macro running after it.
+' Nothing here is ever worth saving, so closing never asks.
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    On Error Resume Next
+    Me.Saved = True
 End Sub

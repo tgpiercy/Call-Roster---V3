@@ -1,5 +1,23 @@
 # Changelog
 
+## v24.1 + M2 - refused by kind, attendance tab, part-accepted call-outs, sign-ups, members' workbook (built Oct 2026)
+Briefs: `briefs/v24.1.md`, `briefs/M2.md`. Report-back and decisions: `docs/v24.1-report-back.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v24.1.zip` (full set). Needs v24. The members' template must be rebuilt.
+
+- **Refused hours by kind** (`modReports`). Refused stays one figure. Selecting a roster row shows `call-out x / posting y` (and `other z` when not zero) on Excel's status bar; the members' file shows it for everyone; **Refusals Report** (PRINT / PUBLISH) prints it per person with sub-totals per Home Unit and saves a PDF. Display only: no roster column, no formula, nothing for the rollover to carry. IntegrityCheck gains a "Log types" line.
+- **Attendance tab.** One row per person with a column per occurrence (its dates, days and paid days). Only people with a sick or personal day in their current window, A - Z; buttons for By department, Worst first, Show everyone; a filter on the header; landscape print. The counting rule is unchanged; it now also returns each occurrence's first day, last day, days and paid days.
+- **Part of a call-out accepted.** New button on the call-out pop-up. Everyone below that person in call order is offered what is left, and a Refused or Left Message there is charged on the hours offered x 1.75. A whole acceptance changes nothing for those below. The Accepted row carries the hours taken, so provisional OT counts them correctly.
+- **Out-of-department awards can be for part of a shift** (an hours box beside the name), only when nobody in the department signed up.
+- **Electronic sign-ups** (`modSignups`, shipped OFF: `SIGNUPS_ON`). The members' file drops one request file per click into the `Signups` folder; Award Posting > LOAD reads them, ticks the names on the list (with partial hours), lists late ones and names not on the list, and says how many it read. The supervisor confirms; the paper sheet still counts. Files move to `Signups\Done` when the posting is closed. The login goes in the OT Log note, never in the members' file.
+- **Publish reminder.** Closing the roster after a posting or a person changed asks once whether to publish the members' file first. It never blocks the close.
+- **Members' workbook M2** (`member/modMember.bas`; rebuild the template):
+  - **Find me** drives every sheet: the Roster opens on the person's home unit with their row highlighted, Who's next and the Calendar open on the same unit, and Home shows a **Where I stand** card: hours, Refused by kind, call position in every unit they hold a code in, the open postings they can sign up for, and where they are near the top of the call list. Nothing is remembered between opens.
+  - **Sick time, counts only**, on that card: sick days used, paid days left, occurrences used, personal days used, and whether paid sick is available. No dates. A deliberate, narrow exception to "attendance is never published", guarded by a privacy check in the publish.
+  - **Calendar** as the roster's month grid, with previous / next month and Print.
+  - **Postings:** the person's own first (listed, then out of department), one filterable table of every open posting, the full list of a picked posting, and **Sign me up / Withdraw** when sign-ups are on.
+- The members' history now uses the roster's own "this year" test (Period Start), so its sub-totals match the roster.
+- SystemCheck: 20 modules on v24.1, a Sign-ups line. SelfTest 320 cases in 39 suites (+20): refused split, per-occurrence attendance, call-out offers, the sign-up reducer.
+- Not in this release: unit moves entered ahead of time (v24.2).
+
 ## v24 - employee changes, crew history, partial OT (built Oct 2026; install Jan 5 - 15, 2027)
 Brief: `briefs/v24.md`. Report-back and decisions: `docs/v24-report-back.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v24.zip` (full set). Needs v23 and the 2027 rollover.
 

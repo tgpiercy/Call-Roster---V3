@@ -29,7 +29,7 @@ CHANGELOG.md
 **Never commit data:** no `*.xls*`, Kronos exports, posting PDFs or plant CSVs (names, phones, emails, leave codes). Test fixtures use made-up names only.
 
 ## Workbook map (as built, v21 + M1)
-### Modules (18 checked by SystemCheck, plus 6 legacy)
+### Modules (20 checked by SystemCheck, plus 6 legacy)
 | Module | Holds |
 |---|---|
 | `modOvertimeEntry` | **All settings** at the top (`ADMIN_USERS`, folders, Kronos path, `KRONOS_STALE_DAYS`, `DST_USE_ACTUAL_HOURS`, `BACKUP_FOLDER`, member file names ...), roster column constants, `EmpRec`, `LoadEligible` (the one call order), `CalloutCharge`, provisional-OT formulas, OT Log access (`AppendLogRows`), protection, `ApplyView`. Every other module depends on it. |
@@ -52,6 +52,8 @@ CHANGELOG.md
 | `modIntegrity` | v23: `IntegrityCheck` / `RunIntegrity` (read-only; PROBLEM / Check / Note), `IntegrityOnOpen`, the Integrity sheet, pure `PeriodCellCode`, `DuplicatesIn` |
 | `modRollover` | v23: `RolloverYear` (the only code that removes OT Log rows, verified), Year End sheet, frozen FINAL copy, archive sheets, the 27th period column, `ArchiveHasActiveRef` |
 | `modPeople` | v24: crew history (`tblCrewHistory`, `CrewOn`, pure `CrewOnCore`, the typed-crew prompt), the Employee pop-up's work (`SaveNewHire`, `SaveUnitMove`, `RenameEverywhere`, `RemoveEmployee`, `BringBack`), the Former sheet (`tblFormer`, `FormerNameSet`), `SetupPeople`, the shared before/after check (`RosterTotalsMap`, `TotalsDifference`) |
+| `modReports` | v24.1: Refused hours by kind, display only (`RefusedBucket`, `SplitTotals`, the status-bar line for the selected row, `RefusalsReport`) |
+| `modSignups` | v24.1: the electronic sign-up inbox (`ReadSignups`, pure `ReduceSignups`, `ApplySignups` for the Award pop-up, `ArchiveSignups`); off unless `SIGNUPS_ON` |
 | `Call_Out_Roster` | Printed call-out roster (`Call_Out`), redrawn from the data |
 | `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess`, `modCleanup` | Sort buttons, legacy posting print, admin, one-time cleanup (not version-checked) |
 
@@ -71,7 +73,8 @@ CHANGELOG.md
 | `Holidays` | Admin; Observed on column for weekend holidays |
 | `Hours History` (hidden) | Dated snapshot of worked hours per import, with Data Through (v21) |
 | `Grade Log`, `GradeSnap` | Grade change log (admin, hidden) and its very hidden name-keyed snapshot |
-| `Attendance` | v22.1: drawn sick / personal day counters per person (admin, hidden in saved copies, never published) |
+| `Attendance` | v22.1: drawn sick / personal day counters per person (admin, hidden in saved copies). v24.1: one row per person with a column per occurrence, only people with something logged, three sorts. The SHEET is never published; since M2 the five COUNTS per person are (see Privacy) |
+| `Refusal Report` | v24.1: output-only, redrawn by `RefusalsReport` (admin) |
 | `Integrity` | v23: the last IntegrityCheck report (admin, drawn) |
 | `Year End` (`tblYearEnd`) | v23: each person's final G / H / I / C per closed year (admin) |
 | `OT Log 2026` ... (`tblOTLog2026`) | v23: one per closed year, the archived log rows; protected even in admin view |
@@ -106,6 +109,7 @@ These win over anything older in `docs/`. Each rule lives in **one** function th
 | Posting: Submit Award | Ahead of the **last** awarded person in call order **and didn't sign up** (`ComputeAward`) | shift date |
 | Posting: Award Out of Dept | Everyone eligible in dept who didn't sign up (`ComputeOutside`) | shift date |
 | Posting: No Takers | Everyone eligible on the list (`ComputeNoTakers`) | shift date |
+| Call-out: part accepted (v24.1) | Someone takes part of the hours; everyone BELOW them in call order is offered what is left, and a Refused / Left Message there is charged on the hours **offered** x 1.75. A whole acceptance changes nothing for those below (`CalloutOffers`). The Accepted row carries the hours taken | callout date |
 | Posting: Cancel | Nobody (`ComputeCancel`) | - |
 | Posting: partial sign-ups (v24) | Same people as Submit Award, charged the posting's **full** hours x 1.75. Full-shift sign-ups are awarded first; a partial only when no full-shift sign-up is left for the position (`AwardOrderProblem`, blocked otherwise). A partial sign-up that isn't awarded: not charged. Hours nobody covers: dropped, uncharged. The Awarded log row carries the hours awarded | shift date |
 | Posting: moved unit / left (v24) | Never charged on an open posting for a shift on or after the date (list row marked `Exempt - ...`) | - |
@@ -115,7 +119,11 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 
 **Year:** totals reset to zero each year; no carry-forward. Pay periods are biweekly, Sunday start; 2026 periods start Dec 28, 2025; 2027 starts Dec 27, 2026. **The year is one cell:** the roster's period-1 start (T2); every header, formula, the provisional window, leave top-ups and the publish read it (`RosterYearFrom` / `RosterYearTo` / `RosterYear`). A year has 26 periods, or 27 when one more fits before the next Jan 1 (first: 2033); the 27th period is column AT and `PeriodLastCol()` says which is in use, so never loop to `C_PERIODN` directly. `RolloverYear` (v23) moves the year: see `docs/rollover-one-pager.md`.
 
-**Privacy:** STD, parental, LOA show only as "Leave" everywhere outside the Absences sheet. Never publish phone, email, leave type, leave notes, void notes, Logged By or Timestamp. The members' file gets values only, pushed by the master, and contains no rules.
+**Privacy:** STD, parental, LOA show only as "Leave" everywhere outside the Absences sheet. Never publish phone, email, leave type, leave notes, void notes, Logged By or Timestamp, the Windows login behind an electronic sign-up, or the DATE of any sick or personal day. The members' file gets values only, pushed by the master, and contains no rules. **One deliberate exception (M2, Oct 12, 2026):** each person's sick-time COUNTS are published in `dAttend` (sick days used, paid days left, occurrences used, personal days used, one of four status phrases; the only date is the "until" date) and shown on the card of whoever picks that name; `AttendPrivacy` in modPublish refuses anything else.
+
+**Refused by kind (v24.1):** Refused stays ONE figure and drives Total Hours and call order. Call-out / Posting / Other is a display split of the same log rows by the Type column (`modReports`): status bar for the selected row, the members' file, the Refusals Report. No roster column, no formula.
+
+**Electronic sign-ups (v24.1, off until `SIGNUPS_ON`):** the members' file writes one small request file per click into the `Signups` folder; the master reads them when a posting is loaded for award and pre-ticks Signed up. The supervisor's tick is what counts; the paper sheet stays valid.
 
 **People changes (v22/v24):** every rule-driven hours change is an **Adjustment** row in the OT Log with the calculation in Note, its type in Reason, shown in a confirm before saving, undoable by Void Entry. v24's Employee pop-up does Add (`NH-`: the home unit's average, grade <= 2, not on leave on the start date), Move to unit (`UM-`: up to the highest among grade <= 2 in the new unit, never lowered), Rename (every table together), Remove (the row goes to the Former sheet) and Bring back. Peers are everyone with a code in that unit's column, as the leave top-up counts them.
 
@@ -191,6 +199,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - `PUBLISH_FOLDER = "."` (Oct 12, 2026): Member View saves the members' file next to the master for now (`modPublish.PublishFolderPath`). It moves to the members' network folder at the next roll-out wave; the P: path is kept in the comment above the setting.
 - `BACKUP_FOLDER = "."`: daily backups go into the roster's own folder (`ResolveFolder` handles "." and ".\sub"). Can be pointed at a network folder later. `ARCHIVE_FOLDER = "."` the same way.
 - v24 (Oct 12, 2026): refusers are charged the posting's full hours when only a partial is awarded; a partial award while a full-shift sign-up is free is **blocked**; Remove **moves the row to a Former sheet** (Graeme chose it over the brief's inactive flag: not date-aware, so it is run on or after the last day); someone who moves or leaves is never charged on open postings from that date; a rename leaves closed-year sheets (`OT Log 2026`, `Year End`) under the old name with a note on the Grade Log; a unit move's date is today or earlier (unit codes aren't dated), a crew change may be future-dated; one v24 install.
+- v24.1 + M2 (Oct 12, 2026): Refused split shown on the **status bar + members' file + report, no roster columns**; "other" only when not zero; members see **who** signed up (as on paper); call-out refusers after a partial acceptance are charged **the hours on offer** (postings stay at the full posting hours); Find me does **not** remember the person; members' postings = the ones they are qualified for (listed, then out of department = a code in the unit) plus one plain table; **sick-time counts only** are published for the picked name; planned unit moves are **v24.2**.
 - Year end (v23): old log rows are archived AND removed at the rollover (Graeme chose the brief's option over keeping one growing log); 26- and 27-period years are both handled now; nothing is built for OT worked Dec 27-31 or for Kronos year-to-date until the first January 2027 export is seen; the rollover is run by Graeme with his boss; IntegrityCheck PROBLEMs block it, Checks don't; the live file can't be rolled before the new year's first period starts.
 
 ## Still open (use the default unless Graeme answers)
@@ -213,6 +222,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | v22.1 | Oct 2026 | Sick / personal day counters, Attendance sheet, vacation on scheduled shifts | built, tagged `v22.1` |
 | v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | built, tagged `v23`; dry run on a copy first week of December |
 | v24 | install Jan 5 - 15, 2027 | Employee pop-up, crew history, partial OT | built, tagged `v24`; needs the rollover done first |
+| v24.1 + M2 | with v24, or after Jan 23 | Refused by kind + report, Attendance tab, part-accepted call-outs, sign-up inbox, publish reminder; members: Find me, month grid, my postings, Sign me up, sick-time counts | built, tagged `v24.1` |
+| v24.2 | after v24.1 | Unit moves entered ahead of time (planned moves, applied on the day) | brief: section 7 of `briefs/v24.1.md` |
 | v25 | Feb-Mar 2027 | Employee ID key, protection, calendar speed | kit brief 06 |
 | v26 | Mar 2027+ | History report, staffing check, board print, payback aging | kit brief 07 |
 

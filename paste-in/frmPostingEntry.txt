@@ -236,10 +236,11 @@ Private Sub btnLoad_Click()
         "Shift: " & mP.ShiftLbl & "   Crew: " & mP.Crew & "   Hours: " & mP.Hours & _
         "   Positions: " & mP.Positions & vbLf & _
         "Reason: " & mP.Reason & "   |   Posted " & Format$(mP.PostedOn, "mmm d") & _
-        ", closes " & Format$(mP.ClosesOn, "mmm d") & IIf(Date > mP.ClosesOn, "  (closed)", "  (STILL OPEN)")
+        ", closes " & Format$(mP.ClosesOn, "mmm d") & IIf(Now > PostingCloseAt(mP.ClosesOn), "  (closed)", "  (STILL OPEN)")
 
     SetActionButtons True
     FillOutside
+    C("txtOutHrs").Text = ""
     ' v24.1: electronic sign-ups from the members' workbook are ticked for you to check
     Dim sTxt As String
     If ApplySignups(mP, mL, mN, sTxt) > 0 Then mDirty = True

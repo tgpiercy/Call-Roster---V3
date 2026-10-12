@@ -458,6 +458,11 @@ Public Sub MemberRefreshAll()
     Application.ScreenUpdating = False
     mDrawing = True
     On Error GoTo Done
+    ' the file always starts with nobody picked, even if it was saved with a name showing
+    SetCell WsOf(SH_HOME), HOME_FIND, ""
+    SetCell WsOf(SH_ROSTER), ROSTER_FIND, ""
+    SetCell WsOf(SH_HIST), HIST_NAME, ""
+    SetCell WsOf(SH_POST), POST_PICK, ""
     BuildLists
     DrawHome
     MemberShowAll
@@ -571,7 +576,7 @@ Private Sub SetList(ByVal ws As Worksheet, ByVal addr As String, ByVal refTxt As
             .ShowError = False
         End If
     End With
-    ws.Range(addr).Locked = False
+    ws.Range(addr).MergeArea.Locked = False        ' the calendar's Group picker is two merged cells
     ProtectWs ws
 End Sub
 
@@ -664,6 +669,10 @@ Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
     SetCell WsOf(SH_HIST), HIST_NAME, nm
     homeU = HomeUnitOf(nm)
     If homeU <> "" Then
+        If UnitCodeCol(homeU) = 0 Then homeU = ""          ' a home unit the published unit list doesn't have
+    End If
+    If nm <> "" Then SetCell WsOf(SH_ROSTER), ROSTER_CREW, "All"      ' a crew filter left on would hide them
+    If homeU <> "" Then
         SetCell WsOf(SH_NEXT), NEXT_UNIT, homeU
         grp = GroupOfUnit(homeU)
         If grp <> "" Then SetCell WsOf(SH_CAL), CAL_UNIT, grp
@@ -715,6 +724,7 @@ End Function
 ' "63  (call-out 42 / posting 21)" - "other" only when it isn't zero
 Private Function RefusedKinds(ByRef v As Variant, ByVal r As Long) As String
     If UBound(v, 2) < RC_ROTHER Then Exit Function
+    If StrComp(Txt(v(1, RC_RCALL)), "Refused call-out", vbTextCompare) <> 0 Then Exit Function    ' data from an older roster
     RefusedKinds = "call-out " & NumTxt(Num(v(r, RC_RCALL))) & " / posting " & NumTxt(Num(v(r, RC_RPOST)))
     If Abs(Num(v(r, RC_ROTHER))) > 0.0001 Then RefusedKinds = RefusedKinds & " / other " & NumTxt(Num(v(r, RC_ROTHER)))
 End Function
@@ -727,7 +737,7 @@ End Function
 ' The master's calendar groups: "Name|Unit,Unit;Name|Unit;All units|*"
 Private Function InGroup(ByVal unit As String, ByVal groupName As String) As Boolean
     Dim g As Variant, parts As Variant, u As Variant
-    If groupName = "" Then InGroup = True: Exit Function
+    If groupName = "" Or StrComp(groupName, "All units", vbTextCompare) = 0 Then InGroup = True: Exit Function
     For Each g In Split(Txt(Meta("Calendar groups")), ";")
         parts = Split(CStr(g), "|")
         If UBound(parts) >= 1 Then
@@ -812,8 +822,8 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
             If crew = "" Or UCase$(Txt(v(i, RC_CREW))) = crew Then
                 If unit = "" Then
                     n = n + 1: idx(n) = i: keys(n) = 0
-                ElseIf uCode > 0 And Txt(v(i, uCode)) <> "" Then
-                    n = n + 1: idx(n) = i: keys(n) = Num(v(i, uPos))
+                ElseIf uCode > 0 Then                  ' (nested: VBA would read column 0 in an And)
+                    If Txt(v(i, uCode)) <> "" Then n = n + 1: idx(n) = i: keys(n) = Num(v(i, uPos))
                 End If
             End If
         End If
@@ -923,6 +933,7 @@ Public Sub MemberShowNext()
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     UnprotectWs ws
+    On Error GoTo Fail
     ClearBelow ws, 4
     Header ws, 5, Array("#", "Name", "Crew", "Code", "Total")
     Dim v As Variant: v = Data("dNext")
@@ -968,6 +979,8 @@ Public Sub MemberShowNext()
         ws.Cells(6, 2).Value = "No one is free for that shift (or the date is outside the published " & Txt(Meta("Who's next days")) & " days)."
         ws.Cells(6, 2).Font.Italic = True
     End If
+Fail:                                            ' reached normally, or from an error anywhere above
+    On Error Resume Next
     ProtectWs ws
     MarkClean
     Application.ScreenUpdating = True
@@ -1082,6 +1095,7 @@ Public Sub MemberShowCalendar()
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     UnprotectWs ws
+    On Error GoTo Finish
     ClearBelow ws, 4
     Dim v As Variant: v = Data("dCal")
     Dim m0 As Date: m0 = CalMonthStart(ws)
@@ -1200,6 +1214,7 @@ Public Sub MemberShowCalendar()
     End With
     On Error GoTo 0
 Finish:
+    On Error Resume Next
     ProtectWs ws
     MarkClean
     Application.ScreenUpdating = True
@@ -1218,7 +1233,9 @@ Private Sub StepMonth(ByVal delta As Long)
         If StrComp(Txt(ls.Cells(i, 5).Value), cur, vbTextCompare) = 0 Then at = i: Exit For
     Next i
     If at = 0 Then at = 1 Else at = at + delta
-    If at < 1 Or at > n Or Txt(ls.Cells(at, 5).Value) = "" Then
+    Dim okMonth As Boolean
+    If at >= 1 And at <= n Then okMonth = (Txt(ls.Cells(at, 5).Value) <> "")      ' (VBA tests both sides of an Or: never read row 0)
+    If Not okMonth Then
         MsgBox "That is the " & IIf(delta < 0, "first", "last") & " month the roster published.", vbInformation, "Calendar"
         Exit Sub
     End If
@@ -1358,6 +1375,7 @@ Public Sub MemberShowPostings()
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     UnprotectWs ws
+    On Error GoTo Finish
     ClearBelow ws, 4
     Dim i As Long, j As Long, k As Long
     For i = ws.Shapes.Count To 1 Step -1
@@ -1423,6 +1441,7 @@ Public Sub MemberShowPostings()
                 ws.Cells(r, 4).Value = Txt(p(k, 4))
                 ws.Cells(r, 5).Value = Num(p(k, 5))
                 ws.Cells(r, 6).Value = placeTxt
+                ws.Cells(r, 7).NumberFormat = "@"              ' "Mon Jan 12 8:00 AM" would become a date-time
                 ws.Cells(r, 7).Value = Format$(Dt(p(k, 8)), "ddd mmm d") & " " & CloseTime() & IIf(isClosed, " (closed)", "")
                 ws.Cells(r, 8).Value = statusTxt
                 ws.Rows(r).RowHeight = 19
@@ -1513,6 +1532,7 @@ Public Sub MemberShowPostings()
         ws.Cells(r, 1).Font.Size = 8.5: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = RGB(100, 100, 100)
     End If
 Finish:
+    On Error Resume Next
     ProtectWs ws
     MarkClean
     Application.ScreenUpdating = True
@@ -1768,7 +1788,7 @@ Private Sub DrawHomeCard()
             If Num(nv(i, 4)) <= 3 Then
                 If StrComp(Txt(nv(i, 5)), who, vbTextCompare) = 0 And StrComp(Txt(nv(i, 1)), homeU, vbTextCompare) = 0 Then
                     nNext = nNext + 1
-                    If nNext <= 12 Then nextTxt = nextTxt & IIf(nextTxt = "", "", "     ") & Format$(Dt(nv(i, 2)), "ddd mmm d") & " " & Txt(nv(i, 3)) & " #" & NumTxt(Num(nv(i, 4)))
+                    If nNext <= 8 Then nextTxt = nextTxt & IIf(nextTxt = "", "", "     ") & Format$(Dt(nv(i, 2)), "ddd mmm d") & " " & Txt(nv(i, 3)) & " #" & NumTxt(Num(nv(i, 4)))
                 End If
             End If
         Next i
@@ -1776,9 +1796,8 @@ Private Sub DrawHomeCard()
     ws.Cells(r, 2).Value = "Near the top of the call list"
     ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Color = NAVY
     r = r + 1
-    ws.Cells(r, 3).NumberFormat = "@"
     ws.Cells(r, 3).Value = IIf(nextTxt = "", "Not in the first three for " & IIf(homeU = "", "any unit", homeU) & " in the published days.", _
-                               homeU & ":  " & nextTxt & IIf(nNext > 12, "  ...", ""))
+                               homeU & ":  " & nextTxt & IIf(nNext > 8, "  ... and " & (nNext - 8) & " more", ""))
     r = r + 1
     ws.Cells(r, 3).Value = "Who is free changes with time off and switches: this is as of the last publish."
     ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
@@ -1801,6 +1820,7 @@ Private Sub DrawHistory(ByVal nm As String)
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     UnprotectWs ws
+    On Error GoTo Fail
     ClearBelow ws, 4
     If nm = "" Then
         ws.Cells(5, 1).Value = "Pick a name above."
@@ -1904,6 +1924,8 @@ Private Sub DrawHistory(ByVal nm As String)
         r = r + 1
         ws.Cells(r, 1).Value = "  other (adjustments)": ws.Cells(r, 2).Value = kOther: ws.Cells(r, 2).HorizontalAlignment = xlCenter
     End If
+Fail:                                            ' reached normally, or from an error anywhere above
+    On Error Resume Next
     ProtectWs ws
     MarkClean
     Application.ScreenUpdating = True

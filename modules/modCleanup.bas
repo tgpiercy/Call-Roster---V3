@@ -12,7 +12,7 @@ Public Sub RemoveOldSheets()
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
 
-    Dim targets As Variant: targets = Array("DATA validation", REFUSAL_SHEET)
+    Dim targets As Variant: targets = Array("DATA validation")      ' v24.1: "Refusal Report" is the new report's sheet now
     Dim present As String, nm As Variant
     For Each nm In targets
         If SheetExists(CStr(nm)) Then present = present & "  - " & nm & vbNewLine
@@ -84,7 +84,7 @@ Public Sub RemoveOldSheets()
     MsgBox "Removed " & nSheets & " sheet(s)" & _
            IIf(nVal > 0, ", " & nVal & " old dropdown cell(s)", "") & _
            IIf(nNames > 0, ", " & nNames & " named range(s)", "") & "." & vbNewLine & vbNewLine & _
-           "Run ApplyRosterLayout to refresh the buttons (Refusal Report is gone).", vbInformation
+           "Run ApplyRosterLayout to refresh the buttons.", vbInformation
 End Sub
 
 Private Function IsTarget(ByVal sheetName As String, ByVal targets As Variant) As Boolean

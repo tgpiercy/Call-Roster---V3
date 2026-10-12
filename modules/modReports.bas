@@ -194,6 +194,13 @@ Quit:
     If mBarShown Then Application.StatusBar = False: mBarShown = False
 End Sub
 
+' Gives Excel's status bar back if it holds our text. Called when the workbook
+' loses focus or closes, and by macros that switch tabs with events off.
+Public Sub ReleaseStatusBar(Optional ByVal fromCode As Boolean = True)     ' the argument keeps it out of the Alt+F8 list
+    On Error Resume Next
+    If mBarShown Then Application.StatusBar = False: mBarShown = False
+End Sub
+
 ' Leaving the roster tab: give the status bar back
 Public Sub ReportsSheetActivated(ByVal Sh As Object)
     On Error Resume Next
@@ -336,6 +343,7 @@ Public Sub RefusalsReport()
     On Error GoTo Failed
     ProtectSheet ws
     ws.Activate
+    ReleaseStatusBar                        ' the tab changed with events off
     ActiveWindow.DisplayGridlines = False
     Application.EnableEvents = evWas
     Application.ScreenUpdating = scrWas
@@ -394,8 +402,11 @@ Private Function AskReportUnit(ByRef unit As String, ByRef allUnits As Boolean) 
         s = Trim$(VBA.InputBox("Refused hours by kind (call-out / posting), this roster year." & vbNewLine & vbNewLine & _
                                "Which unit? Enter the number:" & vbNewLine & vbNewLine & menu, "Refusals report", "0"))
         If s = "" Then Exit Function
+        k = -1
         If IsNumeric(s) Then
-            k = CLng(Val(s))
+            If Val(s) >= 0 And Val(s) <= 99 Then k = CLng(Val(s))
+        End If
+        If k >= 0 Then
             If k = 0 Then allUnits = True: AskReportUnit = True: Exit Function
             If k >= 1 And k <= UBound(depts) - LBound(depts) + 1 Then
                 unit = CStr(depts(LBound(depts) + k - 1))

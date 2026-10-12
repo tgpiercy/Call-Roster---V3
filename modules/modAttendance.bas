@@ -705,6 +705,7 @@ Public Sub ShowAttendance()
     On Error GoTo Failed
     ProtectSheet ws
     ws.Activate
+    ReleaseStatusBar                        ' v24.1: the roster's status-bar line must not sit over this tab
     On Error Resume Next
     ActiveWindow.FreezePanes = False
     ws.Range("B5").Select

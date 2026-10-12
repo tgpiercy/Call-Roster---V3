@@ -94,6 +94,8 @@ Public Sub PublishReminderOnClose()
     If ThisWorkbook.ReadOnly Or Not IsAdmin() Then Exit Sub
     If NoSave() Then Exit Sub
     If IsDryRunName(ThisWorkbook.Name) Then Exit Sub
+    If BackupFileDate(ThisWorkbook.Name) > 0 Then Exit Sub             ' a daily backup opened to look at
+    If InStr(1, ThisWorkbook.Name, "FINAL", vbTextCompare) > 0 Or InStr(1, ThisWorkbook.Name, "Backup", vbTextCompare) > 0 Then Exit Sub
     If Not MembersDirty() Then Exit Sub
     If Not MemberTemplateExists() Then Exit Sub
     If MsgBox("Postings or people changed since the members' file was last published" & _
@@ -262,7 +264,7 @@ Public Sub PublishMembers()
         Exit Sub
     End If
     SetPublishedAt Now
-    ClearMembersDirty
+    If savedAs = folder & MEMBER_FILE_NAME Then ClearMembersDirty     ' a dated copy (file open on a plant PC) leaves members behind
     On Error Resume Next
     MarkCalDirty                                   ' Needs Attention's "members file" line
     SaveIfWritable                                 ' keeps the published-at stamp
@@ -361,7 +363,7 @@ Private Function BuildMeta() As Variant
     a(15, 1) = "Crews": a(15, 2) = Join(ShiftList(), "|")
     a(16, 1) = "Pay period days": a(16, 2) = 14
     a(2, 1) = "Published at": a(2, 2) = Now
-    a(3, 1) = "Published by": a(3, 2) = CurrentUser()
+    a(3, 1) = "Published by": a(3, 2) = ""                 ' v24.1: a Windows login is never published (nothing reads this row)
     a(4, 1) = "Master version": a(4, 2) = EXPECTED_RELEASE & " M1  (" & CORE_VERSION & ")"
     a(5, 1) = "Kronos data date": a(5, 2) = KronosDataDate()
     a(6, 1) = "Kronos data through": a(6, 2) = KronosDataThrough()
@@ -671,14 +673,14 @@ Private Function BuildLog(ByRef nL As Long) As Variant
             Dim r As Long, sd As Double
             For r = 1 To UBound(v, 1)
                 If SafeStr(v(r, L_ENTRY)) <> "" And UCase$(SafeStr(v(r, L_STATUS))) <> "VOID" Then
-                    sd = NumOr0(v(r, L_PERIOD))             ' v24.1: Period Start, the test the roster's formulas use
+                    sd = DateNumber(v(r, L_PERIOD))         ' v24.1: Period Start, the test the roster's formulas use
                     If (yFrom = 0 Or sd >= yFrom) And (yTo = 0 Or sd <= yTo) Then
                         k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                         out(k, 1) = v(r, L_DATE): out(k, 2) = SafeStr(v(r, L_REF)): out(k, 3) = SafeStr(v(r, L_TYPE))
                         out(k, 4) = SafeStr(v(r, L_DEPT)): out(k, 5) = SafeStr(v(r, L_SHIFTLBL)): out(k, 6) = NumOr0(v(r, L_BASEHRS))
                         out(k, 7) = SafeStr(v(r, L_EMP)): out(k, 8) = SafeStr(v(r, L_OUTCOME))
                         out(k, 9) = NumOr0(v(r, L_CHARGED)): out(k, 10) = v(r, L_PERIOD)
-                        If PUBLISH_REASONS Then out(k, 11) = SafeStr(v(r, L_REASON))
+                        If PUBLISH_REASONS Then out(k, 11) = PublicNote(SafeStr(v(r, L_REASON)))
                     End If
                 End If
             Next r
@@ -686,6 +688,26 @@ Private Function BuildLog(ByRef nL As Long) As Variant
     End If
     nL = k - 1
     BuildLog = Trimmed(out, k, nCols)
+End Function
+
+' A date cell as a number (0 = not a date). NumOr0 can't be used: a cell read with
+' .Value arrives as a Date, which IsNumeric says is not a number - so every log row
+' failed the year test and the members' history was published empty (M1 - v24).
+Private Function DateNumber(ByVal x As Variant) As Double
+    If IsError(x) Or IsEmpty(x) Then Exit Function
+    If IsDate(x) Then
+        DateNumber = CDbl(CDate(x))
+    ElseIf IsNumeric(x) Then
+        DateNumber = CDbl(x)
+    End If
+End Function
+
+' A log Note as members may see it: the "[electronic sign-up <login> <time>]"
+' marker the Award pop-up adds (v24.1) is cut off - a login is never published.
+Private Function PublicNote(ByVal note As String) As String
+    Dim p As Long: p = InStr(1, note, "[electronic sign-up", vbTextCompare)
+    If p > 0 Then note = Trim$(Left$(note, p - 1))
+    PublicNote = note
 End Function
 
 ' first n rows of a (bigger) 2-D array

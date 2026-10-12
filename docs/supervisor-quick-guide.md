@@ -18,6 +18,9 @@ The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out**
 
 Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. If warned that Kronos data is old, No stops so the admin can import first.
 
+## Part of a call-out
+If someone takes only part of the hours, select them and click **ACCEPTED PART OF THE HOURS**, then enter the hours. Keep calling down the list for the rest: the pop-up shows how many hours are on offer to each person, and anyone who refuses is charged on those hours.
+
 ## Postings
 **Post a shift**
 1. Click **New Posting**. Fill in Unit, Shift date, Shift, Reason, Hours and Positions. Crew and "Posting closes" fill in.
@@ -40,6 +43,7 @@ Refused and Left Message are charged (grade 2 and below). `>>` means above grade
 | Nobody took it | Click **NO TAKERS**. | Everyone eligible on the list |
 | Overtime no longer needed | Click **CANCEL REQUEST**. | Nobody |
 | Only part of the shift was taken | Award the partial sign-up(s). The rest of the hours drop off. | People ahead who did not sign up at all, the posting's full hours |
+| Out of department takes part of the shift | Type the hours in the **hrs** box beside the name. Only allowed when nobody in the department signed up. | In-department people who did not sign up, the posting's full hours |
 | Awarded wrong | Ask the admin to void the posting number (P-0003) and reopen it. Then award it again. | - |
 
 ## Shift switch and payback

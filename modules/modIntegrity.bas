@@ -463,6 +463,23 @@ Private Sub CheckLogTypes()
         AddIssue SEV_WARN, "Log types", seen(kk) & " charged OT Log row(s) this year have the Type '" & CStr(kk) & "'", _
                  "They count in Refused under 'other'. Send me this line if you didn't expect it"
     Next kk
+    ' call-out + posting + other must equal the roster's Refused (I) for every person
+    Dim splitMap As Object, c As Double, p As Double, o As Double, r As Long, nBad As Long
+    Set splitMap = SplitTotals(mLog, CLng(mYearFrom), CLng(mLastStart))
+    For r = 1 To mRows
+        If mNames(r) <> "" And Not IsError(mVals(r, C_REFUSED)) Then
+            RefusedSplitOf splitMap, mNames(r), c, p, o
+            If Abs(c + p + o - NumOr0(mVals(r, C_REFUSED))) > TOL Then
+                nBad = nBad + 1
+                If nBad <= 10 Then
+                    AddIssue SEV_WARN, "Log types", mNames(r) & ": call-out " & c & " + posting " & p & " + other " & o & _
+                             " = " & (c + p + o) & ", but Refused on the roster is " & NumOr0(mVals(r, C_REFUSED)), _
+                             "A log row's Period Start is not one of the roster's pay-period dates. The status bar, the report and the members' file show the higher figure"
+                End If
+            End If
+        End If
+    Next r
+    If nBad > 10 Then AddIssue SEV_WARN, "Log types", "... and " & (nBad - 10) & " more people whose refused split doesn't add up", ""
 End Sub
 
 ' ---- 4. people in the data who aren't on the roster ----

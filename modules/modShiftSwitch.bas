@@ -178,7 +178,7 @@ Public Function RosterNames() As Variant
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Function
-    Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)).Value
+    Dim v As Variant: v = RangeTo2D(ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)))   ' one name = one cell
     Dim a() As String, n As Long, i As Long, j As Long, t As String
     ReDim a(1 To UBound(v, 1))
     For i = 1 To UBound(v, 1)

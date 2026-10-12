@@ -97,6 +97,7 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 | Absences table needs its v22 columns | The table is from before v22. | Run `UpgradeAbsenceColumns`. |
 | Crew History / Former sheets not set up | v24's one-time setup has not been run. | Run `SetupPeople`. |
 | posting lists need their Signup Hours column | The same. | Run `SetupPeople`. |
+| sign-up inbox folder not found | `SIGNUPS_ON` is True and the folder isn't there yet. | Click Member View (it makes the folder), then give members write access to it. |
 | N imported vacation line(s) ... not booked yet | Old-calendar lines are display only. | Click Convert imports. |
 | members' template not found | The template is not next to the roster. | See section 10. |
 | BACKUP_FOLDER isn't set | Daily backups are off. | Set it (section 6). |
@@ -298,7 +299,9 @@ Restore the backup only if the reopened file is wrong.
 | **Employee** | Add a person, move one to another unit, rename, remove (to the Former sheet) or bring back. Each shows what it will do first, saves a backup where rows move, and checks every total after. |
 | Crew column (E) on the roster | Type the new crew. A box asks from which date; Cancel puts the old crew back. Earlier time off and switches stay on the old crew's shifts. |
 | **Full Access** | Puts the admin view back for a login on the admin list |
-| **Attendance** | Draws the sick and personal day sheet |
+| **Attendance** | Draws the sick and personal day sheet: one row per person, a column per occurrence, sorts and a filter |
+| **Refusals Report** (PRINT / PUBLISH) | Refused hours split into call-out and posting refusals, per person and per unit; printable, PDF |
+| Status bar (bottom left) | Click a roster row to see that person's Refused hours by kind |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |
 | `ReopenPosting` (Alt+F8) | Reopens a closed posting after its log rows are voided |
 | `ShowGradeLog` (Alt+F8) | Shows the log of grade code changes |

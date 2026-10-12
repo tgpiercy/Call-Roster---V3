@@ -295,6 +295,7 @@ Private Sub btnLoad_Click()
     If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, CDate(C("txtDate").Value), C("cmbDN").Text, offList)
     If mCount = 0 Then
         lstEmployees.Clear
+        C("lblOffer").Caption = ""
         SetOutcomeButtons False
         btnSubmit.Enabled = False
         MsgBox "No employees found for " & C("cmbDept").Value & _
@@ -332,6 +333,15 @@ End Sub
 Private Sub RefreshList()
     lstEmployees.Clear
     Dim i As Long, displayName As String, outcomeText As String
+    ' v24.1: the hours each Accepted row will carry (they depend on partial acceptances above it)
+    Dim oc() As String, offers() As Double, accH As Double
+    If mCount > 0 Then
+        ReDim oc(1 To mCount)
+        For i = 1 To mCount
+            oc(i) = mEntries(i).Outcome
+        Next i
+        CalloutOffers mHours, oc, mTaken, mCount, offers
+    End If
     For i = 1 To mCount
         If mEntries(i).Grade > CHARGE_MAX_GRADE Then
             displayName = ">> " & mEntries(i).EmpName
@@ -343,8 +353,9 @@ Private Sub RefreshList()
             outcomeText = "-"
         ElseIf mEntries(i).Outcome = "Unavailable" Then
             outcomeText = "Unavail: " & mEntries(i).Reason
-        ElseIf mEntries(i).Outcome = "Accepted" And mTaken(i) > 0 Then
-            outcomeText = "Accepted " & HoursText(mTaken(i)) & " h"
+        ElseIf mEntries(i).Outcome = "Accepted" Then
+            accH = AcceptedHours(offers(i), mTaken(i))
+            outcomeText = "Accepted" & IIf(accH <> mHours, " " & HoursText(accH) & " h", "")
         Else
             outcomeText = mEntries(i).Outcome
         End If
@@ -521,7 +532,7 @@ Private Sub btnSubmit_Click()
 
     Dim data() As Variant: ReDim data(1 To logged, 1 To L_NCOLS)
     Dim i As Long, k As Long, charged As Double, totalCharged As Double
-    Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long
+    Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long, accTxt As String
     ' v24.1: the hours each person was offered (less than the call-out's below a partial acceptance)
     Dim oc() As String, offers() As Double, worked As Double
     ReDim oc(1 To mCount)
@@ -577,6 +588,7 @@ Private Sub btnSubmit_Click()
     For i = 1 To mCount
         If mEntries(i).Outcome = "Accepted" Then
             worked = AcceptedHours(offers(i), mTaken(i))
+            accTxt = accTxt & vbNewLine & "      " & mEntries(i).EmpName & ": " & HoursText(worked) & " h"
             calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, mShiftLbl, mEntries(i).EmpName, worked, sessionID)
         End If
     Next i
@@ -584,7 +596,7 @@ Private Sub btnSubmit_Click()
     MsgBox "Session " & sessionID & " submitted!" & vbNewLine & vbNewLine & _
            dept & " | " & mShiftLbl & " | Crew: " & shiftSel & " | " & Format$(entryDate, "MM/DD/YYYY") & vbNewLine & _
            "Base hours: " & hours & "   Rate: " & CHARGE_MULTIPLIER & "x" & vbNewLine & vbNewLine & _
-           "  Accepted: " & nAcc & vbNewLine & _
+           "  Accepted: " & nAcc & accTxt & vbNewLine & _
            "  Refused: " & nRef & vbNewLine & _
            "  Left Message: " & nMsg & vbNewLine & _
            "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
@@ -613,6 +625,7 @@ Private Sub ResetForm()
     C("lblCurrent").Caption = "Load a list to begin"
     C("lblPhone").Caption = ""
     C("lblProgress").Caption = "": C("lblStatus").Caption = ""
+    C("lblOffer").Caption = ""
     SetOutcomeButtons False
     btnSubmit.Enabled = False
 End Sub

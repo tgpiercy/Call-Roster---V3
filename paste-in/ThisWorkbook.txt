@@ -67,6 +67,7 @@ End Sub
 ' workbook whose conversion failed, close without saving.
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
+    ReleaseStatusBar                       ' v24.1: Excel's status bar belongs to every open workbook
     If NoSave() Or ThisWorkbook.ReadOnly Then
         ThisWorkbook.Saved = True
         Exit Sub
@@ -87,6 +88,11 @@ Private Sub Workbook_SheetActivate(ByVal Sh As Object)
     If mRestoreAdmin And Not gAdminUnlocked Then Exit Sub   ' mid-save / closing view switch
     CalSheetActivated Sh
     ReportsSheetActivated Sh           ' v24.1: the status bar goes back when you leave the roster
+End Sub
+
+' v24.1: switching to another workbook gives Excel's status bar back
+Private Sub Workbook_Deactivate()
+    ReleaseStatusBar
 End Sub
 
 ' v24.1: selecting a roster row shows that person's Refused hours by kind

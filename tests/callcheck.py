@@ -323,7 +323,8 @@ def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     master = sorted((root / "modules").glob("*.bas")) + sorted((root / "paste-in").glob("*.txt"))
     member = sorted((root / "member").glob("*"))
-    n = check_project(master, "master") + check_project(member, "member")
+    updater = sorted((root / "updater").glob("*.bas"))      # v24.2: its own workbook, so its own project
+    n = check_project(master, "master") + check_project(member, "member") + check_project(updater, "updater")
     print(f"done {n} finding(s)")
     return 1 if n else 0
 

@@ -39,6 +39,7 @@ def main() -> int:
             [str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob("modules/*.bas")]
             + [str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob("paste-in/*.txt")]
             + [str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob("member/*")]
+            + [str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob("updater/*.bas")]
         )
     install = ROOT / "docs" / f"INSTALL-{tag}.md"
     if not install.is_file():

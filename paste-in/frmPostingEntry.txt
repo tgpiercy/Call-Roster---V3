@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24.1 (Jan 5)
+' @version v24.2 (Jan 5)
 
 ' ================================================================
 ' AWARD OVERTIME POSTING
@@ -455,6 +455,7 @@ End Sub
 ' WARN ON CLOSE
 ' ================================================================
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If gErrorClosing Then Exit Sub                 ' v24.2: closed by the error handler, which says what happened
     If mDirty Then
         If MsgBox("Close without submitting?", vbYesNo + vbExclamation, "Unsaved") = vbNo Then Cancel = 1
     End If

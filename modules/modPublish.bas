@@ -150,6 +150,8 @@ Public Sub PublishMembers()
         Exit Sub
     End If
     Dim folder As String: folder = PublishFolderPath()
+    ' v24.2: a practice copy only ever writes beside itself, wherever PUBLISH_FOLDER points
+    If IsDryRunName(ThisWorkbook.Name) Then folder = EnsureSlash(ThisWorkbook.Path)
     If gSmokeRun Then                              ' v24.2: SmokeTest publishes a scratch copy, never the members' file
         gSmokeSaved = ""
         If Trim$(gSmokeFolder) = "" Then Exit Sub
@@ -178,7 +180,7 @@ Public Sub PublishMembers()
     BuildPostings post, nP, plist, nPL
     lg = BuildLog(nL)
     att = BuildAttend(nA)
-    If SIGNUPS_ON Then EnsureSignupFolder
+    If SIGNUPS_ON And Not gSmokeRun Then EnsureSignupFolder
     On Error GoTo 0
 
     ' ---- 2. privacy check (nothing has been opened or written yet) ----
@@ -231,7 +233,8 @@ Public Sub PublishMembers()
     tplLayout = CStr(Application.Run("'" & wb.Name & "'!MemberLayoutVersion"))
     On Error GoTo WriteFailed
     If InStr(1, tplVer, MEMBER_NEEDS, vbTextCompare) = 0 Then
-        Err.Raise vbObjectError + 604, , "the template's code is " & IIf(tplVer = "", "older than " & MEMBER_NEEDS, tplVer) & _
+        Err.Raise vbObjectError + 604, , "the template's code is " & _
+                                         IIf(tplVer = "", "older than " & MEMBER_NEEDS & " (or its macros couldn't be run)", tplVer) & _
                                          " and this roster needs " & MEMBER_NEEDS & ": update the members' template (INSTALL note, members' part)"
     End If
     If StrComp(tplLayout, tplVer, vbTextCompare) <> 0 Then
@@ -254,9 +257,13 @@ Public Sub PublishMembers()
     Application.Run "'" & wb.Name & "'!MemberRefreshAll"
     redrawn = (Err.Number = 0)
     Err.Clear
+    Dim tplNote As String                          ' v24.2: the members' code writes a line on Home when its redraw fails
+    tplNote = Trim$(CStr(wb.Worksheets("Home").Range("B5").Value))
+    Err.Clear
     wb.Worksheets("Roster").Activate
     Err.Clear
     On Error GoTo WriteFailed
+    If tplNote <> "" Then Err.Raise vbObjectError + 606, , "the members' file reported a problem while it was redrawn: " & tplNote
 
     Application.DisplayAlerts = False
     On Error Resume Next
@@ -330,7 +337,8 @@ OpenFailed:
     Exit Sub
 WriteFailed:
     em = Err.Description
-    LogError "PublishMembers", Err.Number, em
+    ' 601 - 606 are refusals that say what to do (an old template): not errors for the log
+    If Err.Number < vbObjectError + 601 Or Err.Number > vbObjectError + 606 Then LogError "PublishMembers", Err.Number, em
     On Error Resume Next
     Application.DisplayAlerts = False
     If Not wb Is Nothing Then wb.Close SaveChanges:=False
@@ -639,8 +647,7 @@ Private Function BuildAttend(ByRef nA As Long) As Variant
     BuildAttend = out
     Exit Function
 Failed:
-    Dim em As String: em = Err.Description
-    LogError "BuildAttend", Err.Number, em
+    Dim em As String: em = Err.Description          ' (PublishMembers logs it: this is re-raised below)
     On Error Resume Next
     EndAttendanceBatch
     On Error GoTo 0
@@ -777,13 +784,24 @@ Private Function PrivateDataIn(ByRef a As Variant, ByVal tableName As String) As
                     PrivateDataIn = tableName & " row " & i & ": looks like an email (" & Left$(CStr(a(i, j)), 40) & ")"
                     Exit Function
                 Case "phone"
-                    PrivateDataIn = tableName & " row " & i & ": looks like a phone number (" & Left$(CStr(a(i, j)), 40) & ")"
+                    PrivateDataIn = tableName & " row " & i & ", column " & j & ": looks like a phone number or an ID (" & _
+                                    MaskDigits(Left$(CStr(a(i, j)), 40)) & ")"
                     Exit Function
                 Case "number"                      ' the value itself is not shown: it may be a Payroll #
                     PrivateDataIn = tableName & " row " & i & ", column " & j & ": a number of 7 or more digits (a Payroll # or a phone number?)"
                     Exit Function
             End Select
         Next j
+    Next i
+End Function
+
+' "905-555-0142" -> "###-###-####": the message shows where the digits are, never what they are
+Private Function MaskDigits(ByVal s As String) As String
+    Dim i As Long, ch As String
+    For i = 1 To Len(s)
+        ch = Mid$(s, i, 1)
+        If ch Like "#" Then ch = "#"
+        MaskDigits = MaskDigits & ch
     Next i
 End Function
 

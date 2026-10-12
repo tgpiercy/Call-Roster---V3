@@ -3172,7 +3172,7 @@ Public Sub DrawNeeds()
     nErrLines = UnseenErrorCount()
     If nErrLines > 0 Then
         NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
-              "Open the log", "", "E:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+              "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
     End If
 
     ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
@@ -3579,7 +3579,7 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
         Exit Sub
     End If
-    If Left$(keyTxt, 2) = "E:" Then              ' v24.2: errors - open the Error Log
+    If Left$(keyTxt, 2) = "X:" Then              ' v24.2: errors - open the Error Log
         ShowErrorLog
         Exit Sub
     End If
@@ -3610,7 +3610,7 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
         If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
         Exit Sub
     End If
-    If Left$(keyTxt, 2) = "E:" Then
+    If Left$(keyTxt, 2) = "X:" Then
         ShowErrorLog
         Exit Sub
     End If

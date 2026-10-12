@@ -34,6 +34,11 @@ Public Const EL_TABLE As String = "tblErrorLog"
 Private Const EL_N As Long = 7
 Private Const EL_SEEN As Long = 7
 Private Const EL_MAX_TEXT As Long = 500
+Private Const EL_FILE As String = "Roster error log.txt"   ' the same lines, beside the workbook (see LogError)
+
+' True only while ReportError is closing the pop-ups an error left open: their
+' "close without saving?" questions stay quiet (frmOvertimeEntry, frmPostingEntry)
+Public gErrorClosing As Boolean
 
 
 ' The table, or Nothing. create:=True adds the sheet and the table.
@@ -47,7 +52,7 @@ Public Function ErrorLogTable(Optional ByVal create As Boolean = False) As ListO
     End If
     If lo Is Nothing And create Then
         If ws Is Nothing Then
-            Dim was As Object: Set was = ActiveSheet       ' adding a sheet activates it - put the user back
+            Dim was As Object: Set was = ThisWorkbook.ActiveSheet     ' adding a sheet activates it - put the user back
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = EL_SHEET
             ws.Tab.Color = RGB(176, 0, 32)
@@ -68,6 +73,7 @@ Public Function ErrorLogTable(Optional ByVal create As Boolean = False) As ListO
         ws.Columns(6).ColumnWidth = 9
         ws.Columns(7).ColumnWidth = 7
         ws.Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+        ws.Range(ws.Columns(3), ws.Columns(5)).NumberFormat = "@"      ' text: an error message starting "=" or "-" is not a formula
         ProtectSheet ws
         ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
@@ -76,11 +82,16 @@ End Function
 
 ' Appends one row. Returns its line number in the log (0 = it couldn't be
 ' written). Never raises, never shows anything.
+' The same line also goes into a small text file beside the workbook: several
+' handlers block saving after they log ("close WITHOUT saving"), and the row on
+' the sheet goes with the unsaved workbook. The text file keeps it.
 Public Function LogError(ByVal proc As String, ByVal errNumber As Long, ByVal errText As String, _
                          Optional ByVal detail As String = "") As Long
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim lo As ListObject, ws As Worksheet, cnt As Long
     On Error GoTo Quit
+    LogErrorToFile proc, errNumber, errText, detail
+    Application.EnableEvents = False               ' before the sheet is made: adding it must not start a redraw
     Set lo = ErrorLogTable(True)
     If lo Is Nothing Then GoTo Quit
     Set ws = lo.Parent
@@ -96,7 +107,6 @@ Public Function LogError(ByVal proc As String, ByVal errNumber As Long, ByVal er
     rec(1, 5) = Left$(detail, EL_MAX_TEXT)
     rec(1, 6) = EXPECTED_RELEASE
     rec(1, EL_SEEN) = ""
-    Application.EnableEvents = False
     ws.Unprotect Password:=SHEET_PASSWORD
     lo.Resize lo.HeaderRowRange.Resize(cnt + 2)
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, EL_N).Value = rec
@@ -109,6 +119,24 @@ Quit:
     MarkCalDirty                                   ' Needs Attention's error line
 End Function
 
+' One line appended to "Roster error log.txt" beside the workbook. Quiet on any failure.
+Private Sub LogErrorToFile(ByVal proc As String, ByVal errNumber As Long, ByVal errText As String, ByVal detail As String)
+    Dim ff As Integer, p As String
+    On Error GoTo Quit
+    p = ThisWorkbook.Path
+    If p = "" Or LCase$(Left$(p, 4)) = "http" Then Exit Sub
+    ff = FreeFile
+    Open EnsureSlash(p) & EL_FILE For Append As #ff
+    Print #ff, Format$(Now, "yyyy-mm-dd hh:nn:ss") & vbTab & EXPECTED_RELEASE & vbTab & CurrentUser() & vbTab & proc & vbTab & _
+               IIf(errNumber <> 0, "#" & errNumber & " ", "") & Replace(Replace(Left$(errText, EL_MAX_TEXT), vbCr, " "), vbLf, " ") & vbTab & _
+               Replace(Replace(Left$(detail, EL_MAX_TEXT), vbCr, " "), vbLf, " ")
+    Close #ff
+    Exit Sub
+Quit:
+    On Error Resume Next
+    Close #ff
+End Sub
+
 ' For an entry point's handler: logs the error that is active right now,
 ' gives Excel back to the user and says what to do. Call it as the FIRST
 ' statement after the label.
@@ -120,13 +148,17 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
     Application.EnableEvents = True
     Application.Cursor = xlDefault
     Dim k As Long                                  ' a pop-up the error happened in is still loaded: close it
+    gErrorClosing = True                           ' ...without its "close without saving?" question
     For k = VBA.UserForms.Count - 1 To 0 Step -1
         Unload VBA.UserForms(k)
     Next k
+    gErrorClosing = False
+    gCalPostKey = ""                               ' a calendar line picked for a posting that never got made
     Dim lineNo As Long: lineNo = LogError(proc, en, em, detail)
     MsgBox "This didn't finish." & vbNewLine & vbNewLine & _
-           "Nothing was saved unless a message before this one said so." & vbNewLine & _
-           "Tell Graeme: Error Log line " & IIf(lineNo > 0, CStr(lineNo), "(not written)") & "  -  " & proc & vbNewLine & vbNewLine & _
+           "Anything it did before the error is still in the workbook and is saved when you close." & vbNewLine & _
+           "Check what you were doing (run it again if it was an import), and tell Graeme:" & vbNewLine & _
+           "Error Log line " & IIf(lineNo > 0, CStr(lineNo), "(not written)") & "  -  " & proc & vbNewLine & vbNewLine & _
            Left$(em, 200), vbExclamation, "Call Out Roster"
 End Sub
 

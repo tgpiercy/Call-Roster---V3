@@ -128,7 +128,7 @@ Sub SyncKronosData()
     wsDest.Range(wsDest.Cells(R_FIRST, C_NAME), wsDest.Cells(lastRow, C_NAME)).Interior.ColorIndex = xlNone
 
     Dim r As Long, nm As String, hit As String, found As Long, missing As String, kVal As Variant
-    Dim rosterNum As String, numKey As String, nameClash As String, nFilled As Long, noNum As String, nNoNum As Long
+    Dim rosterNum As String, numKey As String, nameClash As String, nFilled As Long, noNum As String, nNoNum As Long, payDiff As String, payShared As String
     If pCol > 0 Then                               ' the column keeps text, so a leading zero survives
         wsDest.Range(wsDest.Cells(R_FIRST, C_PAYROLL), wsDest.Cells(lastRow, C_PAYROLL)).NumberFormat = "@"
         If Trim$(SafeStr(wsDest.Cells(2, C_PAYROLL).Value)) = "" Then
@@ -164,10 +164,16 @@ Sub SyncKronosData()
             If hit = "~leave~" Then
                 ' nothing is changed for this row
             ElseIf hit <> "" Then
-                If pCol > 0 And rosterNum = "" Then
-                    If payOf.Exists(hit) Then
-                        wsDest.Cells(r, C_PAYROLL).Value = CStr(payOf(hit))
-                        nFilled = nFilled + 1
+                If pCol > 0 And payOf.Exists(hit) Then
+                    If rosterNum = "" Then
+                        If CStr(keyOfNum(CStr(payOf(hit)))) = "" Then
+                            payShared = payShared & "  " & nm & vbNewLine          ' Kronos has that number under two names: don't guess
+                        Else
+                            wsDest.Cells(r, C_PAYROLL).Value = CStr(payOf(hit))
+                            nFilled = nFilled + 1
+                        End If
+                    ElseIf rosterNum <> CStr(payOf(hit)) Then
+                        payDiff = payDiff & "  " & nm & vbNewLine                  ' matched by name; the roster's number isn't Kronos's
                     End If
                 End If
                 used(hit) = True
@@ -252,13 +258,30 @@ Sub SyncKronosData()
         "On the roster but not found in Kronos - Worked Hours NOT updated:" & vbNewLine & missing
     If extra <> "" Then msg = msg & vbNewLine & _
         "In Kronos but not on the roster (spelling different, or not on this roster):" & vbNewLine & extra
-    If noNum <> "" Then msg = msg & vbNewLine & _
-        "Roster rows with no Payroll # yet (" & nNoNum & "):" & vbNewLine & noNum
     If Len(msg) > 1000 Then msg = Left$(msg, 980) & vbNewLine & "... (more)"
     MsgBox msg, IIf(missing = "" And extra = "" And nameClash = "", vbInformation, vbExclamation), "Kronos import"
+    ' v24.2: the Payroll # lists get a box of their own (names only, never a number)
+    Dim payMsg As String
+    If payDiff <> "" Then payMsg = payMsg & "Matched by name, but column A doesn't hold the Payroll # Kronos has - check column A:" & vbNewLine & payDiff & vbNewLine
+    If payShared <> "" Then payMsg = payMsg & "Kronos has one Payroll # under two names, so column A was left blank for:" & vbNewLine & payShared & vbNewLine
+    If noNum <> "" Then payMsg = payMsg & "Roster rows with no Payroll # yet (" & nNoNum & "):" & vbNewLine & noNum
+    If payMsg <> "" Then
+        If Len(payMsg) > 1000 Then payMsg = Left$(payMsg, 980) & vbNewLine & "... (more)"
+        MsgBox payMsg, IIf(payDiff = "" And payShared = "", vbInformation, vbExclamation), "Kronos import - Payroll #"
+    End If
     Exit Sub
 Oops:
     ReportError "SyncKronosData"
+    KronosCleanUp wsDest, wbSource, openedHere
+End Sub
+
+' After an error part-way through the import: the roster is protected again and
+' the Kronos file is closed if the import opened it. Quiet.
+Private Sub KronosCleanUp(ByVal wsDest As Worksheet, ByVal wbSource As Workbook, ByVal openedHere As Boolean)
+    On Error Resume Next
+    If Not wsDest Is Nothing Then ProtectSheet wsDest
+    If openedHere And Not wbSource Is Nothing Then wbSource.Close SaveChanges:=False
+    ThisWorkbook.Activate
 End Sub
 
 

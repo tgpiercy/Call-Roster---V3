@@ -79,6 +79,11 @@ Public Sub SmokeTest()
         MsgBox "A test person from an earlier run is still in this copy. Start from a fresh copy.", vbExclamation, TTL
         Exit Sub
     End If
+    If Date < RosterYearFrom() Then
+        MsgBox "This copy's roster year starts " & Format$(RosterYearFrom(), "mmm d, yyyy") & ", which is still ahead." & vbNewLine & _
+               "SmokeTest needs a copy of the current year's roster.", vbExclamation, TTL
+        Exit Sub
+    End If
     If MsgBox("Run the smoke test in this copy?" & vbNewLine & vbNewLine & ThisWorkbook.Name & vbNewLine & vbNewLine & _
               "It adds a test person, logs and voids a posting, a call-out, time off and a switch, publishes to a scratch file, " & _
               "then checks every total is unchanged. About a minute. Nothing is saved, and afterwards this copy can only be closed.", _
@@ -87,6 +92,8 @@ Public Sub SmokeTest()
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
     Dim before As Object, logBefore As Double, nErr0 As Long, nWarn0 As Long, diff As String
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    MarkNoSave                                     ' from the first moment: even a run stopped with Esc can't be saved
     On Error GoTo Crashed
     Application.Calculate
     Set before = RosterTotalsMap()
@@ -112,6 +119,7 @@ Public Sub SmokeTest()
     gSmokeRun = False
     Application.StatusBar = False
     Application.ScreenUpdating = scrWas
+    Application.EnableEvents = evWas               ' a step that failed half-way may have left them off
 
     ' ---- everyone's totals and the log's charged total must be back where they were ----
     If failedAt = 0 Then
@@ -121,7 +129,6 @@ Public Sub SmokeTest()
             diff = diff & "  OT Log total Hours Charged was " & logBefore & ", now " & LogChargedTotal() & vbNewLine
         End If
     End If
-    MarkNoSave                                     ' this copy has test rows in it: it can only be closed
     On Error Resume Next
     LogError "SmokeTest", 0, IIf(failedAt = 0 And diff = "", "all steps OK, totals unchanged", _
                                  IIf(failedAt > 0, "FAILED at step " & failedAt & " (" & SmkName(failedAt) & ")", "totals changed")), Left$(why & diff, 400)
@@ -135,8 +142,8 @@ Public Sub SmokeTest()
     Else
         head = "SMOKE TEST PASSED: all steps OK, totals unchanged."
     End If
-    MsgBox head & vbNewLine & vbNewLine & rep & vbNewLine & _
-           "Not tested here: switch eligibility stops, vacation on scheduled shifts, the already-booked-sick check, printing and emails." & vbNewLine & vbNewLine & _
+    If Len(head) > 420 Then head = Left$(head, 400) & " ..." & vbNewLine
+    MsgBox head & vbNewLine & vbNewLine & Left$(rep, 480) & vbNewLine & _
            "Saving is blocked in this copy. Close it; nothing is kept.", _
            IIf(failedAt = 0 And diff = "", vbInformation, vbCritical), TTL & "  (" & EXPECTED_RELEASE & ")"
     Exit Sub
@@ -227,12 +234,12 @@ End Function
 ' ---- 2. posting ----
 Private Function SmkPosting(ByRef st As SmkState, ByRef why As String) As Boolean
     ' the first shift three or more weeks out with at least two people free to be listed
-    Dim dd As Long, d As Date, sh As Variant, recs() As EmpRec, n As Long, off As String, found As Boolean
+    Dim dd As Long, d As Date, sh As Variant, recs() As EmpRec, n As Long, offTxt As String, found As Boolean
     For dd = 21 To 60
         d = Date + dd
         For Each sh In Array("Days", "Nights")
             n = LoadEligible(st.Unit, CrewFilter(CREW_ALL), recs, DeptPostingMaxGrade(st.Unit), True, d)
-            If n > 0 Then n = FilterNotFree(recs, n, d, CStr(sh), off)
+            If n > 0 Then n = FilterNotFree(recs, n, d, CStr(sh), offTxt)
             If n >= 2 Then found = True: st.PostDate = d: st.PostShift = CStr(sh): Exit For
         Next sh
         If found Then Exit For
@@ -248,7 +255,6 @@ Private Function SmkPosting(ByRef st As SmkState, ByRef why As String) As Boolea
     p.Hours = USUAL_SHIFT_HOURS
     p.Positions = 1
     p.ClosesOn = st.PostDate - POSTING_CLOSE_DAYS
-    gCalPostKey = "NEW": gCalPostDate = st.PostDate: gCalPostShift = st.PostShift     ' its calendar line: a new one, no question
     If Not CreatePostingFrom(p, False, False) Then Exit Function
     st.PostId = p.ID
     If PostingStatus(st.PostId) <> "Open" Then why = st.PostId & " isn't Open after being created": Exit Function
@@ -275,11 +281,16 @@ End Function
 
 ' ---- 4. call-out ----
 Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolean
-    Dim d As Date: d = st.PostDate + 7
-    Dim recs() As EmpRec, n As Long, off As String, taken() As Double, i As Long, summary As String
-    n = LoadEligible(st.Unit, CrewFilter(CREW_ALL), recs, 999, CALLOUT_INCLUDE_DAYS, d)
-    If n > 0 Then n = FilterNotFree(recs, n, d, "Days", off)
-    If n < 2 Then why = "fewer than two people free in " & st.Unit & " on " & Format$(d, "mmm d"): Exit Function
+    ' the first day shift, a week or more after the posting, with at least two people free
+    Dim d As Date, dd As Long
+    Dim recs() As EmpRec, n As Long, offTxt As String, taken() As Double, i As Long, summary As String
+    For dd = 7 To 35
+        d = st.PostDate + dd
+        n = LoadEligible(st.Unit, CrewFilter(CREW_ALL), recs, 999, CALLOUT_INCLUDE_DAYS, d)
+        If n > 0 Then n = FilterNotFree(recs, n, d, "Days", offTxt)
+        If n >= 2 Then Exit For
+    Next dd
+    If n < 2 Then why = "no day shift in the five weeks after the posting has two people free in " & st.Unit: Exit Function
     ReDim taken(1 To n)
     recs(1).Outcome = "Refused"
     recs(2).Outcome = "Accepted": taken(2) = 8                  ' takes 8 of the 12 on offer
@@ -387,6 +398,7 @@ Private Function SmkPublish(ByRef st As SmkState, ByRef why As String) As Boolea
     gSmokeFolder = folder
     gSmokeSaved = ""
     PublishMembers
+    Application.ScreenUpdating = False             ' the publish switches it back on
     If gSmokeSaved = "" Then why = "the publish didn't write its file (a message above says why)": Exit Function
 
     Dim evWas As Boolean: evWas = Application.EnableEvents

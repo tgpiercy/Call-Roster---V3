@@ -949,7 +949,7 @@ Public Function FormerTable(Optional ByVal create As Boolean = False) As ListObj
         ProtectSheet ws
         ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
-    If Not lo Is Nothing Then EnsureFormerColumns lo
+    If Not lo Is Nothing And create Then EnsureFormerColumns lo      ' never from a read (IntegrityCheck, SystemCheck)
     Set FormerTable = lo
 End Function
 

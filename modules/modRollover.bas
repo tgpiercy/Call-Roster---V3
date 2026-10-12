@@ -330,8 +330,8 @@ Public Sub RolloverYear()
 
 Failed:
     Dim em As String: em = Err.Description
-    LogError "RolloverYear", Err.Number, em
     If Err.Number = 18 Then em = "it was interrupted (Esc or Ctrl+Break)"
+    LogError "RolloverYear", Err.Number, em
     On Error Resume Next
     Application.EnableCancelKey = xlInterrupt
     Application.Calculation = calcWas

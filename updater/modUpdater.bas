@@ -150,6 +150,13 @@ End Sub
 Public Sub UpdateDrop()
     Dim wb As Workbook: Set wb = UpdTarget()
     If wb Is Nothing Then Exit Sub
+    If Not UpdNameSet(wb, UPD_PENDING) And Not UpdNameSet(wb, UPD_NOSAVE) Then
+        If MsgBox("No update is waiting in " & wb.Name & "." & vbNewLine & vbNewLine & _
+                  "Close it WITHOUT saving anyway? Anything not saved in it is lost.", _
+                  vbYesNo + vbExclamation + vbDefaultButton2, UPD_TITLE) <> vbYes Then Exit Sub
+        wb.Close SaveChanges:=False
+        Exit Sub
+    End If
     If MsgBox("Close " & wb.Name & " WITHOUT saving?" & vbNewLine & vbNewLine & _
               "The file on disk stays exactly as it was before the update." & vbNewLine & _
               "(If a 'Compile error' box appears while it closes, click OK: it still closes without saving.)", _
@@ -322,6 +329,7 @@ Private Sub UpdRun(ByVal checkOnly As Boolean)
            "2. NO message: Alt+F8 > UpdateFinished. It saves and tells you what is next." & vbNewLine & _
            "    A message: note the line it highlights, then Alt+F8 > UpdateDrop." & vbNewLine & _
            "    It closes without saving; your file stays exactly as it was." & vbNewLine & _
+           "    Do NOT press Ctrl+S: with a compile error the save block may not hold." & vbNewLine & _
            "    (Closing by hand instead? Click DON'T SAVE.)" & vbNewLine & vbNewLine & _
            "Backup: " & bk & vbNewLine & "Report: " & repPath, vbInformation, UPD_TITLE
 End Sub
@@ -720,6 +728,16 @@ Private Function UpdTarget() As Workbook
             Exit Function
         End If
         Set hit = ActiveWorkbook
+    End If
+    ' an updater left INSIDE that roster (the Oct 12 attempt) puts a second UpdateFromFolder in the Alt+F8 list
+    Dim tproj As Object: Set tproj = UpdProject(hit, why)
+    If Not tproj Is Nothing Then
+        If Not UpdFindComp(tproj, "modUpdater") Is Nothing Then
+            MsgBox hit.Name & " still has a modUpdater module inside it from an earlier attempt." & vbNewLine & vbNewLine & _
+                   "Remove it first: Alt+F11, find modUpdater under the ROSTER's project, right-click > Remove > No. " & _
+                   "Save the roster, then run this again from Roster Updater.xlsm.", vbExclamation, UPD_TITLE
+            Exit Function
+        End If
     End If
     Set UpdTarget = hit
 End Function

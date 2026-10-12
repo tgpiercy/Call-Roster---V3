@@ -1174,11 +1174,15 @@ Public Sub ApplyView(ByVal adminView As Boolean)
     Next nm
     Dim rs As Worksheet: Set rs = RosterSheet()
     rs.Unprotect Password:=SHEET_PASSWORD
+    Dim leftWas As Double: leftWas = rs.Cells(1, C_SHIFT).Left
     rs.Columns(C_PHONE).Hidden = Not adminView
     rs.Columns(C_EMAIL).Hidden = Not adminView
     rs.Columns(C_PAYROLL).Hidden = Not adminView       ' v24.2: a personal identifier, like phone and email
+    ' column A is LEFT of the command bar, and the bar's shapes don't move with cells: carry them along
+    Dim dx As Double: dx = rs.Cells(1, C_SHIFT).Left - leftWas
     Dim shp As Shape
     For Each shp In rs.Shapes
+        If Left$(shp.Name, 3) = "ui_" And Abs(dx) > 0.01 Then shp.Left = shp.Left + dx
         If Left$(shp.Name, 7) = "ui_adm_" Then shp.Visible = IIf(adminView, msoTrue, msoFalse)
     Next shp
     If SheetExists(CALLOUT_SHEET) Then

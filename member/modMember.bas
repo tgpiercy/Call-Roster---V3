@@ -72,6 +72,8 @@ Private Const US As String = "~|~"                 ' separators for the calendar
 Private Const RS As String = "~#~"
 
 Private mDrawing As Boolean
+Private mViewErr As String                         ' M2.1: a view that failed to draw says so here (its own handler ends quietly)
+Private mLoadNote As String                        ' M2.1: the note MemberRefreshAll left on Home ("" = none)
 
 
 ' ====================================================================
@@ -413,6 +415,10 @@ Private Sub LayoutHome()
     ws.Rows(17).RowHeight = 30
     ws.Range("B19").Value = MEM_VERSION
     ws.Range("B19").Font.Size = 8: ws.Range("B19").Font.Color = RGB(160, 165, 175)
+    ws.Range("B5:H5").Merge                          ' M2.1: the warning line (HomeNote)
+    ws.Range("B5").WrapText = True
+    ws.Range("B5").VerticalAlignment = xlTop
+    ws.Rows(5).RowHeight = 30
     ProtectWs ws
 End Sub
 
@@ -529,18 +535,22 @@ Public Sub MemberRefreshAll()
     Application.ScreenUpdating = False
     mDrawing = True
     Dim stepTxt As String, note As String, en As Long, em As String
+    mViewErr = ""
     On Error GoTo Done
-    ' the file always starts with nobody picked, even if it was saved with a name showing
-    stepTxt = "the pickers"
-    SetCell WsOf(SH_HOME), HOME_FIND, ""
-    SetCell WsOf(SH_ROSTER), ROSTER_FIND, ""
-    SetCell WsOf(SH_HIST), HIST_NAME, ""
-    SetCell WsOf(SH_POST), POST_PICK, ""
-    stepTxt = "the lists"
-    BuildLists
+    stepTxt = "the layout check"
+    note = LayoutProblem()                         ' sheets an older version laid out: write nothing into their cells
+    If note = "" Then
+        ' the file always starts with nobody picked, even if it was saved with a name showing
+        stepTxt = "the pickers"
+        SetCell WsOf(SH_HOME), HOME_FIND, ""
+        SetCell WsOf(SH_ROSTER), ROSTER_FIND, ""
+        SetCell WsOf(SH_HIST), HIST_NAME, ""
+        SetCell WsOf(SH_POST), POST_PICK, ""
+        stepTxt = "the lists"
+        BuildLists
+    End If
     stepTxt = "Home"
     DrawHome
-    note = LayoutProblem()
     If note = "" Then note = DataProblem()
     If note <> "" Then
         stepTxt = "clearing the views"
@@ -562,7 +572,12 @@ Public Sub MemberRefreshAll()
 Done:
     en = Err.Number: em = Err.Description          ' reached normally (0) or from an error anywhere above
     On Error Resume Next
-    If en <> 0 Then note = "This file didn't finish loading (" & stepTxt & ": " & em & "). Tell your supervisor."
+    If en <> 0 Then
+        note = "This file didn't finish loading (" & stepTxt & ": " & em & "). Tell your supervisor."
+    ElseIf mViewErr <> "" Then
+        note = "This file didn't finish loading (" & mViewErr & "). Tell your supervisor."
+    End If
+    mLoadNote = note
     HomeNote note
     mDrawing = False
     MarkClean
@@ -756,6 +771,7 @@ Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     mDrawing = True
+    mViewErr = ""
     On Error GoTo Done
     SetCell WsOf(SH_HOME), HOME_FIND, nm
     SetCell WsOf(SH_ROSTER), ROSTER_FIND, nm
@@ -783,7 +799,9 @@ Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
 Done:
     en = Err.Number: em = Err.Description          ' reached normally (0) or from an error anywhere above
     On Error Resume Next
-    HomeNote IIf(en <> 0, "Couldn't show everything for " & nm & " (" & em & "). Tell your supervisor.", "")
+    If en = 0 And mViewErr <> "" Then en = 1: em = mViewErr
+    ' a note left by the load stays: it is still true
+    HomeNote IIf(en <> 0, "Couldn't show everything for " & nm & " (" & em & "). Tell your supervisor.", mLoadNote)
     mDrawing = False
     WsOf(stayOn).Activate
     If stayOn = SH_HOME Then WsOf(SH_HOME).Range(HOME_FIND).Select
@@ -871,6 +889,7 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     UnprotectWs ws
+    On Error GoTo Fail
     ClearBelow ws, 4
     Dim units As Variant: units = UnitList()
     Dim nU As Long: nU = UBound(units) - LBound(units) + 1
@@ -991,6 +1010,14 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
     MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
+    Exit Sub
+Fail:                                            ' M2.1: an error here used to leave Excel's events switched off
+    mViewErr = "the Roster: " & Err.Description
+    On Error Resume Next
+    ProtectWs ws
+    MarkClean
+    Application.ScreenUpdating = True
+    Application.EnableEvents = evWas
 End Sub
 
 Private Function HoursText(ByVal total As Variant, ByVal prov As Variant) As Variant
@@ -1019,6 +1046,7 @@ Private Sub DrawNextDefault()
 End Sub
 
 Public Sub MemberShowNext()
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then Exit Sub      ' the note on Home says why
     Dim ws As Worksheet: Set ws = WsOf(SH_NEXT)
     Dim unit As String: unit = Txt(ws.Range(NEXT_UNIT).Value)
     Dim dTxt As String: dTxt = Txt(ws.Range(NEXT_DATE).Value)
@@ -1076,6 +1104,7 @@ Public Sub MemberShowNext()
         ws.Cells(6, 2).Font.Italic = True
     End If
 Fail:                                            ' reached normally, or from an error anywhere above
+    If Err.Number <> 0 Then mViewErr = "Who's next: " & Err.Description
     On Error Resume Next
     ProtectWs ws
     MarkClean
@@ -1187,7 +1216,7 @@ Private Sub PaintLines(ByVal ws As Worksheet, ByVal r As Long, ByVal c As Long, 
     Next i
     If nShow < nAll Then
         With ws.Cells(r + nShow, c)
-            .Value = "... and " & (nAll - nShow) & " more (pick one group to see them)"
+            .Value = "... " & (nAll - nShow) & " more"
             .Font.Italic = True
             .Font.Color = RGB(100, 100, 100)
         End With
@@ -1197,6 +1226,7 @@ End Sub
 ' M2: the master's month grid. Week rows, Sunday to Saturday; each day is two
 ' columns (who's off | covered by) with the day lines above the night lines.
 Public Sub MemberShowCalendar()
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then Exit Sub      ' the note on Home says why
     Dim ws As Worksheet: Set ws = WsOf(SH_CAL)
     Dim grp As String: grp = Txt(ws.Range(CAL_UNIT).Value)
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -1322,8 +1352,10 @@ Public Sub MemberShowCalendar()
         .FitToPagesWide = 1
         .FitToPagesTall = 1
     End With
-    On Error GoTo 0
+    On Error GoTo Finish
+    Err.Clear
 Finish:
+    If Err.Number <> 0 Then mViewErr = "the Calendar: " & Err.Description
     On Error Resume Next
     ProtectWs ws
     MarkClean
@@ -1650,6 +1682,7 @@ Public Sub MemberShowPostings()
         ws.Cells(r, 1).Font.Size = 8.5: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = RGB(100, 100, 100)
     End If
 Finish:
+    If Err.Number <> 0 Then mViewErr = "the Postings: " & Err.Description
     On Error Resume Next
     ProtectWs ws
     MarkClean
@@ -1959,6 +1992,7 @@ Public Sub MemberShowHistory()
 End Sub
 
 Private Sub DrawHistory(ByVal nm As String)
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then Exit Sub      ' the note on Home says why
     Dim ws As Worksheet: Set ws = WsOf(SH_HIST)
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False
@@ -2069,6 +2103,7 @@ Private Sub DrawHistory(ByVal nm As String)
         ws.Cells(r, 1).Value = "  other (adjustments)": ws.Cells(r, 2).Value = kOther: ws.Cells(r, 2).HorizontalAlignment = xlCenter
     End If
 Fail:                                            ' reached normally, or from an error anywhere above
+    If Err.Number <> 0 Then mViewErr = "My history: " & Err.Description
     On Error Resume Next
     ProtectWs ws
     MarkClean
@@ -2088,6 +2123,7 @@ Public Sub MemberGoHistory(): WsOf(SH_HIST).Activate: End Sub
 
 Public Sub MemberOnOpen()
     On Error Resume Next
+    Application.EnableEvents = True                ' M2.1: a session left with events off would make this file ignore every pick
     MemberRefreshAll
     WsOf(SH_HOME).Activate
     ActiveWindow.DisplayGridlines = False

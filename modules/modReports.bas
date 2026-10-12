@@ -375,7 +375,7 @@ Public Sub RefusalsReport()
         r = r + 1
         If allUnits Then ReportTotalRow ws, r, "ALL UNITS", tot: r = r + 1
     Else
-        ws.Cells(r, 1).Value = "Nobody has charged hours this year" & IIf(allUnits, ".", " in " & unit & ".")
+        ws.Cells(r, 1).Value = "Nobody has charged hours in these pay periods" & IIf(allUnits, ".", " in " & unit & ".")
         r = r + 1
     End If
 

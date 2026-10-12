@@ -554,6 +554,7 @@ End Sub
 ' WARN ON CLOSE (the old version unloaded even when you said No)
 ' ================================================================
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If gErrorClosing Then Exit Sub                 ' v24.2: closed by the error handler, which says what happened
     If mCount = 0 Then Exit Sub
     Dim logged As Long: logged = LoggedCount()
     If logged > 0 Then

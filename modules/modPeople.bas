@@ -891,6 +891,7 @@ Private Sub AfterPeopleChange()
     ResetCrewCache
     ResetCalCacheAll
     ResetSplitCache                         ' v24.1: the status bar's refused split is keyed on names
+    MarkMembersDirty                        ' v24.1: the members' file is behind now
     MarkCalDirty
     SetRosterStatus
 End Sub

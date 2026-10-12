@@ -312,3 +312,10 @@ calloffer,whole-shift-changes-nothing,12,Accepted:0;Refused:0,,,,12=0;12=21
 calloffer,two-partials,12,Accepted:8;Accepted:2;Refused:0,,,,12=0;4=0;2=3.5
 calloffer,partial-covering-the-rest,12,Accepted:8;Accepted:4;Refused:0,,,,12=0;4=0;4=7
 calloffer,unavailable-not-charged,13,Accepted:6.5;Unavailable:0;Refused:0,,,,13=0;6.5=0;6.5=11.375
+signups,one-whole-shift,Ann:S:0:2027-01-10-09,2027-01-12-08,,,,Ann=F
+signups,partial-hours,Ann:S:8:2027-01-10-09,2027-01-12-08,,,,Ann=8
+signups,withdrawn,Ann:S:0:2027-01-10-09;Ann:W:0:2027-01-10-11,2027-01-12-08,,,,none
+signups,signed-again-after-withdrawing,Ann:S:0:2027-01-10-09;Ann:W:0:2027-01-10-11;Ann:S:8:2027-01-11-07,2027-01-12-08,,,,Ann=8
+signups,newest-wins-whatever-the-file-order,Ann:S:8:2027-01-11-07;Ann:S:0:2027-01-10-09,2027-01-12-08,,,,Ann=8
+signups,after-closing-is-late,Ann:S:0:2027-01-10-09;Bob:S:0:2027-01-12-09,2027-01-12-08,,,,Ann=F;Bob=FL
+signups,three-people,Ann:S:0:2027-01-10-09;Bob:S:4:2027-01-10-10;Cy:W:0:2027-01-10-11,2027-01-12-08,,,,Ann=F;Bob=4

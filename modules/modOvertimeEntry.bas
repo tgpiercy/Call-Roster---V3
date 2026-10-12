@@ -56,6 +56,13 @@ Public Const MEMBER_PASSWORD As String = "members"  ' sheet protection in the me
 Public Const MEMBERS_STALE_DAYS As Long = 1         ' Needs Attention reminds after this many days
 Public Const MEMBER_NEXT_DAYS As Long = 14          ' Who's next horizon
 Public Const PUB_NAME As String = "MembersPublishedAt"
+' Electronic sign-ups (v24.1): the members' workbook drops one small file per sign-up into this
+' folder and Award Posting reads them. ".\Signups" = a folder beside the members' file; every
+' member needs WRITE access to it. Off until the union and management agree it counts like
+' initialling the posted sheet.
+Public Const SIGNUPS_ON As Boolean = False
+Public Const SIGNUP_FOLDER As String = ".\Signups"
+Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox files this old for a closed posting
 Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this

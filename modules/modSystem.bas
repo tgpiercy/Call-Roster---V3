@@ -59,6 +59,7 @@ Public Sub SystemCheck()
     VerCheck "modRollover", RO_VERSION, warn, nOk
     VerCheck "modPeople", PPL_VERSION, warn, nOk
     VerCheck "modReports", REP_VERSION, warn, nOk
+    VerCheck "modSignups", SG_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
@@ -188,6 +189,16 @@ Public Sub SystemCheck()
         warn = warn & "- members' template not found next to this workbook: " & MEMBER_TEMPLATE_NAME & " (see the M1 install notes)" & vbNewLine
     End If
     info = info & MembersStatusText() & vbNewLine
+    ' v24.1: electronic sign-ups
+    If SIGNUPS_ON Then
+        If FolderExists(SignupFolderPath()) Then
+            info = info & "Sign-ups: on (" & SignupFolderPath() & ")" & vbNewLine
+        Else
+            warn = warn & "- sign-up inbox folder not found: " & SignupFolderPath() & " (it is made at the next publish; members need write access to it)" & vbNewLine
+        End If
+    Else
+        info = info & "Sign-ups: off (SIGNUPS_ON in modOvertimeEntry)" & vbNewLine
+    End If
     Dim bkWarn As String, bkInfo As String
     BackupStatus bkWarn, bkInfo
     warn = warn & bkWarn

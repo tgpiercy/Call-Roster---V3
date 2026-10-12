@@ -98,6 +98,7 @@ Public Type PListRec
     Charged As Double
     Result As String
     SignupHrs As Double         ' v24: 0 = signed up for the whole shift; otherwise the part they'll take
+    ESign As String             ' v24.1: "<login> <time>" when the tick came from an electronic sign-up
     ExemptNote As String        ' v24: "Exempt - moved Jan 12" / "Exempt - left Jan 12": never charged on this posting
 End Type
 
@@ -373,6 +374,7 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     If Not AppendRows(GetTable(PL_TABLE), lr, PL_N) Then Exit Function
     If Not AppendRows(GetTable(PT_TABLE), pr, PS_N) Then Exit Function
     Dim calTxt As String: calTxt = CalendarPosted(p)
+    MarkMembersDirty                    ' v24.1: a posting members can't see yet
     SaveIfWritable
     CreatePostingFrom = True
 
@@ -1484,6 +1486,8 @@ Public Function SubmitCancel(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
         MsgBox p.ID & " cancelled. It wasn't on the calendar, so there was nothing to change there.", vbInformation
     End If
     RefreshCalendar
+    MarkMembersDirty
+    ArchiveSignups p.ID
     SaveIfWritable
     SubmitCancel = True
     Exit Function
@@ -1546,6 +1550,9 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                         data(k, L_REASON) = "Signed up for " & HoursText(lst(i).SignupHrs) & " of " & HoursText(p.Hours) & " h"
                     End If
                 End If
+                If lst(i).ESign <> "" And lst(i).SignedUp Then          ' v24.1 (never published)
+                    data(k, L_REASON) = Trim$(SafeStr(data(k, L_REASON)) & "  [electronic sign-up " & lst(i).ESign & "]")
+                End If
                 data(k, L_CHARGED) = lst(i).Charged
                 data(k, L_PERIOD) = ps
                 data(k, L_USER) = user
@@ -1577,6 +1584,8 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
     End If
 
     UpdatePostingRecords p, lst, n, newStatus, awardNames
+    MarkMembersDirty                    ' v24.1: the members' file is behind now
+    ArchiveSignups p.ID                 ' v24.1: its inbox files are done with
     SaveIfWritable
     WriteOutcome = True
     Exit Function
@@ -1870,6 +1879,7 @@ Public Sub ReopenPosting()
     UpdateCoverageBySource p.ID, "POSTED " & p.ID
     RefreshCalendar
     On Error GoTo 0
+    MarkMembersDirty
     SaveIfWritable
     MsgBox id & " is open again.", vbInformation
 End Sub

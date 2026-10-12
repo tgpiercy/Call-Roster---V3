@@ -189,8 +189,10 @@ Private Sub UserForm_Initialize()
         .Enabled = False
     End With
 
-    MakeLabel "lblStatus", "", 10, 540, 450
+    MakeLabel "lblStatus", "", 10, 536, 450
     C("lblStatus").Font.Size = 8
+    C("lblStatus").Height = 32
+    C("lblStatus").WordWrap = True
 
     LoadChoices
     ApplyFormTheme Me
@@ -238,7 +240,11 @@ Private Sub btnLoad_Click()
 
     SetActionButtons True
     FillOutside
+    ' v24.1: electronic sign-ups from the members' workbook are ticked for you to check
+    Dim sTxt As String
+    If ApplySignups(mP, mL, mN, sTxt) > 0 Then mDirty = True
     RefreshList 0
+    If sTxt <> "" Then C("lblStatus").Caption = sTxt
 End Sub
 
 ' signed off in this unit, not on the posting's list, and free that shift
@@ -340,7 +346,7 @@ Private Sub ToggleSigned()
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then Exit Sub
     mL(i).SignedUp = Not mL(i).SignedUp
-    If Not mL(i).SignedUp Then mL(i).Awarded = False: mL(i).SignupHrs = 0
+    If Not mL(i).SignedUp Then mL(i).Awarded = False: mL(i).SignupHrs = 0: mL(i).ESign = ""
     mDirty = True
     RefreshList i - 1
 End Sub

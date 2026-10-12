@@ -28,8 +28,11 @@ Public Const DS_CAL As String = "dCal"
 Public Const DS_POST As String = "dPost"
 Public Const DS_PLIST As String = "dPostList"
 Public Const DS_LOG As String = "dLog"
+Public Const DS_ATT As String = "dAttend"     ' v24.1 / M2: sick time COUNTS only (no dates)
+Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
 
-Private Const ROSTER_FIXED As Long = 7        ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional
+' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
+Private Const ROSTER_FIXED As Long = 10
 Private Const CAL_MONTHS_BACK As Long = 1
 Private Const CAL_MONTHS_AHEAD As Long = 3
 Private Const CAP_ROWS As Long = 60000      ' tables are sized once (ReDim Preserve cannot grow the first dimension)
@@ -57,6 +60,47 @@ Private Sub SetPublishedAt(ByVal d As Date)
         nmObj.RefersTo = ref
     End If
     On Error GoTo 0
+End Sub
+
+' ---------------- behind since the last publish? (v24.1) ----------------
+' Set when a posting is created / closed / reopened or a person is added,
+' moved, renamed or removed; cleared by a successful publish.
+Public Sub MarkMembersDirty(Optional ByVal fromCode As Boolean = True)     ' the argument keeps it out of the Alt+F8 list
+    On Error Resume Next
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    Dim nmObj As Name
+    Set nmObj = ThisWorkbook.Names(DIRTY_NAME)
+    If nmObj Is Nothing Then ThisWorkbook.Names.Add Name:=DIRTY_NAME, RefersTo:="=TRUE", Visible:=False
+End Sub
+
+Private Sub ClearMembersDirty()
+    On Error Resume Next
+    ThisWorkbook.Names(DIRTY_NAME).Delete
+End Sub
+
+Public Function MembersDirty() As Boolean
+    Dim nmObj As Name
+    On Error Resume Next
+    Set nmObj = ThisWorkbook.Names(DIRTY_NAME)
+    On Error GoTo 0
+    MembersDirty = Not nmObj Is Nothing
+End Function
+
+' From ThisWorkbook.Workbook_BeforeClose: an admin closing the live roster
+' with postings or people changed since the last publish is asked ONCE
+' whether to publish. Never blocks the close; a failed publish reports itself.
+Public Sub PublishReminderOnClose()
+    On Error GoTo Quit
+    If ThisWorkbook.ReadOnly Or Not IsAdmin() Then Exit Sub
+    If NoSave() Then Exit Sub
+    If IsDryRunName(ThisWorkbook.Name) Then Exit Sub
+    If Not MembersDirty() Then Exit Sub
+    If Not MemberTemplateExists() Then Exit Sub
+    If MsgBox("Postings or people changed since the members' file was last published" & _
+              IIf(MembersPublishedAt() > 0, " (" & Format$(MembersPublishedAt(), "ddd mmm d, h:mm AM/PM") & ")", "") & "." & vbNewLine & vbNewLine & _
+              "Publish it now, before closing?" & IIf(SIGNUPS_ON, vbNewLine & "(Members can only sign up for postings that are in their file.)", ""), _
+              vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMembers
+Quit:
 End Sub
 
 ' PUBLISH_FOLDER with "." (the roster's own folder) and ".\sub" resolved
@@ -116,8 +160,8 @@ Public Sub PublishMembers()
 
     ' ---- 1. the tables, as values ----
     Dim meta As Variant, roster As Variant, nxt As Variant, cal As Variant
-    Dim post As Variant, plist As Variant, lg As Variant
-    Dim nR As Long, nN As Long, nC As Long, nP As Long, nPL As Long, nL As Long
+    Dim post As Variant, plist As Variant, lg As Variant, att As Variant
+    Dim nR As Long, nN As Long, nC As Long, nP As Long, nPL As Long, nL As Long, nA As Long
     On Error GoTo Failed
     meta = BuildMeta()
     roster = BuildRoster(nR)
@@ -125,6 +169,8 @@ Public Sub PublishMembers()
     cal = BuildCal(nC)
     BuildPostings post, nP, plist, nPL
     lg = BuildLog(nL)
+    att = BuildAttend(nA)
+    If SIGNUPS_ON Then EnsureSignupFolder
     On Error GoTo 0
 
     ' ---- 2. privacy check (nothing has been opened or written yet) ----
@@ -136,6 +182,8 @@ Public Sub PublishMembers()
     If why = "" Then why = PrivateDataIn(plist, DS_PLIST)
     If why = "" Then why = PrivateDataIn(lg, DS_LOG)
     If why = "" Then why = LeaveCodesIn(cal)
+    If why = "" Then why = PrivateDataIn(att, DS_ATT)
+    If why = "" Then why = AttendPrivacy(att)
     If why <> "" Then
         Application.StatusBar = False
         Application.ScreenUpdating = True
@@ -165,7 +213,8 @@ Public Sub PublishMembers()
     Application.AutomationSecurity = secWas
     On Error GoTo WriteFailed
     If Not HasDataSheets(wb) Then
-        Err.Raise vbObjectError + 601, , "the template has no data sheets - open it and run BuildMemberTemplate"
+        Err.Raise vbObjectError + 601, , "the template is older than this roster (it has no " & DS_ATT & _
+                                         " sheet): rebuild the members' template from the v24.1 files (INSTALL note, members' part)"
     End If
     WriteTable wb, DS_META, meta
     WriteTable wb, DS_ROSTER, roster
@@ -174,6 +223,7 @@ Public Sub PublishMembers()
     WriteTable wb, DS_POST, post
     WriteTable wb, DS_PLIST, plist
     WriteTable wb, DS_LOG, lg
+    WriteTable wb, DS_ATT, att
 
     ' the members' own code draws Home and the Roster (so the file reads right even with macros off);
     ' it is saved on the Roster, A-Z, so a macros-off open lands on something useful
@@ -212,6 +262,7 @@ Public Sub PublishMembers()
         Exit Sub
     End If
     SetPublishedAt Now
+    ClearMembersDirty
     On Error Resume Next
     MarkCalDirty                                   ' Needs Attention's "members file" line
     SaveIfWritable                                 ' keeps the published-at stamp
@@ -304,7 +355,7 @@ Private Function BuildMeta() As Variant
     Dim yFrom As Variant, yTo As Variant
     yFrom = ws.Cells(PStartRow(), C_PERIOD1).Value
     yTo = ws.Cells(PEndRow(), PeriodLastCol()).Value
-    Dim a(1 To 16, 1 To 2) As Variant
+    Dim a(1 To 20, 1 To 2) As Variant
     a(1, 1) = "Key": a(1, 2) = "Value"
     a(14, 1) = "Posting close time": a(14, 2) = POSTING_CLOSE_TIME
     a(15, 1) = "Crews": a(15, 2) = Join(ShiftList(), "|")
@@ -321,6 +372,11 @@ Private Function BuildMeta() As Variant
     a(11, 1) = "Who's next days": a(11, 2) = MEMBER_NEXT_DAYS
     a(12, 1) = "Units": a(12, 2) = Join(DeptList(), "|")
     a(13, 1) = "Charge rule": a(13, 2) = "grade " & CHARGE_MAX_GRADE & " and below, x" & CHARGE_MULTIPLIER
+    ' v24.1 / M2
+    a(17, 1) = "Sign-ups": a(17, 2) = IIf(SIGNUPS_ON, "on", "off")
+    a(18, 1) = "Signup folder": a(18, 2) = IIf(SIGNUPS_ON, SignupFolderPath(), "")
+    a(19, 1) = "Calendar groups": a(19, 2) = Join(CalGroups(), ";")
+    a(20, 1) = "Template needs": a(20, 2) = "M2"
     BuildMeta = a
 End Function
 
@@ -350,6 +406,9 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
     Dim out() As Variant: ReDim out(1 To lastRow - R_FIRST + 2, 1 To nCols)
     out(1, 1) = "Name": out(1, 2) = "Crew": out(1, 3) = "Home Unit": out(1, 4) = "Total"
     out(1, 5) = "Worked": out(1, 6) = "Refused": out(1, 7) = "Provisional"
+    out(1, 8) = "Refused call-out": out(1, 9) = "Refused posting": out(1, 10) = "Refused other"
+    Dim splitMap As Object: Set splitMap = SplitNow()      ' v24.1: what Refused is made of
+    Dim rc As Double, rp As Double, ro As Double
     For u = 0 To nU - 1
         out(1, ROSTER_FIXED + 2 * u + 1) = depts(u) & " code"
         out(1, ROSTER_FIXED + 2 * u + 2) = depts(u) & " #"
@@ -367,6 +426,8 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
                 out(k, 5) = NumOr0(v(r, C_WORKED))
                 out(k, 6) = NumOr0(v(r, C_REFUSED))
                 out(k, 7) = IIf(provLive, NumOr0(v(r, C_PROV)), 0)
+                RefusedSplitOf splitMap, nm, rc, rp, ro
+                out(k, 8) = rc: out(k, 9) = rp: out(k, 10) = ro
                 For u = 0 To nU - 1
                     out(k, ROSTER_FIXED + 2 * u + 1) = Trim$(SafeStr(v(r, DeptCol(CStr(depts(u))))))
                     If pos(u).Exists(nm) Then out(k, ROSTER_FIXED + 2 * u + 2) = pos(u)(nm) Else out(k, ROSTER_FIXED + 2 * u + 2) = ""
@@ -435,6 +496,9 @@ Private Function BuildCal(ByRef nC As Long) As Variant
             k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
             out(k, 1) = d: out(k, 2) = "": out(k, 3) = "*": out(k, 4) = hl: out(k, 5) = "": out(k, 6) = "HOL": out(k, 7) = False
         End If
+        ' v24.1: the crews on days / nights (unit "#"), for the day header of the members' month grid
+        k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
+        out(k, 1) = d: out(k, 2) = "": out(k, 3) = "#": out(k, 4) = DaysCrew(d): out(k, 5) = NightsCrew(d): out(k, 6) = "CREW": out(k, 7) = False
         For u = 0 To UBound(depts)
             For Each sh In Array("Days", "Nights")
                 n = SlotsFor(d, CStr(sh), CStr(depts(u)), slots, True)
@@ -459,22 +523,27 @@ Private Function PublicType(ByVal code As String) As String
     End Select
 End Function
 
-' Open postings: ID, Unit, Date, Shift, Hours, Positions, Reason, Closes;
-' their lists: ID, Rank, Name, Hours posted
+' Open postings: ID, Unit, Date, Shift, Hours, Positions, Reason, Closes, Listed, Signed up;
+' their lists: ID, Rank, Name, Hours posted, Signed ("" / "Yes" / "8 h").
+' v24.1: Signed comes from the electronic sign-up inbox (names, as on the paper
+' sheet - decided Oct 12, 2026). Someone who signed up without being on the
+' list is added with Rank 0 (the paper sheet's out-of-department lines).
 Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist As Variant, ByRef nPL As Long)
     Dim ids As Variant, choices As Variant
     choices = OpenPostingChoices(ids)
     Dim capP As Long: capP = CAP_ROWS
     Dim capL As Long: capL = CAP_ROWS
-    Dim p() As Variant: ReDim p(1 To capP, 1 To 8)
-    Dim l() As Variant: ReDim l(1 To capL, 1 To 4)
+    Dim p() As Variant: ReDim p(1 To capP, 1 To 10)
+    Dim l() As Variant: ReDim l(1 To capL, 1 To 5)
     p(1, 1) = "Posting ID": p(1, 2) = "Unit": p(1, 3) = "Date": p(1, 4) = "Shift"
     p(1, 5) = "Hours": p(1, 6) = "Positions": p(1, 7) = "Reason": p(1, 8) = "Closes"
-    l(1, 1) = "Posting ID": l(1, 2) = "Rank": l(1, 3) = "Name": l(1, 4) = "Hours posted"
+    p(1, 9) = "Listed": p(1, 10) = "Signed up"
+    l(1, 1) = "Posting ID": l(1, 2) = "Rank": l(1, 3) = "Name": l(1, 4) = "Hours posted": l(1, 5) = "Signed"
     Dim kP As Long: kP = 1
     Dim kL As Long: kL = 1
     If IsArray(ids) Then
         Dim i As Long, j As Long, pr As PostRec, blank As PostRec, lst() As PListRec, n As Long
+        Dim sg As Object, nSigned As Long, kk As Variant, onList As Object
         For i = LBound(ids) To UBound(ids)
             pr = blank                              ' LoadPosting leaves pr untouched when the id isn't found
             n = LoadPosting(CStr(ids(i)), pr, lst)
@@ -482,19 +551,106 @@ Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist A
                 kP = kP + 1: If kP > capP Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " postings - raise CAP_ROWS in modPublish"
                 p(kP, 1) = pr.ID: p(kP, 2) = pr.Unit: p(kP, 3) = pr.ShiftDate: p(kP, 4) = pr.ShiftLbl
                 p(kP, 5) = pr.Hours: p(kP, 6) = pr.Positions: p(kP, 7) = pr.Reason: p(kP, 8) = pr.ClosesOn
+                Set sg = SignupStatusMap(pr.ID, pr.Hours, pr.ClosesOn)
+                Set onList = CreateObject("Scripting.Dictionary")
+                onList.CompareMode = 1
+                nSigned = 0
                 For j = 1 To n
                     kL = kL + 1: If kL > capL Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " posting list rows - raise CAP_ROWS in modPublish"
                     l(kL, 1) = pr.ID: l(kL, 2) = lst(j).Rank: l(kL, 3) = lst(j).EmpName: l(kL, 4) = lst(j).TotalHrs
+                    l(kL, 5) = ""
+                    onList(Trim$(lst(j).EmpName)) = True
+                    If sg.Exists(Trim$(lst(j).EmpName)) Then l(kL, 5) = sg(Trim$(lst(j).EmpName)): nSigned = nSigned + 1
                 Next j
+                For Each kk In sg.Keys                  ' signed up, not on the list: out of department
+                    If Not onList.Exists(CStr(kk)) Then
+                        kL = kL + 1: If kL > capL Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " posting list rows - raise CAP_ROWS in modPublish"
+                        l(kL, 1) = pr.ID: l(kL, 2) = 0: l(kL, 3) = CStr(kk): l(kL, 4) = "": l(kL, 5) = sg(kk)
+                        nSigned = nSigned + 1
+                    End If
+                Next kk
+                p(kP, 9) = n: p(kP, 10) = nSigned
             End If
         Next i
     End If
     nP = kP - 1: nPL = kL - 1
-    post = Trimmed(p, kP, 8)
-    plist = Trimmed(l, kL, 4)
+    post = Trimmed(p, kP, 10)
+    plist = Trimmed(l, kL, 5)
 End Sub
 
-' This year's non-void log rows: Shift Date, Ref ID, Type, Unit, Shift, Hours, Employee,
+' v24.1 / M2 (decided Oct 12, 2026): sick time COUNTS for each person, so the
+' members' file can show them to whoever picks that name. Name, Sick days used,
+' Paid sick days left, Occurrences used, Personal days used, Status.
+' Never a date of a sick or personal day, an occurrence date, a reason or a
+' note: the only date allowed is the "until" date in the status.
+Private Function BuildAttend(ByRef nA As Long) As Variant
+    Dim names As Variant: names = RosterNames()
+    Dim n As Long, i As Long, st As AttendanceStatus, nm As String
+    If IsArray(names) Then n = UBound(names) - LBound(names) + 1
+    Dim out() As Variant: ReDim out(1 To n + 1, 1 To 6)
+    out(1, 1) = "Name": out(1, 2) = "Sick days used": out(1, 3) = "Paid sick days left"
+    out(1, 4) = "Occurrences used": out(1, 5) = "Personal days used": out(1, 6) = "Status"
+    If n > 0 Then
+        BeginAttendanceBatch
+        On Error GoTo Failed
+        For i = 1 To n
+            nm = CStr(names(LBound(names) + i - 1))
+            AttendanceFor nm, Date, st
+            out(i + 1, 1) = nm
+            out(i + 1, 2) = st.SickUsed
+            out(i + 1, 3) = st.PaidLeft
+            out(i + 1, 4) = st.Occurrences
+            out(i + 1, 5) = st.PersonalUsed
+            out(i + 1, 6) = AttendPublicStatus(st)
+        Next i
+        EndAttendanceBatch
+    End If
+    nA = n
+    BuildAttend = out
+    Exit Function
+Failed:
+    Dim em As String: em = Err.Description
+    On Error Resume Next
+    EndAttendanceBatch
+    On Error GoTo 0
+    Err.Raise vbObjectError + 603, , "sick time counts: " & em
+End Function
+
+' The four things the members' file may say about paid sick time
+Public Function AttendPublicStatus(ByRef st As AttendanceStatus) As String
+    If Not st.Entitled Then
+        AttendPublicStatus = "No paid sick until " & Format$(st.WaitUntil, "mmm d, yyyy")
+    ElseIf st.PaidLeft <= 0 Then
+        AttendPublicStatus = "Paid sick days used up"
+    ElseIf st.Occurrences >= PAID_SICK_OCC Then
+        AttendPublicStatus = "Paid sick only while the current occurrence continues"
+    Else
+        AttendPublicStatus = "Paid sick available"
+    End If
+End Function
+
+' dAttend may hold a name, four counts and one of the status phrases - nothing else
+Private Function AttendPrivacy(ByRef att As Variant) As String
+    If Not IsArray(att) Then Exit Function
+    If UBound(att, 2) <> 6 Then AttendPrivacy = DS_ATT & ": unexpected columns": Exit Function
+    Dim i As Long, j As Long, s As String
+    For i = 2 To UBound(att, 1)
+        For j = 2 To 5
+            If VarType(att(i, j)) = vbString Or VarType(att(i, j)) = vbDate Then
+                AttendPrivacy = DS_ATT & " row " & i & ": column " & j & " must be a count"
+                Exit Function
+            End If
+        Next j
+        s = SafeStr(att(i, 6))
+        If Not (s = "Paid sick available" Or s = "Paid sick days used up" Or _
+                s = "Paid sick only while the current occurrence continues" Or s Like "No paid sick until [A-Z][a-z][a-z] *, ####") Then
+            AttendPrivacy = DS_ATT & " row " & i & ": status isn't one of the four allowed phrases"
+            Exit Function
+        End If
+    Next i
+End Function
+
+' This year's (by Period Start) non-void log rows: Shift Date, Ref ID, Type, Unit, Shift, Hours, Employee,
 ' Outcome, Hours Charged, Period Start (+ Note when PUBLISH_REASONS)
 Private Function BuildLog(ByRef nL As Long) As Variant
     Dim lo As ListObject: Set lo = LogTable()
@@ -515,7 +671,7 @@ Private Function BuildLog(ByRef nL As Long) As Variant
             Dim r As Long, sd As Double
             For r = 1 To UBound(v, 1)
                 If SafeStr(v(r, L_ENTRY)) <> "" And UCase$(SafeStr(v(r, L_STATUS))) <> "VOID" Then
-                    sd = NumOr0(v(r, L_DATE))
+                    sd = NumOr0(v(r, L_PERIOD))             ' v24.1: Period Start, the test the roster's formulas use
                     If (yFrom = 0 Or sd >= yFrom) And (yTo = 0 Or sd <= yTo) Then
                         k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                         out(k, 1) = v(r, L_DATE): out(k, 2) = SafeStr(v(r, L_REF)): out(k, 3) = SafeStr(v(r, L_TYPE))
@@ -648,7 +804,7 @@ End Function
 ' ====================================================================
 Private Function HasDataSheets(ByVal wb As Workbook) As Boolean
     Dim nm As Variant, sh As Object
-    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG)
+    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG, DS_ATT)
         Set sh = Nothing
         On Error Resume Next
         Set sh = wb.Worksheets(CStr(nm))

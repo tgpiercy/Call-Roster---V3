@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 # ---------------------------------------------------------------- settings
 CHARGE_MULTIPLIER = 1.75        # modOvertimeEntry.CHARGE_MULTIPLIER
@@ -820,3 +820,28 @@ def callout_offers(hours: float, calls: list[tuple[str, float]]) -> list[float]:
 def accepted_hours(offer: float, taken: float) -> float:
     """modOvertimeEntry.AcceptedHours."""
     return taken if 0 < taken < offer else offer
+
+
+# ---------------------------------------------------------------- electronic sign-ups (v24.1)
+def reduce_signups(rows: list[tuple[str, str, float, datetime]], closes_at: datetime | None):
+    """modSignups.ReduceSignups. rows = (employee, action, hours, stamp) in any
+    order. Each person's action with the latest stamp wins (same stamp: the
+    later row). Returns [(employee, hours, late)] for people whose newest action
+    is a sign-up, in the order each name first appeared."""
+    newest: dict[str, int] = {}
+    names: dict[str, str] = {}
+    for i, (emp, _action, _hours, stamp) in enumerate(rows):
+        key = emp.strip().casefold()
+        if not key:
+            continue
+        if key not in newest:
+            newest[key] = i
+            names[key] = emp.strip()
+        elif stamp >= rows[newest[key]][3]:
+            newest[key] = i
+    out = []
+    for key, i in newest.items():
+        emp, action, hours, stamp = rows[i]
+        if action.strip().lower() == "signup":
+            out.append((emp.strip(), hours, closes_at is not None and stamp > closes_at))
+    return out

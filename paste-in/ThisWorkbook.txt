@@ -71,6 +71,7 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
         ThisWorkbook.Saved = True
         Exit Sub
     End If
+    PublishReminderOnClose                 ' v24.1: offers to publish the members' file if it is behind
     mRestoreAdmin = True                   ' closing - no tab redraws while the view switches
     ApplyView False
     RosterSheet().Activate

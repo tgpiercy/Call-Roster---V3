@@ -10,7 +10,7 @@ field (lists use '/', records use ';', fields inside a record use ':').
 from __future__ import annotations
 
 import csv
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -196,6 +196,13 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
+    if suite == "signups":                       # 'name:S|W:hours:yyyy-mm-dd-hh;...', closing 'yyyy-mm-dd-hh' -> name=F|hours[L];...
+        def stamp(s: str) -> datetime:
+            return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]))
+        rows = [(f[0], "signup" if f[1] == "S" else "withdraw", float(f[2]), stamp(f[3]))
+                for f in (r.split(":") for r in i1.split(";") if r)]
+        red = rules.reduce_signups(rows, stamp(i2) if i2 else None)
+        return ";".join(f"{n}={'F' if h == 0 else fmt_num(h)}{'L' if late else ''}" for n, h, late in red) or "none"
     if suite == "calloffer":                     # hours, 'outcome:taken;...' (grade 1) -> offered=charged;...
         calls = [(f[0], float(f[1])) for f in (r.split(":") for r in i2.split(";") if r)]
         offers = rules.callout_offers(float(i1), calls)

@@ -151,6 +151,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
+        Case "signups"
+            RunCase = CaseSignups(i1, i2)
         Case "calloffer"
             RunCase = CaseCallOffer(CDbl(i1), i2)
         Case "attendocc"
@@ -413,6 +415,29 @@ Private Function CaseAwardOrder(ByVal hours As Double, ByVal positions As Long, 
         CaseAwardOrder = AwardOrderProblem(pr, lst, n)
         If CaseAwardOrder = "" Then CaseAwardOrder = "ok"
     End If
+End Function
+
+' "name:S|W:hours:yyyy-mm-dd-hh;...", closing "yyyy-mm-dd-hh" (or "") -> "name=F|hours[L];..." / none
+Private Function CaseSignups(ByVal spec As String, ByVal closeTxt As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim rows() As Variant: ReDim rows(1 To n, 1 To SG_N)
+    Dim i As Long, p As Variant, closesAt As Date, red() As Variant, m As Long
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        rows(i, SG_EMP) = CStr(p(0))
+        rows(i, SG_ACTION) = IIf(CStr(p(1)) = "S", "signup", "withdraw")
+        rows(i, SG_HOURS) = CDbl(p(2))
+        rows(i, SG_STAMP) = ParseD(CStr(p(3))) + TimeSerial(CLng(Mid$(CStr(p(3)), 12, 2)), 0, 0)
+    Next i
+    If closeTxt <> "" Then closesAt = ParseD(closeTxt) + TimeSerial(CLng(Mid$(closeTxt, 12, 2)), 0, 0)
+    Dim v As Variant: v = rows
+    m = ReduceSignups(v, closesAt, red)
+    For i = 1 To m
+        CaseSignups = CaseSignups & IIf(i = 1, "", ";") & CStr(red(i, SR_EMP)) & "=" & _
+                      IIf(NumOr0(red(i, SR_HOURS)) = 0, "F", NumText(NumOr0(red(i, SR_HOURS)))) & IIf(CBool(red(i, SR_LATE)), "L", "")
+    Next i
+    If CaseSignups = "" Then CaseSignups = "none"
 End Function
 
 ' hours, "outcome:taken;..." in call order (everyone grade 1) -> "offered=charged;..."
@@ -931,5 +956,12 @@ Private Sub LoadCases()
     AddCase "calloffer,two-partials,12,Accepted:8;Accepted:2;Refused:0,,,,12=0;4=0;2=3.5"
     AddCase "calloffer,partial-covering-the-rest,12,Accepted:8;Accepted:4;Refused:0,,,,12=0;4=0;4=7"
     AddCase "calloffer,unavailable-not-charged,13,Accepted:6.5;Unavailable:0;Refused:0,,,,13=0;6.5=0;6.5=11.375"
+    AddCase "signups,one-whole-shift,Ann:S:0:2027-01-10-09,2027-01-12-08,,,,Ann=F"
+    AddCase "signups,partial-hours,Ann:S:8:2027-01-10-09,2027-01-12-08,,,,Ann=8"
+    AddCase "signups,withdrawn,Ann:S:0:2027-01-10-09;Ann:W:0:2027-01-10-11,2027-01-12-08,,,,none"
+    AddCase "signups,signed-again-after-withdrawing,Ann:S:0:2027-01-10-09;Ann:W:0:2027-01-10-11;Ann:S:8:2027-01-11-07,2027-01-12-08,,,,Ann=8"
+    AddCase "signups,newest-wins-whatever-the-file-order,Ann:S:8:2027-01-11-07;Ann:S:0:2027-01-10-09,2027-01-12-08,,,,Ann=8"
+    AddCase "signups,after-closing-is-late,Ann:S:0:2027-01-10-09;Bob:S:0:2027-01-12-09,2027-01-12-08,,,,Ann=F;Bob=FL"
+    AddCase "signups,three-people,Ann:S:0:2027-01-10-09;Bob:S:4:2027-01-10-10;Cy:W:0:2027-01-10-11,2027-01-12-08,,,,Ann=F;Bob=4"
 ' <<< CASES
 End Sub

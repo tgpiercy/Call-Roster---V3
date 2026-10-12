@@ -131,7 +131,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 9
+        For k = 1 To 10
             RunCheck k
         Next k
     End If
@@ -152,6 +152,7 @@ Private Function CheckName(ByVal k As Long) As String
         Case 7: CheckName = "Paybacks"
         Case 8: CheckName = "Kronos"
         Case 9: CheckName = "Log types"
+        Case 10: CheckName = "Sign-ups"
     End Select
 End Function
 
@@ -168,6 +169,7 @@ Private Sub RunCheck(ByVal k As Long)
         Case 7: CheckPaybacks
         Case 8: CheckKronos
         Case 9: CheckLogTypes
+        Case 10: CheckSignups
     End Select
     Exit Sub
 Oops:
@@ -428,6 +430,16 @@ Private Function TableValues(ByVal tableName As String) As Variant
     If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Function
     TableValues = RangeTo2D(lo.DataBodyRange)
 End Function
+
+' ---- 10. electronic sign-up files left in the inbox for a closed posting (v24.1) ----
+Private Sub CheckSignups()
+    Dim txt As String, n As Long
+    n = StaleSignups(SIGNUP_STALE_DAYS, txt)
+    If n > 0 Then
+        AddIssue SEV_WARN, "Sign-ups", n & " sign-up file(s) over " & SIGNUP_STALE_DAYS & " days old are still in the inbox for postings that aren't open (" & txt & ")", _
+                 "Move them into the Done folder inside " & SignupFolderPath()
+    End If
+End Sub
 
 ' ---- 9. charged rows whose Type the refused split doesn't know (v24.1) ----
 ' Call-out + Posting + Other = Refused always holds, because Other is "everything

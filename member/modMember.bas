@@ -212,7 +212,7 @@ Private Sub Btn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, 
     End With
 End Sub
 
-Private Sub Picker(ByVal ws As Worksheet, ByVal addr As String, ByVal listRef As String, ByVal labelTxt As String)
+Private Sub Picker(ByVal ws As Worksheet, ByVal addr As String, ByVal refTxt As String, ByVal labelTxt As String)
     Dim c As Range: Set c = ws.Range(addr)
     If labelTxt <> "" Then
         With c.Offset(0, -1)
@@ -228,8 +228,8 @@ Private Sub Picker(ByVal ws As Worksheet, ByVal addr As String, ByVal listRef As
         .Font.Size = 10
         .BorderAround xlContinuous, xlThin, , RGB(160, 175, 200)
         .Validation.Delete
-        If listRef <> "" Then
-            .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=listRef
+        If refTxt <> "" Then
+            .Validation.Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=refTxt
             .Validation.InCellDropdown = True
             .Validation.ShowError = False
         End If
@@ -514,12 +514,12 @@ Private Function ListRef(ByVal col As String, ByVal n As Long) As String
     If n > 0 Then ListRef = "='" & SH_LISTS & "'!$" & col & "$1:$" & col & "$" & n
 End Function
 
-Private Sub SetList(ByVal ws As Worksheet, ByVal addr As String, ByVal listRef As String)
+Private Sub SetList(ByVal ws As Worksheet, ByVal addr As String, ByVal refTxt As String)
     UnprotectWs ws
     With ws.Range(addr).Validation
         .Delete
-        If listRef <> "" Then
-            .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=listRef
+        If refTxt <> "" Then
+            .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=refTxt
             .InCellDropdown = True
             .ShowError = False
         End If
@@ -825,9 +825,9 @@ Private Function LineColour(ByVal code As String) As Long
 End Function
 
 ' colours each line of a multi-line cell by its type code ("VAC|LV|OPEN" ...)
-Private Sub ColourLines(ByVal c As Range, ByVal txt As String, ByVal types As String)
-    If txt = "" Then Exit Sub
-    Dim lines As Variant: lines = Split(txt, Chr$(10))
+Private Sub ColourLines(ByVal c As Range, ByVal cellTxt As String, ByVal types As String)
+    If cellTxt = "" Then Exit Sub
+    Dim lines As Variant: lines = Split(cellTxt, Chr$(10))
     Dim codes As Variant: codes = Split(types, "|")
     Dim i As Long, p As Long: p = 1
     For i = LBound(lines) To UBound(lines)

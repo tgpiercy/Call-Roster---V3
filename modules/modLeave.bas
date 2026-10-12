@@ -231,7 +231,7 @@ Public Function TotalHoursAsOf(ByVal emp As String, ByVal d As Date, Optional By
     note = ""
     If snapThrough = 0 Then
         If HasAnyHistory(emp) Then
-            note = "no Hours History for " & emp & " this year - worked hours taken as 0 (the year reset)"
+            note = "worked hours taken as 0 for " & emp & " (the year reset, before this year's first Kronos import)"
         Else
             note = "no Hours History for " & emp & " - worked hours taken as 0"
         End If
@@ -436,7 +436,8 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
     ' snapshot has no peer with history before the window. Then every peer's
     ' start figure is estimated from the earliest snapshot, and the confirm says so.
     Dim relaxHistory As Boolean, firstSnap As Date, atReset As Boolean
-    atReset = (lc.WindowFrom <= mYearFrom)       ' v23: the window opens at the year reset, where everyone's worked hours are 0
+    ' v23: a window that opens in the year's first pay period starts from the reset, where worked hours are 0 (as PickSnapshot does)
+    atReset = (Int(lc.WindowFrom) < Int(mYearFrom) + 14)
     firstSnap = EarliestThrough()
     If Not atReset And firstSnap > 0 And lc.WindowFrom <= firstSnap Then
         relaxHistory = True
@@ -452,7 +453,10 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
             nP = nP + 1
             deltas(nP) = b - a
             names = names & IIf(names = "", "", ", ") & CalName(recs(i).EmpName)
-            If snaps = "" Then snaps = "from the " & Format$(snapA, "mmm d") & " snapshot to the " & Format$(snapB, "mmm d") & " snapshot (first peer; others may differ)"
+            If snaps = "" Then
+                snaps = "from " & IIf(snapA = 0, "the year reset (worked 0)", "the " & Format$(snapA, "mmm d") & " snapshot") & " to " & _
+                        IIf(snapB = 0, "the year reset (worked 0)", "the " & Format$(snapB, "mmm d") & " snapshot") & " (first peer; others may differ)"
+            End If
             If noteA <> "" And Not relaxHistory And InStr(flagged, "|start|") = 0 Then flagged = flagged & "|start|": lc.Warnings = lc.Warnings & "Start: " & noteA & ". "
             If noteB <> "" And InStr(flagged, "|end|") = 0 Then flagged = flagged & "|end|": lc.Warnings = lc.Warnings & "Return: " & noteB & ". "
         End If

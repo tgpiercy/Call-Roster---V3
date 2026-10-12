@@ -48,15 +48,15 @@ Follow `docs/rollover-one-pager.md`, "Practice run". The copy must have `DRY RUN
 ## 10. Members' template (optional)
 `member/modMember.bas` only has a new version stamp. No need to re-import it.
 
-## Smoke test (on a copy with DRY RUN in the name)
-1. **IntegrityCheck:** unlock one pay-period cell's sheet protection (admin view), type `5` over a pay-period formula, run IntegrityCheck. It reports a PROBLEM "holds a typed number" for that cell. Close the copy without saving.
-2. **RolloverYear:** reopen the copy. Log a posting for a January 2027 shift and submit an award that charges someone. Run RolloverYear, confirm with `ROLL 2027`.
+## Smoke test (on a copy with DRY RUN in the name, in its own folder)
+1. **RolloverYear:** log a posting for a January 2027 shift and submit an award that charges someone. Run RolloverYear, confirm with `ROLL 2027`.
    - The final message says "PRACTICE RUN finished" and "verified".
    - The roster's first period is Dec 27; Worked is 0; the January charge shows in the right period.
    - Sheet **OT Log 2026** holds the old rows; the live OT Log holds only the January rows.
    - **Year End** lists everyone's 2026 finals.
    - `Call Out Roster 2026 FINAL (dry run).xlsm` sits next to the copy and is read-only.
-3. **IDs carry on:** log one call-out. Its Ref ID continues from the last one of 2026 (not `S-0001`).
-4. **Kronos:** click Import Kronos with the current (2026) Kronos file. It is refused with "still holds last year's hours".
-5. **Run it twice:** run RolloverYear again. It refuses ("too early" for the new year).
+2. **IDs carry on:** log one call-out. Its Ref ID continues from the last one of 2026 (not `S-0001`).
+3. **Kronos:** click Import Kronos with the current (2026) Kronos file. It is refused with "still holds last year's hours".
+4. **Run it twice:** run RolloverYear again. On a practice copy it offers 2027 -> 2028 (the date rule is off for copies): click **Cancel**. The live file refuses with "It's too early".
+5. **IntegrityCheck catches a typed number (do this last):** in admin view, type `5` over one pay-period formula and run IntegrityCheck. It lists PROBLEMs for that person, one of them "holds a typed number". The file saves itself on close, so this copy is now spoiled.
 6. Delete the copy and its frozen file.

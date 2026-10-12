@@ -4,7 +4,7 @@ The steps for rolling the Call Out Roster from one year to the next. Current as 
 
 **Two people.** The admin drives. The second person reads each check aloud and ticks it off. Allow 30 minutes. Do it with nobody else in the file.
 
-**When.** On or after the first day of the new year's first pay period. For 2027 that is **Sunday Dec 27, 2026**. The macro refuses to run on the live file before the last period of the old year has started.
+**When.** On or after the first day of the new year's first pay period. For 2027 that is **Sunday Dec 27, 2026**. The macro refuses to run on the live file before that date.
 
 ## What the rollover does
 | Step | What happens |
@@ -36,6 +36,7 @@ Nothing is saved unless step 7 passes.
 4. Type `ROLL 2027` in the box and click OK. Use the year the summary shows.
 5. Wait. The screen may flicker while the frozen copy opens and closes. Do not click anything.
 6. The last message says **"Rolled over to 2027 and verified."** Read it aloud.
+7. If that message also says **"THE FILE DID NOT SAVE"**, press Ctrl+S straight away and check it saves before you close.
 
 ## Check the result
 | # | Check | Done |

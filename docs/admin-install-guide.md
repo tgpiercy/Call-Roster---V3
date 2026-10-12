@@ -107,7 +107,7 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 
 The lines under the list are for information: roster year and number of pay periods, integrity result, OT Log row count, Kronos date, data-through date, Holidays sheet, grade change log, members' file and backup.
 
-After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked hours are 0)" until the first export of the new year is imported.
+After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)" until the first export of the new year is imported.
 
 ## 5. SelfTest
 

@@ -22,7 +22,7 @@ Brief: `briefs/v23.md` (kit brief 04: IntegrityCheck, RolloverYear, docs set). R
 5. **`REPORT_FOLDER` has the year typed into it** (`...\Production Overtime Roster\2026\`). Posting PDFs and reports would keep landing in the 2026 folder. Plan: the folder name's year follows the roster year (`{YEAR}` in the setting), flagged in SystemCheck when the folder is missing.
 6. **Late entries for the closed year.** Logging a Dec 20 call-out on Dec 28 already prompts "not one of this roster's columns". Kept as is; IntegrityCheck lists such rows as information, and the one-pager says the frozen file is the record.
 7. **Members' history.** After the rollover the members' file shows 2027 rows only (it publishes "this year"). The frozen 2026 file is the record; noted in the one-pager. A members' 2026 archive is out of scope.
-8. **Dry run with a forced date.** The macro refuses to run before the last period's start date. For the December dry run it allows an early run only when the workbook's file name contains `COPY` or `DRY RUN`, and says so in every message, so the live file can't be rolled early by accident.
+8. **Dry run with a forced date.** The macro refuses to run before the new year's first period starts (built stricter than the brief's "last period's start date": rolling mid-period would strand that period's entries). For the December dry run it allows an early run only when the workbook's file name contains `COPY` or `DRY RUN`, and says so in every message, so the live file can't be rolled early by accident.
 9. **Docs.** `CHANGELOG.md` can only be exact from v20 (the first commit). v15-v19 get a summary paragraph taken from `docs/UPDATE-20.md`.
 
 ## Build order

@@ -243,9 +243,12 @@ Private Sub CheckRosterVsLog()
     Dim prov As Object: Set prov = CreateObject("Scripting.Dictionary")
     prov.CompareMode = 1
     Dim through As Date: through = KronosDataThrough()
-    Dim i As Long, key As String, emp As String, nOut As Long
+    Dim i As Long, key As String, emp As String, nOut As Long, nTxt As Long
     For i = 1 To LogRows()
         emp = Trim$(SafeStr(mLog(i, L_EMP)))
+        If VarType(mLog(i, L_PERIOD)) = vbString Then
+            If Trim$(CStr(mLog(i, L_PERIOD))) <> "" Then nTxt = nTxt + 1
+        End If
         If emp <> "" And Not IsVoidRow(i) Then
             key = emp & "|" & RowPeriod(i)
             sums(key) = NumOr0(sums(key)) + NumOr0(mLog(i, L_CHARGED))
@@ -311,6 +314,10 @@ Private Sub CheckRosterVsLog()
             End If
         End If
     Next r
+    If nTxt > 0 Then
+        AddIssue SEV_WARN, "Roster = log", nTxt & " OT Log row(s) have a Period Start stored as text, not as a date", _
+                 "They may not count in the roster and will not move at the year-end rollover. Tell the admin before the rollover"
+    End If
     If nOut > 0 Then
         AddIssue SEV_INFO, "Roster = log", nOut & " log row(s) belong to a pay period that isn't on this roster", _
                  "Expected for entries logged for another year; they don't count in these totals"

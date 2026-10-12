@@ -364,6 +364,10 @@ Private Sub BackupStatus(ByRef warn As String, ByRef info As String)
         warn = warn & "- BACKUP_FOLDER isn't set (modOvertimeEntry), so daily backups are off" & vbNewLine
         Exit Sub
     End If
+    If IsDryRunName(ThisWorkbook.Name) Then
+        info = info & "Backup: off for a practice copy (COPY / DRY RUN in the file name)" & vbNewLine
+        Exit Sub
+    End If
     Dim folder As String: folder = BackupFolderPath()
     If Not FolderExists(folder) Then
         warn = warn & "- backup folder can't be reached: " & folder & vbNewLine

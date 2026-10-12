@@ -27,8 +27,8 @@ Option Explicit
 '       WITHOUT saving and the file on disk is exactly as it was.
 '
 '  Nothing is saved until step 7 passes. The date guard refuses a run
-'  before the last period starts unless the file name contains COPY or
-'  DRY RUN (the December dry run on a copy).
+'  before the new year's first pay period starts, unless the file name
+'  contains COPY or DRY RUN (the December practice on a copy).
 ' ====================================================================
 
 Public Const RO_VERSION As String = "Rollover v23 (Oct 20)"
@@ -391,6 +391,9 @@ Private Sub WritePeriodHeaders(ByVal ws As Worksheet)
             If CDbl(b) = CDbl(a) + 14 Then lastPer = C_PERIODX     ' a 27-period year is in place
         End If
     End If
+    ' a date format first: a cell someone set to Text would store the formula as text
+    ws.Range(ws.Cells(2, C_PERIOD1), ws.Cells(2, lastPer)).NumberFormat = "mmm d"
+    ws.Range(ws.Cells(4, C_PERIOD1), ws.Cells(4, lastPer)).NumberFormat = "mmm d"
     ws.Range(ws.Cells(2, C_PERIOD1 + 1), ws.Cells(2, lastPer)).FormulaR1C1 = "=RC[-1]+14"
     ws.Range(ws.Cells(4, C_PERIOD1), ws.Cells(4, lastPer)).FormulaR1C1 = "=R2C+13"
     ws.Range(ws.Cells(3, C_PERIOD1), ws.Cells(3, lastPer)).Value = "to"
@@ -788,7 +791,9 @@ Private Function RolloverProblems(ByVal ws As Worksheet, ByVal lo As ListObject,
             emp = Trim$(SafeStr(keep(i, L_EMP)))
             If emp <> "" And UCase$(Trim$(SafeStr(keep(i, L_STATUS)))) <> "VOID" Then
                 ps = 0
-                If IsDate(keep(i, L_PERIOD)) Then
+                If VarType(keep(i, L_PERIOD)) = vbString Then
+                    ps = 0                                   ' text is never a period date (see GoesToArchive)
+                ElseIf IsDate(keep(i, L_PERIOD)) Then
                     ps = Int(CDbl(CDate(keep(i, L_PERIOD))))
                 ElseIf IsNumeric(keep(i, L_PERIOD)) And Not IsEmpty(keep(i, L_PERIOD)) Then
                     ps = Int(CDbl(keep(i, L_PERIOD)))

@@ -15,7 +15,7 @@ In the VBA editor (Alt+F11), for EACH module, right-click > **Remove** (answer *
 
 `modOvertimeEntry`, `modPostings`, `modShiftCycle`, `modShiftSwitch`, `modCalendar`, `modHolidays`, `modSystem`, `modUI`, `ImportKronosData`, `modGradeLog`, `modSelfTest`, `modPublish`, `Call_Out_Roster`, `modLeave`, `modAttendance`, `modIntegrity`, `modRollover`, `modPeople`
 
-(Code changed in `modOvertimeEntry`, `modPostings`, `modSystem`, `modUI`, `modSelfTest`, `modPublish`, `modAttendance`, `modIntegrity`, `modPeople`. The others are the same code with a v24.1 stamp. `modOTLog`, `modLogLayout`, `modMigration`, `modCleanup`, `Sort_Hours_Dept`, `OT_Posting` and `LoginFullAccess` are unchanged from v24.)
+(Code changed in `modOvertimeEntry`, `modPostings`, `modShiftSwitch`, `modSystem`, `modUI`, `modSelfTest`, `modPublish`, `modAttendance`, `modIntegrity`, `modPeople`, and `modCleanup` if you still have it: replace that one too. The others are the same code with a v24.1 stamp. `modOTLog`, `modLogLayout`, `modMigration`, `Sort_Hours_Dept`, `OT_Posting` and `LoginFullAccess` are unchanged from v24.)
 
 ### 2. Import the two new modules
 **File > Import File:** `modules/modReports.bas` and `modules/modSignups.bas`.
@@ -45,7 +45,7 @@ Expect **"320 passed, 0 failed"** and "all 39 suites passed".
 ## B. The members' template (rebuild it)
 The members' file gained data and sheets, so the old template can't be filled any more: Member View will say "the template is older than this roster" until this is done.
 
-1. Open `Call Out Roster - Members TEMPLATE.xlsm` (next to the roster). In the VBA editor remove **modMember** (No to export) and import `member/modMember.bas` from the zip. Its ThisWorkbook code is unchanged.
+1. Open `Call Out Roster - Members TEMPLATE.xlsm` (next to the roster). In the VBA editor remove **modMember** (No to export) and import `member/modMember.bas` from the zip. Then double-click its **ThisWorkbook**, Ctrl+A, and paste `member/ThisWorkbook.txt`.
 2. Debug > Compile VBAProject. No message expected.
 3. Alt+F8 > **BuildMemberTemplate** > OK. It rebuilds every sheet and button.
 4. Save and close the template.
@@ -70,5 +70,6 @@ The members' file gained data and sheets, so the old template can't be filled an
    - **Calendar:** a month grid, days above nights, like the roster's Calendar tab. Try `< Month`, `Month >` and Print.
    - **Open Postings:** the person's postings first (listed, then out of department), then one table of every open posting with filter arrows; pick a posting in the box at the top to see its list.
    - **Not me (clear)** on Home puts every sheet back to the neutral view.
+   - **My history:** pick a name. It lists that person's entries this year. (Before v24.1 this sheet came out empty: the publish was dropping every log row.)
 8. **Sign-up (only if you set `SIGNUPS_ON = True` on the copy and published):** in the members' file click **Sign me up** for a posting, choose 8 hours. A file appears in the `Signups` folder. In the roster copy, Award Posting > LOAD that posting: the name is ticked with 8 h and the line under the list says "1 electronic sign-up ticked (1 partial)". Submit the award: the file moves to `Signups\Done\<posting>\`.
 9. **IntegrityCheck:** no new PROBLEM lines.

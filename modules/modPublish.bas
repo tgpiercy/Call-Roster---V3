@@ -443,7 +443,7 @@ End Function
 ' leave of any kind is one public code; the members' calendar colours it "Leave"
 Private Function PublicType(ByVal code As String) As String
     Select Case UCase$(Trim$(code))
-        Case "LOA", "STD", "PAR", "WSIB", "LTD": PublicType = "LV"
+        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": PublicType = "LV"
         Case Else: PublicType = UCase$(Trim$(code))            ' SIC stays: "Sick" is shown by decision (Oct 13)
     End Select
 End Function
@@ -624,7 +624,7 @@ Private Function LeaveCodesIn(ByRef cal As Variant) As String
             Exit Function
         End If
         t = UCase$(SafeStr(cal(i, 4)))
-        If InStr(t, "(STD") > 0 Or InStr(t, "(PAR") > 0 Or InStr(t, "(LOA") > 0 Or InStr(t, "(WSIB") > 0 Or InStr(t, "(LTD") > 0 Then
+        If InStr(t, "(STD") > 0 Or InStr(t, "(PAR") > 0 Or InStr(t, "(LOA") > 0 Or InStr(t, "(WSIB") > 0 Or InStr(t, "(LTD") > 0 Or InStr(t, "(OLV") > 0 Then
             LeaveCodesIn = DS_CAL & " row " & i & ": leave type in the text"
             Exit Function
         End If

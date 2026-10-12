@@ -345,16 +345,21 @@ def sick_blocks(sick_date: date, sick_night: bool, d: date, night: bool) -> bool
     return sick_start - 1e-4 <= cand_start < sick_end + 1 - 1e-4
 
 
-def pick_snapshot(hh: list[tuple[date, float]], d: date):
+def pick_snapshot(hh: list[tuple[date, float]], d: date, year_from: date):
     """modLeave.PickSnapshot for one employee: (through, hours, estimated) or None.
-    hh = [(data_through, worked_hours), ...]."""
-    le = [(t, h) for t, h in hh if t <= d]
+    hh = [(data_through, worked_hours), ...]. Snapshots before the year start
+    are last year's figures: ignored, and if nothing else exists the worked
+    figure is 0 at the reset (through None, not estimated)."""
+    in_year = [(t, h) for t, h in hh if t >= year_from]
+    le = [(t, h) for t, h in in_year if t <= d]
     if le:
         t, h = max(le, key=lambda x: x[0])
         return t, h, False
-    if hh:
-        t, h = min(hh, key=lambda x: x[0])
+    if in_year:
+        t, h = min(in_year, key=lambda x: x[0])
         return t, h, True
+    if hh:
+        return None, 0.0, False
     return None
 
 
@@ -363,7 +368,7 @@ def hours_as_of(hh: list[tuple[date, float]], lg: list[dict], d: date, year_from
     hours, charged, night). Returns (total, through, estimated)."""
     if d < year_from:
         return 0.0, None, False
-    snap = pick_snapshot(hh, d)
+    snap = pick_snapshot(hh, d, year_from)
     if snap is None:
         through, worked, est = None, 0.0, True
     else:
@@ -388,10 +393,12 @@ def peer_eligible(grade: float, is_returner: bool, leave_overlaps: bool, has_his
 
 
 def leave_average(deltas: list[float]) -> float:
-    """modLeave.LeaveAverage: mean rounded to 0.1 (0 with no peers)."""
+    """modLeave.LeaveAverage: mean rounded to 0.1 half away from zero (0 with no peers)."""
+    import math
     if not deltas:
         return 0.0
-    return round(sum(deltas) / len(deltas) + 1e-9, 1)
+    x = sum(deltas) / len(deltas)
+    return math.copysign(math.floor(abs(x) * 10 + 0.5 + 1e-6) / 10, x)
 
 
 def merge_runs(dates: list[date]) -> list[tuple[date, date]]:

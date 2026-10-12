@@ -541,5 +541,9 @@ Private Sub LoadCases()
     AddCase "merge,five-day-run,2026-11-02;2026-11-03;2026-11-04;2026-11-05;2026-11-06,,,,,2026-11-02..2026-11-06"
     AddCase "merge,two-runs,2026-11-02;2026-11-03;2026-11-05;2026-11-06;2026-11-07,,,,,2026-11-02..2026-11-03;2026-11-05..2026-11-07"
     AddCase "merge,unsorted-with-duplicate,2026-11-06;2026-11-05;2026-11-05;2026-11-09,,,,,2026-11-05..2026-11-06;2026-11-09..2026-11-09"
+    AddCase "hoursasof,last-year-snapshot-ignored,2025-12-20:900,2026-01-03:Refused:Active:12:21:D,2026-01-05,,,21|none|no"
+    AddCase "hoursasof,last-year-then-this-year,2025-12-20:900;2026-01-10:30,2026-01-03:Refused:Active:12:21:D,2026-01-12,,,51|2026-01-10|no"
+    AddCase "leaveavg,half-rounds-up,1:N:N:Y:100.2;1:N:N:Y:100.3,,,,,100.3"
+    AddCase "leaveavg,negative-half-away,1:N:N:Y:-100.2;1:N:N:Y:-100.3,,,,,-100.3"
 ' <<< CASES
 End Sub

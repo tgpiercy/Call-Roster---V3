@@ -822,7 +822,7 @@ End Sub
 Private Function LineColour(ByVal code As String) As Long
     Select Case UCase$(code)
         Case "VAC": LineColour = RGB(21, 101, 192)
-        Case "LV", "LOA", "STD", "PAR", "WSIB", "LTD": LineColour = RGB(106, 27, 154)
+        Case "LV", "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": LineColour = RGB(106, 27, 154)
         Case "SIC": LineColour = RGB(230, 81, 0)
         Case "TRN": LineColour = RGB(0, 121, 107)
         Case "PHA": LineColour = RGB(46, 125, 50)

@@ -9,7 +9,7 @@ In the VBA editor (Alt+F11), for EACH module listed, right-click > **Remove** (a
 
 `modOvertimeEntry`, `modOTLog`, `modLogLayout`, `modMigration`, `modPostings`, `modShiftCycle`, `modShiftSwitch`, `modCalendar`, `modHolidays`, `modSystem`, `modUI`, `ImportKronosData`, `modGradeLog`, `modSelfTest`, `modPublish`, `Call_Out_Roster`
 
-(Only `modCalendar`, `modSystem`, `modUI`, `modPublish`, `modSelfTest` and the version stamps changed in code; the rest are the same code with a v22 stamp. `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess`, `modLogLayout` and `modMigration` are included for completeness.)
+(Code changed in `modCalendar`, `modSystem`, `modUI`, `modPublish`, `modSelfTest`; the other stamped modules are the same code with a v22 stamp. `modOTLog`, `modLogLayout`, `modMigration`, `Sort_Hours_Dept`, `OT_Posting` and `LoginFullAccess` have no version stamp and are unchanged - re-import them only if you want the zip to be byte-identical to your project.)
 
 ## 2. Import the new module
 **File > Import File:** `modules/modLeave.bas`.
@@ -21,6 +21,7 @@ For each: **Insert > UserForm**, set its **(Name)** in the Properties window, le
 - `frmConvert` from `paste-in/frmConvert.txt`
 
 ## 4. Re-paste
+- **ThisWorkbook** from `paste-in/ThisWorkbook.txt` (version line only)
 - **frmOvertimeEntry** from `paste-in/frmOvertimeEntry.txt` (adds the pre-fill a sick call uses).
 
 ## 5. Debug > Compile VBAProject
@@ -31,10 +32,10 @@ No message expected.
 2. **ApplyRosterLayout** - rebuilds the command bar with the new PEOPLE group (Sick Call, Leave, Convert imports).
 
 ## 7. SystemCheck (Alt+F8)
-Expect **"Modules: 14 of 14 on v22"**. CHECK lines you may see: blank Home Units, `BACKUP_FOLDER`, and "imported vacation lines ... not booked yet" if old-calendar imports exist.
+Expect **"Modules: 14 of 14 on v22"** and no ThisWorkbook line. CHECK lines you may see: blank Home Units, `BACKUP_FOLDER`, and "imported vacation lines ... not booked yet" if old-calendar imports exist.
 
 ## 8. SelfTest (Alt+F8)
-Expect **"178 passed, 0 failed"**.
+Expect **"182 passed, 0 failed"**.
 
 ## 9. Members' template
 `member/modMember.bas` changed (sick calls show in orange). In the template: Remove + Import `modMember`, re-paste `member/ThisWorkbook.txt`, Compile, save. Then click Member View once.

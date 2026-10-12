@@ -116,15 +116,16 @@ End Function
 
 ' Leave of any kind: masked as "Leave" everywhere outside the Absences sheet (v22 adds WSIB, LTD)
 Public Function IsLeaveCode(ByVal code As String) As Boolean
-    Select Case UCase$(Left$(Trim$(code), 4))
-        Case "LOA", "STD", "PAR", "WSIB", "LTD": IsLeaveCode = True
+    Select Case TypeCode(code)                 ' takes a code or the full "STD - ..." text
+        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": IsLeaveCode = True
     End Select
 End Function
 
-' Leave types the Leave pop-up offers (v22)
+' Leave types the Leave pop-up offers (v22). "OLV" = other leave (not the
+' Book Time Off "OTH", which is not a leave and gets no top-up).
 Public Function LeaveTypes() As Variant
     LeaveTypes = Array("PAR - Parental leave", "STD - Short-term disability", "LOA - Leave of absence", _
-                       "WSIB - Workplace injury leave", "LTD - Long-term disability", "OTH - Other leave")
+                       "WSIB - Workplace injury leave", "LTD - Long-term disability", "OLV - Other leave")
 End Function
 
 Public Function NeedTypes() As Variant
@@ -195,7 +196,7 @@ Public Function TypeTag(ByVal code As String) As String
     Select Case UCase$(code)
         Case "VAC": TypeTag = "Vac"
         Case "TRN": TypeTag = "Trn"
-        Case "LOA", "STD", "PAR", "WSIB", "LTD": TypeTag = "Leave"
+        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": TypeTag = "Leave"
         Case "SIC": TypeTag = "Sick"
         Case "SS": TypeTag = "S/S"
         Case "PHA": TypeTag = "PHA"
@@ -207,7 +208,7 @@ End Function
 Public Function TypeColor(ByVal code As String) As Long
     Select Case UCase$(code)
         Case "VAC": TypeColor = RGB(21, 101, 192)              ' blue
-        Case "LOA", "STD", "PAR", "WSIB", "LTD": TypeColor = RGB(106, 27, 154) ' purple
+        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": TypeColor = RGB(106, 27, 154) ' purple
         Case "SIC": TypeColor = RGB(230, 81, 0)                ' orange
         Case "TRN": TypeColor = RGB(0, 121, 107)               ' teal
         Case "PHA": TypeColor = RGB(46, 125, 50)               ' green
@@ -301,7 +302,7 @@ Public Sub UpgradeAbsenceColumns()
     Dim lastRow As Long: lastRow = RosterLastRow()
     Dim before As Variant, nRows As Long
     Application.Calculate
-    If lastRow >= R_FIRST Then before = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_TOTAL)).Value2
+    If lastRow >= R_FIRST Then before = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_PERIODN)).Value2   ' G:AS, always 2-D
     nRows = lo.ListRows.Count
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim names As Variant: names = Array("Home Unit", "Leave Group", "Shift")
@@ -318,9 +319,15 @@ Public Sub UpgradeAbsenceColumns()
     If lo.ListRows.Count <> nRows Then problems = problems & "- absence rows: " & nRows & " before, " & lo.ListRows.Count & " after" & vbNewLine
     If lo.ListColumns.Count <> AB_N Then problems = problems & "- column count is " & lo.ListColumns.Count & ", expected " & AB_N & vbNewLine
     If lastRow >= R_FIRST Then
-        Dim after As Variant: after = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_TOTAL)).Value2
+        Dim after As Variant, j As Long: after = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_PERIODN)).Value2
         For i = 1 To UBound(before, 1)
-            If Abs(NumOr0(after(i, 1)) - NumOr0(before(i, 1))) > 0.001 Then problems = problems & "- roster Total Hours changed on row " & (R_FIRST + i - 1) & vbNewLine: Exit For
+            For j = 1 To UBound(before, 2)
+                If SafeStr(after(i, j)) <> SafeStr(before(i, j)) Then
+                    problems = problems & "- roster value changed on row " & (R_FIRST + i - 1) & ", column " & (C_TOTAL + j - 1) & vbNewLine
+                    Exit For
+                End If
+            Next j
+            If problems <> "" Then Exit For
         Next i
     End If
     If problems <> "" Then
@@ -708,7 +715,8 @@ Public Function SlotsFor(ByVal d As Date, ByVal shiftLbl As String, ByVal groupN
         For r = 1 To UBound(mAbs, 1)
             If AbsActiveOn(r, d) Then
                 If UnitInGroup(SafeStr(mAbs(r, AB_UNIT)), groupName) Then
-                    If EmpShiftOn(SafeStr(mAbs(r, AB_EMP)), d) = shiftLbl Then
+                    ' a sick call sits on the shift it was booked for; other absences on the crew's scheduled shift
+                    If AbsenceOnShift(r, d, shiftLbl) Then
                         lt = CalName(SafeStr(mAbs(r, AB_EMP))) & " (" & TypeTag(SafeStr(mAbs(r, AB_TYPE)))
                         If SafeStr(mAbs(r, AB_TIMES)) <> "" Then lt = lt & " " & SafeStr(mAbs(r, AB_TIMES))
                         lt = lt & HrsTag(mAbs(r, AB_HOURS)) & ")"
@@ -758,6 +766,18 @@ Public Function SlotsFor(ByVal d As Date, ByVal shiftLbl As String, ByVal groupN
     SlotsFor = n
 End Function
 
+' Which shift an absence row shows on: sick calls on their booked shift (v22),
+' everything else on the crew's scheduled shift that day
+Private Function AbsenceOnShift(ByVal r As Long, ByVal d As Date, ByVal shiftLbl As String) As Boolean
+    If UCase$(SafeStr(mAbs(r, AB_TYPE))) = "SIC" And UBound(mAbs, 2) >= AB_SHIFT Then
+        If SafeStr(mAbs(r, AB_SHIFT)) <> "" Then
+            AbsenceOnShift = (StrComp(SafeStr(mAbs(r, AB_SHIFT)), shiftLbl, vbTextCompare) = 0)
+            Exit Function
+        End If
+    End If
+    AbsenceOnShift = (EmpShiftOn(SafeStr(mAbs(r, AB_EMP)), d) = shiftLbl)
+End Function
+
 Private Function CovLive(ByVal c As Long, ByVal d As Date, ByVal shiftLbl As String) As Boolean
     If UCase$(SafeStr(mCov(c, CV_STATUS))) = "VOID" Then Exit Function
     If Not IsDate(mCov(c, CV_DATE)) Then Exit Function
@@ -800,7 +820,8 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
             End If
         Next r
     End If
-    If clash <> "" And Not quiet Then
+    If clash <> "" Then
+        If quiet Then Exit Function              ' no prompt possible: the existing booking wins
         If MsgBox(emp & " already has time off in that range:" & vbNewLine & clash & vbNewLine & _
                   "Save this one too?", vbYesNo + vbExclamation, "Overlap") = vbNo Then Exit Function
     End If
@@ -867,15 +888,21 @@ Public Function OpenLeaves(ByRef ids As Variant) As Variant
     ids = Empty
     Dim v As Variant: v = TableData(AbsTable())
     If Not IsArray(v) Then Exit Function
-    Dim i As Long, n As Long, d() As String, idArr() As String, eTxt As String
+    Dim i As Long, n As Long, d() As String, idArr() As String, eTxt As String, grpTxt As String, homeTxt As String
+    Dim hasV22 As Boolean: hasV22 = (UBound(v, 2) >= AB_SHIFT)
     ReDim d(0 To UBound(v, 1) - 1): ReDim idArr(0 To UBound(v, 1) - 1)
     For i = 1 To UBound(v, 1)
         If IsLeaveCode(SafeStr(v(i, AB_TYPE))) And UCase$(SafeStr(v(i, AB_STATUS))) <> "VOID" And IsDate(v(i, AB_START)) Then
-            If Not IsDate(v(i, AB_END)) Or (IsDate(v(i, AB_END)) And CDate(v(i, AB_END)) >= Date - 60) Then
+            grpTxt = "": homeTxt = ""
+            If hasV22 Then
+                grpTxt = SafeStr(v(i, AB_GROUP))
+                homeTxt = "   (" & SafeStr(v(i, AB_HOME)) & ")"
+            End If
+            ' open, or closed in the last 60 days and not yet topped up (a voided LV row lets it be redone)
+            If (Not IsDate(v(i, AB_END)) Or (IsDate(v(i, AB_END)) And CDate(v(i, AB_END)) >= Date - 60)) And Not LeaveToppedUp(grpTxt) Then
                 If IsDate(v(i, AB_END)) Then eTxt = "to " & Format$(v(i, AB_END), "mmm d") Else eTxt = "open-ended"
                 idArr(n) = SafeStr(v(i, AB_ID))
-                d(n) = idArr(n) & "   " & SafeStr(v(i, AB_EMP)) & "   Leave from " & Format$(v(i, AB_START), "mmm d, yyyy") & "   " & eTxt & _
-                       IIf(UBound(v, 2) >= AB_HOME, "   (" & SafeStr(v(i, AB_HOME)) & ")", "")
+                d(n) = idArr(n) & "   " & SafeStr(v(i, AB_EMP)) & "   Leave from " & Format$(v(i, AB_START), "mmm d, yyyy") & "   " & eTxt & homeTxt
                 n = n + 1
             End If
         End If
@@ -884,6 +911,12 @@ Public Function OpenLeaves(ByRef ids As Variant) As Variant
     ReDim Preserve d(0 To n - 1): ReDim Preserve idArr(0 To n - 1)
     ids = idArr
     OpenLeaves = d
+End Function
+
+' True when the leave group already has a non-void top-up row in the OT Log
+Public Function LeaveToppedUp(ByVal leaveGroup As String) As Boolean
+    If Trim$(leaveGroup) = "" Then Exit Function
+    LeaveToppedUp = HasActiveLogRows(leaveGroup)
 End Function
 
 ' Leave-type absence rows for the top-up peer test: True if emp has one
@@ -2509,7 +2542,7 @@ Private Function TypeLong(ByVal code As String) As String
     Select Case UCase$(code)
         Case "VAC": TypeLong = "Vacation"
         Case "TRN": TypeLong = "Training"
-        Case "LOA", "STD", "PAR", "WSIB", "LTD": TypeLong = "Leave"
+        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": TypeLong = "Leave"
         Case "SIC": TypeLong = "Sick call"
         Case "PHA": TypeLong = "PHA"
         Case "SUP": TypeLong = "Unit operator support"
@@ -3811,7 +3844,12 @@ Private Function MenuAbsIsLeave() As Boolean
     Dim id As String: id = MenuAbsId()
     If id = "" Then Exit Function
     Dim r As Long: r = RowOf(mAbs, id)
-    If r > 0 Then MenuAbsIsLeave = IsLeaveCode(SafeStr(mAbs(r, AB_TYPE)))
+    If r > 0 Then
+        MenuAbsIsLeave = IsLeaveCode(SafeStr(mAbs(r, AB_TYPE)))
+        If MenuAbsIsLeave And UBound(mAbs, 2) >= AB_GROUP Then
+            If LeaveToppedUp(SafeStr(mAbs(r, AB_GROUP))) Then MenuAbsIsLeave = False     ' already done
+        End If
+    End If
 End Function
 
 Public Sub CalMenuLeaveReturn()

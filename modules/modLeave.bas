@@ -80,26 +80,37 @@ Public Function SickBlocks(ByVal sickDate As Date, ByVal sickNight As Boolean, B
 End Function
 
 ' The Hours History snapshot to use for emp as of d: the latest data-through
-' <= d. None: the earliest one, with estimated = True. False = no snapshot at all.
-Public Function PickSnapshot(ByRef hh As Variant, ByVal emp As String, ByVal d As Date, _
+' <= d within the roster year. None in the year on or before d: the earliest
+' one in the year, with estimated = True. Snapshots dated before the year
+' start are last year's figures and are ignored (worked = 0 at the reset:
+' True, hours 0, estimated False when such older snapshots exist).
+' False = no snapshot at all.
+Public Function PickSnapshot(ByRef hh As Variant, ByVal emp As String, ByVal d As Date, ByVal yearFrom As Date, _
                              ByRef through As Date, ByRef hours As Double, ByRef estimated As Boolean) As Boolean
     through = 0: hours = 0: estimated = False
     If Not IsArray(hh) Then Exit Function
-    Dim i As Long, t As Date, bestLE As Date, bestAny As Date, hLE As Double, hAny As Double, anyFound As Boolean, leFound As Boolean
+    Dim i As Long, t As Date, bestLE As Date, bestAny As Date, hLE As Double, hAny As Double
+    Dim anyFound As Boolean, leFound As Boolean, olderFound As Boolean
     bestAny = DateSerial(2999, 12, 31)
     For i = 1 To UBound(hh, 1)
         If StrComp(Trim$(SafeStr(hh(i, HH_EMP))), Trim$(emp), vbTextCompare) = 0 And IsDate(hh(i, HH_THROUGH)) Then
             t = Int(CDate(hh(i, HH_THROUGH)))
-            If t <= Int(d) Then
-                If Not leFound Or t > bestLE Then bestLE = t: hLE = NumOr0(hh(i, HH_HOURS)): leFound = True
+            If t < Int(yearFrom) Then
+                olderFound = True
+            Else
+                If t <= Int(d) Then
+                    If Not leFound Or t > bestLE Then bestLE = t: hLE = NumOr0(hh(i, HH_HOURS)): leFound = True
+                End If
+                If t < bestAny Then bestAny = t: hAny = NumOr0(hh(i, HH_HOURS)): anyFound = True
             End If
-            If t < bestAny Then bestAny = t: hAny = NumOr0(hh(i, HH_HOURS)): anyFound = True
         End If
     Next i
     If leFound Then
         through = bestLE: hours = hLE
     ElseIf anyFound Then
         through = bestAny: hours = hAny: estimated = True
+    ElseIf olderFound Then
+        through = 0: hours = 0: estimated = False       ' the reset: nothing worked yet this year
     Else
         Exit Function
     End If
@@ -148,7 +159,7 @@ Public Function HoursAsOfCore(ByRef hh As Variant, ByRef lg As Variant, ByVal em
     through = 0: estimated = False
     If Int(d) < Int(yearFrom) Then Exit Function
     Dim worked As Double
-    If Not PickSnapshot(hh, emp, d, through, worked, estimated) Then estimated = True
+    If Not PickSnapshot(hh, emp, d, yearFrom, through, worked, estimated) Then estimated = True
     HoursAsOfCore = worked + ChargedAsOf(lg, emp, d, yearFrom, yearTo) + ProvisionalAsOf(lg, emp, d, through, yearFrom, yearTo)
 End Function
 
@@ -159,14 +170,17 @@ Public Function PeerEligible(ByVal grade As Double, ByVal isReturner As Boolean,
     PeerEligible = (grade <= PEER_MAX_GRADE) And Not isReturner And Not leaveOverlaps And historyBefore
 End Function
 
-' Average of the peers' gains, rounded to 0.1 (0 when there are no peers)
+' Average of the peers' gains, rounded to 0.1 half away from zero (VBA's
+' Round is banker's rounding, which the Python mirror doesn't share).
+' 0 when there are no peers.
 Public Function LeaveAverage(ByRef deltas() As Double, ByVal n As Long) As Double
     If n <= 0 Then Exit Function
-    Dim i As Long, s As Double
+    Dim i As Long, s As Double, x As Double
     For i = 1 To n
         s = s + deltas(i)
     Next i
-    LeaveAverage = Round(s / n, 1)
+    x = s / n
+    LeaveAverage = Sgn(x) * Int(Abs(x) * 10 + 0.5 + 0.000001) / 10
 End Function
 
 ' Consecutive dates (sorted, unique) -> runs. Returns the count; runs(k, 1) = first, runs(k, 2) = last.
@@ -261,15 +275,31 @@ Private Function CompactLog() As Variant
     CompactLog = out
 End Function
 
-' True when emp has a Hours History snapshot with data-through < d
+' True when emp has a Hours History snapshot with data-through < d (in the year)
 Private Function HasHistoryBefore(ByVal emp As String, ByVal d As Date) As Boolean
     If Not IsArray(mHH) Then Exit Function
-    Dim i As Long
+    Dim i As Long, t As Date
     For i = 1 To UBound(mHH, 1)
         If StrComp(Trim$(SafeStr(mHH(i, HH_EMP))), Trim$(emp), vbTextCompare) = 0 And IsDate(mHH(i, HH_THROUGH)) Then
-            If Int(CDate(mHH(i, HH_THROUGH))) < Int(d) Then HasHistoryBefore = True: Exit Function
+            t = Int(CDate(mHH(i, HH_THROUGH)))
+            If t < Int(d) And t >= Int(mYearFrom) Then HasHistoryBefore = True: Exit Function
         End If
     Next i
+End Function
+
+' Earliest data-through date in the year (0 = no Hours History yet)
+Private Function EarliestThrough() As Date
+    If Not IsArray(mHH) Then Exit Function
+    Dim i As Long, t As Date, best As Date
+    For i = 1 To UBound(mHH, 1)
+        If IsDate(mHH(i, HH_THROUGH)) Then
+            t = Int(CDate(mHH(i, HH_THROUGH)))
+            If t >= Int(mYearFrom) Then
+                If best = 0 Or t < best Then best = t
+            End If
+        End If
+    Next i
+    EarliestThrough = best
 End Function
 
 
@@ -342,15 +372,18 @@ End Function
 
 ' Works out the top-up for one open leave booking. False = can't (message in lc.Warnings).
 Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Date, ByRef lc As LeaveCalc) As Boolean
+    Dim blank As LeaveCalc: lc = blank                       ' a fresh result every time (no stale warnings)
     Dim emp As String, unit As String, code As String, dStart As Date, dEnd As Variant, home As String, grp As String, st As String
     If Not AbsenceInfo(absId, emp, unit, code, dStart, dEnd, home, grp, st) Then lc.Warnings = absId & " not found": Exit Function
     If st = "VOID" Then lc.Warnings = absId & " is void": Exit Function
     If Not IsLeaveCode(code) Then lc.Warnings = absId & " isn't a leave booking": Exit Function
+    If LeaveToppedUp(grp) Then lc.Warnings = absId & " has already been topped up (" & grp & " in the OT Log). Void that entry first if it was wrong.": Exit Function
     If Int(returnDate) <= Int(dStart) Then lc.Warnings = "The return date must be after the first day off (" & Format$(dStart, "mmm d, yyyy") & ")": Exit Function
     If home = "" Then home = HomeUnitOf(emp)
     If home = "" Then lc.Warnings = emp & " has no Home Unit (roster column B) and none was locked in on the booking - fill it in first": Exit Function
     lc.AbsId = absId: lc.Emp = emp: lc.HomeUnit = home: lc.FirstOff = Int(dStart): lc.ReturnDate = Int(returnDate)
 
+    On Error GoTo Failed
     BeginHoursBatch
     lc.WindowFrom = lc.FirstOff
     If lc.WindowFrom < mYearFrom Then lc.WindowFrom = mYearFrom: lc.Warnings = lc.Warnings & "Leave spans the year reset: the window starts at " & Format$(mYearFrom, "mmm d, yyyy") & ". "
@@ -358,18 +391,28 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
     n = LoadEligible(home, "ALL", recs)
     ReDim deltas(1 To IIf(n > 0, n, 1))
     RefreshCalCache
-    Dim snapA As Date, snapB As Date, noteA As String, noteB As String, a As Double, b As Double, snaps As String
+    ' Hours History started Oct 9, 2026: a leave that began before the first
+    ' snapshot has no peer with history before the window. Then every peer's
+    ' start figure is estimated from the earliest snapshot, and the confirm says so.
+    Dim relaxHistory As Boolean, firstSnap As Date
+    firstSnap = EarliestThrough()
+    If firstSnap > 0 And lc.WindowFrom <= firstSnap Then
+        relaxHistory = True
+        lc.Warnings = lc.Warnings & "Hours History starts " & Format$(firstSnap, "mmm d") & ", after the first day off: every start figure is ESTIMATED from that snapshot. "
+    End If
+    Dim snapA As Date, snapB As Date, noteA As String, noteB As String, a As Double, b As Double, snaps As String, flagged As String
     For i = 1 To n
         If PeerEligible(recs(i).Grade, StrComp(recs(i).EmpName, emp, vbTextCompare) = 0, _
                         HasLeaveOverlapping(recs(i).EmpName, lc.WindowFrom, lc.ReturnDate), _
-                        HasHistoryBefore(recs(i).EmpName, lc.WindowFrom)) Then
+                        relaxHistory Or HasHistoryBefore(recs(i).EmpName, lc.WindowFrom)) Then
             a = TotalHoursAsOf(recs(i).EmpName, lc.WindowFrom, snapA, noteA)
             b = TotalHoursAsOf(recs(i).EmpName, lc.ReturnDate, snapB, noteB)
             nP = nP + 1
             deltas(nP) = b - a
             names = names & IIf(names = "", "", ", ") & CalName(recs(i).EmpName)
-            If snaps = "" Then snaps = "from the " & Format$(snapA, "mmm d") & " snapshot to the " & Format$(snapB, "mmm d") & " snapshot"
-            If noteB <> "" And InStr(lc.Warnings, "snapshot is") = 0 Then lc.Warnings = lc.Warnings & "Latest " & noteB & ". "
+            If snaps = "" Then snaps = "from the " & Format$(snapA, "mmm d") & " snapshot to the " & Format$(snapB, "mmm d") & " snapshot (first peer; others may differ)"
+            If noteA <> "" And Not relaxHistory And InStr(flagged, "|start|") = 0 Then flagged = flagged & "|start|": lc.Warnings = lc.Warnings & "Start: " & noteA & ". "
+            If noteB <> "" And InStr(flagged, "|end|") = 0 Then flagged = flagged & "|end|": lc.Warnings = lc.Warnings & "Return: " & noteB & ". "
         End If
     Next i
     lc.NPeers = nP
@@ -381,11 +424,16 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
     If noteR <> "" Then lc.Warnings = lc.Warnings & emp & ": " & noteR & ". "
     lc.After = lc.Before + lc.Average
     EndHoursBatch
-    If nP = 0 Then lc.Warnings = lc.Warnings & "No peers found in " & home & " (grade " & PEER_MAX_GRADE & " and below, not on leave, with Hours History before " & Format$(lc.WindowFrom, "mmm d") & "). "
+    If nP = 0 Then lc.Warnings = lc.Warnings & "No peers found in " & home & " (grade " & PEER_MAX_GRADE & " and below, not on leave, with Hours History). "
     lc.Summary = home & ", " & nP & " operator" & IIf(nP = 1, "", "s") & ", " & Format$(lc.WindowFrom, "mmm d") & " to " & _
                  Format$(lc.ReturnDate, "mmm d") & ": average " & Format$(lc.Average, "0.0") & " h (" & snaps & "). " & _
                  "Add " & Format$(lc.Average, "0.0") & " h to " & emp & " (" & Format$(lc.Before, "0.0") & " -> " & Format$(lc.After, "0.0") & ")"
     ComputeLeaveReturn = True
+    Exit Function
+Failed:
+    lc.Warnings = "The calculation stopped: " & Err.Description
+    On Error Resume Next
+    EndHoursBatch
 End Function
 
 ' Writes the top-up (Adjustment, Ref LV-####) and closes the absence. hoursToAdd
@@ -556,7 +604,11 @@ Public Function MatchImportName(ByVal txt As String, ByVal rosterList As Variant
             If ini = "" Or Left$(rLast, 1) = ini Then hits = hits + 1: hit = nm
         End If
     Next i
-    If hits = 1 Then MatchImportName = hit ElseIf hits > 1 Then MatchImportName = "?"
+    If hits = 1 Then
+        MatchImportName = hit
+    ElseIf hits > 1 Then
+        MatchImportName = "?"
+    End If
 End Function
 
 ' Converts the given lines (ids, names decided) into VAC bookings: consecutive
@@ -600,6 +652,10 @@ Public Function ConvertImports(ByRef lineIds() As String, ByRef empNames() As St
                         For j = 1 To k
                             If dates(j) >= runs(q, 1) And dates(j) <= runs(q, 2) Then MarkLineBooked lo, v, ids(j), absId
                         Next j
+                    Else
+                        report = report & "  " & empNames(i) & ": " & Format$(runs(q, 1), "mmm d") & _
+                                 IIf(runs(q, 2) <> runs(q, 1), " - " & Format$(runs(q, 2), "mmm d"), "") & _
+                                 " SKIPPED - already has time off in that range (book or dismiss by hand)" & vbNewLine
                     End If
                 Next q
             End If
@@ -615,6 +671,8 @@ End Function
 
 ' "Dismiss": the line stays on the calendar but drops off the Needs Attention list
 Public Sub DismissImports(ByRef lineIds() As String, ByVal n As Long)
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
     Dim v As Variant: v = CovTableData()
     Dim lo As ListObject: Set lo = CovTable(False)
     If Not IsArray(v) Or lo Is Nothing Then Exit Sub

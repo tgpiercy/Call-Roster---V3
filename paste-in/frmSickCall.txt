@@ -74,7 +74,6 @@ Private Sub UserForm_Initialize()
 
     AddLabel "lDate", "Shift date", LBL_L, RowT(2) + 3, 100
     Set mDate = AddCtl("Forms.TextBox.1", "txtDate", BOX_L, RowT(2), 110, 20)
-    mDate.Text = Format$(Date, "mm/dd/yyyy")
     AddLabel "hDate", "", BOX_L + 118, RowT(2) + 3, 160
 
     AddLabel "lShift", "Shift", LBL_L, RowT(3) + 3, 100
@@ -111,6 +110,7 @@ Private Sub UserForm_Initialize()
     For Each h In Array("hDate", "hShift", "hHrs")
         C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
     Next h
+    mDate.Text = Format$(Date, "mm/dd/yyyy")     ' last: its Change handler needs every control above
 End Sub
 
 ' ---- live defaults from the rotation and the roster ----
@@ -144,7 +144,7 @@ Private Sub Refresh()
         Exit Sub
     End If
     C("hDate").Caption = "= " & Format$(d, "ddd mmm d, yyyy")
-    If mEmp.ListIndex < 0 Then Exit Sub
+    If mEmp.ListIndex < 0 Then mShift_Change: Exit Sub
     Dim sch As String: sch = ScheduledShift(mEmp.Text, d)
     If sch <> "" Then
         mShift.Value = sch
@@ -154,7 +154,9 @@ Private Sub Refresh()
         C("hShift").Caption = "not scheduled that day - pick the shift they were to work"
     End If
     Dim hu As String: hu = HomeUnitOf(mEmp.Text)
+    On Error Resume Next                         ' a Home Unit not in the list leaves the box as it is
     If hu <> "" Then C("cboUnit").Value = hu
+    On Error GoTo 0
     mShift_Change
 End Sub
 
@@ -172,7 +174,8 @@ Private Function SaveIt() As String
         If MsgBox("That date is " & Abs(Int(d) - Int(Date)) & " days from today. Save it anyway?", vbYesNo + vbQuestion) = vbNo Then Exit Function
     End If
     Dim hrs As Variant: hrs = CDbl(h)
-    If CDbl(h) >= USUAL_SHIFT_HOURS Then hrs = Empty           ' a full shift: no partial-hours mark on the line
+    ' a full shift (12 h, or the 11 h / 13 h DST night) gets no partial-hours mark on the line
+    If CDbl(h) >= DefaultShiftHours(d, IsNightShift(mShift.Text), USUAL_SHIFT_HOURS) Then hrs = Empty
     SaveIt = SaveSickCall(mEmp.Text, d, mShift.Text, C("cboUnit").Text, hrs, Trim$(C("txtNote").Text))
 End Function
 

@@ -270,6 +270,10 @@ Private Sub SaveReturning()
         If Not IsNumeric(Trim$(mOverride.Text)) Then MsgBox "The override must be a number of hours.", vbExclamation: Exit Sub
         hrs = CDbl(Trim$(mOverride.Text))
         If why = "" Then MsgBox "An override needs a reason (it goes in the OT Log).", vbExclamation: Exit Sub
+    ElseIf mCalc.NPeers = 0 Then
+        MsgBox "No peers were found, so the average is 0. Enter an override with a reason, or fix the Home Unit / Hours History first.", _
+               vbExclamation, "Leave"
+        Exit Sub
     End If
     Dim msg As String
     msg = mCalc.Emp & " returns " & Format$(mCalc.ReturnDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & mCalc.Summary & vbNewLine

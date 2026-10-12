@@ -178,9 +178,10 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 |---|---|
 | Boxing Day 2026 observed weekday | **Answered:** Monday Dec 28, 2026 for day workers. Entered on the Holidays sheet ("Observed on"), no code. |
 | Network paths (`REPORT_FOLDER`, `PUBLISH_FOLDER`, `KRONOS_PATH` on P:) | Everything is built and tested locally on Graeme's desktop; the P: links are wired in at go-live. SystemCheck will flag them as unreachable until then. |
-| Who runs the rollover / where the frozen copy lives | Settings constants, blank until given |
-| Does Kronos export an employee number | Needed before v25 |
+| Who runs the rollover / where the frozen copy lives | **Answered:** Graeme runs it together with his boss (two people present; v23 makes it a guided, verified macro with a frozen copy). Frozen-copy location still a settings constant, blank until given. |
+| Does Kronos export an employee number | **Answered: no, name only.** v25's employee key must be generated inside the workbook (and the Kronos import keeps matching on name). |
 | Kronos worked hours after Jan 1 (YTD or cumulative) | Check the first January export (v23) |
+| `ADMIN_USERS` logins | Graeme's only for now; the other supervisors are added later (settings constant, no code) |
 
 ## Roadmap
 | Brief | Target | Theme | State |

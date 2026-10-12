@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M2 (Jan 5)"
+Public Const MEM_VERSION As String = "Members M2.1 (Jan 5)"
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -133,6 +133,75 @@ End Function
 Private Function HasData() As Boolean
     HasData = (Txt(Meta("Published at")) <> "")
 End Function
+
+' ---- M2.1: is this file what its own code expects? ----
+' The supervisors' roster reads these two before it fills the template.
+Public Function MemberVersion() As String
+    MemberVersion = MEM_VERSION
+End Function
+
+' The version whose BuildMemberTemplate laid the sheets out (Home B19: only the build writes it)
+Public Function MemberLayoutVersion() As String
+    Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
+    If Not ws Is Nothing Then MemberLayoutVersion = Trim$(Txt(ws.Range("B19").Value))
+End Function
+
+' "" = fine. New code on sheets an older version laid out reads the wrong cells.
+Private Function LayoutProblem() As String
+    Dim built As String: built = MemberLayoutVersion()
+    If StrComp(built, MEM_VERSION, vbTextCompare) <> 0 Then
+        LayoutProblem = "This file's code is " & MEM_VERSION & " but its sheets were built by " & IIf(built = "", "an older version", built) & _
+                        ". Supervisor: open the template, run BuildMemberTemplate, save it and publish again."
+    End If
+End Function
+
+' "" = fine. A roster older than this file publishes fewer columns per person, so
+' every unit would be read from the wrong column: show nothing rather than wrong figures.
+Private Function DataProblem() As String
+    If Not HasData() Then Exit Function
+    Dim v As Variant: v = Data("dRoster")
+    Dim ok As Boolean
+    If IsArray(v) Then
+        If UBound(v, 2) >= RC_ROTHER Then ok = (StrComp(Txt(v(1, RC_RCALL)), "Refused call-out", vbTextCompare) = 0)
+    End If
+    If Not ok Then
+        DataProblem = "This file was filled by an older supervisors' roster (" & Txt(Meta("Master version")) & _
+                      "), so its figures can't be shown. Tell your supervisor: the roster needs its update."
+    End If
+End Function
+
+' One warning line on Home (row 5). "" clears it.
+Private Sub HomeNote(ByVal noteTxt As String)
+    Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
+    If ws Is Nothing Then Exit Sub
+    On Error Resume Next
+    UnprotectWs ws
+    With ws.Range("B5")
+        .Value = noteTxt
+        .Font.Bold = True: .Font.Size = 10: .Font.Color = RGB(176, 0, 32)
+    End With
+    ProtectWs ws
+End Sub
+
+' Every view sheet emptied, with one line pointing at Home
+Private Sub BlankViews()
+    Dim nm As Variant, ws As Worksheet
+    For Each nm In Array(SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)
+        Set ws = WsOf(CStr(nm))
+        If Not ws Is Nothing Then
+            UnprotectWs ws
+            ClearBelow ws, 4
+            ws.Cells(5, 1).Value = "Not available - see the note on the Home sheet."
+            ProtectWs ws
+        End If
+    Next nm
+    Set ws = WsOf(SH_HOME)
+    If Not ws Is Nothing Then
+        UnprotectWs ws
+        ClearBelow ws, CARD_ROW
+        ProtectWs ws
+    End If
+End Sub
 
 
 ' ====================================================================
@@ -330,8 +399,9 @@ Private Sub LayoutHome()
     Btn ws, "mb_hist", "MY HISTORY", "MemberGoHistory", lft + 160, top + 54, 150, 44, RGB(106, 27, 154), vbWhite
     Picker ws, HOME_FIND, "", "Find me:"
     ws.Range(HOME_FIND).ColumnWidth = 26
-    Btn ws, "mb_find", "Show me on the roster", "MemberFindFromHome", ws.Range("D14").Left + 4, ws.Range("D14").Top - 2, 150, 20, LIGHT, INK
-    Btn ws, "mb_notme", "Not me (clear)", "MemberNotMe", ws.Range("D14").Left + 160, ws.Range("D14").Top - 2, 110, 20, vbWhite, RGB(100, 100, 100)
+    ' 26 points clear of the box: Excel draws the drop-down arrow just outside its right edge
+    Btn ws, "mb_find", "Show me on the roster", "MemberFindFromHome", ws.Range("D14").Left + 26, ws.Range("D14").Top - 2, 150, 20, LIGHT, INK
+    Btn ws, "mb_notme", "Not me (clear)", "MemberNotMe", ws.Range("D14").Left + 182, ws.Range("D14").Top - 2, 110, 20, vbWhite, RGB(100, 100, 100)
     With ws.Range("B17")
         .Value = "Pick your name in Find me: every sheet opens on your home unit and your own figures show below. " & _
                  "Hours and call order are worked out by the supervisors' roster and published here as values. Leave shows only as 'Leave'."
@@ -457,21 +527,42 @@ Public Sub MemberRefreshAll()
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     mDrawing = True
+    Dim stepTxt As String, note As String, en As Long, em As String
     On Error GoTo Done
     ' the file always starts with nobody picked, even if it was saved with a name showing
+    stepTxt = "the pickers"
     SetCell WsOf(SH_HOME), HOME_FIND, ""
     SetCell WsOf(SH_ROSTER), ROSTER_FIND, ""
     SetCell WsOf(SH_HIST), HIST_NAME, ""
     SetCell WsOf(SH_POST), POST_PICK, ""
+    stepTxt = "the lists"
     BuildLists
+    stepTxt = "Home"
     DrawHome
-    MemberShowAll
-    DrawNextDefault
-    DrawCalendarDefault
-    MemberShowPostings
-    DrawHistory ""
-    DrawHomeCard
+    note = LayoutProblem()
+    If note = "" Then note = DataProblem()
+    If note <> "" Then
+        stepTxt = "clearing the views"
+        BlankViews
+    Else
+        stepTxt = "the Roster"
+        MemberShowAll
+        stepTxt = "Who's next"
+        DrawNextDefault
+        stepTxt = "the Calendar"
+        DrawCalendarDefault
+        stepTxt = "the Postings"
+        MemberShowPostings
+        stepTxt = "My history"
+        DrawHistory ""
+        stepTxt = "the Home card"
+        DrawHomeCard
+    End If
 Done:
+    en = Err.Number: em = Err.Description          ' reached normally (0) or from an error anywhere above
+    On Error Resume Next
+    If en <> 0 Then note = "This file didn't finish loading (" & stepTxt & ": " & em & "). Tell your supervisor."
+    HomeNote note
     mDrawing = False
     MarkClean
     Application.ScreenUpdating = suWas
@@ -659,7 +750,8 @@ End Sub
 Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim suWas As Boolean: suWas = Application.ScreenUpdating
-    Dim homeU As String, grp As String
+    Dim homeU As String, grp As String, en As Long, em As String
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then Exit Sub      ' the note on Home says why
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     mDrawing = True
@@ -688,8 +780,10 @@ Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
     MemberShowPostings
     DrawHomeCard
 Done:
-    mDrawing = False
+    en = Err.Number: em = Err.Description          ' reached normally (0) or from an error anywhere above
     On Error Resume Next
+    HomeNote IIf(en <> 0, "Couldn't show everything for " & nm & " (" & em & "). Tell your supervisor.", "")
+    mDrawing = False
     WsOf(stayOn).Activate
     If stayOn = SH_HOME Then WsOf(SH_HOME).Range(HOME_FIND).Select
     MarkClean
@@ -769,6 +863,7 @@ Private Function GroupOfUnit(ByVal unit As String) As String
 End Function
 
 Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional ByVal highlight As String = "")
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then Exit Sub      ' the note on Home says why
     Dim ws As Worksheet: Set ws = WsOf(SH_ROSTER)
     Dim v As Variant: v = Data("dRoster")
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -1370,6 +1465,7 @@ End Function
 ' or holding a code in the unit = out of department), then ONE table of every
 ' open posting, then the full list of the posting picked in the box at the top.
 Public Sub MemberShowPostings()
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then Exit Sub      ' the note on Home says why
     Dim ws As Worksheet: Set ws = WsOf(SH_POST)
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False

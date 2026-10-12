@@ -30,6 +30,7 @@ Public Const DS_PLIST As String = "dPostList"
 Public Const DS_LOG As String = "dLog"
 Public Const DS_ATT As String = "dAttend"     ' v24.1 / M2: sick time COUNTS only (no dates)
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
+Private Const MEMBER_NEEDS As String = "Members M2.1" ' v24.2: the members' code this roster's tables are laid out for
 
 ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
 Private Const ROSTER_FIXED As Long = 10
@@ -208,6 +209,7 @@ Public Sub PublishMembers()
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim secWas As Long: secWas = Application.AutomationSecurity
     Dim wb As Workbook, em As String, savedAs As String, redrawn As Boolean
+    Dim tplVer As String, tplLayout As String
     On Error GoTo OpenFailed
     Application.EnableEvents = False               ' the template's own open code must not run here
     Application.AutomationSecurity = 1             ' msoAutomationSecurityLow: its macros load, so MemberRefreshAll can run
@@ -216,7 +218,21 @@ Public Sub PublishMembers()
     On Error GoTo WriteFailed
     If Not HasDataSheets(wb) Then
         Err.Raise vbObjectError + 601, , "the template is older than this roster (it has no " & DS_ATT & _
-                                         " sheet): rebuild the members' template from the v24.1 files (INSTALL note, members' part)"
+                                         " sheet): update the members' template (INSTALL note, members' part)"
+    End If
+    ' v24.2: the template's code and the version that laid its sheets out must both be what this roster fills
+    On Error Resume Next
+    tplVer = CStr(Application.Run("'" & wb.Name & "'!MemberVersion"))
+    tplLayout = CStr(Application.Run("'" & wb.Name & "'!MemberLayoutVersion"))
+    On Error GoTo WriteFailed
+    If InStr(1, tplVer, MEMBER_NEEDS, vbTextCompare) = 0 Then
+        Err.Raise vbObjectError + 604, , "the template's code is " & IIf(tplVer = "", "older than " & MEMBER_NEEDS, tplVer) & _
+                                         " and this roster needs " & MEMBER_NEEDS & ": update the members' template (INSTALL note, members' part)"
+    End If
+    If StrComp(tplLayout, tplVer, vbTextCompare) <> 0 Then
+        Err.Raise vbObjectError + 605, , "the template's code is " & tplVer & " but its sheets were built by " & _
+                                         IIf(tplLayout = "", "an older version", tplLayout) & _
+                                         ": open the template, run BuildMemberTemplate, save it, close it and publish again"
     End If
     WriteTable wb, DS_META, meta
     WriteTable wb, DS_ROSTER, roster
@@ -270,7 +286,7 @@ Public Sub PublishMembers()
     SaveIfWritable                                 ' keeps the published-at stamp
     On Error GoTo 0
     Dim msg As String
-    msg = "Members' file published (" & Format$(Timer - t0, "0") & " s):" & vbNewLine & savedAs & vbNewLine & vbNewLine & _
+    msg = "Members' file published (" & Format$(Timer - t0, "0") & " s), " & tplVer & ":" & vbNewLine & savedAs & vbNewLine & vbNewLine & _
           nR & " people, " & nN & " who's-next rows, " & nC & " calendar lines, " & nP & " open posting(s), " & nL & " log rows." & _
           IIf(redrawn, "", vbNewLine & vbNewLine & "Its views couldn't be redrawn (macros didn't run in the template); " & _
           "members will see them refresh when they open it with macros on.")

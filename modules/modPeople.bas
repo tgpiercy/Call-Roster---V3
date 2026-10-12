@@ -890,6 +890,7 @@ Private Sub AfterPeopleChange()
     On Error Resume Next
     ResetCrewCache
     ResetCalCacheAll
+    ResetSplitCache                         ' v24.1: the status bar's refused split is keyed on names
     MarkCalDirty
     SetRosterStatus
 End Sub

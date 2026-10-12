@@ -565,11 +565,11 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
     s = dict(next_jan1=date(y0 + 1, 1, 1), window=date(y0, 1, 1),
              waiting=False, wait_until=None, crossed=None, reset_on=None,
              used=0, paid=0, occ=0, occ1=None, occ2=None, occ_txt=[], per=0,
-             have_last=False, last_d=None, last_n=False)
+             have_last=False, last_d=None, last_n=False, occs=[])
     out = dict(last_sick=None, last_paid=False, last_reason="")
 
     def reset():
-        s.update(used=0, paid=0, occ=0, occ1=None, occ2=None, occ_txt=[], per=0, have_last=False)
+        s.update(used=0, paid=0, occ=0, occ1=None, occ2=None, occ_txt=[], per=0, have_last=False, occs=[])
 
     def advance_to(d: date):
         while True:
@@ -615,6 +615,9 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
                 if s["occ"] == 2:
                     s["occ2"] = d
                 s["occ_txt"].append(d)
+                s["occs"].append([d, d, 0, 0])              # v24.1: first day, last day, days, paid days
+            s["occs"][-1][1] = d
+            s["occs"][-1][2] += 1
             s.update(have_last=True, last_d=d, last_n=night)
             if s["waiting"]:
                 paid, why = False, "unpaid - not entitled until %s" % s["wait_until"]
@@ -629,6 +632,7 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
                 paid, why = False, "unpaid - sick + personal day %d passes %d" % (s["used"] + s["per"], COMBINED_LIMIT)
             if paid:
                 s["paid"] += 1
+                s["occs"][-1][3] += 1
             out.update(last_sick=d, last_paid=paid, last_reason=why)
         else:
             s["per"] += 1
@@ -642,7 +646,7 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
                occurrences=s["occ"], occ_dates=list(s["occ_txt"]), personal_used=s["per"],
                personal_left=max(0, PERSONAL_DAYS - s["per"]), combined=s["used"] + s["per"],
                entitled=not s["waiting"], wait_until=s["wait_until"], crossed_on=s["crossed"],
-               reset_on=s["reset_on"])
+               reset_on=s["reset_on"], occs=[tuple(o) for o in s["occs"]])
     return out
 
 
@@ -779,3 +783,21 @@ def replace_name_token(txt: str, old: str, new: str) -> str:
         else:
             start = p + 1
     return txt
+
+
+# ---------------------------------------------------------------- refused hours by kind (v24.1)
+def refused_bucket(typ: str) -> str:
+    """modReports.RefusedBucket."""
+    t = typ.strip().lower()
+    return t if t in ("callout", "posting") else "other"
+
+
+def refused_split(rows: list[tuple[str, float, bool, bool]]) -> tuple[float, float, float]:
+    """modReports.SplitTotals for ONE person. rows = (type, hours charged, void,
+    period inside the roster year). Returns (call-out, posting, other)."""
+    out = {"callout": 0.0, "posting": 0.0, "other": 0.0}
+    for typ, hrs, void, in_year in rows:
+        if void or not in_year or hrs == 0:
+            continue
+        out[refused_bucket(typ)] += hrs
+    return out["callout"], out["posting"], out["other"]

@@ -58,6 +58,7 @@ Public Sub SystemCheck()
     VerCheck "modIntegrity", IC_VERSION, warn, nOk
     VerCheck "modRollover", RO_VERSION, warn, nOk
     VerCheck "modPeople", PPL_VERSION, warn, nOk
+    VerCheck "modReports", REP_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine

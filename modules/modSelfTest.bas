@@ -151,6 +151,10 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
+        Case "attendocc"
+            RunCase = CaseAttend(i1, i2, i3, i4, True)
+        Case "refsplit"
+            RunCase = CaseRefSplit(i1)
         Case "awardorder"
             RunCase = CaseAwardOrder(CDbl(i1), CLng(i2), i3, False)
         Case "awardcover"
@@ -409,6 +413,27 @@ Private Function CaseAwardOrder(ByVal hours As Double, ByVal positions As Long, 
     End If
 End Function
 
+' "type:hours:V|A:Y|N;..." (V = void, Y = period inside the year) -> "callout|posting|other"
+Private Function CaseRefSplit(ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim lg() As Variant: ReDim lg(1 To n, 1 To L_NCOLS)
+    Dim i As Long, p As Variant
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        lg(i, L_EMP) = ST_NAME
+        lg(i, L_TYPE) = CStr(p(0))
+        lg(i, L_CHARGED) = CDbl(p(1))
+        lg(i, L_STATUS) = IIf(CStr(p(2)) = "V", "VOID", "")
+        lg(i, L_PERIOD) = IIf(CStr(p(3)) = "Y", ST_YEAR_FROM + 14, ST_YEAR_FROM - 14)
+    Next i
+    Dim v As Variant: v = lg
+    Dim m As Object: Set m = SplitTotals(v, CLng(ST_YEAR_FROM), CLng(ST_YEAR_TO) - 13)
+    Dim c As Double, ps As Double, o As Double
+    RefusedSplitOf m, ST_NAME, c, ps, o
+    CaseRefSplit = NumText(c) & "|" & NumText(ps) & "|" & NumText(o)
+End Function
+
 ' "grade:onleave:total;..." -> a new hire's starting hours
 Private Function CaseNewHire(ByVal spec As String) As String
     Dim parts As Variant: parts = Split(spec, ";")
@@ -481,7 +506,8 @@ Private Function NumText(ByVal x As Double) As String ' 21 -> "21", 22.75 -> "22
 End Function
 
 ' crew, sick "date:D|N;...", personal "date;...", as-of -> used/paid/occ/per/ENT|WAIT date/PAID|UNPAID|-
-Private Function CaseAttend(ByVal crew As String, ByVal sickSpec As String, ByVal perSpec As String, ByVal asOfTxt As String) As String
+Private Function CaseAttend(ByVal crew As String, ByVal sickSpec As String, ByVal perSpec As String, ByVal asOfTxt As String, _
+                            Optional ByVal occOnly As Boolean = False) As String
     Dim sd() As Date, sn() As Boolean, pd() As Date, nS As Long, nP As Long, parts As Variant, q As Variant, i As Long
     ReDim sd(1 To 1): ReDim sn(1 To 1): ReDim pd(1 To 1)
     If sickSpec <> "" Then
@@ -503,6 +529,17 @@ Private Function CaseAttend(ByVal crew As String, ByVal sickSpec As String, ByVa
     End If
     Dim st As AttendanceStatus
     AttendanceCore crew, sd, sn, nS, pd, nP, ParseD(asOfTxt), st
+    If occOnly Then                             ' v24.1: first..last:days:paid for each occurrence
+        Dim oc As Long
+        For oc = 1 To MAX_OCC
+            If st.OccDays(oc) > 0 Then
+                CaseAttend = CaseAttend & IIf(CaseAttend = "", "", ";") & FmtD(st.OccFirst(oc)) & ".." & FmtD(st.OccLast(oc)) & _
+                             ":" & st.OccDays(oc) & ":" & st.OccPaid(oc)
+            End If
+        Next oc
+        If CaseAttend = "" Then CaseAttend = "none"
+        Exit Function
+    End If
     CaseAttend = st.SickUsed & "/" & st.PaidUsed & "/" & st.Occurrences & "/" & st.PersonalUsed & "/" & _
                  IIf(st.Entitled, "ENT", "WAIT " & FmtD(st.WaitUntil)) & "/" & _
                  IIf(st.LastSick = 0, "-", IIf(st.LastPaid, "PAID", "UNPAID"))
@@ -862,5 +899,13 @@ Private Sub LoadCases()
     AddCase "awardcover,full-shift,12,1,1:F:Y,,,12|0"
     AddCase "posting,partial-award-remainder-uncharged,award,12,1:1:N:N;2:1:Y:Y;3:1:N:N,,,1=21;2=0;3=0"
     AddCase "awardorder,filled-comes-before-full-first,12,1,1:F:Y;2:F:N;3:8:Y,,,filled"
+    AddCase "attendocc,none,A,,,2026-03-01,,none"
+    AddCase "attendocc,two-occurrences,A,2026-01-05:N;2026-01-06:N;2026-03-02:D,,2026-04-01,,2026-01-05..2026-01-06:2:2;2026-03-02..2026-03-02:1:1"
+    AddCase "attendocc,fourth-occurrence-unpaid,A,2026-01-05:N;2026-02-02:N;2026-03-02:N;2026-03-30:N,,2026-04-15,,2026-01-05..2026-01-05:1:1;2026-02-02..2026-02-02:1:1;2026-03-02..2026-03-02:1:1;2026-03-30..2026-03-30:1:0"
+    AddCase "refsplit,mixed,Callout:21:A:Y;Posting:21:A:Y;Posting:22.75:A:Y;Adjustment:12.3:A:Y,,,,,21|43.75|12.3"
+    AddCase "refsplit,void-not-counted,Callout:21:V:Y;Callout:21:A:Y,,,,,21|0|0"
+    AddCase "refsplit,outside-the-year,Posting:21:A:N;Posting:21:A:Y,,,,,0|21|0"
+    AddCase "refsplit,negative-adjustment,Callout:21:A:Y;Adjustment:-21:A:Y,,,,,21|0|-21"
+    AddCase "refsplit,opening-balance-is-other,Opening Balance:40:A:Y,,,,,0|0|40"
 ' <<< CASES
 End Sub

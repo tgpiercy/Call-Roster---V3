@@ -85,6 +85,13 @@ End Sub
 Private Sub Workbook_SheetActivate(ByVal Sh As Object)
     If mRestoreAdmin And Not gAdminUnlocked Then Exit Sub   ' mid-save / closing view switch
     CalSheetActivated Sh
+    ReportsSheetActivated Sh           ' v24.1: the status bar goes back when you leave the roster
+End Sub
+
+' v24.1: selecting a roster row shows that person's Refused hours by kind
+' (call-out / posting) on Excel's status bar. Nothing is written to a cell.
+Private Sub Workbook_SheetSelectionChange(ByVal Sh As Object, ByVal Target As Range)
+    RosterSelectionChanged Sh, Target
 End Sub
 
 ' Any change to Absences / Coverage / Postings / Shift Switches / Holidays

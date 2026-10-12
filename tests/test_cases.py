@@ -196,6 +196,15 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
+    if suite == "attendocc":                     # crew, sick, personal, as-of -> first..last:days:paid;... / none
+        sick = [(d(p.split(":")[0]), p.split(":")[1] == "N") for p in i2.split(";") if p]
+        per = [d(p) for p in i3.split(";") if p]
+        a = rules.attendance(i1, sick, per, d(i4))
+        return ";".join(f"{iso(o[0])}..{iso(o[1])}:{o[2]}:{o[3]}" for o in a["occs"]) or "none"
+    if suite == "refsplit":                      # 'type:hours:V|A:Y|N;...' -> callout|posting|other
+        rows = [(f[0], float(f[1]), f[2] == "V", f[3] == "Y") for f in (r.split(":") for r in i1.split(";") if r)]
+        c, p_, o = rules.refused_split(rows)
+        return f"{fmt_num(c)}|{fmt_num(p_)}|{fmt_num(o)}"
     if suite == "awardorder":                    # hours, positions, sign-ups -> ok / the problem
         return rules.award_order_problem(float(i1), int(i2), parse_signups(i3)) or "ok"
     if suite == "awardcover":                    # hours, positions, sign-ups -> covered|uncovered

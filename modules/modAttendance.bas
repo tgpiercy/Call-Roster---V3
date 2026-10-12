@@ -34,6 +34,7 @@ Public Const PAID_SICK_DAYS As Long = 5
 Public Const PAID_SICK_OCC As Long = 3
 Public Const PERSONAL_DAYS As Long = 5
 Public Const COMBINED_LIMIT As Long = 5
+Public Const MAX_OCC As Long = 12          ' occurrences kept apart per window; any beyond are folded into the last
 
 Public Type AttendanceStatus
     WindowStart As Date        ' Jan 1, or the day the counters restarted after a wait
@@ -52,6 +53,11 @@ Public Type AttendanceStatus
     LastSick As Date           ' latest sick shift on or before the as-of date
     LastPaid As Boolean
     LastReason As String       ' "paid sick day 2 of 5, occurrence 1 of 3" / "unpaid - ..."
+    ' v24.1: each occurrence in the window (1 .. Occurrences, at most MAX_OCC)
+    OccFirst(1 To MAX_OCC) As Date
+    OccLast(1 To MAX_OCC) As Date
+    OccDays(1 To MAX_OCC) As Long
+    OccPaid(1 To MAX_OCC) As Long
 End Type
 
 Private Const EV_SICK As Long = 1
@@ -75,8 +81,16 @@ Private Type AtState
     HaveLast As Boolean
     LastD As Date
     LastN As Boolean
+    OccFirst(1 To MAX_OCC) As Date
+    OccLast(1 To MAX_OCC) As Date
+    OccDays(1 To MAX_OCC) As Long
+    OccPaid(1 To MAX_OCC) As Long
 End Type
 Private mS As AtState
+
+' the Attendance sheet's view (v24.1)
+Private mAttSort As String          ' "" / "AZ" = A - Z, "DEPT" = by Home Unit, "WORST" = worst first
+Private mAttAll As Boolean          ' True = everyone, False = only people with something logged
 
 Private mAbsV As Variant          ' Absences table values while a batch is open
 Private mBatch As Boolean
@@ -130,7 +144,7 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
     End If
     mS.WindowStart = DateSerial(y0, 1, 1)
     mS.NextJan1 = DateSerial(y0 + 1, 1, 1)
-    Dim paid As Boolean, why As String, sameOcc As Boolean
+    Dim paid As Boolean, why As String, sameOcc As Boolean, oc As Long
     For i = 1 To m
         If evD(i) >= mS.WindowStart Then
             AdvanceTo evD(i)
@@ -144,6 +158,11 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
                     If mS.Occ = 2 Then mS.Occ2 = evD(i)
                     mS.OccTxt = mS.OccTxt & IIf(mS.OccTxt = "", "", ", ") & Format$(evD(i), "mmm d")
                 End If
+                oc = mS.Occ
+                If oc > MAX_OCC Then oc = MAX_OCC
+                If mS.OccDays(oc) = 0 Then mS.OccFirst(oc) = evD(i)
+                mS.OccLast(oc) = evD(i)
+                mS.OccDays(oc) = mS.OccDays(oc) + 1
                 mS.HaveLast = True: mS.LastD = evD(i): mS.LastN = evN(i)
                 If mS.Waiting Then
                     paid = False
@@ -167,7 +186,7 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
                               ": not entitled until " & Format$(mS.WaitUntil, "mmm d, yyyy")
                     End If
                 End If
-                If paid Then mS.Paid = mS.Paid + 1
+                If paid Then mS.Paid = mS.Paid + 1: mS.OccPaid(oc) = mS.OccPaid(oc) + 1
                 st.LastSick = evD(i): st.LastPaid = paid: st.LastReason = why
             Else
                 mS.Per = mS.Per + 1
@@ -195,7 +214,35 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
     st.WaitUntil = mS.WaitUntil
     st.CrossedOn = mS.CrossedOn
     st.ResetOn = mS.ResetOn
+    For oc = 1 To MAX_OCC
+        st.OccFirst(oc) = mS.OccFirst(oc): st.OccLast(oc) = mS.OccLast(oc)
+        st.OccDays(oc) = mS.OccDays(oc): st.OccPaid(oc) = mS.OccPaid(oc)
+    Next oc
 End Sub
+
+' One occurrence as the Attendance sheet shows it: "Jan 5 - 6 (2 days, 2 paid)",
+' "Mar 2 (1 day, unpaid)", "Jan 30 - Feb 2 (3 days, 1 paid)". "" when there is none.
+Public Function OccurrenceText(ByRef st As AttendanceStatus, ByVal k As Long) As String
+    If k < 1 Or k > MAX_OCC Then Exit Function
+    If st.OccDays(k) = 0 Then Exit Function
+    Dim s As String
+    If st.OccLast(k) = st.OccFirst(k) Then
+        s = Format$(st.OccFirst(k), "mmm d")
+    ElseIf Month(st.OccLast(k)) = Month(st.OccFirst(k)) And Year(st.OccLast(k)) = Year(st.OccFirst(k)) Then
+        s = Format$(st.OccFirst(k), "mmm d") & " - " & Day(st.OccLast(k))
+    Else
+        s = Format$(st.OccFirst(k), "mmm d") & " - " & Format$(st.OccLast(k), "mmm d")
+    End If
+    s = s & " (" & st.OccDays(k) & IIf(st.OccDays(k) = 1, " day, ", " days, ")
+    If st.OccPaid(k) = 0 Then
+        s = s & "unpaid)"
+    ElseIf st.OccDays(k) = 1 Then
+        s = s & "paid)"
+    Else
+        s = s & st.OccPaid(k) & " paid)"
+    End If
+    OccurrenceText = s
+End Function
 
 ' Sort position of an event: days before nights on a date, sick before personal
 Private Function EvPos(ByVal d As Date, ByVal night As Boolean, ByVal kind As Long) As Double
@@ -215,6 +262,10 @@ Private Sub AdvanceTo(ByVal d As Date)
         End If
         If kind = 0 Then Exit Do
         mS.Used = 0: mS.Paid = 0: mS.Occ = 0: mS.Occ1 = 0: mS.Occ2 = 0: mS.OccTxt = "": mS.Per = 0: mS.HaveLast = False
+        Dim oc As Long
+        For oc = 1 To MAX_OCC
+            mS.OccFirst(oc) = 0: mS.OccLast(oc) = 0: mS.OccDays(oc) = 0: mS.OccPaid(oc) = 0
+        Next oc
         mS.WindowStart = nxt
         If kind = 1 Then
             mS.NextJan1 = DateSerial(Year(nxt) + 1, 1, 1)
@@ -447,6 +498,56 @@ Private Function AttendanceSheet(ByVal create As Boolean) As Worksheet
     End If
 End Function
 
+' The sort buttons on the sheet
+Public Sub AttendanceSortAZ()
+    mAttSort = "AZ"
+    ShowAttendance
+End Sub
+
+Public Sub AttendanceSortDept()
+    mAttSort = "DEPT"
+    ShowAttendance
+End Sub
+
+Public Sub AttendanceSortWorst()
+    mAttSort = "WORST"
+    ShowAttendance
+End Sub
+
+Public Sub AttendanceToggleAll()
+    mAttAll = Not mAttAll
+    ShowAttendance
+End Sub
+
+Private Sub AttBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
+                   ByVal l As Double, ByVal w As Double, ByVal isOn As Boolean)
+    Dim s As Shape
+    Set s = ws.Shapes.AddShape(msoShapeRoundedRectangle, l, ws.Rows(3).Top + 3, w, 20)
+    s.Name = nm
+    s.Fill.ForeColor.RGB = IIf(isOn, RGB(230, 81, 0), RGB(236, 239, 243))
+    s.Line.Visible = msoFalse
+    s.Placement = xlFreeFloating
+    s.OnAction = mac
+    With s.TextFrame2
+        .MarginLeft = 1: .MarginRight = 1: .MarginTop = 0: .MarginBottom = 0
+        .VerticalAnchor = msoAnchorMiddle
+        .WordWrap = msoFalse
+        With .TextRange
+            .Text = cap
+            .ParagraphFormat.Alignment = msoAlignCenter
+            .Font.Name = "Segoe UI"
+            .Font.Size = 8.5
+            .Font.Bold = IIf(isOn, msoTrue, msoFalse)
+            .Font.Fill.ForeColor.RGB = IIf(isOn, vbWhite, RGB(51, 51, 51))
+        End With
+    End With
+End Sub
+
+' One row per person (v24.1): Employee, Crew, Home Unit, one column per
+' occurrence (its dates, days and paid days), then the counters and status.
+' Default: A - Z, only people with a sick or personal day in their current
+' window (or waiting for paid sick to come back). The buttons in row 3 sort
+' by Home Unit or worst first, and show everyone. A filter sits on the header.
 Public Sub ShowAttendance()
     If Not RequireAdmin() Then Exit Sub
     Dim ws As Worksheet
@@ -458,95 +559,155 @@ Public Sub ShowAttendance()
     If ws Is Nothing Then Err.Raise vbObjectError + 701, , "the sheet couldn't be created (is the workbook structure protected?)"
     ws.Visible = xlSheetVisible
     ws.Unprotect Password:=SHEET_PASSWORD
+    If ws.AutoFilterMode Then ws.AutoFilterMode = False
     ws.Cells.Clear
+    Dim i As Long, j As Long
+    For i = ws.Shapes.Count To 1 Step -1
+        ws.Shapes(i).Delete
+    Next i
+    If mAttSort = "" Then mAttSort = "AZ"
+
+    ' ---- work everyone out ----
     Dim names As Variant: names = RosterNames()
-    Dim heads As Variant
-    heads = Array("Employee", "Crew", "Home Unit", "Sick days", "Paid", "Occurrences", "First days", "Personal", _
-                  "Sick + personal", "Status", "Until / restarted", "Last sick", "Window")
-    Const NC As Long = 13
+    Dim nAll As Long, n As Long, st As AttendanceStatus, nOcc As Long, lvl As Long
+    If IsArray(names) Then nAll = UBound(names) - LBound(names) + 1
+    Dim sts() As AttendanceStatus, who() As String, crewOf() As String, unitOf() As String, sortKey() As String, ord() As Long
+    ReDim sts(1 To nAll + 1): ReDim who(1 To nAll + 1): ReDim crewOf(1 To nAll + 1): ReDim unitOf(1 To nAll + 1)
+    ReDim sortKey(1 To nAll + 1): ReDim ord(1 To nAll + 1)
+    nOcc = PAID_SICK_OCC
+    If nAll > 0 Then
+        BeginAttendanceBatch
+        For i = 1 To nAll
+            AttendanceFor CStr(names(LBound(names) + i - 1)), Date, st
+            If mAttAll Or st.SickUsed + st.PersonalUsed > 0 Or Not st.Entitled Then
+                n = n + 1
+                sts(n) = st
+                who(n) = CStr(names(LBound(names) + i - 1))
+                crewOf(n) = EmpCrewCode(who(n), Date)             ' today's crew (column E can hold one that starts later)
+                unitOf(n) = HomeUnitOf(who(n))
+                If st.Occurrences > nOcc Then nOcc = st.Occurrences
+                lvl = AttendanceLevel(st)
+                Select Case mAttSort
+                    Case "DEPT": sortKey(n) = LCase$(IIf(unitOf(n) = "", "~", unitOf(n))) & "|" & LCase$(who(n))
+                    Case "WORST": sortKey(n) = CStr(9 - lvl) & Format$(999 - st.Combined, "000") & LCase$(who(n))
+                    Case Else: sortKey(n) = LCase$(who(n))
+                End Select
+                ord(n) = n
+            End If
+        Next i
+        EndAttendanceBatch
+    End If
+    If nOcc > MAX_OCC Then nOcc = MAX_OCC
+    Dim t As Long
+    For i = 2 To n
+        t = ord(i): j = i - 1
+        Do While j >= 1
+            If sortKey(ord(j)) <= sortKey(t) Then Exit Do
+            ord(j + 1) = ord(j): j = j - 1
+        Loop
+        ord(j + 1) = t
+    Next i
+
+    ' ---- title, buttons, header ----
+    Dim nc As Long: nc = 3 + nOcc + 6
+    Dim cSick As Long: cSick = 3 + nOcc + 1
     ws.Range("A1").Value = "ATTENDANCE  -  sick and personal days (calendar year; " & PAID_SICK_DAYS & " paid sick in " & _
                            PAID_SICK_OCC & " occurrences, " & PERSONAL_DAYS & " personal; over " & COMBINED_LIMIT & _
                            " = no paid sick until a year after the 2nd occurrence)"
     ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 12
-    ws.Range("A2").Value = "Drawn " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & " from the Absences table. Admin only - never published. Click Attendance again to redraw."
+    ws.Range("A2").Value = IIf(mAttAll, "Everyone on the roster", "People with a sick or personal day in their current window") & _
+                           " (" & n & " of " & nAll & ").  Occurrences are for the current window: they restart on Jan 1 and when paid sick comes back.  " & _
+                           "Drawn " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & ". Admin only - never published."
     ws.Range("A2").Font.Italic = True: ws.Range("A2").Font.Size = 8.5
-    ws.Range("A4").Resize(1, NC).Value = heads
-    With ws.Range("A4").Resize(1, NC)
+    ws.Rows(3).RowHeight = 26
+    AttBtn ws, "at_az", "A - Z", "modAttendance.AttendanceSortAZ", 4, 60, (mAttSort = "AZ")
+    AttBtn ws, "at_dept", "By department", "modAttendance.AttendanceSortDept", 68, 96, (mAttSort = "DEPT")
+    AttBtn ws, "at_worst", "Worst first", "modAttendance.AttendanceSortWorst", 168, 80, (mAttSort = "WORST")
+    AttBtn ws, "at_all", IIf(mAttAll, "Only with absences", "Show everyone"), "modAttendance.AttendanceToggleAll", 262, 116, False
+    AttBtn ws, "at_redraw", "Redraw", "modAttendance.ShowAttendance", 382, 60, False
+
+    Dim heads() As Variant: ReDim heads(1 To nc)
+    heads(1) = "Employee": heads(2) = "Crew": heads(3) = "Home Unit"
+    For j = 1 To nOcc
+        heads(3 + j) = "Occurrence " & j
+    Next j
+    heads(cSick) = "Sick days": heads(cSick + 1) = "Paid": heads(cSick + 2) = "Personal"
+    heads(cSick + 3) = "Sick + personal": heads(cSick + 4) = "Status": heads(cSick + 5) = "Until / restarted"
+    ws.Range("A4").Resize(1, nc).Value = heads
+    With ws.Range("A4").Resize(1, nc)
         .Font.Bold = True: .Interior.Color = RGB(230, 81, 0): .Font.Color = vbWhite
+        .VerticalAlignment = xlCenter
     End With
-    Dim n As Long, i As Long, st As AttendanceStatus, lvl As Long
-    If IsArray(names) Then n = UBound(names) - LBound(names) + 1
+    ws.Rows(4).RowHeight = 20
+
+    ' ---- rows ----
     If n > 0 Then
-        Dim v() As Variant, k() As Double, ord() As Long
-        ReDim v(1 To n, 1 To NC): ReDim k(1 To n): ReDim ord(1 To n)
-        BeginAttendanceBatch
+        Dim out() As Variant: ReDim out(1 To n, 1 To nc)
+        Dim k As Long, band As Boolean, lastUnit As String
         For i = 1 To n
-            AttendanceFor CStr(names(LBound(names) + i - 1)), Date, st
-            lvl = AttendanceLevel(st)
-            v(i, 1) = CStr(names(LBound(names) + i - 1))
-            v(i, 2) = EmpCrewCode(v(i, 1), Date)            ' today's crew (column E can hold one that starts later)
-            v(i, 3) = HomeUnitOf(v(i, 1))
-            v(i, 4) = st.SickUsed
-            v(i, 5) = st.PaidUsed
-            v(i, 6) = st.Occurrences
-            v(i, 7) = st.OccDates
-            v(i, 8) = st.PersonalUsed
-            v(i, 9) = st.Combined
-            v(i, 10) = AttendanceStatusText(st)
-            If st.WaitUntil > 0 Then
-                v(i, 11) = "until " & Format$(st.WaitUntil, "mmm d, yyyy")
-            ElseIf st.ResetOn > 0 Then
-                v(i, 11) = "restarted " & Format$(st.ResetOn, "mmm d, yyyy")
-            Else
-                v(i, 11) = ""
-            End If
-            If st.LastSick > 0 Then v(i, 12) = Format$(st.LastSick, "mmm d, yyyy") Else v(i, 12) = ""
-            v(i, 13) = IIf(Month(st.WindowStart) = 1 And Day(st.WindowStart) = 1, Format$(st.WindowStart, "yyyy"), "from " & Format$(st.WindowStart, "mmm d, yyyy"))
-            k(i) = -lvl * 1000 - st.Combined        ' worst first, then most days
-            ord(i) = i
-        Next i
-        EndAttendanceBatch
-        ' sort the index by k, then name (insertion sort)
-        Dim j As Long, t As Long
-        For i = 2 To n
-            t = ord(i): j = i - 1
-            Do While j >= 1
-                If k(ord(j)) < k(t) Then Exit Do
-                If k(ord(j)) = k(t) Then
-                    If StrComp(v(ord(j), 1), v(t, 1), vbTextCompare) <= 0 Then Exit Do
-                End If
-                ord(j + 1) = ord(j): j = j - 1
-            Loop
-            ord(j + 1) = t
-        Next i
-        Dim out() As Variant: ReDim out(1 To n, 1 To NC)
-        For i = 1 To n
-            For j = 1 To NC
-                out(i, j) = v(ord(i), j)
+            k = ord(i)
+            out(i, 1) = who(k): out(i, 2) = crewOf(k): out(i, 3) = unitOf(k)
+            For j = 1 To nOcc
+                out(i, 3 + j) = OccurrenceText(sts(k), j)
             Next j
+            out(i, cSick) = sts(k).SickUsed
+            out(i, cSick + 1) = sts(k).PaidUsed
+            out(i, cSick + 2) = sts(k).PersonalUsed
+            out(i, cSick + 3) = sts(k).Combined
+            out(i, cSick + 4) = AttendanceStatusText(sts(k))
+            If sts(k).WaitUntil > 0 Then
+                out(i, cSick + 5) = "until " & Format$(sts(k).WaitUntil, "mmm d, yyyy")
+            ElseIf sts(k).ResetOn > 0 Then
+                out(i, cSick + 5) = "restarted " & Format$(sts(k).ResetOn, "mmm d, yyyy")
+            Else
+                out(i, cSick + 5) = ""
+            End If
         Next i
-        ws.Range("A5").Resize(n, NC).NumberFormat = "@"
-        ws.Range("A5").Resize(n, NC).Value = out
+        ws.Range("A5").Resize(n, 3 + nOcc).NumberFormat = "@"
+        ws.Range(ws.Cells(5, cSick + 4), ws.Cells(4 + n, nc)).NumberFormat = "@"
+        ws.Range("A5").Resize(n, nc).Value = out
         For i = 1 To n
-            Select Case Left$(CStr(out(i, 10)), 3)
-                Case "NOT": ws.Cells(4 + i, 10).Interior.Color = RGB(255, 205, 210)
-                Case "At ": ws.Cells(4 + i, 10).Interior.Color = RGB(255, 236, 179)
+            Select Case Left$(CStr(out(i, cSick + 4)), 3)
+                Case "NOT": ws.Cells(4 + i, cSick + 4).Interior.Color = RGB(255, 205, 210)
+                Case "At ": ws.Cells(4 + i, cSick + 4).Interior.Color = RGB(255, 236, 179)
             End Select
+            If mAttSort = "DEPT" Then              ' a light band every other unit (no heading rows: the filter keeps working)
+                If i = 1 Or CStr(out(i, 3)) <> lastUnit Then band = Not band
+                lastUnit = CStr(out(i, 3))
+                If band Then ws.Range(ws.Cells(4 + i, 1), ws.Cells(4 + i, 3)).Interior.Color = RGB(245, 247, 250)
+            End If
         Next i
+        ws.Range("A4").Resize(n + 1, nc).AutoFilter
     Else
-        ws.Range("A5").Value = "No names on the roster."
+        ws.Range("A5").Value = IIf(nAll = 0, "No names on the roster.", "Nobody has a sick or personal day logged. Click Show everyone for the full list.")
     End If
-    Dim w As Variant: w = Array(26, 6, 14, 9, 6, 11, 22, 9, 13, 24, 22, 14, 18)
-    For i = 1 To NC
-        ws.Columns(i).ColumnWidth = w(i - 1)
-    Next i
-    ws.Range("D5").Resize(IIf(n > 0, n, 1), 6).HorizontalAlignment = xlCenter
-    ws.Range("A4").Resize(IIf(n > 0, n, 1) + 1, NC).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
+    ws.Columns(1).ColumnWidth = 26
+    ws.Columns(2).ColumnWidth = 7
+    ws.Columns(3).ColumnWidth = 16
+    For j = 1 To nOcc
+        ws.Columns(3 + j).ColumnWidth = 27
+    Next j
+    ws.Range(ws.Columns(cSick), ws.Columns(cSick + 3)).ColumnWidth = 10
+    ws.Columns(cSick + 4).ColumnWidth = 24
+    ws.Columns(cSick + 5).ColumnWidth = 22
+    ws.Range(ws.Cells(5, cSick), ws.Cells(4 + IIf(n > 0, n, 1), cSick + 3)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(5, 2), ws.Cells(4 + IIf(n > 0, n, 1), 2)).HorizontalAlignment = xlCenter
+    ws.Range("A4").Resize(IIf(n > 0, n, 1) + 1, nc).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
+    On Error Resume Next
+    With ws.PageSetup
+        .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(4 + IIf(n > 0, n, 1), nc)).Address
+        .PrintTitleRows = "$4:$4"
+        .Orientation = xlLandscape
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = False
+    End With
+    On Error GoTo Failed
     ProtectSheet ws
     ws.Activate
     On Error Resume Next
     ActiveWindow.FreezePanes = False
-    ws.Range("A5").Select
+    ws.Range("B5").Select
     ActiveWindow.FreezePanes = True
     ActiveWindow.DisplayGridlines = False
     On Error GoTo 0

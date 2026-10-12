@@ -131,7 +131,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 8
+        For k = 1 To 9
             RunCheck k
         Next k
     End If
@@ -151,6 +151,7 @@ Private Function CheckName(ByVal k As Long) As String
         Case 6: CheckName = "Calendar"
         Case 7: CheckName = "Paybacks"
         Case 8: CheckName = "Kronos"
+        Case 9: CheckName = "Log types"
     End Select
 End Function
 
@@ -166,6 +167,7 @@ Private Sub RunCheck(ByVal k As Long)
         Case 6: CheckCalendarLinks
         Case 7: CheckPaybacks
         Case 8: CheckKronos
+        Case 9: CheckLogTypes
     End Select
     Exit Sub
 Oops:
@@ -426,6 +428,30 @@ Private Function TableValues(ByVal tableName As String) As Variant
     If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Function
     TableValues = RangeTo2D(lo.DataBodyRange)
 End Function
+
+' ---- 9. charged rows whose Type the refused split doesn't know (v24.1) ----
+' Call-out + Posting + Other = Refused always holds, because Other is "everything
+' else". A charge on a row with an unexpected Type would land in Other unseen.
+Private Sub CheckLogTypes()
+    Dim i As Long, typ As String, seen As Object, kk As Variant
+    Set seen = CreateObject("Scripting.Dictionary")
+    seen.CompareMode = 1
+    For i = 1 To LogRows()
+        If Not IsVoidRow(i) And NumOr0(mLog(i, L_CHARGED)) <> 0 Then
+            If RowPeriod(i) >= CLng(mYearFrom) And RowPeriod(i) <= CLng(mLastStart) Then
+                typ = Trim$(SafeStr(mLog(i, L_TYPE)))
+                Select Case LCase$(typ)
+                    Case "callout", "posting", "adjustment", "opening balance", "manual entry"
+                    Case Else: seen(IIf(typ = "", "(blank)", typ)) = NumOr0(seen(IIf(typ = "", "(blank)", typ))) + 1
+                End Select
+            End If
+        End If
+    Next i
+    For Each kk In seen.Keys
+        AddIssue SEV_WARN, "Log types", seen(kk) & " charged OT Log row(s) this year have the Type '" & CStr(kk) & "'", _
+                 "They count in Refused under 'other'. Send me this line if you didn't expect it"
+    Next kk
+End Sub
 
 ' ---- 4. people in the data who aren't on the roster ----
 Private Sub CheckOrphans()

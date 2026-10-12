@@ -316,6 +316,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_CallOut", "Call Out Roster", "Call_Out", x, y(1), wP, NAVY, vbWhite, False
     Btn ws, "ui_adm_Member", "Member View", "PublishMemberView", x + wP + G, y(1), wP, NAVY, vbWhite, False
     Btn ws, "ui_btn_Calendar", "Calendar", "modCalendar.ShowCalendar", x, y(2), wP, RGB(0, 128, 70), vbWhite, True
+    Btn ws, "ui_adm_Refusals", "Refusals Report", "modReports.RefusalsReport", x + wP + G, y(2), wP, NAVY, vbWhite, False   ' v24.1
     x = x + 2 * wP + G + GG
 
     ' --- Admin ---

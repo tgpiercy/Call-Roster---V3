@@ -1297,9 +1297,11 @@ End Function
 ' a blank line. In-department operators who didn't sign up are charged as
 ' for NO TAKERS; anyone who signed up isn't charged.
 Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
-                                   ByVal outName As String) As Boolean
+                                   ByVal outName As String, Optional ByVal outTake As Double = 0) As Boolean
+    ' outTake (v24.1): hours the out-of-department person takes when it is only part of the shift (0 = all)
     If Not CanFinalize(p) Then Exit Function
     outName = Trim$(outName)
+    Dim outPartial As Boolean: outPartial = IsPartialSignup(p.Hours, outTake)
     If outName = "" Then MsgBox "Pick or type the out-of-department name first.", vbExclamation: Exit Function
     Dim i As Long, marked As String, signedIn As String
     For i = 1 To n
@@ -1313,6 +1315,14 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
     If marked <> "" Then
         MsgBox "These in-department people are marked AWARDED:" & vbNewLine & vbNewLine & marked & vbNewLine & _
                "Use SUBMIT AWARD for them, or clear their award marks first.", vbExclamation, "Out of department"
+        Exit Function
+    End If
+    If signedIn <> "" And outPartial Then
+        ' the same order as in-department awards: a partial only when nobody else is left
+        MsgBox "These in-department people signed up:" & vbNewLine & vbNewLine & signedIn & vbNewLine & _
+               "An out-of-department person can take PART of the shift only when nobody in the department signed up." & vbNewLine & _
+               "Award one of them with SUBMIT AWARD, or leave the hours box blank to award the whole shift out of department.", _
+               vbExclamation, "Out of department"
         Exit Function
     End If
     If signedIn <> "" Then
@@ -1350,15 +1360,21 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
     End If
 
     If MsgBox(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
-              "Award OUT OF DEPARTMENT to: " & outName & IIf(code <> "", "  (" & code & ")", "") & vbNewLine & _
+              "Award OUT OF DEPARTMENT to: " & outName & IIf(code <> "", "  (" & code & ")", "") & _
+              IIf(outPartial, "  for " & HoursText(outTake) & " of " & HoursText(p.Hours) & " h (the rest is not covered; nobody is charged for it)", "") & vbNewLine & _
               "Charged (in department, didn't sign up): " & nCh & " x " & HoursText(p.Hours * CHARGE_MULTIPLIER) & _
               " hrs = " & HoursText(tot) & " hrs" & IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "") & _
               vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm out-of-department award") <> vbOK Then Exit Function
 
     Dim awardTxt As String: awardTxt = outName & " (out of dept)"
-    If Not WriteOutcome(p, lst, n, "Awarded", awardTxt, ps, 0, outName, IIf(code = "", "OD", code), hrs) Then Exit Function
-    Dim calTxt As String: calTxt = CalendarOutcome(p, CalName(outName))
-    EmailAward p, lst, n, awardTxt, outName
+    If Not WriteOutcome(p, lst, n, "Awarded", awardTxt, ps, 0, outName, IIf(code = "", "OD", code), hrs, outTake) Then Exit Function
+    Dim calTxt As String
+    If outPartial Then
+        calTxt = CalendarOutcome(p, CalName(outName) & " " & CDbl(outTake) & "h", True)
+    Else
+        calTxt = CalendarOutcome(p, CalName(outName))
+    End If
+    EmailAward p, lst, n, awardTxt & IIf(outPartial, " (" & HoursText(outTake) & " h)", ""), outName
     MsgBox p.ID & " awarded out of department to " & outName & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
     SubmitAwardOutside = True
 End Function
@@ -1480,7 +1496,7 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                               ByVal newStatus As String, ByVal awardNames As String, _
                               ByVal ps As Date, ByVal maxRank As Long, _
                               Optional ByVal outName As String = "", Optional ByVal outCode As String = "", _
-                              Optional ByVal outHrs As Double = 0) As Boolean
+                              Optional ByVal outHrs As Double = 0, Optional ByVal outTake As Double = 0) As Boolean
     Dim i As Long, k As Long, nRows As Long
     For i = 1 To n
         If lst(i).Awarded Or lst(i).SignedUp Or lst(i).Charged > 0 Then nRows = nRows + 1
@@ -1545,12 +1561,13 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
             data(k, L_SHIFTLBL) = p.ShiftLbl
             data(k, L_CREW) = p.Crew
             data(k, L_TASK) = p.Reason
-            data(k, L_BASEHRS) = p.Hours
+            data(k, L_BASEHRS) = AwardedHours(p.Hours, outTake)      ' v24.1: the hours taken (provisional OT sums this)
             data(k, L_EMP) = outName
             data(k, L_CODE) = outCode
             data(k, L_EMPHRS) = outHrs
             data(k, L_OUTCOME) = "Awarded"
-            data(k, L_REASON) = "Out of department"
+            data(k, L_REASON) = "Out of department" & IIf(IsPartialSignup(p.Hours, outTake), _
+                                " - partial award: " & HoursText(outTake) & " of " & HoursText(p.Hours) & " h", "")
             data(k, L_CHARGED) = 0
             data(k, L_PERIOD) = ps
             data(k, L_USER) = user

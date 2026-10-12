@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24 (Jan 5)
+' @version v24.1 (Jan 5)
 
 ' ================================================================
 ' AWARD OVERTIME POSTING
@@ -163,7 +163,13 @@ Private Sub UserForm_Initialize()
     MakeLabel "lblOutside", "Out of department (signed a blank line):", 10, 486, 450
     C("lblOutside").Font.Bold = True
     C("lblOutside").Font.Size = 8.5
-    MakeCombo "cmbOutside", 10, 502, 300
+    MakeCombo "cmbOutside", 10, 502, 232
+    Dim oh As Object                    ' v24.1: hours when the out-of-department person takes only part of the shift
+    MakeLabel "lblOutHrs", "hrs", 248, 505, 18
+    Set oh = Me.Controls.Add("Forms.TextBox.1", "txtOutHrs", True)
+    oh.Left = 268: oh.Top = 502: oh.Width = 42: oh.Height = 20
+    oh.ControlTipText = "Blank = the whole shift. Enter fewer hours if they take only part of it."
+    oh.Enabled = False
     With C("cmbOutside")
         .Style = 0                      ' pick from the list (or type a name)
         .MatchEntry = 1                 ' fmMatchEntryComplete
@@ -390,7 +396,14 @@ End Sub
 
 Private Sub mOutside_Click()
     If mN = 0 Then Exit Sub
-    If SubmitAwardOutside(mP, mL, mN, C("cmbOutside").Text) Then
+    Dim ot As Double, otTxt As String
+    otTxt = Trim$(C("txtOutHrs").Text)
+    If otTxt <> "" Then
+        If Not IsNumeric(otTxt) Then MsgBox "The out-of-department hours must be a number, or blank for the whole shift.", vbExclamation: Exit Sub
+        ot = CDbl(otTxt)
+        If ot <= 0 Then MsgBox "The hours must be more than 0, or blank for the whole shift.", vbExclamation: Exit Sub
+    End If
+    If SubmitAwardOutside(mP, mL, mN, C("cmbOutside").Text, ot) Then
         Finished mP.ID & " awarded out of department."
     Else
         RefreshList lstEmployees.ListIndex
@@ -426,7 +439,8 @@ Private Sub SetActionButtons(ByVal on_ As Boolean)
     mCancelReq.Enabled = on_
     mOutside.Enabled = on_
     C("cmbOutside").Enabled = on_
-    If Not on_ Then C("cmbOutside").Text = ""
+    C("txtOutHrs").Enabled = on_
+    If Not on_ Then C("cmbOutside").Text = "": C("txtOutHrs").Text = ""
 End Sub
 
 

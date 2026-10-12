@@ -479,6 +479,33 @@ Public Function CalloutCharge(ByVal outcome As String, ByVal grade As Double, By
     End Select
 End Function
 
+' ---- part of a call-out accepted (v24.1) ----
+' Someone can take part of a call-out ("8 of 12"). Calling then continues
+' down the list for what is left, so the hours ON OFFER fall by what was
+' taken for everyone BELOW that person in call order. A whole-shift
+' acceptance changes nothing for the people below (as before v24.1: a
+' second opening on the same call-out is still the full hours).
+'   outcomes(i)  the outcome recorded for person i ("" = not called)
+'   taken(i)     hours an Accepted person took; 0 = everything on offer
+'   offers(i)    out: the hours person i was offered
+Public Sub CalloutOffers(ByVal hours As Double, ByRef outcomes() As String, ByRef taken() As Double, _
+                         ByVal n As Long, ByRef offers() As Double)
+    Dim i As Long, remain As Double
+    remain = hours
+    ReDim offers(1 To IIf(n > 0, n, 1))
+    For i = 1 To n
+        offers(i) = remain
+        If outcomes(i) = "Accepted" Then
+            If taken(i) > 0 And taken(i) < remain Then remain = remain - taken(i)
+        End If
+    Next i
+End Sub
+
+' Hours an Accepted person works: the part they took, or everything on offer
+Public Function AcceptedHours(ByVal offer As Double, ByVal taken As Double) As Double
+    If taken > 0 And taken < offer Then AcceptedHours = taken Else AcceptedHours = offer
+End Function
+
 ' Does one OT Log row count as provisional accepted OT right now? Mirrors
 ' the column-C SUMIFS exactly (SelfTest / tests check this against it).
 Public Function ProvisionalCounts(ByVal outcome As String, ByVal status As String, ByVal shiftDate As Date, _

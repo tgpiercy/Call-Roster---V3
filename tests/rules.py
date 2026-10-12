@@ -801,3 +801,22 @@ def refused_split(rows: list[tuple[str, float, bool, bool]]) -> tuple[float, flo
             continue
         out[refused_bucket(typ)] += hrs
     return out["callout"], out["posting"], out["other"]
+
+
+# ---------------------------------------------------------------- part of a call-out accepted (v24.1)
+def callout_offers(hours: float, calls: list[tuple[str, float]]) -> list[float]:
+    """modOvertimeEntry.CalloutOffers. calls = (outcome, hours taken; 0 = all on
+    offer) in call order. A PARTIAL acceptance lowers the offer for everyone
+    below; a whole-shift acceptance changes nothing."""
+    remain = hours
+    out = []
+    for outcome, taken in calls:
+        out.append(remain)
+        if outcome == "Accepted" and 0 < taken < remain:
+            remain -= taken
+    return out
+
+
+def accepted_hours(offer: float, taken: float) -> float:
+    """modOvertimeEntry.AcceptedHours."""
+    return taken if 0 < taken < offer else offer

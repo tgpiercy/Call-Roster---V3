@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24 (Jan 5)
+' @version v24.1 (Jan 5)
 
 ' ================================================================
 ' CALLOUT SESSION FORM
@@ -13,9 +13,11 @@ Option Explicit
 
 Private WithEvents mDN As MSForms.ComboBox
 Private WithEvents mDateBox As MSForms.TextBox
+Private WithEvents mPartAcc As MSForms.CommandButton     ' v24.1: accepted PART of the hours
 
 Private mEntries() As EmpRec
 Private mSS() As String          ' SS ID if that person is working a shift switch that shift
+Private mTaken() As Double       ' v24.1: hours an Accepted person took (0 = everything on offer)
 Private mCount As Long
 Private mCurrent As Long
 ' inputs captured at LOAD LIST - Submit always uses these
@@ -62,7 +64,7 @@ End Sub
 ' INITIALIZE
 ' ================================================================
 Private Sub UserForm_Initialize()
-    Me.Width = 445: Me.Height = 510
+    Me.Width = 445: Me.Height = 538
     Me.Caption = "Callout Session"
 
     MakeLabel "lblDept", "Department:", 10, 13, 62
@@ -138,17 +140,29 @@ Private Sub UserForm_Initialize()
     StyleOutcome btnLeftMsg, " LEFT MSG", 216, RGB(180, 100, 0)
     StyleOutcome btnUnavailable, " UNAVAIL.", 319, RGB(80, 90, 110)
 
-    MakeLabel "lblProgress", "", 10, 392, 410
+    ' v24.1: someone takes only part of the hours; calling goes on for the rest
+    Set mPartAcc = Me.Controls.Add("Forms.CommandButton.1", "cmdPartAcc", True)
+    With mPartAcc
+        .Caption = "ACCEPTED PART OF THE HOURS ..."
+        .Left = 10: .Top = 390: .Width = 199: .Height = 22
+        .Font.Bold = True: .Font.Size = 8
+        .Enabled = False
+    End With
+    MakeLabel "lblOffer", "", 216, 394, 204
+    C("lblOffer").Font.Size = 8.5
+    C("lblOffer").ForeColor = RGB(0, 110, 90)
+
+    MakeLabel "lblProgress", "", 10, 420, 410
     C("lblProgress").Font.Italic = True
 
     With btnSubmit
         .Caption = "SUBMIT ALL ENTRIES"
-        .Left = 10: .Top = 409: .Width = 410: .Height = 38
+        .Left = 10: .Top = 437: .Width = 410: .Height = 38
         .Font.Bold = True: .Font.Size = 11
         .Enabled = False
     End With
 
-    MakeLabel "lblStatus", "", 10, 454, 410
+    MakeLabel "lblStatus", "", 10, 482, 410
     C("lblStatus").Height = 28
     C("lblStatus").WordWrap = True
     C("lblStatus").Font.Size = 8
@@ -164,6 +178,7 @@ Private Sub UserForm_Initialize()
     C("txtDate").Value = Format$(Date, "MM/DD/YYYY")
     mCount = 0: mCurrent = 0
     ApplyFormTheme Me
+    mPartAcc.BackColor = RGB(0, 110, 90): mPartAcc.ForeColor = vbWhite
 End Sub
 
 Private Sub StyleOutcome(b As Object, cap As String, L As Long, col As Long)
@@ -181,6 +196,7 @@ Private Sub SetOutcomeButtons(ByVal on_ As Boolean)
     btnRefused.Enabled = on_
     btnLeftMsg.Enabled = on_
     btnUnavailable.Enabled = on_
+    mPartAcc.Enabled = on_
 End Sub
 
 
@@ -291,6 +307,7 @@ Private Sub btnLoad_Click()
     ' flag anyone already working a shift switch on this date / shift
     Dim j As Long, nSS As Long
     ReDim mSS(1 To mCount)
+    ReDim mTaken(1 To mCount)
     For j = 1 To mCount
         mSS(j) = SwitchWorkingOn(mEntries(j).EmpName, mDate, mShiftLbl)
         If mSS(j) <> "" Then nSS = nSS + 1
@@ -326,6 +343,8 @@ Private Sub RefreshList()
             outcomeText = "-"
         ElseIf mEntries(i).Outcome = "Unavailable" Then
             outcomeText = "Unavail: " & mEntries(i).Reason
+        ElseIf mEntries(i).Outcome = "Accepted" And mTaken(i) > 0 Then
+            outcomeText = "Accepted " & HoursText(mTaken(i)) & " h"
         Else
             outcomeText = mEntries(i).Outcome
         End If
@@ -340,11 +359,15 @@ Private Sub RefreshList()
 End Sub
 
 Private Sub UpdateCurrentLabel()
+    C("lblOffer").Caption = ""
     If mCurrent < 1 Or mCurrent > mCount Then
         C("lblCurrent").Caption = "All employees logged - ready to submit"
         C("lblPhone").Caption = ""
         Exit Sub
     End If
+    ' v24.1: after a partial acceptance above them, this person is offered what is left
+    Dim offerNow As Double: offerNow = OfferFor(mCurrent)
+    If offerNow < mHours Then C("lblOffer").Caption = "Offering " & HoursText(offerNow) & " of " & HoursText(mHours) & " h (part already taken)"
 
     Dim gradeNote As String
     If mEntries(mCurrent).Grade > CHARGE_MAX_GRADE Then gradeNote = " [above Grade " & CHARGE_MAX_GRADE & " - not charged]"
@@ -372,6 +395,37 @@ Private Sub lstEmployees_Click()
     End If
 End Sub
 
+' Hours on offer to person idx: the call-out's hours less what people above took in part
+Private Function OfferFor(ByVal idx As Long) As Double
+    Dim oc() As String, offers() As Double, i As Long
+    OfferFor = mHours
+    If mCount < 1 Or idx < 1 Or idx > mCount Then Exit Function
+    ReDim oc(1 To mCount)
+    For i = 1 To mCount
+        oc(i) = mEntries(i).Outcome
+    Next i
+    CalloutOffers mHours, oc, mTaken, mCount, offers
+    OfferFor = offers(idx)
+End Function
+
+' ACCEPTED PART OF THE HOURS: asks how many, records Accepted with those hours
+Private Sub mPartAcc_Click()
+    If mCurrent < 1 Or mCurrent > mCount Then Exit Sub
+    Dim was As Double: was = mTaken(mCurrent)
+    mTaken(mCurrent) = 0
+    Dim offer As Double: offer = OfferFor(mCurrent)
+    Dim a As Variant, h As Double
+    a = Application.InputBox(Prompt:="Hours " & mEntries(mCurrent).EmpName & " is taking." & vbNewLine & vbNewLine & _
+                             HoursText(offer) & " h are on offer. Enter fewer hours; calling continues for the rest.", _
+                             Title:="Accepted part of the hours", Type:=1)
+    If VarType(a) = vbBoolean Then mTaken(mCurrent) = was: Exit Sub
+    h = CDbl(a)
+    If h <= 0 Then mTaken(mCurrent) = was: MsgBox "The hours must be more than 0.", vbExclamation: Exit Sub
+    If h >= offer Then h = 0                              ' the whole of what was on offer
+    mTaken(mCurrent) = h
+    RecordOutcome "Accepted", "", True
+End Sub
+
 Private Function LoggedCount() As Long
     Dim i As Long
     For i = 1 To mCount
@@ -383,7 +437,7 @@ End Function
 ' ================================================================
 ' OUTCOME BUTTONS
 ' ================================================================
-Private Sub btnAccepted_Click(): Call RecordOutcome("Accepted", ""): End Sub
+Private Sub btnAccepted_Click(): Call RecordOutcome("Accepted", ""): End Sub     ' the whole of what is on offer
 Private Sub btnRefused_Click(): Call RecordOutcome("Refused", ""): End Sub
 Private Sub btnLeftMsg_Click(): Call RecordOutcome("Left Message", ""): End Sub
 
@@ -397,8 +451,9 @@ Private Sub btnUnavailable_Click()
     RecordOutcome "Unavailable", C("cmbReason").Value
 End Sub
 
-Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String)
+Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String, Optional ByVal keepTaken As Boolean = False)
     If mCurrent < 1 Or mCurrent > mCount Then Exit Sub
+    If Not keepTaken Then mTaken(mCurrent) = 0           ' only ACCEPTED PART sets partial hours
 
     mEntries(mCurrent).Outcome = outcome
     mEntries(mCurrent).Reason = reason
@@ -467,11 +522,18 @@ Private Sub btnSubmit_Click()
     Dim data() As Variant: ReDim data(1 To logged, 1 To L_NCOLS)
     Dim i As Long, k As Long, charged As Double, totalCharged As Double
     Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long
+    ' v24.1: the hours each person was offered (less than the call-out's below a partial acceptance)
+    Dim oc() As String, offers() As Double, worked As Double
+    ReDim oc(1 To mCount)
+    For i = 1 To mCount
+        oc(i) = mEntries(i).Outcome
+    Next i
+    CalloutOffers hours, oc, mTaken, mCount, offers
 
     For i = 1 To mCount
         If mEntries(i).Outcome <> "" Then
             k = k + 1
-            charged = CalloutCharge(mEntries(i).Outcome, mEntries(i).Grade, hours)   ' v21: one rule (modOvertimeEntry)
+            charged = CalloutCharge(mEntries(i).Outcome, mEntries(i).Grade, offers(i))   ' v21: one rule; v24.1: on the hours offered
             totalCharged = totalCharged + charged
 
             data(k, L_REF) = sessionID
@@ -480,13 +542,19 @@ Private Sub btnSubmit_Click()
             data(k, L_DEPT) = dept
             data(k, L_SHIFTLBL) = mShiftLbl
             data(k, L_CREW) = shiftSel
-            data(k, L_BASEHRS) = hours
+            data(k, L_BASEHRS) = offers(i)                 ' the hours this person was offered
+            If mEntries(i).Outcome = "Accepted" Then data(k, L_BASEHRS) = AcceptedHours(offers(i), mTaken(i))   ' provisional OT sums this
             data(k, L_ORDER) = i          ' position in the call list
             data(k, L_EMP) = mEntries(i).EmpName
             data(k, L_CODE) = mEntries(i).DeptCode
             data(k, L_EMPHRS) = mEntries(i).TotalHrs
             data(k, L_OUTCOME) = mEntries(i).Outcome
             data(k, L_REASON) = mEntries(i).Reason
+            If mEntries(i).Outcome = "Accepted" And mTaken(i) > 0 And mTaken(i) < offers(i) Then
+                data(k, L_REASON) = "Took " & HoursText(mTaken(i)) & " of " & HoursText(offers(i)) & " h"
+            ElseIf offers(i) < hours And mEntries(i).Reason = "" Then
+                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (part already taken)"
+            End If
             data(k, L_CHARGED) = charged
             data(k, L_PERIOD) = ps
             data(k, L_USER) = user
@@ -508,7 +576,8 @@ Private Sub btnSubmit_Click()
     Dim calTxt As String
     For i = 1 To mCount
         If mEntries(i).Outcome = "Accepted" Then
-            calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, mShiftLbl, mEntries(i).EmpName, hours, sessionID)
+            worked = AcceptedHours(offers(i), mTaken(i))
+            calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, mShiftLbl, mEntries(i).EmpName, worked, sessionID)
         End If
     Next i
 

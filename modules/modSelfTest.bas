@@ -151,6 +151,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
+        Case "calloffer"
+            RunCase = CaseCallOffer(CDbl(i1), i2)
         Case "attendocc"
             RunCase = CaseAttend(i1, i2, i3, i4, True)
         Case "refsplit"
@@ -411,6 +413,23 @@ Private Function CaseAwardOrder(ByVal hours As Double, ByVal positions As Long, 
         CaseAwardOrder = AwardOrderProblem(pr, lst, n)
         If CaseAwardOrder = "" Then CaseAwardOrder = "ok"
     End If
+End Function
+
+' hours, "outcome:taken;..." in call order (everyone grade 1) -> "offered=charged;..."
+Private Function CaseCallOffer(ByVal hours As Double, ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim oc() As String, taken() As Double, offers() As Double
+    ReDim oc(1 To n): ReDim taken(1 To n)
+    Dim i As Long, p As Variant
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        oc(i) = CStr(p(0)): taken(i) = CDbl(p(1))
+    Next i
+    CalloutOffers hours, oc, taken, n, offers
+    For i = 1 To n
+        CaseCallOffer = CaseCallOffer & IIf(i = 1, "", ";") & NumText(offers(i)) & "=" & NumText(CalloutCharge(oc(i), 1, offers(i)))
+    Next i
 End Function
 
 ' "type:hours:V|A:Y|N;..." (V = void, Y = period inside the year) -> "callout|posting|other"
@@ -907,5 +926,10 @@ Private Sub LoadCases()
     AddCase "refsplit,outside-the-year,Posting:21:A:N;Posting:21:A:Y,,,,,0|21|0"
     AddCase "refsplit,negative-adjustment,Callout:21:A:Y;Adjustment:-21:A:Y,,,,,21|0|-21"
     AddCase "refsplit,opening-balance-is-other,Opening Balance:40:A:Y,,,,,0|0|40"
+    AddCase "calloffer,partial-then-refusal,12,Refused:0;Accepted:8;Refused:0;Left Message:0,,,,12=21;12=0;4=7;4=7"
+    AddCase "calloffer,whole-shift-changes-nothing,12,Accepted:0;Refused:0,,,,12=0;12=21"
+    AddCase "calloffer,two-partials,12,Accepted:8;Accepted:2;Refused:0,,,,12=0;4=0;2=3.5"
+    AddCase "calloffer,partial-covering-the-rest,12,Accepted:8;Accepted:4;Refused:0,,,,12=0;4=0;4=7"
+    AddCase "calloffer,unavailable-not-charged,13,Accepted:6.5;Unavailable:0;Refused:0,,,,13=0;6.5=0;6.5=11.375"
 ' <<< CASES
 End Sub

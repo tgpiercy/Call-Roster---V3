@@ -196,6 +196,10 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
+    if suite == "calloffer":                     # hours, 'outcome:taken;...' (grade 1) -> offered=charged;...
+        calls = [(f[0], float(f[1])) for f in (r.split(":") for r in i2.split(";") if r)]
+        offers = rules.callout_offers(float(i1), calls)
+        return ";".join(f"{fmt_num(o)}={fmt_num(rules.callout_charge(c[0], 1, o))}" for o, c in zip(offers, calls))
     if suite == "attendocc":                     # crew, sick, personal, as-of -> first..last:days:paid;... / none
         sick = [(d(p.split(":")[0]), p.split(":")[1] == "N") for p in i2.split(";") if p]
         per = [d(p) for p in i3.split(";") if p]

@@ -307,3 +307,8 @@ refsplit,void-not-counted,Callout:21:V:Y;Callout:21:A:Y,,,,,21|0|0
 refsplit,outside-the-year,Posting:21:A:N;Posting:21:A:Y,,,,,0|21|0
 refsplit,negative-adjustment,Callout:21:A:Y;Adjustment:-21:A:Y,,,,,21|0|-21
 refsplit,opening-balance-is-other,Opening Balance:40:A:Y,,,,,0|0|40
+calloffer,partial-then-refusal,12,Refused:0;Accepted:8;Refused:0;Left Message:0,,,,12=21;12=0;4=7;4=7
+calloffer,whole-shift-changes-nothing,12,Accepted:0;Refused:0,,,,12=0;12=21
+calloffer,two-partials,12,Accepted:8;Accepted:2;Refused:0,,,,12=0;4=0;2=3.5
+calloffer,partial-covering-the-rest,12,Accepted:8;Accepted:4;Refused:0,,,,12=0;4=0;4=7
+calloffer,unavailable-not-charged,13,Accepted:6.5;Unavailable:0;Refused:0,,,,13=0;6.5=0;6.5=11.375

@@ -56,7 +56,7 @@ One macro, run on a copy, that does what the install notes ask a person to do: c
 ### 4.3 Error log (new)
 Today a runtime error gives a supervisor the VBA debug box, and the feedback that reaches me is a photo of it. A shared handler writes procedure, error, user and time to a hidden admin sheet and shows a plain message ("this didn't save; tell Graeme: line 14 of the Error Log"). Needs Attention shows unseen errors.
 
-### 4.4 Try a real compile on this laptop (5 minutes, optional)
+### 4.4 Try a real compile on this laptop: DROPPED (Graeme, Oct 12: not possible; Claude has no access to the work laptop)
 Excel is installed on the machine this session runs on. It starts under automation and can edit a blank workbook, but it is an **unlicensed** install and its VBA project is not reachable until "Trust access to the VBA project object model" is ticked in its Trust Center (I can't and won't change that setting myself). If you tick it and it works, I can import every release into a blank workbook and compile it before you see a zip. If unlicensed Excel refuses, nothing is lost and 4.1 - 4.2 on your work PC carry the load.
 
 ### 4.5 v25, reshaped
@@ -65,6 +65,8 @@ Keep the three items, change the order and split the risky one:
 |---|---|---|
 | **v25** | Protection, calendar speed, the updater / SmokeTest / error log if not already shipped as v24.2 | Low data risk, immediate benefit |
 | **v25.1** | Employee ID migration, alone | The highest-risk change left in the roadmap: it touches every table. It should ship by itself, after a stable month of live use, with the SmokeTest available to prove it. |
+**Update, later on Oct 12:** the Kronos report does carry an employee number (`Payroll #`, first column). The key in v25.1 is that number, not a generated ID; v24.2 starts capturing it into the free roster column A at each import, so by v25.1 most rows already have it and the migration only has to copy it into the other tables.
+
 Additions to the ID work that the brief doesn't have: the Former sheet and Year End carry the ID; the sign-up file carries it (so a sign-up no longer depends on spelling); the members' file keys Find me on it internally while showing names.
 
 ### 4.6 v26, reports for the union

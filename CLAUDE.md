@@ -208,7 +208,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | Boxing Day 2026 observed weekday | **Answered:** Monday Dec 28, 2026 for day workers. Entered on the Holidays sheet ("Observed on"), no code. |
 | Network paths (`REPORT_FOLDER`, `PUBLISH_FOLDER`, `KRONOS_PATH` on P:) | Everything is built and tested locally on Graeme's desktop; the P: links are wired in at go-live. SystemCheck will flag them as unreachable until then. |
 | Who runs the rollover / where the frozen copy lives | **Answered:** Graeme runs it together with his boss (two people present; v23 makes it a guided, verified macro with a frozen copy). Frozen-copy location still a settings constant, blank until given. |
-| Does Kronos export an employee number | **Answered: no, name only.** v25's employee key must be generated inside the workbook (and the Kronos import keeps matching on name). |
+| Does Kronos export an employee number | **Answered Oct 12, 2026: YES.** The Kronos report's first column is `Payroll #` (8 digits), then `Employee Name`, ten pay-code columns and `Grand Total` (the import reads the name from column 2 and the total from column 13 today). This replaces the earlier "name only" answer: the employee key in v25.1 is the Payroll #, not a generated `E-0001`. It is a personal identifier: admin-only, never published (the publish's phone check already stops any 7+ digit run). |
 | Kronos worked hours after Jan 1 (YTD or cumulative), and OT worked Dec 27-31 | Check the first January 2027 export; the import shows a reminder on that first run. A small follow-up if hours are missing or cumulative. |
 | `ADMIN_USERS` logins | Graeme's only for now; the other supervisors are added later (settings constant, no code) |
 

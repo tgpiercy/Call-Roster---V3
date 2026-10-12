@@ -33,7 +33,8 @@ def main() -> int:
         changed.append(ln[3:].strip())
     files = sorted({p for p in changed if (ROOT / p).is_file()})
     # from v22 on every zip is the full set, so it can serve as the master
-    if "--full" in sys.argv or (tag.startswith("v") and tag[1:].isdigit() and int(tag[1:]) >= 22):
+    major = tag[1:].split(".")[0] if tag.startswith("v") else ""
+    if "--full" in sys.argv or (major.isdigit() and int(major) >= 22):
         files = sorted(
             [str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob("modules/*.bas")]
             + [str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob("paste-in/*.txt")]

@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v22 (Oct 13)"
+Public Const CAL_VERSION As String = "Calendar v22.1 (Oct 14)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -109,9 +109,10 @@ Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the
 '  LISTS
 ' ====================================================================
 Public Function AbsenceTypes() As Variant
-    AbsenceTypes = Array("VAC - Vacation", "TRN - Training", "LOA - Leave of absence", _
+    AbsenceTypes = Array("VAC - Vacation", "PER - Personal day (unpaid)", "TRN - Training", "LOA - Leave of absence", _
                          "STD - Short-term disability", "PAR - Parental leave", _
-                         "WSIB - Workplace injury leave", "LTD - Long-term disability", "OTH - Other")
+                         "WSIB - Workplace injury leave", "LTD - Long-term disability", _
+                         "SIC - Sick day (past)", "OTH - Other")
 End Function
 
 ' Leave of any kind: masked as "Leave" everywhere outside the Absences sheet (v22 adds WSIB, LTD)
@@ -198,6 +199,7 @@ Public Function TypeTag(ByVal code As String) As String
         Case "TRN": TypeTag = "Trn"
         Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": TypeTag = "Leave"
         Case "SIC": TypeTag = "Sick"
+        Case "PER": TypeTag = "Personal"
         Case "SS": TypeTag = "S/S"
         Case "PHA": TypeTag = "PHA"
         Case "SUP": TypeTag = "Support"
@@ -210,6 +212,7 @@ Public Function TypeColor(ByVal code As String) As Long
         Case "VAC": TypeColor = RGB(21, 101, 192)              ' blue
         Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": TypeColor = RGB(106, 27, 154) ' purple
         Case "SIC": TypeColor = RGB(230, 81, 0)                ' orange
+        Case "PER": TypeColor = RGB(69, 90, 100)               ' blue-grey (v22.1 personal day)
         Case "TRN": TypeColor = RGB(0, 121, 107)               ' teal
         Case "PHA": TypeColor = RGB(46, 125, 50)               ' green
         Case "SUP": TypeColor = RGB(93, 64, 55)                ' brown
@@ -398,6 +401,11 @@ Private Function TableData(ByVal lo As ListObject) As Variant
     If lo.DataBodyRange Is Nothing Then Exit Function
     If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Function
     TableData = RangeTo2D(lo.DataBodyRange)
+End Function
+
+' The Absences table as a 2-D array (v22.1: modAttendance reads it)
+Public Function AbsTableData() As Variant
+    AbsTableData = TableData(AbsTable())
 End Function
 
 Private Function NextId(ByVal lo As ListObject, ByVal prefix As String) As String
@@ -2544,6 +2552,7 @@ End Function
 
 Private Function TypeLong(ByVal code As String) As String
     Select Case UCase$(code)
+        Case "PER": TypeLong = "Personal day"
         Case "VAC": TypeLong = "Vacation"
         Case "TRN": TypeLong = "Training"
         Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": TypeLong = "Leave"
@@ -3080,6 +3089,35 @@ Public Sub DrawNeeds()
         Next uk
     End If
 
+    ' T. attendance (v22.1): sick / personal days at or over the limit, by home unit
+    Dim tr() As NARow, nT As Long, rn As Variant, ast As AttendanceStatus, lvl As Long, hu As String, nmT As String
+    ReDim tr(1 To 20)
+    On Error Resume Next
+    rn = RosterNames()
+    If IsArray(rn) Then
+        BeginAttendanceBatch
+        For i = LBound(rn) To UBound(rn)
+            nmT = CStr(rn(i))
+            hu = HomeUnitOf(nmT)
+            If hu = "" Or UnitInGroup(hu, grp) Then
+                If AttendanceFor(nmT, Date, ast) Then
+                    lvl = AttendanceLevel(ast)
+                    If lvl > 0 Then
+                        NAAdd tr, nT, IIf(ast.LastSick > 0, Format$(ast.LastSick, "ddd mmm d"), ""), "", EmpCrewOf(nmT), hu, _
+                              CalName(nmT) & "   " & ast.SickUsed & " sick / " & ast.PersonalUsed & " personal, " & ast.Occurrences & " occ.", _
+                              "Attendance", AttendanceStatusText(ast), _
+                              IIf(ast.WaitUntil > 0, "until " & Format$(ast.WaitUntil, "mmm d, yyyy"), ""), _
+                              "T:" & nmT, CDbl(-lvl * 1000 - ast.Combined), TypeColor("SIC"), _
+                              IIf(lvl = 2, thOpen(), thPosted()), IIf(lvl = 2, thOpenFill(), thPostedFill()), thMuted()
+                    End If
+                End If
+            End If
+        Next i
+        EndAttendanceBatch
+        NASort tr, nT
+    End If
+    On Error GoTo Failed
+
     ' ---- draw ----
     ws.Rows("1:3000").Delete
     With ws.Cells.Font
@@ -3157,6 +3195,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "IMPORTED, NOT BOOKED  -  old-calendar vacations that don't keep people off call lists yet (double-click to convert)", _
                       nI, TypeColor("VAC"), Array("Date", "Shift", "", "Unit", "As imported", "Type", "Status", "When"))
         r = NARows(ws, r, ir, nI, "")
+    End If
+    If nT > 0 Then
+        r = NASection(ws, r, "ATTENDANCE  -  sick / personal days at or over the limit (double-click for the Attendance sheet)", _
+                      nT, TypeColor("SIC"), Array("Last sick", "", "Crew", "Home unit", "Who", "Type", "Status", "Until"))
+        r = NARows(ws, r, tr, nT, "")
     End If
 
     ' ---- summary tiles (double-click one to jump to its list) ----
@@ -3435,6 +3478,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         ShowConvertForm
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "T:" Then              ' v22.1: attendance - open the sheet
+        ShowAttendance
+        Exit Sub
+    End If
     ShowLineMenu keyTxt
 End Sub
 
@@ -3456,6 +3503,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "I:" Then
         ShowConvertForm
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "T:" Then
+        ShowAttendance
         Exit Sub
     End If
     ShowLineMenu keyTxt

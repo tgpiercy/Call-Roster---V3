@@ -5,7 +5,8 @@ Option Explicit
 '  SELF TEST v1 (v21)
 '  Alt+F8 > SelfTest runs known-answer cases against the pure rules:
 '  rotation, holidays, DST nights, call order, charging, eligibility
-'  and the provisional-OT date logic. It reports pass / fail per case.
+'  the provisional-OT date logic, leave top-ups and attendance counters.
+'  It reports pass / fail per case.
 '
 '  It works on in-memory data only. It never writes to the roster, the
 '  OT Log or any table, and never saves. Eligibility cases that need an
@@ -18,7 +19,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v22 (Oct 13)"
+Public Const ST_VERSION As String = "Self test v22.1 (Oct 14)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -125,6 +126,8 @@ Private Function RunCase(f() As String) As String
             RunCase = CaseLeaveAvg(i1)
         Case "merge"
             RunCase = CaseMerge(i1)
+        Case "attend"
+            RunCase = CaseAttend(i1, i2, i3, i4)
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -351,6 +354,34 @@ Private Function NumText(ByVal x As Double) As String ' 21 -> "21", 22.75 -> "22
     End If
 End Function
 
+' crew, sick "date:D|N;...", personal "date;...", as-of -> used/paid/occ/per/ENT|WAIT date/PAID|UNPAID|-
+Private Function CaseAttend(ByVal crew As String, ByVal sickSpec As String, ByVal perSpec As String, ByVal asOfTxt As String) As String
+    Dim sd() As Date, sn() As Boolean, pd() As Date, nS As Long, nP As Long, parts As Variant, q As Variant, i As Long
+    ReDim sd(1 To 1): ReDim sn(1 To 1): ReDim pd(1 To 1)
+    If sickSpec <> "" Then
+        parts = Split(sickSpec, ";")
+        nS = UBound(parts) + 1
+        ReDim sd(1 To nS): ReDim sn(1 To nS)
+        For i = 1 To nS
+            q = Split(parts(i - 1), ":")
+            sd(i) = ParseD(CStr(q(0))): sn(i) = (CStr(q(1)) = "N")
+        Next i
+    End If
+    If perSpec <> "" Then
+        parts = Split(perSpec, ";")
+        nP = UBound(parts) + 1
+        ReDim pd(1 To nP)
+        For i = 1 To nP
+            pd(i) = ParseD(CStr(parts(i - 1)))
+        Next i
+    End If
+    Dim st As AttendanceStatus
+    AttendanceCore crew, sd, sn, nS, pd, nP, ParseD(asOfTxt), st
+    CaseAttend = st.SickUsed & "/" & st.PaidUsed & "/" & st.Occurrences & "/" & st.PersonalUsed & "/" & _
+                 IIf(st.Entitled, "ENT", "WAIT " & FmtD(st.WaitUntil)) & "/" & _
+                 IIf(st.LastSick = 0, "-", IIf(st.LastPaid, "PAID", "UNPAID"))
+End Function
+
 Private Sub AddCase(ByVal row As String)
     mN = mN + 1
     If mN = 1 Then ReDim mCases(1 To 256)
@@ -545,5 +576,21 @@ Private Sub LoadCases()
     AddCase "hoursasof,last-year-then-this-year,2025-12-20:900;2026-01-10:30,2026-01-03:Refused:Active:12:21:D,2026-01-12,,,51|2026-01-10|no"
     AddCase "leaveavg,half-rounds-up,1:N:N:Y:100.2;1:N:N:Y:100.3,,,,,100.3"
     AddCase "leaveavg,negative-half-away,1:N:N:Y:-100.2;1:N:N:Y:-100.3,,,,,-100.3"
+    AddCase "attend,none,A,,,2026-03-01,,0/0/0/0/ENT/-"
+    AddCase "attend,one-day,A,2026-01-05:N,,2026-03-01,,1/1/1/0/ENT/PAID"
+    AddCase "attend,run-across-days-off,A,2026-01-05:N;2026-01-06:N;2026-01-09:D,,2026-03-01,,3/3/1/0/ENT/PAID"
+    AddCase "attend,night-then-day-one-occurrence,A,2026-01-06:N;2026-01-09:D,,2026-03-01,,2/2/1/0/ENT/PAID"
+    AddCase "attend,two-occurrences,A,2026-01-05:N;2026-01-10:D,,2026-03-01,,2/2/2/0/ENT/PAID"
+    AddCase "attend,sixth-day-unpaid-and-wait,A,2026-01-05:N;2026-01-06:N;2026-01-09:D;2026-01-10:D;2026-01-11:D;2026-01-14:N,,2026-03-01,,6/5/1/0/WAIT 2027-01-05/UNPAID"
+    AddCase "attend,fourth-occurrence-unpaid,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-20:D,,2026-03-01,,4/3/4/0/ENT/UNPAID"
+    AddCase "attend,personal-pushes-over,A,2026-01-14:N;2026-01-15:N,2026-01-05;2026-01-06;2026-01-09;2026-01-10,2026-03-01,,2/1/1/4/WAIT 2027-01-14/UNPAID"
+    AddCase "attend,wait-from-second-occurrence,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-19:D;2026-01-20:D;2026-01-23:N,,2026-03-01,,6/5/3/0/WAIT 2027-01-10/UNPAID"
+    AddCase "attend,still-waiting-after-jan-1,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-19:D;2026-01-20:D;2026-01-23:N,,2027-01-05,,0/0/0/0/WAIT 2027-01-10/UNPAID"
+    AddCase "attend,reset-at-anniversary,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-19:D;2026-01-20:D;2026-01-23:N;2027-01-12:D,,2027-01-15,,1/1/1/0/ENT/PAID"
+    AddCase "attend,carry-over-from-last-year,A,2025-12-22:D;2025-12-23:D;2025-12-26:N;2025-12-27:N;2025-12-28:N;2025-12-31:D,,2026-06-01,,0/0/0/0/WAIT 2026-12-22/UNPAID"
+    AddCase "attend,two-years-back-ignored,A,2024-05-01:D;2024-05-02:D;2024-05-03:D;2024-05-06:D;2024-05-07:D;2024-05-08:D,,2026-03-01,,0/0/0/0/ENT/-"
+    AddCase "attend,after-as-of-ignored,A,2026-03-02:N,,2026-02-01,,0/0/0/0/ENT/-"
+    AddCase "attend,personal-only-over,A,,2026-01-05;2026-01-06;2026-01-09;2026-01-10;2026-01-11;2026-01-14,2026-03-01,,0/0/0/6/WAIT 2027-01-14/-"
+    AddCase "attend,unsorted-input,A,2026-01-10:D;2026-01-05:N,,2026-03-01,,2/2/2/0/ENT/PAID"
 ' <<< CASES
 End Sub

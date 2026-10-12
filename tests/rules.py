@@ -430,3 +430,134 @@ def provisional_counts(outcome: str, status: str, shift_date: date, is_night: bo
     if shift_date < year_from or shift_date > year_to:
         return False
     return not provisional_covered(shift_date, is_night, data_through)
+
+
+# ---------------------------------------------------------------------------
+# v22.1 attendance: sick and personal day counters (modAttendance.AttendanceCore)
+# ---------------------------------------------------------------------------
+PAID_SICK_DAYS = 5
+PAID_SICK_OCC = 3
+PERSONAL_DAYS = 5
+COMBINED_LIMIT = 5
+
+
+def add_year(d: date) -> date:
+    """VBA DateAdd('yyyy', 1, d): Feb 29 -> Feb 28."""
+    try:
+        return d.replace(year=d.year + 1)
+    except ValueError:
+        return d.replace(year=d.year + 1, day=28)
+
+
+def _ev_pos(d: date, night: bool, kind: int) -> int:
+    return d.toordinal() * 4 + (2 if night else 0) + (kind - 1)
+
+
+def sched_between(crew: str, d1: date, n1: bool, d2: date, n2: bool, observed: dict | None = None) -> bool:
+    """True when a scheduled shift of the crew lies strictly between two shifts."""
+    p1, p2 = _ev_pos(d1, n1, 1), _ev_pos(d2, n2, 1)
+    if p2 <= p1:
+        return False
+    if (d2 - d1).days > 60:
+        return True
+    x = d1
+    while x <= d2:
+        s = crew_shift_on(crew, x, observed)
+        if s == "?":
+            s = "Days"
+        if s:
+            p = _ev_pos(x, s == "Nights", 1)
+            if p1 < p < p2:
+                return True
+        x += timedelta(days=1)
+    return False
+
+
+def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of: date,
+               observed: dict | None = None) -> dict:
+    """modAttendance.AttendanceCore. sick = [(date, night), ...]; per = one date per
+    personal day (scheduled shift). Returns the status fields as a dict."""
+    events = [(d, n, 1) for d, n in sick if d <= as_of] + [(d, False, 2) for d in per if d <= as_of]
+    events.sort(key=lambda e: _ev_pos(*e))
+    s = dict(next_jan1=date(as_of.year, 1, 1), window=date(as_of.year - 1, 1, 1),
+             waiting=False, wait_until=None, crossed=None, reset_on=None,
+             used=0, paid=0, occ=0, occ1=None, occ2=None, occ_txt=[], per=0,
+             have_last=False, last_d=None, last_n=False)
+    out = dict(last_sick=None, last_paid=False, last_reason="")
+
+    def reset():
+        s.update(used=0, paid=0, occ=0, occ1=None, occ2=None, occ_txt=[], per=0, have_last=False)
+
+    def advance_to(d: date):
+        while True:
+            nxt, kind = None, 0
+            if s["next_jan1"] <= d:
+                nxt, kind = s["next_jan1"], 1
+            if s["waiting"] and s["wait_until"] <= d and (kind == 0 or s["wait_until"] < nxt):
+                nxt, kind = s["wait_until"], 2
+            if kind == 0:
+                return
+            reset()
+            s["window"] = nxt
+            if kind == 1:
+                s["next_jan1"] = date(nxt.year + 1, 1, 1)
+                s["reset_on"] = None
+            else:
+                s["waiting"] = False
+                s["reset_on"] = s["wait_until"]
+                s["wait_until"] = None
+                s["crossed"] = None
+
+    def start_wait(d: date):
+        s["waiting"] = True
+        s["crossed"] = d
+        if s["occ"] >= 2:
+            s["wait_until"] = add_year(s["occ2"])
+        elif s["occ"] >= 1:
+            s["wait_until"] = add_year(s["occ1"])
+        else:
+            s["wait_until"] = add_year(d)
+
+    for d, night, kind in events:
+        if d < s["window"]:
+            continue
+        advance_to(d)
+        if kind == 1:
+            s["used"] += 1
+            same = s["have_last"] and not sched_between(crew, s["last_d"], s["last_n"], d, night, observed)
+            if not same:
+                s["occ"] += 1
+                if s["occ"] == 1:
+                    s["occ1"] = d
+                if s["occ"] == 2:
+                    s["occ2"] = d
+                s["occ_txt"].append(d)
+            s.update(have_last=True, last_d=d, last_n=night)
+            if s["waiting"]:
+                paid, why = False, "unpaid - not entitled until %s" % s["wait_until"]
+            elif s["occ"] > PAID_SICK_OCC:
+                paid, why = False, "unpaid - occurrence %d" % s["occ"]
+            elif s["used"] > PAID_SICK_DAYS:
+                paid, why = False, "unpaid - sick day %d" % s["used"]
+            else:
+                paid, why = True, "paid sick day %d of %d, occurrence %d of %d" % (s["used"], PAID_SICK_DAYS, s["occ"], PAID_SICK_OCC)
+            if not s["waiting"] and s["used"] + s["per"] > COMBINED_LIMIT:
+                start_wait(d)
+                paid, why = False, "unpaid - sick + personal day %d passes %d" % (s["used"] + s["per"], COMBINED_LIMIT)
+            if paid:
+                s["paid"] += 1
+            out.update(last_sick=d, last_paid=paid, last_reason=why)
+        else:
+            s["per"] += 1
+            if not s["waiting"] and s["used"] + s["per"] > COMBINED_LIMIT:
+                start_wait(d)
+    advance_to(as_of)
+    paid_left = max(0, PAID_SICK_DAYS - s["used"])
+    if s["occ"] >= PAID_SICK_OCC or s["waiting"]:
+        paid_left = 0
+    out.update(window_start=s["window"], sick_used=s["used"], paid_used=s["paid"], paid_left=paid_left,
+               occurrences=s["occ"], occ_dates=list(s["occ_txt"]), personal_used=s["per"],
+               personal_left=max(0, PERSONAL_DAYS - s["per"]), combined=s["used"] + s["per"],
+               entitled=not s["waiting"], wait_until=s["wait_until"], crossed_on=s["crossed"],
+               reset_on=s["reset_on"])
+    return out

@@ -1,5 +1,5 @@
 Option Explicit
-' @version v22 (Oct 13)
+' @version v22.1 (Oct 14)
 
 ' ================================================================
 ' SICK CALL (v22)
@@ -61,7 +61,7 @@ Private Sub UserForm_Initialize()
     Next old
     Me.Caption = "Sick Call"
     Me.Width = 412
-    Me.Height = 330
+    Me.Height = 350
 
     Dim o As Object
     Set o = AddLabel("hdr", "SICK CALL", LBL_L, 8, 300)
@@ -92,15 +92,19 @@ Private Sub UserForm_Initialize()
     AddLabel "lNote", "Note (optional)", LBL_L, RowT(6) + 3, 100
     AddCtl "Forms.TextBox.1", "txtNote", BOX_L, RowT(6), 268, 20
 
-    Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(7) + 2, 372)
+    ' v22.1: sick / personal day counters and whether this shift is paid
+    Set o = AddLabel("hAtt", "", LBL_L, RowT(7) + 2, 372)
+    o.Height = 40: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(120, 60, 0)
+
+    Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(9) - 6, 372)
     o.Height = 26: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(30, 56, 100)
 
-    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(8) + 6, 200, 30)
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(10) + 2, 200, 30)
     mSave.Caption = "SAVE + START CALL-OUT"
     mSave.Font.Bold = True: mSave.Font.Size = 10
-    Set mSaveOnly = AddCtl("Forms.CommandButton.1", "cmdSaveOnly", LBL_L + 206, RowT(8) + 6, 86, 30)
+    Set mSaveOnly = AddCtl("Forms.CommandButton.1", "cmdSaveOnly", LBL_L + 206, RowT(10) + 2, 86, 30)
     mSaveOnly.Caption = "Save only"
-    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 298, RowT(8) + 6, 74, 30)
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 298, RowT(10) + 2, 74, 30)
     mClose.Caption = "Close"
     mClose.Cancel = True
 
@@ -127,7 +131,17 @@ Private Sub mShift_Change()
     If PickedDate(d) Then
         C("txtHours").Text = CStr(DefaultShiftHours(d, IsNightShift(mShift.Text), USUAL_SHIFT_HOURS))
         C("hHrs").Caption = IIf(IsNightShift(mShift.Text), DstNote(d), "")
+        ShowCounters d
     End If
+End Sub
+
+' v22.1: the person's sick / personal counters and what this shift would be
+Private Sub ShowCounters(ByVal d As Date)
+    If mEmp.ListIndex < 0 Or mShift.ListIndex < 0 Then C("hAtt").Caption = "": Exit Sub
+    On Error Resume Next
+    C("hAtt").Caption = SickCallPreview(mEmp.Text, d, mShift.Text)
+    If Err.Number <> 0 Then C("hAtt").Caption = "Counters not available: " & Err.Description
+    On Error GoTo 0
 End Sub
 
 Private Function PickedDate(ByRef d As Date) As Boolean
@@ -176,7 +190,14 @@ Private Function SaveIt() As String
     Dim hrs As Variant: hrs = CDbl(h)
     ' a full shift (12 h, or the 11 h / 13 h DST night) gets no partial-hours mark on the line
     If CDbl(h) >= DefaultShiftHours(d, IsNightShift(mShift.Text), USUAL_SHIFT_HOURS) Then hrs = Empty
-    SaveIt = SaveSickCall(mEmp.Text, d, mShift.Text, C("cboUnit").Text, hrs, Trim$(C("txtNote").Text))
+    ' v22.1: the note records what the rule made of this shift (paid / unpaid and why)
+    Dim note As String, outcome As String
+    note = Trim$(C("txtNote").Text)
+    On Error Resume Next
+    outcome = SickOutcome(mEmp.Text, d, mShift.Text)
+    On Error GoTo 0
+    If outcome <> "" Then note = note & IIf(note = "", "", " - ") & outcome
+    SaveIt = SaveSickCall(mEmp.Text, d, mShift.Text, C("cboUnit").Text, hrs, note)
 End Function
 
 Private Sub mSaveOnly_Click()

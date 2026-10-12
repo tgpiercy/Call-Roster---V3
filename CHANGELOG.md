@@ -1,5 +1,15 @@
 # Changelog
 
+## v22.1 - sick and personal day tracking (Oct 2026)
+Brief: `briefs/v22.1.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v22.1.zip` (full set).
+
+- **The attendance rule in one place** (`modAttendance.AttendanceCore`, mirrored in `tests/rules.py`, 16 SelfTest cases): 5 paid sick days a calendar year in up to 3 occurrences (a day = one scheduled shift, partial still counts; an occurrence = consecutive scheduled shifts missed sick), 5 unpaid personal days; past 5 sick + personal days the person is not entitled to paid sick until one year after the first day of their 2nd occurrence (the only one, or the crossing day, if fewer), then the counters restart to Dec 31 and the Jan 1 cycle resumes. A wait carries over Jan 1. Nothing changes Total Hours, call order, charging or the OT Log.
+- **Sick Call** shows the person's counters and whether the shift being logged is paid, and writes that outcome into the absence Note (the counters are always re-derived from the rows).
+- **Book Time Off:** new type `PER - Personal day (unpaid)` (calendar "Personal"; off call lists like any booking; members see "Personal"); new type `SIC - Sick day (past)` to back-fill this year's sick days (one row per scheduled shift, oldest first); vacation and personal days are booked on scheduled shifts only: a range with none is refused, days off at either end offer a trim (Yes trims, No saves as typed).
+- **Attendance** sheet (ADMIN button, next to Full Access): everyone's counters and status, worst first; admin only, hidden in saved copies, never published. **Needs Attention** gains an ATTENDANCE section for anyone at or over a limit (double-click opens the sheet).
+- SystemCheck: 15 modules on v22.1; forms and ThisWorkbook are now checked against the release that last changed each one (no false "re-paste" warnings). Every module carries a v22.1 stamp; only frmTimeOff and frmSickCall changed among the forms.
+- Known limit: occurrence grouping follows the crew rotation, not shift switches; the Sick Call counters read the Absences table, so sick days before v22 count only once back-filled.
+
 ## v22 - sick calls and leave (Oct 2026)
 Brief: `briefs/v22.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v22.zip` (full set).
 

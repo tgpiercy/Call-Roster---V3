@@ -1,12 +1,17 @@
 Option Explicit
-' @version v21 (Oct 12)
+' @version v22.1 (Oct 14)
 
 ' ================================================================
 ' BOOK TIME OFF  /  ADD A NEED
-'  Person off : vacation, training, leave (LOA / STD / parental) for a
-'               date range. End can be left open (STD with no return
-'               date) and set later. The rotation decides which days /
-'               nights it shows on. STD / parental / LOA show as "Leave".
+'  Person off : vacation, personal day, training, leave (LOA / STD /
+'               parental / WSIB / LTD) or a past sick day, for a date
+'               range. End can be left open (STD with no return date)
+'               and set later. The rotation decides which days / nights
+'               it shows on. Leave types show as "Leave".
+'               v22.1: vacation and personal days are booked on scheduled
+'               shifts only (no shifts in the range = refused; days off
+'               at either end = offer to trim). "SIC - Sick day (past)"
+'               records one sick shift per scheduled shift in the range.
 '  Need       : a line to fill with nobody off (PHA, support op ...)
 '               for each date in a range, Days / Nights / Both.
 '
@@ -349,7 +354,45 @@ Private Sub mSave_Click()
         If de < ds Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
     End If
 
+    Dim code As String: code = TypeCode(C("cboType").Text)
     Dim id As String
+    If code = "SIC" Then                          ' v22.1: past sick days, one row per scheduled shift
+        If mOpen.Value Then MsgBox "Past sick days need an end date.", vbExclamation: Exit Sub
+        Dim nSick As Long
+        nSick = SaveSickPast(mEmp.Text, C("cboUnit").Text, ds, CDate(de), Trim$(C("txtNote").Text))
+        If nSick = 0 Then
+            MsgBox "No sick days were recorded: " & mEmp.Text & " has no scheduled shift between " & _
+                   Format$(ds, "mmm d") & " and " & Format$(de, "mmm d") & " (or the file is read-only).", vbExclamation
+            Exit Sub
+        End If
+        LoadList
+        C("status").Caption = nSick & " past sick day(s) recorded for " & mEmp.Text & ", " & _
+                              Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & "."
+        mStart.Text = "": mEnd.Text = "": C("txtTimes").Text = "": C("txtNote").Text = ""
+        Exit Sub
+    End If
+    If (code = "VAC" Or code = "PER") And Not mOpen.Value Then      ' v22.1: scheduled shifts only
+        Dim nD As Long, nN As Long, dFirst As Date, dLast As Date
+        If ShiftCount(mEmp.Text, ds, CDate(de), nD, nN) = 0 Then
+            MsgBox mEmp.Text & " has no scheduled shift between " & Format$(ds, "mmm d") & " and " & Format$(de, "mmm d") & "." & vbNewLine & vbNewLine & _
+                   "Vacation and personal days are booked on scheduled shifts only - check the dates or their crew.", vbExclamation, "Days off"
+            Exit Sub
+        End If
+        If FirstLastShift(mEmp.Text, ds, CDate(de), dFirst, dLast) Then
+            If dFirst > ds Or dLast < CDate(de) Then
+                Select Case MsgBox(Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & " covers " & (nD + nN) & " scheduled shift(s); " & _
+                                   IIf(dFirst > ds, Format$(ds, "mmm d") & IIf(dFirst - ds > 1, " - " & Format$(dFirst - 1, "mmm d"), "") & " at the start", "") & _
+                                   IIf(dFirst > ds And dLast < CDate(de), " and ", "") & _
+                                   IIf(dLast < CDate(de), Format$(dLast + 1, "mmm d") & IIf(CDate(de) - dLast > 1, " - " & Format$(de, "mmm d"), "") & " at the end", "") & _
+                                   " are days off." & vbNewLine & vbNewLine & _
+                                   "Trim the booking to " & Format$(dFirst, "mmm d") & " - " & Format$(dLast, "mmm d") & "?" & vbNewLine & _
+                                   "Yes = trim it, No = save as typed, Cancel = go back", vbYesNoCancel + vbQuestion, "Days off in the range")
+                    Case vbYes: ds = dFirst: de = dLast
+                    Case vbCancel: Exit Sub
+                End Select
+            End If
+        End If
+    End If
     id = SaveAbsence(mEmp.Text, C("cboUnit").Text, C("cboType").Text, ds, de, HoursValue(), _
                      Trim$(C("txtTimes").Text), Trim$(C("txtNote").Text))
     If id = "" Then Exit Sub
@@ -378,6 +421,21 @@ Private Sub mVoid_Click()
     If id = "" Then Exit Sub
     If VoidAbsence(id) Then LoadList: C("status").Caption = id & " voided."
 End Sub
+
+' First and last scheduled shift of emp inside d1..d2 (False when none)
+Private Function FirstLastShift(ByVal emp As String, ByVal d1 As Date, ByVal d2 As Date, _
+                                ByRef dFirst As Date, ByRef dLast As Date) As Boolean
+    Dim x As Date
+    If d2 < d1 Then Exit Function
+    If d2 - d1 > 400 Then d2 = d1 + 400
+    For x = Int(d1) To Int(d2)
+        If EmpShiftOn(emp, x) <> "" Then
+            If Not FirstLastShift Then dFirst = x
+            dLast = x
+            FirstLastShift = True
+        End If
+    Next x
+End Function
 
 Private Sub mClose_Click()
     Unload Me

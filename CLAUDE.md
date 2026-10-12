@@ -29,7 +29,7 @@ CHANGELOG.md
 **Never commit data:** no `*.xls*`, Kronos exports, posting PDFs or plant CSVs (names, phones, emails, leave codes). Test fixtures use made-up names only.
 
 ## Workbook map (as built, v21 + M1)
-### Modules (13 checked by SystemCheck, plus 5 legacy)
+### Modules (15 checked by SystemCheck, plus 6 legacy)
 | Module | Holds |
 |---|---|
 | `modOvertimeEntry` | **All settings** at the top (`ADMIN_USERS`, folders, Kronos path, `KRONOS_STALE_DAYS`, `DST_USE_ACTUAL_HOURS`, `BACKUP_FOLDER`, member file names ...), roster column constants, `EmpRec`, `LoadEligible` (the one call order), `CalloutCharge`, provisional-OT formulas, OT Log access (`AppendLogRows`), protection, `ApplyView`. Every other module depends on it. |
@@ -47,11 +47,13 @@ CHANGELOG.md
 | `modGradeLog` | Grade change log (`tblGradeChange`, snapshot `GradeSnap`) |
 | `modSelfTest` | Alt+F8 > SelfTest: known-answer cases generated from `tests/cases.csv` |
 | `modPublish` | `PublishMembers` (M1): builds the members' tables as values, privacy + order self-checks, fills the template, saves the members' file |
+| `modLeave` | v22: sick calls (`SaveSickCall`, `SickBlocks`), leave going / returning (`ComputeLeaveReturn`, `TotalHoursAsOf`), convert imported calendar lines |
+| `modAttendance` | v22.1: the sick / personal day rule (`AttendanceCore`), `AttendanceFor`, Sick Call preview, past sick days, the Attendance sheet |
 | `Call_Out_Roster` | Printed call-out roster (`Call_Out`), redrawn from the data |
-| `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess` | Sort buttons, legacy posting print, admin (not version-checked) |
+| `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess`, `modCleanup` | Sort buttons, legacy posting print, admin, one-time cleanup (not version-checked) |
 
 ### Forms
-`frmOvertimeEntry` and `frmPostingEntry` have designer layouts (don't touch the designs). `frmNewPosting`, `frmShiftSwitch`, `frmTimeOff` are **blank in the designer and built entirely in code**. New forms follow the code-built pattern so install is "Insert > UserForm, set (Name), paste code". Every form and ThisWorkbook carries a `' @version vNN (date)` line that SystemCheck reads.
+`frmOvertimeEntry` and `frmPostingEntry` have designer layouts (don't touch the designs). `frmNewPosting`, `frmShiftSwitch`, `frmTimeOff`, `frmSickCall`, `frmLeave`, `frmConvert` are **blank in the designer and built entirely in code**. New forms follow the code-built pattern so install is "Insert > UserForm, set (Name), paste code". Every form and ThisWorkbook carries a `' @version vNN (date)` line; SystemCheck checks each against the release that last changed it (`FORM_RELEASES` / `THISWB_RELEASE` in modSystem), so bump that table when a form changes.
 
 ### Sheets and tables
 | Sheet | Notes |
@@ -66,6 +68,7 @@ CHANGELOG.md
 | `Holidays` | Admin; Observed on column for weekend holidays |
 | `Hours History` (hidden) | Dated snapshot of worked hours per import, with Data Through (v21) |
 | `Grade Log`, `GradeSnap` | Grade change log (admin, hidden) and its very hidden name-keyed snapshot |
+| `Attendance` | v22.1: drawn sick / personal day counters per person (admin, hidden in saved copies, never published) |
 | `CalMap` (hidden) | Calendar change counters |
 | `Overtime Posting`, `Blank Call Out Roster` | Output only, redrawn each time |
 | `Legacy Entry Log` (hidden) | Pre-migration history |
@@ -168,6 +171,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - Full unit move (v24): up to the highest Total Hours among grade <= 2 in the new unit; never lowered. Extra sign-offs don't trigger it.
 - New hire (v24): home unit's average (grade <= 2, not on leave).
 - Sick call-in (v22): opens a line, starts a call-out; off call lists for any shift starting within 24 h after the sick shift ends; shown as "Sick" on the calendar; WSIB and LTD are added as leave types.
+- Attendance (v22.1): 5 paid sick days / calendar year in up to 3 occurrences (day = scheduled shift, partial counts; occurrence = consecutive scheduled shifts), 5 unpaid personal days; over 5 combined = no paid sick until a year after the 2nd occurrence's first day, then restart to Dec 31; a sick call on an unscheduled shift counts; members see "Personal"; vacation and personal days only on scheduled shifts (refuse none, offer to trim ends). Tracking only: never touches hours.
 - Member workbook (M1, built): plant PCs, desktop Excel, everyone's hours visible, master pushes values into the template next to the master, published to `PUBLISH_FOLDER`, My history shows anyone, member file has no rules.
 - Platform: stay on the Excel desktop master through Q1 2027; keep tables platform-ready.
 - Release zips hold the full set from v22 on.
@@ -189,7 +193,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | v20 | Oct 9 | Safety and stats | installed; gate passed |
 | M1 | live Nov 15 | Member workbook + Publish | built, tagged `M1` |
 | v21 | before Oct 31 | Provisional OT, DST, Home Unit, adjustment types, grade log, backup, SelfTest, printable roster | built, tagged `v21`, installed |
-| v22 | mid-Nov | Sick Call, Leave going/returning, convert imported lines | `briefs/v22.md` |
+| v22 | mid-Nov | Sick Call, Leave going/returning, convert imported lines | built, tagged `v22` |
+| v22.1 | Oct 2026 | Sick / personal day counters, Attendance sheet, vacation on scheduled shifts | `briefs/v22.1.md` |
 | v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | kit brief 04 |
 | v24 | before Jan 16 | Employee pop-up, crew history, partial OT | kit brief 05 |
 | v25 | Feb-Mar 2027 | Employee ID key, protection, calendar speed | kit brief 06 |

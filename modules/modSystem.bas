@@ -23,9 +23,13 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v22 (Oct 13)"
-Public Const EXPECTED_RELEASE As String = "v22"
-Private Const N_MODULES As Long = 14
+Public Const SYS_VERSION As String = "System v22.1 (Oct 14)"
+Public Const EXPECTED_RELEASE As String = "v22.1"
+Private Const N_MODULES As Long = 15
+' ThisWorkbook and each form are checked against the release that last changed them
+Private Const THISWB_RELEASE As String = "v22"
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v22,frmNewPosting|v21,frmPostingEntry|v21,frmShiftSwitch|v21," & _
+                                        "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22"
 
 Private mBackupWarned As Boolean
 
@@ -50,9 +54,10 @@ Public Sub SystemCheck()
     VerCheck "Call_Out_Roster", CO_VERSION, warn, nOk
     VerCheck "modPublish", PUB_VERSION, warn, nOk
     VerCheck "modLeave", LV_VERSION, warn, nOk
+    VerCheck "modAttendance", AT_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
-    If InStr(ThisWorkbookVersion(), EXPECTED_RELEASE) = 0 Then
-        warn = warn & "- ThisWorkbook code is older than " & EXPECTED_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
+    If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
+        warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
     End If
 
     ' ---- VBA project (needs trusted access) ----
@@ -86,13 +91,15 @@ Public Sub SystemCheck()
                 warn = warn & "- form " & f & " is missing (Insert > UserForm, name it, paste " & f & ".txt)" & vbNewLine
             End If
         Next f
-        For Each f In Array("frmOvertimeEntry", "frmLeave", "frmSickCall", "frmConvert")   ' forms changed or new in v22
-            If InStr(compNames, "|" & LCase$(CStr(f)) & "|") > 0 Then
-                If InStr(FormMarker(proj, CStr(f)), EXPECTED_RELEASE) = 0 Then
-                    warn = warn & "- " & f & " code is older than " & EXPECTED_RELEASE & ": re-paste " & f & ".txt" & vbNewLine
+        Dim fr As Variant, fNm As String, fRel As String
+        For Each fr In Split(FORM_RELEASES, ",")
+            fNm = Split(CStr(fr), "|")(0): fRel = Split(CStr(fr), "|")(1)
+            If InStr(compNames, "|" & LCase$(fNm) & "|") > 0 Then
+                If InStr(FormMarker(proj, fNm), fRel) = 0 Then
+                    warn = warn & "- " & fNm & " code is older than " & fRel & ": re-paste " & fNm & ".txt" & vbNewLine
                 End If
             End If
-        Next f
+        Next fr
         info = info & "Forms and leftovers: checked" & vbNewLine
     End If
 

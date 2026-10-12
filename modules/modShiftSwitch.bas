@@ -273,6 +273,8 @@ Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal is
             WorksConflict = code & " is already working days that day"
         ElseIf isNight And CrewShiftOn(codeNext, d + 1) = "Days" Then
             WorksConflict = codeNext & " starts days the next morning"
+        ElseIf Not isNight And CrewShiftOn(codePrev, d - 1) = "Nights" Then
+            WorksConflict = "crew " & codePrev & " is coming off nights that morning"     ' was on a rotation crew the day before
         End If
         Exit Function
     End If

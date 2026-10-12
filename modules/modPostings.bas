@@ -876,7 +876,7 @@ Private Function ResultCellText(ByRef rec As PListRec) As String
     End If
 End Function
 
-' Hours as text without a trailing point: 8 -> "8", 22.75 -> "22.75" (HoursText(8) gives "8.")
+' Hours as text without a trailing point: 8 -> "8", 22.75 -> "22.75" (Format$(8, "0.##") gives "8.")
 Public Function HoursText(ByVal x As Double) As String
     HoursText = CStr(Round(x, 2))
 End Function
@@ -1828,6 +1828,8 @@ Public Sub ReopenPosting()
     If MsgBox("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion) = vbNo Then Exit Sub
     ' v24: the list is frozen, the people aren't. Someone who has left by the shift
     ' date, or no longer holds a code in this unit, must not be charged on the re-award.
+    ' (These two marks stay until the posting is closed. If the roster was wrong and is
+    ' corrected while the posting is open, clear the person's Result cell on the Postings sheet.)
     Dim j As Long, leftOn As Date, dc As Long
     dc = DeptCol(p.Unit)
     For j = 1 To n

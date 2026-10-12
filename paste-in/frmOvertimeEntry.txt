@@ -519,7 +519,7 @@ Private Sub btnSubmit_Click()
            "  Refused: " & nRef & vbNewLine & _
            "  Left Message: " & nMsg & vbNewLine & _
            "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
-           "  Total charged: " & Format$(totalCharged, "0.##") & " hrs" & _
+           "  Total charged: " & HoursText(totalCharged) & " hrs" & _
            IIf(calTxt <> "", vbNewLine & vbNewLine & "Calendar:" & calTxt, ""), _
            vbInformation, "Session Complete"
 

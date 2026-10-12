@@ -345,7 +345,7 @@ Public Sub VoidEntry()
     If Left$(k, 3) = "OB-" Then warn = vbNewLine & "WARNING: this is the opening balance carried over from the old roster." & vbNewLine
 
     If MsgBox("Void " & cnt & " row(s) for " & k & "?" & vbNewLine & vbNewLine & nameList & vbNewLine & _
-              "Total hours charged coming off the roster: " & Format$(hrs, "0.##") & vbNewLine & warn & vbNewLine & _
+              "Total hours charged coming off the roster: " & HoursText(hrs) & vbNewLine & warn & vbNewLine & _
               "The rows stay in the log, marked VOID.", vbOKCancel + vbExclamation, "Confirm void") <> vbOK Then Exit Sub
 
     Dim why As String: why = AskRequired("Reason for voiding " & k & ":", "Void Entry")

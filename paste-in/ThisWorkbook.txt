@@ -1,5 +1,5 @@
 Option Explicit
-' @version v22 (Oct 13)
+' @version v23 (Oct 20)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object
@@ -16,6 +16,7 @@ Private Sub Workbook_Open()
     GradeLogOnOpen                     ' v21: grade-change snapshot (and anything changed with macros off)
     HolidaysOnOpen                     ' v20: this year's and next year's holidays listed (admins)
     CalOnOpen                          ' calendar: this month, fresh needs-attention box
+    IntegrityOnOpen                    ' v23: quiet integrity check for admins (result on the status line)
     RosterSheet().Activate
     Application.ScreenUpdating = True
     ThisWorkbook.Saved = True
@@ -25,7 +26,7 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v22 (Oct 13)"
+    CodeVersion = "ThisWorkbook v23 (Oct 20)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the

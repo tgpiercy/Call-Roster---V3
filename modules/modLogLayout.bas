@@ -63,7 +63,7 @@ Public Sub UpgradeOTLogLayout()
     Dim rs As Worksheet: Set rs = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
     Dim before As Variant
-    If lastRow >= R_FIRST Then before = rs.Range(rs.Cells(R_FIRST, C_PERIOD1), rs.Cells(lastRow, C_PERIODN)).Value2
+    If lastRow >= R_FIRST Then before = rs.Range(rs.Cells(R_FIRST, C_PERIOD1), rs.Cells(lastRow, C_PERIODX)).Value2
     Dim nRows As Long, sumCharged As Double
     If Not lo.DataBodyRange Is Nothing Then
         nRows = lo.ListRows.Count
@@ -192,7 +192,7 @@ End Sub
 
 Private Function RosterDiffers(ByVal rs As Worksheet, ByVal lastRow As Long, ByVal before As Variant) As Boolean
     Dim after As Variant, i As Long, j As Long
-    after = rs.Range(rs.Cells(R_FIRST, C_PERIOD1), rs.Cells(lastRow, C_PERIODN)).Value2
+    after = rs.Range(rs.Cells(R_FIRST, C_PERIOD1), rs.Cells(lastRow, C_PERIODX)).Value2
     For i = 1 To UBound(before, 1)
         For j = 1 To UBound(before, 2)
             If IsError(after(i, j)) Then RosterDiffers = True: Exit Function

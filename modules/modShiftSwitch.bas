@@ -10,7 +10,7 @@ Option Explicit
 '  anyone who is working a switch on that date / shift.
 ' ====================================================================
 
-Public Const SS_VERSION As String = "Shift switches v22.1 (Oct 14)"
+Public Const SS_VERSION As String = "Shift switches v23 (Oct 20)"
 Public Const SS_SHEET As String = "Shift Switches"
 Public Const SS_TABLE As String = "tblShiftSwitch"
 
@@ -407,6 +407,25 @@ Public Function OpenPaybacks(ByVal offName As String, ByVal worksName As String,
     ReDim Preserve d(0 To n - 1): ReDim Preserve idArr(0 To n - 1)
     ids = idArr
     OpenPaybacks = d
+End Function
+
+' Paybacks owed for more than minDays days (IntegrityCheck, v23). Returns how
+' many; txt lists the first five ("SS-0004 Oct 2; SS-0009 Oct 20").
+Public Function OwedOlderThan(ByVal minDays As Long, ByRef txt As String) As Long
+    txt = ""
+    Dim v As Variant: v = SwitchData()
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long, n As Long
+    For i = 1 To UBound(v, 1)
+        If IsOwed(v, i) And IsDate(v(i, SW_DATE)) Then
+            If Int(Date) - Int(CDate(v(i, SW_DATE))) > minDays Then
+                n = n + 1
+                If n <= 5 Then txt = txt & IIf(txt = "", "", "; ") & SafeStr(v(i, SW_ID)) & " " & Format$(CDate(v(i, SW_DATE)), "mmm d")
+            End If
+        End If
+    Next i
+    If n > 5 Then txt = txt & " ... and " & (n - 5) & " more"
+    OwedOlderThan = n
 End Function
 
 ' Switches still OWED a payback (original switches with no payback logged),

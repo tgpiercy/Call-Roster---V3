@@ -19,7 +19,7 @@ Option Explicit
 '  when it last published. The members' file never reads the master.
 ' ====================================================================
 
-Public Const PUB_VERSION As String = "Publish v22.1 (Oct 14)"
+Public Const PUB_VERSION As String = "Publish v23 (Oct 20)"
 
 Public Const DS_META As String = "dMeta"
 Public Const DS_ROSTER As String = "dRoster"
@@ -292,7 +292,7 @@ Private Function BuildMeta() As Variant
     Dim ps As Date: ps = PeriodStartFor(Date)
     Dim yFrom As Variant, yTo As Variant
     yFrom = ws.Cells(PStartRow(), C_PERIOD1).Value
-    yTo = ws.Cells(PEndRow(), C_PERIODN).Value
+    yTo = ws.Cells(PEndRow(), PeriodLastCol()).Value
     Dim a(1 To 16, 1 To 2) As Variant
     a(1, 1) = "Key": a(1, 2) = "Value"
     a(14, 1) = "Posting close time": a(14, 2) = POSTING_CLOSE_TIME
@@ -490,7 +490,7 @@ Private Function BuildLog(ByRef nL As Long) As Variant
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim yFrom As Double, yTo As Double
     yFrom = NumOr0(ws.Cells(PStartRow(), C_PERIOD1).Value2)
-    yTo = NumOr0(ws.Cells(PEndRow(), C_PERIODN).Value2)
+    yTo = NumOr0(ws.Cells(PEndRow(), PeriodLastCol()).Value2)
     Dim nCols As Long: nCols = IIf(PUBLISH_REASONS, 11, 10)
     Dim cap As Long: cap = CAP_ROWS
     Dim out() As Variant: ReDim out(1 To cap, 1 To nCols)

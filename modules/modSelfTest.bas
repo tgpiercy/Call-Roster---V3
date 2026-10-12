@@ -5,7 +5,8 @@ Option Explicit
 '  SELF TEST v1 (v21)
 '  Alt+F8 > SelfTest runs known-answer cases against the pure rules:
 '  rotation, holidays, DST nights, call order, charging, eligibility
-'  the provisional-OT date logic, leave top-ups and attendance counters.
+'  the provisional-OT date logic, leave top-ups, attendance counters and
+'  the year-end pieces (pay-period year, ID numbering, integrity helpers).
 '  It reports pass / fail per case.
 '
 '  It works on in-memory data only. It never writes to the roster, the
@@ -19,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v22.1 (Oct 14)"
+Public Const ST_VERSION As String = "Self test v23 (Oct 20)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -70,10 +71,14 @@ Finally:
     ClearTestFixtures
     ClearTestSwitches
     ClearTestHolidays
-    Dim k As Variant, summary As String
-    For Each k In bySuite.Keys
-        summary = summary & "  " & k & ": " & Len(bySuite(k)) - Len(Replace(bySuite(k), "F", "")) & " failed of " & Len(bySuite(k)) & vbNewLine
+    Dim k As Variant, summary As String, nSuites As Long
+    For Each k In bySuite.Keys          ' only the suites with a failure are listed (the box holds about 1,000 characters)
+        nSuites = nSuites + 1
+        If InStr(bySuite(k), "F") > 0 Then
+            summary = summary & "  " & k & ": " & Len(bySuite(k)) - Len(Replace(bySuite(k), "F", "")) & " failed of " & Len(bySuite(k)) & vbNewLine
+        End If
     Next k
+    If summary = "" Then summary = "  all " & nSuites & " suites passed" & vbNewLine
     Dim msg As String
     msg = em & "SelfTest: " & nPass & " passed, " & nFail & " failed of " & mN & " cases." & vbNewLine & vbNewLine & summary
     If fails <> "" Then msg = msg & vbNewLine & "Failed:" & vbNewLine & fails
@@ -128,6 +133,21 @@ Private Function RunCase(f() As String) As String
             RunCase = CaseMerge(i1)
         Case "attend"
             RunCase = CaseAttend(i1, i2, i3, i4)
+        Case "year"
+            RunCase = FmtD(FirstPeriodStart(ParseD(i1), CLng(i2))) & "|" & PeriodsInYear(ParseD(i1), CLng(i2)) & "|" & _
+                      RosterYearOf(FirstPeriodStart(ParseD(i1), CLng(i2)))
+        Case "nextid"
+            RunCase = CStr(NextNumber(CLng(i1), CLng(i2)))
+        Case "cell"
+            RunCase = CaseCell(i1, i2, i3)
+        Case "dups"
+            RunCase = CaseDups(i1)
+        Case "archive"
+            RunCase = IIf(GoesToArchive(CaseValue(i1), ParseD(i2)), "archive", "keep")
+        Case "dryname"
+            RunCase = IIf(IsDryRunName(i1), "yes", "no")
+        Case "snapyear"
+            RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -382,6 +402,48 @@ Private Function CaseAttend(ByVal crew As String, ByVal sickSpec As String, ByVa
                  IIf(st.LastSick = 0, "-", IIf(st.LastPaid, "PAID", "UNPAID"))
 End Function
 
+' Value specs shared with tests/test_cases.py: empty, err, d:yyyy-mm-dd, n:number, s:text
+Private Function CaseValue(ByVal spec As String) As Variant
+    If spec = "empty" Then
+        CaseValue = Empty
+    ElseIf spec = "err" Then
+        CaseValue = CVErr(xlErrNA)
+    ElseIf Left$(spec, 2) = "d:" Then
+        CaseValue = ParseD(Mid$(spec, 3))
+    ElseIf Left$(spec, 2) = "n:" Then
+        CaseValue = Val(Mid$(spec, 3))
+    Else
+        CaseValue = Mid$(spec, 3)
+    End If
+End Function
+
+' F|V (has a formula), LOG|OTHER|"" (which formula), value spec -> ok / the problem code.
+' The planted typed number and the planted missing formula live here, in memory only.
+Private Function CaseCell(ByVal hasF As String, ByVal which As String, ByVal valSpec As String) As String
+    Dim txt As String
+    If which = "LOG" Then
+        txt = "=SUMIFS(" & LOG_TABLE & "[x])"
+    ElseIf which = "OTHER" Then
+        txt = "=SUM(A1:A2)"
+    End If
+    CaseCell = PeriodCellCode((hasF = "F"), txt, CaseValue(valSpec))
+    If CaseCell = "" Then CaseCell = "ok"
+End Function
+
+' "a;b;a" -> "a x2" / none (the planted duplicate ID)
+Private Function CaseDups(ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim keys() As String, n As Long, i As Long
+    n = UBound(parts) + 1
+    If n < 1 Then CaseDups = "none": Exit Function
+    ReDim keys(1 To n)
+    For i = 1 To n
+        keys(i) = CStr(parts(i - 1))
+    Next i
+    CaseDups = DuplicatesIn(keys, n)
+    If CaseDups = "" Then CaseDups = "none"
+End Function
+
 Private Sub AddCase(ByVal row As String)
     mN = mN + 1
     If mN = 1 Then ReDim mCases(1 To 256)
@@ -594,5 +656,50 @@ Private Sub LoadCases()
     AddCase "attend,after-as-of-ignored,A,2026-03-02:N,,2026-02-01,,0/0/0/0/ENT/-"
     AddCase "attend,personal-only-over,A,,2026-01-05;2026-01-06;2026-01-09;2026-01-10;2026-01-11;2026-01-14,2026-03-01,,0/0/0/6/WAIT 2027-01-14/-"
     AddCase "attend,unsorted-input,A,2026-01-10:D;2026-01-05:N,,2026-03-01,,2/2/2/0/ENT/PAID"
+    AddCase "year,2026-from-its-own-start,2025-12-28,2026,,,,2025-12-28|26|2026"
+    AddCase "year,2027-starts-dec-27,2025-12-28,2027,,,,2026-12-27|26|2027"
+    AddCase "year,2028-starts-dec-26,2025-12-28,2028,,,,2027-12-26|26|2028"
+    AddCase "year,2029-after-leap-year,2025-12-28,2029,,,,2028-12-24|26|2029"
+    AddCase "year,2033-has-27-periods,2025-12-28,2033,,,,2032-12-19|27|2033"
+    AddCase "year,2034-starts-on-jan-1,2025-12-28,2034,,,,2034-01-01|26|2034"
+    AddCase "year,2026-from-a-later-anchor,2026-12-27,2026,,,,2025-12-28|26|2026"
+    AddCase "year,2033-from-2034-anchor,2034-01-01,2033,,,,2032-12-19|27|2033"
+    AddCase "nextid,mark-above-log,12,480,,,,481"
+    AddCase "nextid,log-above-mark,480,12,,,,481"
+    AddCase "nextid,no-mark,7,0,,,,8"
+    AddCase "nextid,empty-log-after-rollover,0,1312,,,,1313"
+    AddCase "nextid,nothing-yet,0,0,,,,1"
+    AddCase "cell,log-formula,F,LOG,n:21,,,ok"
+    AddCase "cell,other-formula,F,OTHER,n:21,,,notlog"
+    AddCase "cell,planted-typed-number,V,,n:21,,,typed"
+    AddCase "cell,typed-zero,V,,n:0,,,typed"
+    AddCase "cell,missing-formula,V,,empty,,,empty"
+    AddCase "cell,formula-stored-as-text,V,,s:=SUMIFS(tblOTLog[x]),,,textformula"
+    AddCase "cell,typed-text,V,,s:n/a,,,text"
+    AddCase "cell,error-value,V,,err,,,error"
+    AddCase "dups,planted-duplicate-entry-id,101;102;103;102;104,,,,,102 x2"
+    AddCase "dups,none,S-0001;S-0002;P-0001,,,,,none"
+    AddCase "dups,case-and-spaces,ss-0004; SS-0004 ;SS-0005,,,,,ss-0004 x2"
+    AddCase "dups,two-keys-three-times,a;b;a;b;b;c,,,,,a x2; b x3"
+    AddCase "dups,blanks-ignored,;;x;;,,,,,none"
+    AddCase "archive,last-period-of-old-year,d:2026-12-13,2026-12-27,,,,archive"
+    AddCase "archive,first-period-of-new-year,d:2026-12-27,2026-12-27,,,,keep"
+    AddCase "archive,january-posting-logged-in-december,d:2027-01-10,2026-12-27,,,,keep"
+    AddCase "archive,blank-stays,empty,2026-12-27,,,,keep"
+    AddCase "archive,text-stays,s:n/a,2026-12-27,,,,keep"
+    AddCase "archive,serial-number-old,n:46000,2026-12-27,,,,archive"
+    AddCase "archive,serial-number-new,n:46400,2026-12-27,,,,keep"
+    AddCase "archive,zero-stays,n:0,2026-12-27,,,,keep"
+    AddCase "dryname,live-master,V2 - Call Out Roster.xlsm,,,,,no"
+    AddCase "dryname,windows-copy,V2 - Call Out Roster - Copy.xlsm,,,,,yes"
+    AddCase "dryname,copy-of,Copy of Call Out Roster.xlsm,,,,,yes"
+    AddCase "dryname,dry-run,Call Out Roster DRY RUN.xlsm,,,,,yes"
+    AddCase "dryname,lower-case,roster dry-run dec.xlsm,,,,,yes"
+    AddCase "dryname,final,Call Out Roster 2026 FINAL.xlsm,,,,,no"
+    AddCase "snapyear,no-stamp-judged-by-date,2026-12-28,0,2027,2026-12-27,,2026-12-28"
+    AddCase "snapyear,last-year-stamp-inside-new-year,2026-12-28,2026,2027,2026-12-27,,2026-12-26"
+    AddCase "snapyear,last-year-stamp-before-new-year,2026-12-20,2026,2027,2026-12-27,,2026-12-20"
+    AddCase "snapyear,this-year-stamp,2027-01-05,2027,2027,2026-12-27,,2027-01-05"
+    AddCase "snapyear,on-the-first-day,2026-12-27,2026,2027,2026-12-27,,2026-12-26"
 ' <<< CASES
 End Sub

@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v22.1 (Oct 14)"
+Public Const CAL_VERSION As String = "Calendar v23 (Oct 20)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -305,7 +305,7 @@ Public Sub UpgradeAbsenceColumns()
     Dim lastRow As Long: lastRow = RosterLastRow()
     Dim before As Variant, nRows As Long
     Application.Calculate
-    If lastRow >= R_FIRST Then before = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_PERIODN)).Value2   ' G:AS, always 2-D
+    If lastRow >= R_FIRST Then before = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_PERIODX)).Value2   ' G:AT, always 2-D
     nRows = lo.ListRows.Count
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim names As Variant: names = Array("Home Unit", "Leave Group", "Shift")
@@ -322,7 +322,7 @@ Public Sub UpgradeAbsenceColumns()
     If lo.ListRows.Count <> nRows Then problems = problems & "- absence rows: " & nRows & " before, " & lo.ListRows.Count & " after" & vbNewLine
     If lo.ListColumns.Count <> AB_N Then problems = problems & "- column count is " & lo.ListColumns.Count & ", expected " & AB_N & vbNewLine
     If lastRow >= R_FIRST Then
-        Dim after As Variant, j As Long: after = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_PERIODN)).Value2
+        Dim after As Variant, j As Long: after = rs.Range(rs.Cells(R_FIRST, C_TOTAL), rs.Cells(lastRow, C_PERIODX)).Value2
         For i = 1 To UBound(before, 1)
             For j = 1 To UBound(before, 2)
                 If SafeStr(after(i, j)) <> SafeStr(before(i, j)) Then
@@ -929,6 +929,7 @@ End Function
 Public Function LeaveToppedUp(ByVal leaveGroup As String) As Boolean
     If Trim$(leaveGroup) = "" Then Exit Function
     LeaveToppedUp = HasActiveLogRows(leaveGroup)
+    If Not LeaveToppedUp Then LeaveToppedUp = ArchiveHasActiveRef(leaveGroup)     ' v23: topped up before the rollover
 End Function
 
 ' Leave-type absence rows for the top-up peer test: True if emp has one
@@ -2255,7 +2256,7 @@ Public Sub CalPrintPdf()
     ans = MsgBox("Yes = print AND save a PDF" & vbNewLine & "No = save a PDF only", vbYesNoCancel + vbQuestion, "Calendar")
     If ans = vbCancel Then Exit Sub
     Dim folder As String, subF As String
-    folder = EnsureSlash(REPORT_FOLDER)
+    folder = EnsureSlash(ReportFolder())
     If FolderExists(folder) Then
         subF = folder & "Calendars" & Application.PathSeparator
         If Not FolderExists(subF) Then
@@ -3149,7 +3150,8 @@ Public Sub DrawNeeds()
     With ws.Range("B2:I2")
         .Merge
         .Value = grp & "   " & ChrW(183) & "   " & Format$(Date, "ddd mmm d") & " to " & Format$(Date + nDays - 1, "ddd mmm d") & _
-                 "   " & ChrW(183) & "   updated " & Format$(Now, "h:mm AM/PM") & "   " & ChrW(183) & "   double-click any row for options"
+                 "   " & ChrW(183) & "   updated " & Format$(Now, "h:mm AM/PM") & "   " & ChrW(183) & "   double-click any row for options" & _
+                 IIf(RolloverNote() <> "", "   " & ChrW(183) & "   " & RolloverNote(), "")
         .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
         .VerticalAlignment = xlCenter
     End With

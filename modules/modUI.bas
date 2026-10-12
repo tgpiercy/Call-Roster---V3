@@ -18,7 +18,7 @@ Option Explicit
 ' ====================================================================
 
 Private Const STATUS_CELL As String = "D3"      ' status (3 lines, plain text) - in the frozen names column
-Public Const UI_VERSION As String = "Roster UI v22.1 (Oct 14)"
+Public Const UI_VERSION As String = "Roster UI v23 (Oct 20)"
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
 Private Const LIGHT As Long = 15787486          ' RGB(222, 229, 240)
@@ -110,9 +110,11 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
     Dim txt As String
     Dim kTxt As String: kTxt = KronosStatusText()        ' v20: how old the worked hours are
     Dim dt As Date: dt = KronosDataThrough()             ' v21: provisional OT counts after this date
-    txt = "Pay period: " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & vbLf & _
+    Dim icTxt As String: icTxt = IntegrityStatusText()   ' v23: "" until IntegrityCheck has run this session
+    Dim roTxt As String: roTxt = RolloverNote()          ' v23: shown for a month after the year-end rollover
+    txt = "Pay period: " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & IIf(roTxt <> "", "  |  " & roTxt, "") & vbLf & _
           kTxt & IIf(dt > 0, "  |  data through " & Format$(dt, "mmm d"), "") & vbLf & _
-          "Log: " & Format$(n, "#,##0") & "  |  View: " & viewTxt
+          "Log: " & Format$(n, "#,##0") & IIf(icTxt <> "", "  |  " & icTxt, "") & "  |  View: " & viewTxt
     If txt = Replace(cur, vbCr, "") Then Exit Sub
 
     Dim wasLocked As Boolean: wasLocked = ws.ProtectContents
@@ -127,6 +129,7 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
         .Value = txt
         .Font.Color = NAVY
         If KronosIsStale() Then .Characters(InStr(txt, kTxt), Len(kTxt)).Font.Color = RGB(190, 30, 30)
+        If icTxt <> "" And IntegrityHasProblems() Then .Characters(InStr(txt, icTxt), Len(icTxt)).Font.Color = RGB(190, 30, 30)
     End With
     If wasLocked Then ProtectSheet ws
     Exit Sub
@@ -153,8 +156,9 @@ End Sub
 '  Also repairs formulas that were stored as text by an earlier run.
 ' --------------------------------------------------------------------
 Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
+    Dim lastPer As Long: lastPer = PeriodLastCol()             ' AS, or AT in a 27-period year (v23)
     Dim pf As String: pf = ColLetter(C_PERIOD1)
-    Dim pl As String: pl = ColLetter(C_PERIODN)
+    Dim pl As String: pl = ColLetter(lastPer)
     Dim p2 As String: p2 = ColLetter(C_PERIOD1 + 1)
     Dim lastRow As Long: lastRow = RosterLastRow()
     Dim r As Long, c As Long, nm As String
@@ -166,7 +170,7 @@ Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
         nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
         If nm <> "" Then
             hasTyped = False
-            For c = C_PERIOD1 To C_PERIODN
+            For c = C_PERIOD1 To lastPer
                 Set cel = ws.Cells(r, c)
                 If Not IsOurFormula(cel) And Not IsBrokenFormula(cel) Then
                     If Not IsEmpty(cel.Value2) Then hasTyped = True: Exit For
@@ -216,7 +220,7 @@ Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
         nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
         If nm <> "" And IsOurFormula(ws.Cells(r, C_PERIOD1)) Then
             rowSum = 0
-            For c = C_PERIOD1 To C_PERIODN
+            For c = C_PERIOD1 To lastPer
                 v = ws.Cells(r, c).Value2
                 If VarType(v) = vbDouble Then rowSum = rowSum + v
             Next c
@@ -388,16 +392,17 @@ End Function
 '  SHEET FORMATTING
 ' --------------------------------------------------------------------
 Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
+    Dim lastPer As Long: lastPer = PeriodLastCol()             ' AS, or AT in a 27-period year (v23)
     Dim pf As String: pf = ColLetter(C_PERIOD1)
-    Dim pl As String: pl = ColLetter(C_PERIODN)
-    Dim body As Range: Set body = ws.Range(ws.Cells(R_FIRST, 3), ws.Cells(lastRow, C_PERIODN))
-    Dim hdr As Range: Set hdr = ws.Range(ws.Cells(2, 3), ws.Cells(4, C_PERIODN))
+    Dim pl As String: pl = ColLetter(lastPer)
+    Dim body As Range: Set body = ws.Range(ws.Cells(R_FIRST, 3), ws.Cells(lastRow, lastPer))
+    Dim hdr As Range: Set hdr = ws.Range(ws.Cells(2, 3), ws.Cells(4, lastPer))
 
     ' clear old header/body conditional formats
     ws.Range("A2:XFD4").FormatConditions.Delete
     body.FormatConditions.Delete
 
-    With ws.Range(ws.Cells(2, 3), ws.Cells(lastRow, C_PERIODN))
+    With ws.Range(ws.Cells(2, 3), ws.Cells(lastRow, lastPer))
         .Font.Name = "Segoe UI"
         .Font.Size = 9
         .Font.Color = INK
@@ -501,7 +506,7 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     End With
     ws.Range(ws.Cells(R_FIRST, C_SHIFT), ws.Cells(lastRow, C_PHONE)).HorizontalAlignment = xlCenter
     ws.Range(ws.Cells(R_FIRST, C_TOTAL), ws.Cells(lastRow, 19)).HorizontalAlignment = xlCenter
-    ws.Range(ws.Cells(R_FIRST, C_PERIOD1), ws.Cells(lastRow, C_PERIODN)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(R_FIRST, C_PERIOD1), ws.Cells(lastRow, lastPer)).HorizontalAlignment = xlCenter
     ' divider between the frozen details and the pay periods
     With ws.Range(ws.Cells(2, C_PERIOD1), ws.Cells(lastRow, C_PERIOD1)).Borders(xlEdgeLeft)
         .LineStyle = xlContinuous
@@ -512,7 +517,7 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ' ---------- conditional formats (relative to the selected cell) ----------
     Dim fc As FormatCondition
     ws.Range("E" & R_FIRST).Select
-    Set fc = ws.Range(ws.Cells(R_FIRST, C_SHIFT), ws.Cells(lastRow, C_PERIODN)).FormatConditions.Add( _
+    Set fc = ws.Range(ws.Cells(R_FIRST, C_SHIFT), ws.Cells(lastRow, lastPer)).FormatConditions.Add( _
                 Type:=xlExpression, Formula1:="=MOD(SUBTOTAL(103,$D$" & R_FIRST & ":$D" & R_FIRST & "),2)=0")
     fc.Interior.Color = RGB(245, 247, 250)
 
@@ -552,7 +557,7 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ws.Range(ws.Columns(C_TOTAL), ws.Columns(C_REFUSED)).ColumnWidth = 8
     ws.Columns(C_SENIORITY).ColumnWidth = 11.5
     ws.Range(ws.Columns(12), ws.Columns(19)).ColumnWidth = 7
-    ws.Range(ws.Columns(C_PERIOD1), ws.Columns(C_PERIODN)).ColumnWidth = 7
+    ws.Range(ws.Columns(C_PERIOD1), ws.Columns(lastPer)).ColumnWidth = 7
     ws.Range(ws.Rows(R_FIRST), ws.Rows(lastRow)).RowHeight = 16
 
     ' ---------- window: rows 1-4 + columns A:D (names) frozen ----------

@@ -23,10 +23,10 @@ Option Explicit
 '     that have ended by that date are in Kronos, so they stop counting.
 ' ====================================================================
 
-Public Const KR_VERSION As String = "Kronos import v22.1 (Oct 14)"
+Public Const KR_VERSION As String = "Kronos import v23 (Oct 20)"
 Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
-Private Const HH_NCOLS As Long = 7          ' v21: + Data Through
+Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)
 
 Sub SyncKronosData()
     If Not RequireAdmin() Then Exit Sub
@@ -96,6 +96,19 @@ Sub SyncKronosData()
     If openedHere Then wbSource.Close SaveChanges:=False
     ThisWorkbook.Activate
 
+    ' ---- v23: after a rollover, Worked (H) stays 0 until the export covers the new year ----
+    Dim awaitFrom As Date: awaitFrom = KronosAwaitFrom()
+    If awaitFrom > 0 Then
+        Dim fdChk As Date: fdChk = fileDate
+        If fdChk = 0 Then fdChk = Now
+        If DataThroughFor(fdChk) < awaitFrom Then
+            MsgBox "This Kronos file was saved " & Format$(fdChk, "ddd mmm d, yyyy") & ", so it still holds last year's hours." & vbNewLine & vbNewLine & _
+                   "Worked hours stay at 0 until you import an export saved after " & Format$(awaitFrom, "mmm d, yyyy") & _
+                   " (the first one of the new year). Nothing was changed.", vbExclamation, "Kronos import"
+            Exit Sub
+        End If
+    End If
+
     ' ---- fill column H ----
     Application.ScreenUpdating = False
     wsDest.Unprotect Password:=SHEET_PASSWORD
@@ -135,6 +148,7 @@ Sub SyncKronosData()
     ' v21: the data covers everything through the day before the file was saved
     Dim through As Date: through = DataThroughFor(fileDate)
     SetDateName PROV_NAME, through
+    If awaitFrom > 0 Then ClearKronosAwait      ' v23: the new year's hours are in
     Dim histId As String
     If histN > 0 Then histId = AppendHoursHistory(stamp, fileDate, through, histName, histHrs, histN)
     Application.CalculateFull                 ' provisional (C) and Total (G) pick up the new date
@@ -159,7 +173,9 @@ Sub SyncKronosData()
           "Kronos file saved " & Format$(fileDate, "ddd mmm d, h:mm AM/PM") & ", data through " & _
           Format$(through, "ddd mmm d") & "." & vbNewLine & _
           "Accepted / awarded shifts that ended by then now count from Kronos instead of as provisional." & _
-          IIf(histId <> "", vbNewLine & "Snapshot " & histId & " added to Hours History.", "")
+          IIf(histId <> "", vbNewLine & "Snapshot " & histId & " added to Hours History.", "") & _
+          IIf(awaitFrom > 0, vbNewLine & vbNewLine & "FIRST IMPORT OF THE NEW YEAR: check two or three people's Worked hours against Kronos. " & _
+                             "They should be this year's hours only, not last year's total.", "")
     If missing <> "" Then msg = msg & vbNewLine & vbNewLine & _
         "On the roster but not found in Kronos - Worked Hours NOT updated:" & vbNewLine & missing
     If extra <> "" Then msg = msg & vbNewLine & _
@@ -196,6 +212,23 @@ Private Function GetDateName(ByVal nmName As String) As Date
     Dim x As Double: x = Val(Mid$(nmObj.RefersTo, 2))
     If x > 0 Then GetDateName = CDate(x)
 End Function
+
+' ---- waiting for the new year's Kronos data (v23) ----
+' Set by RolloverYear to Jan 1 of the new year: Worked (H) is 0 and an
+' import is refused until the file's data runs through that date.
+Public Function KronosAwaitFrom() As Date
+    KronosAwaitFrom = GetDateName(AWAIT_NAME)
+End Function
+
+Public Sub SetKronosAwait(ByVal d As Date)
+    SetDateName AWAIT_NAME, d
+End Sub
+
+Public Sub ClearKronosAwait()
+    On Error Resume Next
+    ThisWorkbook.Names(AWAIT_NAME).Delete
+    On Error GoTo 0
+End Sub
 
 ' When the Kronos data was saved (falls back to when it was imported); 0 = never
 Public Function KronosDataDate() As Date
@@ -252,12 +285,16 @@ Public Function KronosAgeDays() As Long
 End Function
 
 Public Function KronosIsStale() As Boolean
+    Dim aw As Date: aw = KronosAwaitFrom()       ' v23: after a rollover the clock starts on Jan 1
+    If aw > 0 Then KronosIsStale = (Int(Date) > Int(aw) + KRONOS_STALE_DAYS): Exit Function
     Dim a As Long: a = KronosAgeDays()
     KronosIsStale = (a < 0 Or a > KRONOS_STALE_DAYS)
 End Function
 
 ' Status line text, e.g. "Kronos: Oct 7 (2 days ago)"
 Public Function KronosStatusText() As String
+    Dim aw As Date: aw = KronosAwaitFrom()
+    If aw > 0 Then KronosStatusText = "Kronos: awaiting " & Year(aw) & " data (Worked hours are 0)": Exit Function
     Dim a As Long: a = KronosAgeDays()
     If a < 0 Then KronosStatusText = "Kronos: not imported since v20": Exit Function
     Dim t As String
@@ -307,8 +344,8 @@ Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As L
             ws.Tab.Color = RGB(96, 125, 139)
         End If
         ws.Unprotect Password:=SHEET_PASSWORD
-        ws.Range("A1:G1").Value = Array("Import ID", "Imported At", "Kronos File Date", "Employee", "Worked Hours", "Imported By", "Data Through")
-        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1:G2"), , xlYes)
+        ws.Range("A1:H1").Value = Array("Import ID", "Imported At", "Kronos File Date", "Employee", "Worked Hours", "Imported By", "Data Through", "Year")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1:H2"), , xlYes)
         lo.Name = HH_TABLE
         lo.TableStyle = "TableStyleLight9"
         ws.Columns("A").ColumnWidth = 10
@@ -317,24 +354,56 @@ Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As L
         ws.Columns("E").ColumnWidth = 12
         ws.Columns("F").ColumnWidth = 12
         ws.Columns("G").ColumnWidth = 13
+        ws.Columns("H").ColumnWidth = 7
         ProtectSheet ws
     End If
     If Not lo Is Nothing Then EnsureHoursHistoryColumns lo
     Set HoursHistoryTable = lo
 End Function
 
-' v21: a v20 table has 6 columns - add "Data Through" on the end (once)
+' A v20 table has 6 columns: "Data Through" (v21) and "Year" (v23) go on the end, once
 Private Sub EnsureHoursHistoryColumns(ByVal lo As ListObject)
     If lo.ListColumns.Count >= HH_NCOLS Then Exit Sub
     If ThisWorkbook.ReadOnly Then Exit Sub
     Dim ws As Worksheet: Set ws = lo.Parent
     On Error Resume Next
     ws.Unprotect Password:=SHEET_PASSWORD
-    lo.ListColumns.Add.Name = "Data Through"
-    ws.Columns(HH_NCOLS).ColumnWidth = 13
+    If lo.ListColumns.Count < 7 Then
+        lo.ListColumns.Add.Name = "Data Through"
+        ws.Columns(7).ColumnWidth = 13
+    End If
+    If lo.ListColumns.Count < 8 Then
+        lo.ListColumns.Add.Name = "Year"
+        ws.Columns(8).ColumnWidth = 7
+    End If
     ProtectSheet ws
     On Error GoTo 0
 End Sub
+
+' Gives every snapshot that has no Year yet the year y (the rollover stamps
+' the year it is closing, so a late-December snapshot is never read as the
+' new year's hours). Returns how many rows were stamped.
+Public Function StampHoursHistoryYear(ByVal y As Long) As Long
+    Dim lo As ListObject: Set lo = HoursHistoryTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.ListColumns.Count < HH_NCOLS Then Err.Raise vbObjectError + 750, , "the Hours History sheet couldn't be given its Year column"
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim yv As Variant: yv = RangeTo2D(lo.ListColumns(HH_NCOLS).DataBodyRange)
+    Dim idv As Variant: idv = RangeTo2D(lo.ListColumns(1).DataBodyRange)
+    Dim i As Long, n As Long
+    For i = 1 To UBound(yv, 1)
+        If Trim$(SafeStr(yv(i, 1))) = "" And Trim$(SafeStr(idv(i, 1))) <> "" Then
+            yv(i, 1) = y
+            n = n + 1
+        End If
+    Next i
+    If n > 0 Then
+        lo.Parent.Unprotect Password:=SHEET_PASSWORD
+        lo.ListColumns(HH_NCOLS).DataBodyRange.Value = yv
+        ProtectSheet lo.Parent
+    End If
+    StampHoursHistoryYear = n
+End Function
 
 ' Appends the snapshot; returns its Import ID ("KR-0007") or "" on failure
 Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date, ByVal through As Date, _
@@ -342,7 +411,7 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
     Dim lo As ListObject: Set lo = HoursHistoryTable(True)
     If lo Is Nothing Then Exit Function
     If lo.ListColumns.Count < HH_NCOLS Then
-        MsgBox "Worked hours were imported, but the Hours History sheet couldn't be given its Data Through column." & _
+        MsgBox "Worked hours were imported, but the Hours History sheet couldn't be given its Data Through / Year columns." & _
                vbNewLine & "Is the file read-only?", vbExclamation
         Exit Function
     End If
@@ -366,6 +435,10 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
     Dim id As String: id = "KR-" & Format$(mx + 1, "0000")
 
     Dim outA() As Variant: ReDim outA(1 To n, 1 To HH_NCOLS)
+    Dim yrNow As Long
+    On Error Resume Next
+    yrNow = RosterYear()
+    On Error GoTo 0
     For i = 1 To n
         outA(i, 1) = id
         outA(i, 2) = stamp
@@ -374,6 +447,7 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
         outA(i, 5) = histHrs(i)
         outA(i, 6) = CurrentUser()
         outA(i, 7) = through
+        If yrNow > 0 Then outA(i, 8) = yrNow
     Next i
 
     Dim em As String

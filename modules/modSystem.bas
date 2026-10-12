@@ -23,11 +23,11 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v22.1 (Oct 14)"
-Public Const EXPECTED_RELEASE As String = "v22.1"
-Private Const N_MODULES As Long = 15
+Public Const SYS_VERSION As String = "System v23 (Oct 20)"
+Public Const EXPECTED_RELEASE As String = "v23"
+Private Const N_MODULES As Long = 17
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v22"
+Private Const THISWB_RELEASE As String = "v23"
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v22,frmNewPosting|v21,frmPostingEntry|v21,frmShiftSwitch|v21," & _
                                         "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22"
 
@@ -55,6 +55,8 @@ Public Sub SystemCheck()
     VerCheck "modPublish", PUB_VERSION, warn, nOk
     VerCheck "modLeave", LV_VERSION, warn, nOk
     VerCheck "modAttendance", AT_VERSION, warn, nOk
+    VerCheck "modIntegrity", IC_VERSION, warn, nOk
+    VerCheck "modRollover", RO_VERSION, warn, nOk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
@@ -115,6 +117,24 @@ Public Sub SystemCheck()
     Else
         info = info & "OT Log: " & Format$(lo.ListRows.Count, "#,##0") & " rows" & vbNewLine
     End If
+    ' ---- v23: the roster year, year-end folders, integrity ----
+    On Error Resume Next
+    info = info & "Roster year: " & RosterYear() & " (" & (PeriodLastCol() - C_PERIOD1 + 1) & " pay periods from " & _
+           Format$(RosterYearFrom(), "mmm d, yyyy") & ")" & vbNewLine
+    On Error GoTo 0
+    If Not FolderExists(ResolveFolder(ARCHIVE_FOLDER)) Then
+        warn = warn & "- archive folder for the year-end frozen copy can't be reached: " & ResolveFolder(ARCHIVE_FOLDER) & vbNewLine
+    End If
+    Dim rf As String, rfParent As String
+    rf = EnsureSlash(ReportFolder())
+    If Not FolderExists(rf) And Len(rf) > 3 Then
+        rfParent = Left$(rf, InStrRev(rf, "\", Len(rf) - 1))
+        If FolderExists(rfParent) Then
+            warn = warn & "- this year's reports folder doesn't exist yet: " & rf & " (create it; PDFs go next to the workbook until then)" & vbNewLine
+        End If
+    End If
+    If IntegrityStatusText() <> "" Then info = info & IntegrityStatusText() & vbNewLine
+    If IntegrityHasProblems() Then warn = warn & "- the integrity check found problems: run IntegrityCheck" & vbNewLine
     info = info & KronosStatusText() & vbNewLine
     If KronosIsStale() Then warn = warn & "- Kronos data is old: run Import Kronos" & vbNewLine
     info = info & DataThroughText() & vbNewLine
@@ -279,14 +299,7 @@ End Function
 
 ' BACKUP_FOLDER with "." / ".\sub" resolved against the roster's own folder
 Public Function BackupFolderPath() As String
-    Dim p As String: p = Trim$(BACKUP_FOLDER)
-    If p = "" Then Exit Function
-    If p = "." Then
-        p = ThisWorkbook.Path
-    ElseIf Left$(p, 2) = ".\" Then
-        p = EnsureSlash(ThisWorkbook.Path) & Mid$(p, 3)
-    End If
-    BackupFolderPath = EnsureSlash(p)
+    BackupFolderPath = ResolveFolder(BACKUP_FOLDER)
 End Function
 
 Public Sub BackupOnOpen()

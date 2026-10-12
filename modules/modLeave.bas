@@ -21,7 +21,7 @@ Option Explicit
 '  "Leave return", Note = the calculation), undone with Void Entry.
 ' ====================================================================
 
-Public Const LV_VERSION As String = "Leave v22.1 (Oct 14)"
+Public Const LV_VERSION As String = "Leave v23 (Oct 20)"
 Public Const PEER_MAX_GRADE As Double = 2        ' leave top-up peers: grade 2 and below
 Public Const SNAPSHOT_WARN_DAYS As Long = 7      ' flag a snapshot this far from the date wanted
 Public Const IMPORT_WATCH_DAYS As Long = 56      ' Needs Attention: imported lines not yet booked
@@ -208,8 +208,8 @@ Public Sub BeginHoursBatch()
     mHH = CompactHH()
     mLG = CompactLog()
     Dim ws As Worksheet: Set ws = RosterSheet()
-    mYearFrom = CDate(ws.Cells(PStartRow(), C_PERIOD1).Value)
-    mYearTo = CDate(ws.Cells(PEndRow(), C_PERIODN).Value)
+    mYearFrom = RosterYearFrom()
+    mYearTo = RosterYearTo()
     mBatch = True
 End Sub
 
@@ -248,15 +248,35 @@ Private Function CompactHH() As Variant
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
     Dim out() As Variant: ReDim out(1 To UBound(v, 1), 1 To 3)
     Dim i As Long, nc As Long: nc = UBound(v, 2)
+    Dim yrNow As Long, yrFrom As Date
+    On Error Resume Next
+    yrNow = RosterYear(): yrFrom = RosterYearFrom()
+    On Error GoTo 0
     For i = 1 To UBound(v, 1)
         out(i, HH_EMP) = SafeStr(v(i, 4))
         If nc >= 7 Then
             If IsDate(v(i, 7)) Then out(i, HH_THROUGH) = Int(CDate(v(i, 7)))
         End If
         If IsEmpty(out(i, HH_THROUGH)) And IsDate(v(i, 3)) Then out(i, HH_THROUGH) = Int(CDate(v(i, 3))) - 1
+        If nc >= 8 And yrNow > 0 And Not IsEmpty(out(i, HH_THROUGH)) Then       ' v23: the Year column
+            If IsNumeric(v(i, 8)) And Not IsEmpty(v(i, 8)) Then
+                out(i, HH_THROUGH) = SnapshotThroughForYear(CDate(out(i, HH_THROUGH)), CLng(v(i, 8)), yrNow, yrFrom)
+            End If
+        End If
         out(i, HH_HOURS) = NumOr0(v(i, 5))
     Next i
     CompactHH = out
+End Function
+
+' PURE (SelfTest "snapyear"): a snapshot stamped with an EARLIER roster year
+' holds last year's hours even when its data-through date falls inside this
+' year's first period (an import in the last days of December, before the
+' rollover). It is treated as the day before the year starts, so
+' PickSnapshot reads it as last year's. No stamp (0) = judge by date as before.
+Public Function SnapshotThroughForYear(ByVal through As Date, ByVal snapYr As Long, ByVal curYr As Long, ByVal yrFrom As Date) As Date
+    SnapshotThroughForYear = through
+    If snapYr <= 0 Or snapYr >= curYr Then Exit Function
+    If Int(through) >= Int(yrFrom) Then SnapshotThroughForYear = Int(yrFrom) - 1
 End Function
 
 ' OT Log -> (employee, shift date, outcome, status, hours, charged, is night)

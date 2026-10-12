@@ -32,7 +32,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
     Dim rr As Long, cc As Long
     For rr = R_FIRST To lastRow
         If Trim$(SafeStr(ws.Cells(rr, C_NAME).Value)) <> "" Then
-            For cc = C_PERIOD1 To C_PERIODN
+            For cc = C_PERIOD1 To PeriodLastCol()
                 If IsBrokenFormula(ws.Cells(rr, cc)) Then
                     ws.Unprotect Password:=SHEET_PASSWORD
                     WritePeriodRow ws, rr
@@ -43,7 +43,8 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
     Next rr
     Application.Calculate
 
-    Dim nPer As Long: nPer = C_PERIODN - C_PERIOD1 + 1
+    Dim lastPer As Long: lastPer = PeriodLastCol()             ' AS, or AT in a 27-period year (v23)
+    Dim nPer As Long: nPer = lastPer - C_PERIOD1 + 1
     Dim nRows As Long: nRows = lastRow - R_FIRST + 1
     Dim before() As Double: ReDim before(1 To nRows)
     Dim buf() As Variant: ReDim buf(1 To nRows * nPer, 1 To L_NCOLS)
@@ -67,7 +68,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
         If nm <> "" Then
             oldI(r - R_FIRST + 1) = ws.Cells(r, C_REFUSED).Value2
             oldG(r - R_FIRST + 1) = ws.Cells(r, C_TOTAL).Value2
-            For c = C_PERIOD1 To C_PERIODN
+            For c = C_PERIOD1 To lastPer
                 Set cel = ws.Cells(r, c)
                 v = cel.Value2
                 If IsRealNumber(v) Then before(r - R_FIRST + 1) = before(r - R_FIRST + 1) + CDbl(v)
@@ -132,8 +133,6 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
     ' ---- 3. formulas (locked, so they can't be typed over) ----
     ws.Unprotect Password:=SHEET_PASSWORD
     Application.Calculation = xlCalculationManual
-    Dim pf As String, pl As String
-    pf = ColLetter(C_PERIOD1): pl = ColLetter(C_PERIODN)
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
         If nm <> "" Then
@@ -141,8 +140,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
                 If SafeStr(ws.Cells(r, C_NAME).Value) <> nm Then ws.Cells(r, C_NAME).Value = nm
             End If
             WritePeriodRow ws, r
-            ws.Cells(r, C_REFUSED).Formula = "=SUM(" & pf & r & ":" & pl & r & ")"
-            ws.Cells(r, C_REFUSED).Locked = True
+            WriteRefusedRow ws, r
             WriteTotalRow ws, r                   ' v21: C = provisional, G = H + I + C
         End If
     Next r
@@ -158,7 +156,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
         If nm <> "" Then
             k = r - R_FIRST + 1
             afterSum = 0
-            For c = C_PERIOD1 To C_PERIODN
+            For c = C_PERIOD1 To lastPer
                 v = ws.Cells(r, c).Value2
                 If IsRealNumber(v) Then afterSum = afterSum + CDbl(v)
             Next c

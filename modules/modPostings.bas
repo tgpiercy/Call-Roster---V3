@@ -16,7 +16,7 @@ Option Explicit
 ' ====================================================================
 
 ' ---------------- configuration ----------------
-Public Const POST_VERSION As String = "Postings v22.1 (Oct 14)"
+Public Const POST_VERSION As String = "Postings v23 (Oct 20)"
 Public Const POSTINGS_SHEET As String = "Postings"
 Public Const PT_TABLE As String = "tblPostings"
 Public Const PL_TABLE As String = "tblPostingList"
@@ -397,7 +397,7 @@ End Function
 Private Function PostingPdf(ByVal ws As Worksheet, ByRef p As PostRec, ByRef pdfPath As String, _
                             ByRef em As String) As Boolean
     Dim folder As String, subF As String
-    folder = EnsureSlash(REPORT_FOLDER)
+    folder = EnsureSlash(ReportFolder())
     If FolderExists(folder) Then
         subF = folder & POSTING_PDF_SUBFOLDER & Application.PathSeparator
         If Not FolderExists(subF) Then

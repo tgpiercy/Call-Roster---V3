@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v22.1 (Oct 14)"
+Public Const CORE_VERSION As String = "Core v23 (Oct 20)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -40,7 +40,8 @@ Public Const CALLOUT_INCLUDE_DAYS As Boolean = True        ' DAYS employees appe
 Public Const DST_USE_ACTUAL_HOURS As Boolean = True
 Public Const USUAL_SHIFT_HOURS As Double = 12
 
-Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\2026\"
+' {YEAR} is replaced by the roster year (v23), so reports follow the rollover: use ReportFolder()
+Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\{YEAR}\"
 Public Const PUBLISH_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\"
 Public Const PUBLISH_FILE As String = "Call Out Roster - Member View.xlsx"   ' the old values-only file (no longer written from M1)
 Public Const PUBLISH_REASONS As Boolean = False   ' False = leave Reason/Note column out of the member view
@@ -64,6 +65,12 @@ Public Const BACKUP_FOLDER As String = "."
 Public Const BACKUP_KEEP_DAYS As Long = 30
 Public Const BACKUP_BASENAME As String = "Call Out Roster"
 
+' Year end (v23). The frozen copy "Call Out Roster 2026 FINAL.xlsm" goes here at the rollover.
+' "." = the folder the roster is in; ".\Archive" = a subfolder of it (must exist).
+Public Const ARCHIVE_FOLDER As String = "."
+Public Const PAYBACK_WARN_DAYS As Long = 42            ' IntegrityCheck: a shift-switch payback owed longer than this
+Public Const AWAIT_NAME As String = "KronosAwaitFrom"  ' hidden name: after a rollover, Worked (H) stays 0 until Kronos data reaches this date
+
 ' --------------------------------------------------------------------
 '  ROSTER LAYOUT (CALL IN_JAN)
 ' --------------------------------------------------------------------
@@ -82,7 +89,8 @@ Public Const C_REFUSED As Long = 9      ' I  = SUM(period columns)
 Public Const C_SENIORITY As Long = 10   ' J
 Public Const C_EMAIL As Long = 11       ' K  operator email (award emails) - admin view only
 Public Const C_PERIOD1 As Long = 20     ' T  first pay period
-Public Const C_PERIODN As Long = 45     ' AS last pay period
+Public Const C_PERIODN As Long = 45     ' AS 26th pay period (the last one in a 26-period year)
+Public Const C_PERIODX As Long = 46     ' AT 27th pay period: in use only in a 27-period year (first: 2033) - see PeriodLastCol
 Public Const C_LAST As Long = 52        ' AZ - right edge used by sorts (same as the old macros)
 
 ' --------------------------------------------------------------------
@@ -558,13 +566,14 @@ Public Sub EnsureRosterFilter(ByVal ws As Worksheet)
     If lastRow < R_FIRST Then Exit Sub
     If ws.AutoFilterMode Then
         With ws.AutoFilter.Range
+            ' a 27-period year must carry column AT in the filter, or a dropdown sort would leave it behind
             If .Row = R_HDR And .Row + .Rows.Count - 1 = lastRow And _
-               .Column <= 12 And .Column + .Columns.Count - 1 >= 19 Then Exit Sub
+               .Column <= 12 And .Column + .Columns.Count - 1 >= IIf(PeriodLastCol() = C_PERIODX, C_PERIODX, 19) Then Exit Sub
         End With
         If ws.FilterMode Then ws.ShowAllData
         ws.AutoFilterMode = False
     End If
-    ws.Range(ws.Cells(R_HDR, 1), ws.Cells(lastRow, C_PERIODN)).AutoFilter Field:=1    ' creates it (field 1 always exists)
+    ws.Range(ws.Cells(R_HDR, 1), ws.Cells(lastRow, PeriodLastCol())).AutoFilter Field:=1    ' creates it (field 1 always exists)
 
     Dim rng As Range: Set rng = ws.AutoFilter.Range
     Dim k As Long, col As Long
@@ -615,7 +624,7 @@ End Function
 Public Function ProvFormula(ByVal r As Long) As String
     Dim yearFrom As String, yearTo As String
     yearFrom = "$" & ColLetter(C_PERIOD1) & "$" & PStartRow()
-    yearTo = "$" & ColLetter(C_PERIODN) & "$" & PEndRow()
+    yearTo = "$" & ColLetter(PeriodLastCol()) & "$" & PEndRow()
     ProvFormula = "=" & ProvSumIfs(r, "Accepted", False, yearFrom, yearTo) & _
                   "+" & ProvSumIfs(r, "Accepted", True, yearFrom, yearTo) & _
                   "+" & ProvSumIfs(r, "Awarded", False, yearFrom, yearTo) & _
@@ -690,12 +699,18 @@ End Function
 ' FIRST so Excel stores real formulas, then the zero-hiding format goes on.
 ' Sheet must be unprotected.
 Public Sub WritePeriodRow(ByVal ws As Worksheet, ByVal r As Long)
-    With ws.Range(ws.Cells(r, C_PERIOD1), ws.Cells(r, C_PERIODN))
+    With ws.Range(ws.Cells(r, C_PERIOD1), ws.Cells(r, PeriodLastCol()))
         .NumberFormat = "General"
         .Formula = PeriodFormula(r)
         .NumberFormat = PERIOD_FMT
         .Locked = True
     End With
+End Sub
+
+' Refused (column I) = the sum of the row's pay-period cells. Sheet must be unprotected.
+Public Sub WriteRefusedRow(ByVal ws As Worksheet, ByVal r As Long)
+    ws.Cells(r, C_REFUSED).Formula = "=SUM(" & ColLetter(C_PERIOD1) & r & ":" & ColLetter(PeriodLastCol()) & r & ")"
+    ws.Cells(r, C_REFUSED).Locked = True
 End Sub
 
 ' Non-void hours charged in the OT Log for one employee, across the pay
@@ -710,7 +725,7 @@ Public Function LogTotalOnRoster(ByVal empName As String) As Double
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim sRow As Long: sRow = PStartRow()
     Dim f As Long: f = CLng(ws.Cells(sRow, C_PERIOD1).Value2)
-    Dim l As Long: l = CLng(ws.Cells(sRow, C_PERIODN).Value2)
+    Dim l As Long: l = CLng(ws.Cells(sRow, PeriodLastCol()).Value2)
     LogTotalOnRoster = Application.WorksheetFunction.SumIfs( _
         lo.ListColumns(L_CHARGED).DataBodyRange, _
         lo.ListColumns(L_EMP).DataBodyRange, empName, _
@@ -734,7 +749,7 @@ End Function
 Public Function PeriodColumn(ByVal periodStart As Date) As Long
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim j As Long, v As Variant, sRow As Long: sRow = PStartRow()
-    For j = C_PERIOD1 To C_PERIODN
+    For j = C_PERIOD1 To PeriodLastCol()
         v = ws.Cells(sRow, j).Value
         If IsDate(v) Then
             If CLng(CDbl(CDate(v))) = CLng(CDbl(periodStart)) Then
@@ -743,6 +758,79 @@ Public Function PeriodColumn(ByVal periodStart As Date) As Long
             End If
         End If
     Next j
+End Function
+
+' ---- the roster year (v23) ----
+' The year is whatever the roster's date row says: period 1 starts in T2 and
+' is the 14-day period that contains Jan 1. A year has 26 periods, or 27
+' when one more period fits before the next Jan 1 (first: 2033).
+
+' Last pay-period column in use: AT only when its start-date header is the
+' date 14 days after AS's (a 27-period year); otherwise AS.
+Public Function PeriodLastCol() As Long
+    PeriodLastCol = C_PERIODN
+    On Error Resume Next
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim sRow As Long: sRow = PStartRow()
+    Dim a As Variant, b As Variant
+    a = ws.Cells(sRow, C_PERIODN).Value2: b = ws.Cells(sRow, C_PERIODX).Value2
+    If IsError(a) Or IsError(b) Then Exit Function
+    If IsEmpty(a) Or IsEmpty(b) Then Exit Function
+    If Not IsNumeric(a) Or Not IsNumeric(b) Then Exit Function
+    If CDbl(b) = CDbl(a) + 14 Then PeriodLastCol = C_PERIODX
+End Function
+
+' First day of period 1 / last day of the last period on this roster
+Public Function RosterYearFrom() As Date
+    RosterYearFrom = Int(CDate(RosterSheet().Cells(PStartRow(), C_PERIOD1).Value))
+End Function
+
+Public Function RosterYearTo() As Date
+    RosterYearTo = Int(CDate(RosterSheet().Cells(PEndRow(), PeriodLastCol()).Value))
+End Function
+
+' The year this roster is for (2026 for the periods starting Dec 28, 2025)
+Public Function RosterYear() As Long
+    RosterYear = RosterYearOf(RosterYearFrom())
+End Function
+
+' PURE (SelfTest "year"): the year a period-1 start date belongs to
+Public Function RosterYearOf(ByVal firstStart As Date) As Long
+    RosterYearOf = Year(Int(firstStart) + 13)
+End Function
+
+' PURE: first day of the period containing Jan 1 of year y, on the 14-day grid through anchor
+Public Function FirstPeriodStart(ByVal anchor As Date, ByVal y As Long) As Date
+    Dim a As Double: a = Int(CDbl(anchor))
+    Dim x As Double: x = CDbl(DateSerial(y, 1, 1))
+    FirstPeriodStart = CDate(a + 14 * Int((x - a) / 14))      ' Int rounds down for dates before the anchor too
+End Function
+
+' PURE: 26, or 27 when one more period fits before the next year's period 1
+Public Function PeriodsInYear(ByVal anchor As Date, ByVal y As Long) As Long
+    PeriodsInYear = CLng((CDbl(FirstPeriodStart(anchor, y + 1)) - CDbl(FirstPeriodStart(anchor, y))) / 14)
+End Function
+
+' REPORT_FOLDER with {YEAR} filled in from the roster
+Public Function ReportFolder() As String
+    Dim y As Long
+    On Error Resume Next
+    y = RosterYear()
+    On Error GoTo 0
+    If y < 2000 Then y = Year(Date)
+    ReportFolder = Replace(REPORT_FOLDER, "{YEAR}", CStr(y))
+End Function
+
+' A folder setting with "." / ".\sub" resolved against the roster's own folder ("" stays "")
+Public Function ResolveFolder(ByVal p As String) As String
+    p = Trim$(p)
+    If p = "" Then Exit Function
+    If p = "." Then
+        p = ThisWorkbook.Path
+    ElseIf Left$(p, 2) = ".\" Then
+        p = EnsureSlash(ThisWorkbook.Path) & Mid$(p, 3)
+    End If
+    ResolveFolder = EnsureSlash(p)
 End Function
 
 ' True if the period is on this roster, or the user agrees to log it anyway
@@ -833,7 +921,7 @@ End Sub
 ' In admin view every sheet except the OT Log stays unprotected (as the old
 ' password login did), so admins can edit grades, shifts, postings etc.
 Public Sub ProtectSheet(ByVal ws As Worksheet)
-    If gAdminUnlocked And ws.Name <> LOG_SHEET Then
+    If gAdminUnlocked And ws.Name <> LOG_SHEET And Not IsYearEndSheet(ws.Name) Then
         ws.Unprotect Password:=SHEET_PASSWORD
         Exit Sub
     End If
@@ -842,6 +930,11 @@ Public Sub ProtectSheet(ByVal ws As Worksheet)
                AllowSorting:=True, AllowFiltering:=True
     If ws.Name = LOG_SHEET Then ws.EnableOutlining = True     ' +/- on the audit columns
 End Sub
+
+' The archived logs ("OT Log 2026") and the Year End record: never unprotected, even for admins (v23)
+Public Function IsYearEndSheet(ByVal nm As String) As Boolean
+    IsYearEndSheet = (nm Like LOG_SHEET & " ####" Or nm = YE_SHEET)
+End Function
 
 Public Sub ProtectAll()
     Dim ws As Worksheet
@@ -854,7 +947,7 @@ End Sub
 Public Sub ApplyView(ByVal adminView As Boolean)
     gAdminUnlocked = adminView
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET)   ' absences hold leave types - admin only
+    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET)   ' absences hold leave types - admin only
         If SheetExists(CStr(nm)) Then
             If adminView Then
                 ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible
@@ -950,7 +1043,39 @@ Public Function NextEntryID() As Long
             mx = Application.WorksheetFunction.Max(lo.ListColumns(L_ENTRY).DataBodyRange)
         End If
     End If
-    NextEntryID = CLng(mx) + 1
+    NextEntryID = NextNumber(CLng(mx), IdMark("ENTRY"))
+End Function
+
+' ---- ID high-water marks (v23) ----
+' The year-end rollover moves last year's rows out of the live log, so the
+' highest number ever used per prefix is kept in a hidden workbook name
+' (IdMark_S, IdMark_P, IdMark_ADJ, IdMark_ENTRY ...). Marks only go up.
+Public Function IdMark(ByVal prefix As String) As Long
+    Dim nmObj As Name
+    On Error Resume Next
+    Set nmObj = ThisWorkbook.Names("IdMark_" & UCase$(prefix))
+    On Error GoTo 0
+    If nmObj Is Nothing Then Exit Function
+    IdMark = CLng(Val(Mid$(nmObj.RefersTo, 2)))
+End Function
+
+Public Sub SetIdMark(ByVal prefix As String, ByVal n As Long)
+    If n <= IdMark(prefix) Then Exit Sub
+    Dim nmObj As Name, ref As String: ref = "=" & CStr(n)
+    On Error Resume Next
+    Set nmObj = ThisWorkbook.Names("IdMark_" & UCase$(prefix))
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:="IdMark_" & UCase$(prefix), RefersTo:=ref, Visible:=False
+    Else
+        nmObj.RefersTo = ref
+        nmObj.Visible = False
+    End If
+    On Error GoTo 0
+End Sub
+
+' PURE (SelfTest "nextid"): the next number after the highest in the log and the mark
+Public Function NextNumber(ByVal maxInLog As Long, ByVal mark As Long) As Long
+    If mark > maxInLog Then NextNumber = mark + 1 Else NextNumber = maxInLog + 1
 End Function
 
 ' Next ID for a prefix: S-0001 (callout session), P-0001 (posting),
@@ -970,7 +1095,7 @@ Public Function NextRefID(ByVal prefix As String) As String
             Next i
         End If
     End If
-    NextRefID = UCase$(prefix) & "-" & Format$(mx + 1, "0000")
+    NextRefID = UCase$(prefix) & "-" & Format$(NextNumber(mx, IdMark(prefix)), "0000")
 End Function
 
 ' Appends rows to the log. data = 2-D array (1..n, 1..L_NCOLS).

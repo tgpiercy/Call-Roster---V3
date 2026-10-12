@@ -57,6 +57,21 @@ def fmt_num(x: float) -> str:
     return str(int(x)) if float(x).is_integer() else repr(float(x))
 
 
+def case_value(spec: str):
+    """Value specs shared with modSelfTest.CaseValue: empty, err, d:date, n:number, s:text."""
+    if spec == "empty":
+        return None
+    if spec == "err":
+        return ("err",)
+    if spec.startswith("d:"):
+        return d(spec[2:])
+    if spec.startswith("n:"):
+        return float(spec[2:])
+    if spec.startswith("s:"):
+        return spec[2:]
+    raise ValueError(spec)
+
+
 def charged_text(lst: list[rules.Listed]) -> str:
     return ";".join(f"{p.rank}={fmt_num(p.charged)}" for p in sorted(lst, key=lambda p: p.rank))
 
@@ -144,6 +159,22 @@ def evaluate(row: dict) -> str:
         ent = "ENT" if a["entitled"] else "WAIT " + iso(a["wait_until"])
         last = "-" if a["last_sick"] is None else ("PAID" if a["last_paid"] else "UNPAID")
         return f"{a['sick_used']}/{a['paid_used']}/{a['occurrences']}/{a['personal_used']}/{ent}/{last}"
+    if suite == "year":                          # anchor, year -> first period start|periods|roster year
+        st = rules.first_period_start(d(i1), int(i2))
+        return f"{iso(st)}|{rules.periods_in_year(d(i1), int(i2))}|{rules.roster_year_of(st)}"
+    if suite == "nextid":                        # highest in the log, mark -> next number
+        return str(rules.next_number(int(i1), int(i2)))
+    if suite == "cell":                          # F|V, LOG|OTHER|'', value spec -> ok / code
+        text = {"LOG": "=SUMIFS(tblOTLog[x])", "OTHER": "=SUM(A1:A2)"}.get(i2, "")
+        return rules.period_cell_code(i1 == "F", text, case_value(i3)) or "ok"
+    if suite == "dups":                          # 'a;b;a' -> 'a x2' / none
+        return rules.duplicates_in(i1.split(";")) or "none"
+    if suite == "archive":                       # period start spec, cut date -> archive / keep
+        return "archive" if rules.goes_to_archive(case_value(i1), d(i2)) else "keep"
+    if suite == "dryname":                       # file name -> yes / no
+        return "yes" if rules.is_dry_run_name(i1) else "no"
+    if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
+        return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
     if suite == "merge":                         # 'date;date;...' -> 'start..end;...'
         runs = rules.merge_runs([d(p) for p in i1.split(";") if p])
         return ";".join(f"{iso(a)}..{iso(b)}" for a, b in runs)

@@ -562,3 +562,77 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
                entitled=not s["waiting"], wait_until=s["wait_until"], crossed_on=s["crossed"],
                reset_on=s["reset_on"])
     return out
+
+
+
+# ---------------------------------------------------------------------------
+# v23 year end: the roster year, ID marks, integrity helpers, archive split
+# ---------------------------------------------------------------------------
+def first_period_start(anchor: date, y: int) -> date:
+    """modOvertimeEntry.FirstPeriodStart: the period containing Jan 1 of y, on the 14-day grid through anchor."""
+    return anchor + timedelta(days=14 * ((date(y, 1, 1) - anchor).days // 14))
+
+
+def roster_year_of(first_start: date) -> int:
+    return (first_start + timedelta(days=13)).year
+
+
+def periods_in_year(anchor: date, y: int) -> int:
+    return (first_period_start(anchor, y + 1) - first_period_start(anchor, y)).days // 14
+
+
+def next_number(max_in_log: int, mark: int) -> int:
+    """modOvertimeEntry.NextNumber: IDs carry on from the higher of the log and the mark."""
+    return max(max_in_log, mark) + 1
+
+
+def period_cell_code(has_formula: bool, formula_text: str, v) -> str:
+    """modIntegrity.PeriodCellCode. v: None = empty, ('err',) = error value, str, or number."""
+    if has_formula:
+        return "" if "tblotlog" in formula_text.lower() else "notlog"
+    if isinstance(v, tuple):
+        return "error"
+    if v is None:
+        return "empty"
+    if isinstance(v, str):
+        return "textformula" if v.startswith("=") else "text"
+    return "typed"
+
+
+def duplicates_in(keys: list[str]) -> str:
+    """modIntegrity.DuplicatesIn: 'S-0004 x2; P-0010 x3' in first-seen order, '' when none."""
+    seen: dict[str, list] = {}
+    for k in keys:
+        k = k.strip()
+        if not k:
+            continue
+        low = k.lower()
+        if low in seen:
+            seen[low][1] += 1
+        else:
+            seen[low] = [k, 1]
+    return "; ".join(f"{k} x{n}" for k, n in seen.values() if n > 1)
+
+
+def goes_to_archive(period_start, cut: date) -> bool:
+    """modRollover.GoesToArchive. period_start: None (empty), str (text), date, or an Excel serial number."""
+    if period_start is None or isinstance(period_start, str):
+        return False
+    if isinstance(period_start, date):
+        return period_start < cut
+    serial = int(period_start // 1)
+    if serial <= 0:
+        return False
+    return date(1899, 12, 30) + timedelta(days=serial) < cut
+
+
+def is_dry_run_name(file_name: str) -> bool:
+    u = file_name.upper()
+    return any(t in u for t in ("COPY", "DRY RUN", "DRYRUN", "DRY-RUN"))
+
+
+def snapshot_through_for_year(through: date, snap_yr: int, cur_yr: int, yr_from: date) -> date:
+    """modLeave.SnapshotThroughForYear."""
+    if snap_yr <= 0 or snap_yr >= cur_yr:
+        return through
+    return yr_from - timedelta(days=1) if through >= yr_from else through

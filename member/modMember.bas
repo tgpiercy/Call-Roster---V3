@@ -16,7 +16,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members v22.1 (Oct 14)"
+Public Const MEM_VERSION As String = "Members v23 (Oct 20)"
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"

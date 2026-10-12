@@ -295,8 +295,8 @@ Public Function AttendanceFor(ByVal emp As String, ByVal asOf As Date, ByRef st 
                     If nS > UBound(sd) Then ReDim Preserve sd(1 To nS + 20): ReDim Preserve sn(1 To nS + 20)
                     sd(nS) = Int(CDate(mAbsV(r, AB_START)))
                     If hasShiftCol Then sn(nS) = IsNightShift(SafeStr(mAbsV(r, AB_SHIFT))) Else sn(nS) = False
-                    If addDate > 0 Then
-                        If sd(nS) = Int(addDate) And sn(nS) = IsNightShift(addShift) Then addDate = 0   ' already saved: preview it as is
+                    If addDate > 0 Then                      ' already saved: preview it as is (no Shift column = any shift that day)
+                        If sd(nS) = Int(addDate) And (Not hasShiftCol Or sn(nS) = IsNightShift(addShift)) Then addDate = 0
                     End If
                 ElseIf code = "PER" Then
                     e1 = Int(CDate(mAbsV(r, AB_START)))

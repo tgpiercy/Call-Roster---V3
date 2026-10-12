@@ -553,8 +553,8 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
             if not s["waiting"] and s["used"] + s["per"] > COMBINED_LIMIT:
                 start_wait(d)
     advance_to(as_of)
-    paid_left = max(0, PAID_SICK_DAYS - s["used"])
-    if s["occ"] >= PAID_SICK_OCC or s["waiting"]:
+    paid_left = max(0, PAID_SICK_DAYS - s["used"])      # days still payable inside the current occurrences
+    if s["waiting"]:
         paid_left = 0
     out.update(window_start=s["window"], sick_used=s["used"], paid_used=s["paid"], paid_left=paid_left,
                occurrences=s["occ"], occ_dates=list(s["occ_txt"]), personal_used=s["per"],

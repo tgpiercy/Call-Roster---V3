@@ -479,7 +479,8 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
     personal day (scheduled shift). Returns the status fields as a dict."""
     events = [(d, n, 1) for d, n in sick if d <= as_of] + [(d, False, 2) for d in per if d <= as_of]
     events.sort(key=lambda e: _ev_pos(*e))
-    s = dict(next_jan1=date(as_of.year, 1, 1), window=date(as_of.year - 1, 1, 1),
+    y0 = min([as_of.year] + [e[0].year for e in events])
+    s = dict(next_jan1=date(y0 + 1, 1, 1), window=date(y0, 1, 1),
              waiting=False, wait_until=None, crossed=None, reset_on=None,
              used=0, paid=0, occ=0, occ1=None, occ2=None, occ_txt=[], per=0,
              have_last=False, last_d=None, last_n=False)

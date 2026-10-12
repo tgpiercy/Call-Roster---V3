@@ -88,8 +88,9 @@ Private mBatch As Boolean
 
 ' sickD/sickN: each sick shift (date, night?); perD: each personal day
 ' (one entry per scheduled shift inside a personal booking). Events after
-' asOf are ignored. Only the previous calendar year and the current one
-' are read (the previous year decides a wait that carries over Jan 1).
+' asOf are ignored. Every earlier row is replayed from Jan 1 of its year:
+' a wait set one year restarts the next year part-way, which changes the
+' year after that, so no fixed look-back is safe (the table is small).
 Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef sickN() As Boolean, ByVal nSick As Long, _
                           ByRef perD() As Date, ByVal nPer As Long, ByVal asOf As Date, ByRef st As AttendanceStatus)
     Dim blank As AttendanceStatus: st = blank
@@ -119,8 +120,12 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
         evD(j + 1) = tD: evN(j + 1) = tN: evK(j + 1) = tK
     Next i
 
-    mS.WindowStart = DateSerial(Year(asOf) - 1, 1, 1)
-    mS.NextJan1 = DateSerial(Year(asOf), 1, 1)
+    Dim y0 As Long: y0 = Year(asOf)
+    If m > 0 Then
+        If Year(evD(1)) < y0 Then y0 = Year(evD(1))
+    End If
+    mS.WindowStart = DateSerial(y0, 1, 1)
+    mS.NextJan1 = DateSerial(y0 + 1, 1, 1)
     Dim paid As Boolean, why As String, sameOcc As Boolean
     For i = 1 To m
         If evD(i) >= mS.WindowStart Then
@@ -173,9 +178,8 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
     st.WindowStart = mS.WindowStart
     st.SickUsed = mS.Used
     st.PaidUsed = mS.Paid
-    st.PaidLeft = PAID_SICK_DAYS - mS.Used
+    st.PaidLeft = PAID_SICK_DAYS - mS.Used              ' days still payable inside the current occurrences
     If st.PaidLeft < 0 Then st.PaidLeft = 0
-    If mS.Occ >= PAID_SICK_OCC Then st.PaidLeft = 0
     st.Occurrences = mS.Occ
     st.OccDates = mS.OccTxt
     st.PersonalUsed = mS.Per
@@ -291,6 +295,9 @@ Public Function AttendanceFor(ByVal emp As String, ByVal asOf As Date, ByRef st 
                     If nS > UBound(sd) Then ReDim Preserve sd(1 To nS + 20): ReDim Preserve sn(1 To nS + 20)
                     sd(nS) = Int(CDate(mAbsV(r, AB_START)))
                     If hasShiftCol Then sn(nS) = IsNightShift(SafeStr(mAbsV(r, AB_SHIFT))) Else sn(nS) = False
+                    If addDate > 0 Then
+                        If sd(nS) = Int(addDate) And sn(nS) = IsNightShift(addShift) Then addDate = 0   ' already saved: preview it as is
+                    End If
                 ElseIf code = "PER" Then
                     e1 = Int(CDate(mAbsV(r, AB_START)))
                     If IsDate(mAbsV(r, AB_END)) Then e2 = Int(CDate(mAbsV(r, AB_END))) Else e2 = Int(asOf)
@@ -373,17 +380,21 @@ End Function
 '  row's note says what the rule made of it. No OPEN line, no call-out.
 ' ====================================================================
 Public Function SaveSickPast(ByVal emp As String, ByVal unit As String, ByVal d1 As Date, ByVal d2 As Date, _
-                             ByVal note As String) As Long
+                             ByVal note As String, Optional ByVal hrs As Variant = Empty) As Long
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     If d2 < d1 Then Exit Function
+    If Not AbsenceColumnsCurrent() Then
+        MsgBox "The Absences table needs its v22 columns first: run Alt+F8 > UpgradeAbsenceColumns.", vbExclamation
+        Exit Function
+    End If
     If d2 - d1 > 120 Then d2 = d1 + 120
     Dim x As Date, sh As String, id As String, made As Long, outcome As String
     For x = Int(d1) To Int(d2)
         sh = EmpShiftOn(emp, x)
-        If sh <> "" Then
+        If sh <> "" And Not HasSickRow(emp, x, sh) Then          ' never a second row for the same shift
             outcome = SickOutcome(emp, x, sh)
-            id = SaveAbsence(emp, unit, "SIC", x, x, Empty, "", "Past sick day" & IIf(note = "", "", " - " & note) & _
+            id = SaveAbsence(emp, unit, "SIC", x, x, hrs, "", "Past sick day" & IIf(note = "", "", " - " & note) & _
                              IIf(outcome = "", "", " - " & outcome), HomeUnitOf(emp), "", sh, "SC", True)
             If id <> "" Then made = made + 1
         End If
@@ -394,6 +405,22 @@ Public Function SaveSickPast(ByVal emp As String, ByVal unit As String, ByVal d1
         SaveIfWritable
     End If
     SaveSickPast = made
+End Function
+
+
+' True when emp already has a live SIC row for that date and shift
+Public Function HasSickRow(ByVal emp As String, ByVal d As Date, ByVal shiftLbl As String) As Boolean
+    Dim v As Variant: v = AbsTableData()
+    If Not IsArray(v) Then Exit Function
+    Dim r As Long, hasShiftCol As Boolean: hasShiftCol = (UBound(v, 2) >= AB_SHIFT)
+    For r = 1 To UBound(v, 1)
+        If UCase$(SafeStr(v(r, AB_TYPE))) = "SIC" And UCase$(SafeStr(v(r, AB_STATUS))) <> "VOID" And IsDate(v(r, AB_START)) Then
+            If StrComp(Trim$(SafeStr(v(r, AB_EMP))), Trim$(emp), vbTextCompare) = 0 And Int(CDate(v(r, AB_START))) = Int(d) Then
+                If Not hasShiftCol Then HasSickRow = True: Exit Function
+                If IsNightShift(SafeStr(v(r, AB_SHIFT))) = IsNightShift(shiftLbl) Then HasSickRow = True: Exit Function
+            End If
+        End If
+    Next r
 End Function
 
 
@@ -414,12 +441,13 @@ End Function
 
 Public Sub ShowAttendance()
     If Not RequireAdmin() Then Exit Sub
-    Dim ws As Worksheet: Set ws = AttendanceSheet(True)
-    If ws Is Nothing Then MsgBox "The Attendance sheet couldn't be created.", vbExclamation: Exit Sub
+    Dim ws As Worksheet
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     On Error GoTo Failed
+    Set ws = AttendanceSheet(True)
+    If ws Is Nothing Then Err.Raise vbObjectError + 701, , "the sheet couldn't be created (is the workbook structure protected?)"
     ws.Visible = xlSheetVisible
     ws.Unprotect Password:=SHEET_PASSWORD
     ws.Cells.Clear
@@ -520,7 +548,8 @@ Public Sub ShowAttendance()
 Failed:
     Dim em As String: em = Err.Description
     On Error Resume Next
-    ProtectSheet ws
+    EndAttendanceBatch                          ' never leave the stale snapshot behind
+    If Not ws Is Nothing Then ProtectSheet ws
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
     MsgBox "The Attendance sheet couldn't be drawn: " & em, vbExclamation

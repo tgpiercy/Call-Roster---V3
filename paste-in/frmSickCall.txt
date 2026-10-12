@@ -94,9 +94,9 @@ Private Sub UserForm_Initialize()
 
     ' v22.1: sick / personal day counters and whether this shift is paid
     Set o = AddLabel("hAtt", "", LBL_L, RowT(7) + 2, 372)
-    o.Height = 40: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(120, 60, 0)
+    o.Height = 48: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(120, 60, 0)
 
-    Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(9) - 6, 372)
+    Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(9) + 2, 372)
     o.Height = 26: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(30, 56, 100)
 
     Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(10) + 2, 200, 30)
@@ -184,6 +184,11 @@ Private Function SaveIt() As String
     Dim h As String: h = Trim$(C("txtHours").Text)
     If h = "" Or Not IsNumeric(h) Then problems = problems & "- Hours" & vbNewLine
     If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Sick Call": Exit Function
+    If HasSickRow(mEmp.Text, d, mShift.Text) Then            ' v22.1: already logged (e.g. Save only, then reopened)
+        MsgBox mEmp.Text & " is already booked sick for " & Format$(d, "ddd mmm d") & " " & mShift.Text & _
+               ". Void that booking in Book Time Off if it was wrong.", vbExclamation, "Sick Call"
+        Exit Function
+    End If
     If Abs(Int(d) - Int(Date)) > 7 Then
         If MsgBox("That date is " & Abs(Int(d) - Int(Date)) & " days from today. Save it anyway?", vbYesNo + vbQuestion) = vbNo Then Exit Function
     End If

@@ -356,13 +356,14 @@ Private Sub mSave_Click()
 
     Dim code As String: code = TypeCode(C("cboType").Text)
     Dim id As String
+    If code = "PER" And mOpen.Value Then MsgBox "Personal days need an end date (each scheduled shift counts as one day).", vbExclamation: Exit Sub
     If code = "SIC" Then                          ' v22.1: past sick days, one row per scheduled shift
         If mOpen.Value Then MsgBox "Past sick days need an end date.", vbExclamation: Exit Sub
         Dim nSick As Long
-        nSick = SaveSickPast(mEmp.Text, C("cboUnit").Text, ds, CDate(de), Trim$(C("txtNote").Text))
+        nSick = SaveSickPast(mEmp.Text, C("cboUnit").Text, ds, CDate(de), Trim$(C("txtNote").Text), HoursValue())
         If nSick = 0 Then
             MsgBox "No sick days were recorded: " & mEmp.Text & " has no scheduled shift between " & _
-                   Format$(ds, "mmm d") & " and " & Format$(de, "mmm d") & " (or the file is read-only).", vbExclamation
+                   Format$(ds, "mmm d") & " and " & Format$(de, "mmm d") & " that isn't already booked sick (or the file is read-only).", vbExclamation
             Exit Sub
         End If
         LoadList

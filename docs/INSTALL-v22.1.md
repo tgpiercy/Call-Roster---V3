@@ -31,7 +31,7 @@ No message expected.
 Expect **"Modules: 15 of 15 on v22.1"** and no form or ThisWorkbook line.
 
 ## 7. SelfTest (Alt+F8)
-Expect **"198 passed, 0 failed"** (16 new `attend` cases).
+Expect **"200 passed, 0 failed"** (18 new `attend` cases).
 
 ## 8. Members' template (optional)
 `member/modMember.bas` only gained a colour for personal days. Re-import it in the template when convenient (Remove + Import `modMember`, Compile, save), then click Member View once.

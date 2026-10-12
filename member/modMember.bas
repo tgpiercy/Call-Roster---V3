@@ -2,12 +2,21 @@ Attribute VB_Name = "modMember"
 Option Explicit
 
 ' ====================================================================
-'  CALL OUT ROSTER - MEMBERS' WORKBOOK (M1)
+'  CALL OUT ROSTER - MEMBERS' WORKBOOK (M1, M2)
 '  This module lives in the members' file, NOT in the master. It holds
 '  no rules: everything it shows was worked out by the master and
 '  pushed here as values (the very hidden sheets dMeta, dRoster, dNext,
-'  dCal, dPost, dPostList, dLog). The code only sorts, filters and
-'  looks those values up.
+'  dCal, dPost, dPostList, dLog, dAttend). The code only sorts, filters
+'  and looks those values up.
+'
+'  M2: Find me fills in the person's home unit on every sheet and draws
+'  a "Where I stand" card on Home (hours, Refused by kind, call positions,
+'  sick time COUNTS, the postings they can sign up for). The calendar is
+'  the master's month grid. Postings: mine first, one plain table of all
+'  open postings, and Sign me up / Withdraw, which drop ONE small text
+'  file into the sign-up inbox folder the master published. That file is
+'  a request: the master's Award pop-up decides what it means. This
+'  workbook is never written to.
 '
 '  BuildMemberTemplate (Alt+F8, once, in a blank .xlsm with this module
 '  and the ThisWorkbook code): lays out every sheet and button.
@@ -16,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members v23 (Oct 20)"
+Public Const MEM_VERSION As String = "Members M2 (Jan 5)"
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -40,7 +49,10 @@ Private Const RC_TOTAL As Long = 4
 Private Const RC_WORKED As Long = 5
 Private Const RC_REFUSED As Long = 6
 Private Const RC_PROV As Long = 7
-Private Const RC_FIXED As Long = 7
+Private Const RC_RCALL As Long = 8                ' M2: Refused = call-out + posting + other
+Private Const RC_RPOST As Long = 9
+Private Const RC_ROTHER As Long = 10
+Private Const RC_FIXED As Long = 10
 
 ' picker cells (unlocked; a change redraws the view)
 Private Const ROSTER_FIND As String = "C2"
@@ -48,9 +60,15 @@ Private Const ROSTER_CREW As String = "F2"
 Private Const NEXT_UNIT As String = "B2"
 Private Const NEXT_DATE As String = "D2"
 Private Const NEXT_SHIFT As String = "F2"
-Private Const CAL_MONTH As String = "B2"
-Private Const CAL_UNIT As String = "D2"
+Private Const CAL_MONTH As String = "C2"
+Private Const CAL_UNIT As String = "G2"            ' a calendar group (the master's groups) or All units
 Private Const HIST_NAME As String = "B2"
+Private Const HOME_FIND As String = "C14"
+Private Const POST_PICK As String = "C2"           ' Postings: "show the list for"
+Private Const CARD_ROW As Long = 21                ' Home: the Where I stand card starts here
+Private Const CAL_COLW As Double = 17              ' calendar: width of each half of a day
+Private Const US As String = "~|~"                 ' separators for the calendar's per-day line lists
+Private Const RS As String = "~#~"
 
 Private mDrawing As Boolean
 
@@ -248,7 +266,7 @@ Public Sub BuildMemberTemplate()
     Application.ScreenUpdating = False
     Dim nm As Variant, ws As Worksheet
     ' data sheets (very hidden)
-    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", SH_LISTS)
+    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", "dAttend", SH_LISTS)
         Set ws = WsOf(CStr(nm), True)
         UnprotectWs ws
         ws.Visible = xlSheetVeryHidden
@@ -310,12 +328,13 @@ Private Sub LayoutHome()
     Btn ws, "mb_cal", "CALENDAR", "MemberGoCalendar", lft + 320, top, 150, 44, RGB(31, 56, 100), vbWhite
     Btn ws, "mb_post", "OPEN POSTINGS", "MemberGoPostings", lft, top + 54, 150, 44, RGB(93, 64, 55), vbWhite
     Btn ws, "mb_hist", "MY HISTORY", "MemberGoHistory", lft + 160, top + 54, 150, 44, RGB(106, 27, 154), vbWhite
-    Picker ws, "C14", "", "Find me:"
-    ws.Range("C14").ColumnWidth = 26
+    Picker ws, HOME_FIND, "", "Find me:"
+    ws.Range(HOME_FIND).ColumnWidth = 26
     Btn ws, "mb_find", "Show me on the roster", "MemberFindFromHome", ws.Range("D14").Left + 4, ws.Range("D14").Top - 2, 150, 20, LIGHT, INK
+    Btn ws, "mb_notme", "Not me (clear)", "MemberNotMe", ws.Range("D14").Left + 160, ws.Range("D14").Top - 2, 110, 20, vbWhite, RGB(100, 100, 100)
     With ws.Range("B17")
-        .Value = "Hours and call order are worked out by the supervisors' roster and published here as values. " & _
-                 "Sign-up for postings is still on the paper sheet. Leave shows only as 'Leave'."
+        .Value = "Pick your name in Find me: every sheet opens on your home unit and your own figures show below. " & _
+                 "Hours and call order are worked out by the supervisors' roster and published here as values. Leave shows only as 'Leave'."
         .Font.Size = 8.5: .Font.Italic = True: .Font.Color = RGB(100, 100, 100)
     End With
     ws.Range("B17:H17").Merge
@@ -337,9 +356,10 @@ Private Sub LayoutRoster()
     ws.Columns("B").ColumnWidth = 7
     ws.Columns("C").ColumnWidth = 14
     ws.Range("D:G").ColumnWidth = 8
+    ws.Columns("H").ColumnWidth = 22                  ' M2: Refused by kind
     Picker ws, ROSTER_FIND, "", "Find me:"
     Picker ws, ROSTER_CREW, "", "Crew:"
-    Dim x As Double: x = ws.Range("H1").Left
+    Dim x As Double: x = ws.Range("I1").Left
     Dim y As Double: y = ws.Range("A1").Top + 2
     Btn ws, "mb_az", "A - Z", "MemberShowAll", x, y, 60, 22, LIGHT, INK
     Btn ws, "mb_find", "Find me", "MemberFindMe", x + 66, y, 66, 22, LIGHT, INK
@@ -371,15 +391,21 @@ Private Sub LayoutCalendar()
     UnprotectWs ws
     ws.Cells.Clear
     ws.Cells.Font.Name = "Segoe UI": ws.Cells.Font.Size = 9: ws.Cells.Font.Color = INK
-    Title ws, "COVERAGE CALENDAR", "Pick a month and a unit. Each day shows who is off (and who covers) on days and nights. " & _
+    Title ws, "COVERAGE CALENDAR", "Pick a month and a group. Each day: who is off on the left, who covers on the right; days (yellow) above nights (blue). " & _
                                    "OPEN = still needs cover. Leave shows only as 'Leave'."
-    ws.Columns("A").ColumnWidth = 12
-    ws.Columns("B").ColumnWidth = 18
-    ws.Columns("C").ColumnWidth = 52
-    ws.Columns("D").ColumnWidth = 14
-    ws.Columns("E").ColumnWidth = 52
+    Dim k As Long
+    ws.Columns(1).ColumnWidth = 3
+    For k = 2 To 15
+        ws.Columns(k).ColumnWidth = CAL_COLW
+    Next k
     Picker ws, CAL_MONTH, "", "Month:"
-    Picker ws, CAL_UNIT, "", "Unit:"
+    Picker ws, CAL_UNIT, "", "Group:"
+    ws.Range(ws.Range(CAL_UNIT), ws.Range(CAL_UNIT).Offset(0, 1)).Merge
+    Dim y As Double: y = ws.Rows(2).Top
+    Dim x As Double: x = ws.Columns(10).Left
+    Btn ws, "mb_cprev", "< Month", "MemberCalPrev", x, y, 70, 18, LIGHT, INK
+    Btn ws, "mb_cnext", "Month >", "MemberCalNext", x + 76, y, 70, 18, LIGHT, INK
+    Btn ws, "mb_cprint", "Print", "MemberCalPrint", x + 152, y, 60, 18, NAVY, vbWhite
     ProtectWs ws
 End Sub
 
@@ -388,12 +414,18 @@ Private Sub LayoutPostings()
     UnprotectWs ws
     ws.Cells.Clear
     ws.Cells.Font.Name = "Segoe UI": ws.Cells.Font.Size = 10: ws.Cells.Font.Color = INK
-    Title ws, "OPEN POSTINGS", "Postings still open for sign-up, with the people listed on each (in call order). Sign up on the paper sheet."
+    Title ws, "OPEN POSTINGS", "Pick your name on Home to see the postings you can sign up for. Below them: every open posting in one table."
     ws.Columns("A").ColumnWidth = 10
-    ws.Columns("B").ColumnWidth = 26
-    ws.Columns("C").ColumnWidth = 10
-    ws.Columns("D").ColumnWidth = 12
-    ws.Columns("E").ColumnWidth = 34
+    ws.Columns("B").ColumnWidth = 22
+    ws.Columns("C").ColumnWidth = 16
+    ws.Columns("D").ColumnWidth = 9
+    ws.Columns("E").ColumnWidth = 8
+    ws.Columns("F").ColumnWidth = 16
+    ws.Columns("G").ColumnWidth = 22
+    ws.Columns("H").ColumnWidth = 16
+    ws.Columns("I").ColumnWidth = 12
+    ws.Columns("J").ColumnWidth = 12
+    Picker ws, POST_PICK, "", "Show the list for:"
     ProtectWs ws
 End Sub
 
@@ -433,6 +465,7 @@ Public Sub MemberRefreshAll()
     DrawCalendarDefault
     MemberShowPostings
     DrawHistory ""
+    DrawHomeCard
 Done:
     mDrawing = False
     MarkClean
@@ -446,13 +479,14 @@ Private Sub MarkClean()
     ThisWorkbook.Saved = True
 End Sub
 
-' picker lists on dLists: A names, B units (+ All units), C shifts, D next dates, E months
+' picker lists on dLists: A names, B units (+ All units), C shifts, D next dates, E months,
+' F open posting IDs, G calendar groups (M2)
 Private Sub BuildLists()
     Dim ws As Worksheet: Set ws = WsOf(SH_LISTS, True)
     UnprotectWs ws
     ws.Cells.ClearContents
-    ws.Columns("A:E").NumberFormat = "@"           ' lists are text: "Oct 2026" must not become a date
-    Dim v As Variant, i As Long, nNames As Long, nUnits As Long, nMonths As Long
+    ws.Columns("A:G").NumberFormat = "@"           ' lists are text: "Oct 2026" must not become a date
+    Dim v As Variant, i As Long, nNames As Long, nUnits As Long, nMonths As Long, nPosts As Long, nGroups As Long
     v = Data("dRoster")
     If IsArray(v) Then
         Dim names() As String: ReDim names(1 To UBound(v, 1))
@@ -495,6 +529,18 @@ Private Sub BuildLists()
             End If
         Next i
     End If
+    ' open postings (M2)
+    v = Data("dPost")
+    If IsArray(v) Then
+        For i = 2 To UBound(v, 1)
+            If Txt(v(i, 1)) <> "" Then nPosts = nPosts + 1: ws.Cells(nPosts, 6).Value = Txt(v(i, 1))
+        Next i
+    End If
+    ' calendar groups, as the master's calendar offers them (M2)
+    Dim g As Variant
+    For Each g In Split(Txt(Meta("Calendar groups")), ";")
+        If InStr(CStr(g), "|") > 0 Then nGroups = nGroups + 1: ws.Cells(nGroups, 7).Value = Split(CStr(g), "|")(0)
+    Next g
     ProtectWs ws
     ' point the pickers at the lists (an empty list = no drop-down until the first publish)
     Dim crews As String: crews = Replace(Txt(Meta("Crews")), "|", ",")
@@ -505,9 +551,10 @@ Private Sub BuildLists()
     SetList WsOf(SH_NEXT), NEXT_DATE, ListRef("D", nDays)
     SetList WsOf(SH_NEXT), NEXT_SHIFT, ListRef("C", 2)
     SetList WsOf(SH_CAL), CAL_MONTH, ListRef("E", nMonths)
-    SetList WsOf(SH_CAL), CAL_UNIT, ListRef("B", IIf(nUnits > 0, nUnits + 1, 0))
+    SetList WsOf(SH_CAL), CAL_UNIT, ListRef("G", nGroups)
     SetList WsOf(SH_HIST), HIST_NAME, ListRef("A", nNames)
-    SetList WsOf(SH_HOME), "C14", ListRef("A", nNames)
+    SetList WsOf(SH_HOME), HOME_FIND, ListRef("A", nNames)
+    SetList WsOf(SH_POST), POST_PICK, ListRef("F", nPosts)
 End Sub
 
 Private Function ListRef(ByVal col As String, ByVal n As Long) As String
@@ -570,25 +617,146 @@ Public Sub MemberSortUnit(ByVal unit As String)
     DrawRoster unit, unit & " call order"
 End Sub
 
+' Find me on the Roster sheet (button, or its picker cell)
 Public Sub MemberFindMe()
-    Dim ws As Worksheet: Set ws = WsOf(SH_ROSTER)
-    Dim nm As String: nm = Txt(ws.Range(ROSTER_FIND).Value)
+    Dim nm As String: nm = Txt(WsOf(SH_ROSTER).Range(ROSTER_FIND).Value)
     If nm = "" Then MsgBox "Pick your name in the Find me box first.", vbInformation: Exit Sub
-    DrawRoster "", "A - Z", nm
+    ApplyMe nm, SH_ROSTER
 End Sub
 
+' Home: the "Show me on the roster" button
 Public Sub MemberFindFromHome()
-    Dim nm As String: nm = Txt(WsOf(SH_HOME).Range("C14").Value)
+    Dim nm As String: nm = WhoAmI()
     If nm = "" Then MsgBox "Pick your name first.", vbInformation: Exit Sub
-    Dim evWas As Boolean: evWas = Application.EnableEvents
-    Application.EnableEvents = False                   ' writing the picker must not trigger a second draw
-    UnprotectWs WsOf(SH_ROSTER)
-    WsOf(SH_ROSTER).Range(ROSTER_FIND).Value = nm
-    ProtectWs WsOf(SH_ROSTER)
-    Application.EnableEvents = evWas
-    DrawRoster "", "A - Z", nm
-    WsOf(SH_ROSTER).Activate
+    ApplyMe nm, SH_ROSTER
 End Sub
+
+' Home: back to the neutral views
+Public Sub MemberNotMe()
+    ApplyMe "", SH_HOME
+End Sub
+
+' The name picked in Find me on Home ("" = nobody). Nothing is remembered
+' between opens: the published file always starts with no name.
+Private Function WhoAmI() As String
+    WhoAmI = Txt(WsOf(SH_HOME).Range(HOME_FIND).Value)
+End Function
+
+Private Sub SetCell(ByVal ws As Worksheet, ByVal addr As String, ByVal txtVal As String)
+    UnprotectWs ws
+    ws.Range(addr).Value = txtVal
+    ProtectWs ws
+End Sub
+
+' M2: one name drives every sheet. The Roster opens sorted for the person's
+' home unit with their row highlighted; Who's next and the Calendar open on
+' the same unit; My history, the Postings and the Home card show theirs.
+Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim suWas As Boolean: suWas = Application.ScreenUpdating
+    Dim homeU As String, grp As String
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    mDrawing = True
+    On Error GoTo Done
+    SetCell WsOf(SH_HOME), HOME_FIND, nm
+    SetCell WsOf(SH_ROSTER), ROSTER_FIND, nm
+    SetCell WsOf(SH_HIST), HIST_NAME, nm
+    homeU = HomeUnitOf(nm)
+    If homeU <> "" Then
+        SetCell WsOf(SH_NEXT), NEXT_UNIT, homeU
+        grp = GroupOfUnit(homeU)
+        If grp <> "" Then SetCell WsOf(SH_CAL), CAL_UNIT, grp
+        DrawRoster homeU, homeU & " call order", nm
+    ElseIf nm <> "" Then
+        DrawRoster "", "A - Z  (no home unit on file for " & nm & ")", nm
+    Else
+        DrawRoster "", "A - Z"
+    End If
+    MemberShowNext
+    MemberShowCalendar
+    DrawHistory nm
+    MemberShowPostings
+    DrawHomeCard
+Done:
+    mDrawing = False
+    On Error Resume Next
+    WsOf(stayOn).Activate
+    If stayOn = SH_HOME Then WsOf(SH_HOME).Range(HOME_FIND).Select
+    MarkClean
+    Application.ScreenUpdating = suWas
+    Application.EnableEvents = evWas
+End Sub
+
+' ---- lookups in the published roster (values only) ----
+Private Function RosterRowOf(ByRef v As Variant, ByVal nm As String) As Long
+    If Not IsArray(v) Or nm = "" Then Exit Function
+    Dim i As Long
+    For i = 2 To UBound(v, 1)
+        If StrComp(Txt(v(i, RC_NAME)), nm, vbTextCompare) = 0 Then RosterRowOf = i: Exit Function
+    Next i
+End Function
+
+Private Function HomeUnitOf(ByVal nm As String) As String
+    Dim v As Variant: v = Data("dRoster")
+    Dim r As Long: r = RosterRowOf(v, nm)
+    If r > 0 Then HomeUnitOf = Txt(v(r, RC_HOME))
+End Function
+
+' dRoster column of a unit's code (its call position is the next column); 0 = unknown unit
+Private Function UnitCodeCol(ByVal unit As String) As Long
+    Dim units As Variant: units = UnitList()
+    Dim i As Long
+    For i = LBound(units) To UBound(units)
+        If StrComp(Txt(units(i)), unit, vbTextCompare) = 0 Then UnitCodeCol = RC_FIXED + 2 * (i - LBound(units)) + 1: Exit Function
+    Next i
+End Function
+
+' "63  (call-out 42 / posting 21)" - "other" only when it isn't zero
+Private Function RefusedKinds(ByRef v As Variant, ByVal r As Long) As String
+    If UBound(v, 2) < RC_ROTHER Then Exit Function
+    RefusedKinds = "call-out " & NumTxt(Num(v(r, RC_RCALL))) & " / posting " & NumTxt(Num(v(r, RC_RPOST)))
+    If Abs(Num(v(r, RC_ROTHER))) > 0.0001 Then RefusedKinds = RefusedKinds & " / other " & NumTxt(Num(v(r, RC_ROTHER)))
+End Function
+
+' 8 -> "8", 22.75 -> "22.75" (Format$(8, "0.##") gives "8.")
+Private Function NumTxt(ByVal x As Double) As String
+    NumTxt = CStr(Round(x, 2))
+End Function
+
+' The master's calendar groups: "Name|Unit,Unit;Name|Unit;All units|*"
+Private Function InGroup(ByVal unit As String, ByVal groupName As String) As Boolean
+    Dim g As Variant, parts As Variant, u As Variant
+    If groupName = "" Then InGroup = True: Exit Function
+    For Each g In Split(Txt(Meta("Calendar groups")), ";")
+        parts = Split(CStr(g), "|")
+        If UBound(parts) >= 1 Then
+            If StrComp(CStr(parts(0)), groupName, vbTextCompare) = 0 Then
+                If CStr(parts(1)) = "*" Then InGroup = True: Exit Function
+                For Each u In Split(CStr(parts(1)), ",")
+                    If StrComp(Trim$(CStr(u)), Trim$(unit), vbTextCompare) = 0 Then InGroup = True: Exit Function
+                Next u
+                Exit Function
+            End If
+        End If
+    Next g
+    InGroup = (StrComp(unit, groupName, vbTextCompare) = 0)        ' a plain unit name still works
+End Function
+
+' The first group (not "All units") that holds the unit
+Private Function GroupOfUnit(ByVal unit As String) As String
+    Dim g As Variant, parts As Variant, u As Variant
+    For Each g In Split(Txt(Meta("Calendar groups")), ";")
+        parts = Split(CStr(g), "|")
+        If UBound(parts) >= 1 Then
+            If CStr(parts(1)) <> "*" Then
+                For Each u In Split(CStr(parts(1)), ",")
+                    If StrComp(Trim$(CStr(u)), Trim$(unit), vbTextCompare) = 0 Then GroupOfUnit = CStr(parts(0)): Exit Function
+                Next u
+            End If
+        End If
+    Next g
+End Function
 
 Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional ByVal highlight As String = "")
     Dim ws As Worksheet: Set ws = WsOf(SH_ROSTER)
@@ -619,9 +787,9 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
 
     Dim heads As Variant
     If unit = "" Then
-        heads = Array("Name", "Crew", "Home unit", "Total", "Worked", "Refused")
+        heads = Array("Name", "Crew", "Home unit", "Total", "Worked", "Refused", "Refused by kind")
     Else
-        heads = Array("#", "Name", "Crew", "Code", "Total", "Worked", "Refused")
+        heads = Array("#", "Name", "Crew", "Code", "Total", "Worked", "Refused", "Refused by kind")
     End If
     Header ws, 5, heads
     ws.Range("A3").Value = "View: " & viewTxt & IIf(crew <> "", "  |  crew " & crew, "") & _
@@ -677,9 +845,11 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
         If unit = "" Then
             out(r, 1) = Txt(v(i, RC_NAME)): out(r, 2) = Txt(v(i, RC_CREW)): out(r, 3) = Txt(v(i, RC_HOME))
             out(r, 4) = HoursText(v(i, RC_TOTAL), v(i, RC_PROV)): out(r, 5) = Num(v(i, RC_WORKED)): out(r, 6) = Num(v(i, RC_REFUSED))
+            out(r, 7) = RefusedKinds(v, i)
         Else
             out(r, 1) = keys(r): out(r, 2) = Txt(v(i, RC_NAME)): out(r, 3) = Txt(v(i, RC_CREW)): out(r, 4) = Txt(v(i, uCode))
             out(r, 5) = HoursText(v(i, RC_TOTAL), v(i, RC_PROV)): out(r, 6) = Num(v(i, RC_WORKED)): out(r, 7) = Num(v(i, RC_REFUSED))
+            out(r, 8) = RefusedKinds(v, i)
         End If
         If highlight <> "" Then
             If StrComp(Txt(v(i, RC_NAME)), highlight, vbTextCompare) = 0 Then hiRow = 5 + r
@@ -692,6 +862,8 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
         .Borders(xlInsideHorizontal).Color = RGB(228, 232, 238)
     End With
     ws.Range(ws.Cells(6, 1), ws.Cells(5 + n, nc)).RowHeight = 17
+    ws.Range(ws.Cells(6, nc), ws.Cells(5 + n, nc)).Font.Size = 8.5
+    ws.Range(ws.Cells(6, nc), ws.Cells(5 + n, nc)).Font.Color = RGB(100, 100, 100)
     If unit = "" Then
         ws.Range(ws.Cells(6, 4), ws.Cells(5 + n, 6)).HorizontalAlignment = xlCenter
         ws.Range(ws.Cells(6, 2), ws.Cells(5 + n, 3)).HorizontalAlignment = xlCenter
@@ -809,11 +981,10 @@ End Sub
 Private Sub DrawCalendarDefault()
     If Not HasData() Then Exit Sub                     ' template build: nothing to show yet
     Dim ws As Worksheet: Set ws = WsOf(SH_CAL)
-    Dim u As Variant: u = UnitList()
     UnprotectWs ws
     ws.Range(CAL_MONTH).NumberFormat = "@"
     ws.Range(CAL_MONTH).Value = Format$(Dt(Meta("Published at")), "mmm yyyy")
-    If Txt(ws.Range(CAL_UNIT).Value) = "" And UBound(u) >= LBound(u) Then ws.Range(CAL_UNIT).Value = Txt(u(LBound(u)))
+    If Txt(ws.Range(CAL_UNIT).Value) = "" Then ws.Range(CAL_UNIT).Value = "All units"
     ProtectWs ws
     MemberShowCalendar
 End Sub
@@ -834,98 +1005,245 @@ Private Function LineColour(ByVal code As String) As Long
     End Select
 End Function
 
-' colours each line of a multi-line cell by its type code ("VAC|LV|OPEN" ...)
-Private Sub ColourLines(ByVal c As Range, ByVal cellTxt As String, ByVal types As String)
-    If cellTxt = "" Then Exit Sub
-    Dim lines As Variant: lines = Split(cellTxt, Chr$(10))
-    Dim codes As Variant: codes = Split(types, "|")
-    Dim i As Long, p As Long: p = 1
-    For i = LBound(lines) To UBound(lines)
-        If i <= UBound(codes) Then
-            With c.Characters(p, Len(lines(i))).Font
-                .Color = LineColour(CStr(codes(i)))
-                .Bold = (UCase$(CStr(codes(i))) = "OPEN")
-            End With
+' The month shown, as its first day (0 = can't be read)
+Private Function CalMonthStart(ByVal ws As Worksheet) As Date
+    Dim mTxt As String: mTxt = Txt(ws.Range(CAL_MONTH).Value)
+    Dim m0 As Date
+    If VarType(ws.Range(CAL_MONTH).Value) = vbDate Then
+        m0 = ws.Range(CAL_MONTH).Value
+    ElseIf mTxt <> "" Then
+        On Error Resume Next
+        m0 = CDate("1 " & mTxt)
+        If m0 = 0 Then m0 = CDate(mTxt)
+        On Error GoTo 0
+    End If
+    If m0 <> 0 Then CalMonthStart = DateSerial(Year(m0), Month(m0), 1)
+End Function
+
+' One day's lines for the group: each line = left US right US colour-code, joined
+' with RS. Fills the holiday name and the crews on days / nights for that date.
+Private Sub DayLines(ByRef v As Variant, ByVal rowList As Collection, ByVal grp As String, _
+                     ByRef dayTxt As String, ByRef nightTxt As String, ByRef hol As String, _
+                     ByRef crewD As String, ByRef crewN As String)
+    dayTxt = "": nightTxt = "": hol = "": crewD = "": crewN = ""
+    If rowList Is Nothing Then Exit Sub
+    Dim k As Variant, i As Long, u As String, line As String
+    For Each k In rowList
+        i = CLng(k)
+        u = Txt(v(i, 3))
+        If u = "*" Then
+            hol = Txt(v(i, 4))
+        ElseIf u = "#" Then
+            crewD = Txt(v(i, 4)): crewN = Txt(v(i, 5))
+        ElseIf InGroup(u, grp) Then
+            line = Txt(v(i, 4)) & US & IIf(Txt(v(i, 5)) <> "", Txt(v(i, 5)), IIf(CBool(v(i, 7)), "OPEN", "")) & US & _
+                   IIf(CBool(v(i, 7)), "OPEN", Txt(v(i, 6)))
+            If Txt(v(i, 2)) = "Nights" Then
+                nightTxt = nightTxt & IIf(nightTxt = "", "", RS) & line
+            Else
+                dayTxt = dayTxt & IIf(dayTxt = "", "", RS) & line
+            End If
         End If
-        p = p + Len(lines(i)) + 1
+    Next k
+End Sub
+
+Private Function LineCount(ByVal lines As String) As Long
+    If lines <> "" Then LineCount = UBound(Split(lines, RS)) + 1
+End Function
+
+' Writes one block of lines (a day's days or nights) into the pair of columns c, c + 1
+Private Sub PaintLines(ByVal ws As Worksheet, ByVal r As Long, ByVal c As Long, ByVal lines As String)
+    If lines = "" Then Exit Sub
+    Dim arr As Variant: arr = Split(lines, RS)
+    Dim i As Long, p As Variant, col As Long
+    For i = 0 To UBound(arr)
+        p = Split(CStr(arr(i)), US)
+        If UBound(p) >= 2 Then
+            col = LineColour(CStr(p(2)))
+            ws.Cells(r + i, c).Value = CStr(p(0))
+            ws.Cells(r + i, c).Font.Color = col
+            ws.Cells(r + i, c + 1).Value = CStr(p(1))
+            If CStr(p(1)) = "OPEN" Then
+                ws.Cells(r + i, c + 1).Font.Color = RGB(190, 30, 30)
+                ws.Cells(r + i, c + 1).Font.Bold = True
+            ElseIf Left$(CStr(p(1)), 6) = "POSTED" Then
+                ws.Cells(r + i, c + 1).Font.Color = RGB(180, 100, 0)
+            End If
+        End If
     Next i
 End Sub
 
+' M2: the master's month grid. Week rows, Sunday to Saturday; each day is two
+' columns (who's off | covered by) with the day lines above the night lines.
 Public Sub MemberShowCalendar()
     Dim ws As Worksheet: Set ws = WsOf(SH_CAL)
-    Dim mTxt As String: mTxt = Txt(ws.Range(CAL_MONTH).Value)
-    Dim unit As String: unit = Txt(ws.Range(CAL_UNIT).Value)
+    Dim grp As String: grp = Txt(ws.Range(CAL_UNIT).Value)
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     UnprotectWs ws
     ClearBelow ws, 4
-    Header ws, 5, Array("Date", "Day", "DAYS  (who's off  ->  covered by)", "", "NIGHTS  (who's off  ->  covered by)")
-    ws.Range("A3").Value = "Month: " & mTxt & "   |   " & unit & "   |   OPEN = still needs cover.  Leave shows as 'Leave'."
     Dim v As Variant: v = Data("dCal")
-    If Not IsArray(v) Or mTxt = "" Then ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
-    ' the month: "Oct 2026" as text, or a real date if Excel converted the picker
-    Dim m0 As Date
-    If VarType(ws.Range(CAL_MONTH).Value) = vbDate Then
-        m0 = DateSerial(Year(ws.Range(CAL_MONTH).Value), Month(ws.Range(CAL_MONTH).Value), 1)
-    Else
-        On Error Resume Next
-        m0 = CDate("1 " & mTxt)
-        If m0 = 0 Then m0 = CDate(mTxt)
-        On Error GoTo 0
-        If m0 <> 0 Then m0 = DateSerial(Year(m0), Month(m0), 1)
-    End If
-    If m0 = 0 Then ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
-    Dim m1 As Date: m1 = DateSerial(Year(m0), Month(m0) + 1, 1) - 1
-    Dim allUnits As Boolean: allUnits = (StrComp(unit, "All units", vbTextCompare) = 0)
-    Dim d As Date, r As Long, i As Long, dayTxt As String, nightTxt As String, hol As String
-    Dim dayTypes As String, nightTypes As String, line As String, pre As String, code As String
-    r = 6
-    For d = m0 To m1
-        dayTxt = "": nightTxt = "": hol = "": dayTypes = "": nightTypes = ""
-        For i = 2 To UBound(v, 1)
-            If Int(Dt(v(i, 1))) = Int(d) Then
-                If Txt(v(i, 3)) = "*" Then
-                    hol = Txt(v(i, 4))
-                ElseIf allUnits Or StrComp(Txt(v(i, 3)), unit, vbTextCompare) = 0 Then
-                    pre = IIf(allUnits, Txt(v(i, 3)) & ": ", "")
-                    line = pre & Txt(v(i, 4)) & IIf(Txt(v(i, 5)) <> "", "  ->  " & Txt(v(i, 5)), "  ->  OPEN")
-                    code = IIf(CBool(v(i, 7)), "OPEN", Txt(v(i, 6)))
-                    If Txt(v(i, 2)) = "Nights" Then
-                        nightTxt = nightTxt & IIf(nightTxt = "", "", Chr$(10)) & line
-                        nightTypes = nightTypes & IIf(nightTypes = "", "", "|") & code
-                    Else
-                        dayTxt = dayTxt & IIf(dayTxt = "", "", Chr$(10)) & line
-                        dayTypes = dayTypes & IIf(dayTypes = "", "", "|") & code
-                    End If
-                End If
-            End If
-        Next i
-        ws.Cells(r, 1).Value = d
-        ws.Cells(r, 1).NumberFormat = "mmm d"
-        ws.Cells(r, 2).Value = Format$(d, "dddd") & IIf(hol <> "", Chr$(10) & hol, "")
-        ws.Cells(r, 3).Value = dayTxt
-        ws.Cells(r, 5).Value = nightTxt
-        With ws.Range(ws.Cells(r, 1), ws.Cells(r, 5))
-            .WrapText = True
-            .VerticalAlignment = xlTop
-            .Borders(xlEdgeBottom).LineStyle = xlContinuous
-            .Borders(xlEdgeBottom).Color = RGB(200, 206, 215)
+    Dim m0 As Date: m0 = CalMonthStart(ws)
+    ws.Range("A3").Value = "Month: " & IIf(m0 = 0, "", Format$(m0, "mmmm yyyy")) & "   |   " & IIf(grp = "", "All units", grp) & _
+                           "   |   OPEN = still needs cover.  Leave shows only as 'Leave'."
+    If Not IsArray(v) Or m0 = 0 Then GoTo Finish
+
+    ' rows of dCal by date, so each day is one lookup
+    Dim byDate As Object: Set byDate = CreateObject("Scripting.Dictionary")
+    Dim i As Long, dk As Long, bag As Collection
+    For i = 2 To UBound(v, 1)
+        dk = CLng(Int(CDbl(Dt(v(i, 1)))))
+        If byDate.Exists(dk) Then
+            Set bag = byDate(dk)
+        Else
+            Set bag = New Collection
+            byDate.Add dk, bag
+        End If
+        bag.Add i
+    Next i
+
+    Dim k As Long, r As Long: r = 5
+    Dim dn As Variant: dn = Array("SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")
+    ws.Rows(r).RowHeight = 20
+    For k = 0 To 6
+        With ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r, 3 + 2 * k))
+            .Merge
+            .Value = dn(k)
+            .Font.Bold = True: .Font.Size = 9: .Font.Color = vbWhite
+            .Interior.Color = NAVY
+            .HorizontalAlignment = xlCenter: .VerticalAlignment = xlCenter
         End With
-        ws.Cells(r, 3).Interior.Color = RGB(255, 249, 196)        ' days: yellow
-        ws.Cells(r, 5).Interior.Color = RGB(227, 236, 250)        ' nights: blue
-        ColourLines ws.Cells(r, 3), dayTxt, dayTypes
-        ColourLines ws.Cells(r, 5), nightTxt, nightTypes
-        If Weekday(d, vbMonday) >= 6 Then ws.Range(ws.Cells(r, 1), ws.Cells(r, 2)).Interior.Color = RGB(240, 242, 245)
-        If hol <> "" Then ws.Cells(r, 2).Font.Color = RGB(176, 0, 32)
-        ws.Rows(r).AutoFit
-        If ws.Rows(r).RowHeight < 18 Then ws.Rows(r).RowHeight = 18
+    Next k
+    r = r + 1
+
+    Dim mEnd As Date: mEnd = DateSerial(Year(m0), Month(m0) + 1, 0)
+    Dim wk As Date: wk = m0 - (Weekday(m0, vbSunday) - 1)
+    Dim d As Date, inMonth As Boolean, bg As Long, mxD As Long, mxN As Long, c As Long
+    Dim dTxt(0 To 6) As String, nTxt(0 To 6) As String, hol(0 To 6) As String, cD(0 To 6) As String, cN(0 To 6) As String
+    Do While wk <= mEnd
+        mxD = 1: mxN = 1
+        For k = 0 To 6
+            d = wk + k
+            dTxt(k) = "": nTxt(k) = "": hol(k) = "": cD(k) = "": cN(k) = ""
+            If Month(d) = Month(m0) Then
+                Set bag = Nothing
+                If byDate.Exists(CLng(d)) Then Set bag = byDate(CLng(d))
+                DayLines v, bag, grp, dTxt(k), nTxt(k), hol(k), cD(k), cN(k)
+                If LineCount(dTxt(k)) > mxD Then mxD = LineCount(dTxt(k))
+                If LineCount(nTxt(k)) > mxN Then mxN = LineCount(nTxt(k))
+            End If
+        Next k
+        ' the date row: the day number (and holiday) | the crews on days / nights
+        ws.Rows(r).RowHeight = 28
+        For k = 0 To 6
+            d = wk + k
+            c = 2 + 2 * k
+            inMonth = (Month(d) = Month(m0))
+            If Not inMonth Then
+                bg = RGB(236, 239, 243)
+            ElseIf Int(d) = Int(Date) Then
+                bg = RGB(255, 224, 130)
+            ElseIf k = 0 Or k = 6 Then
+                bg = RGB(245, 247, 250)
+            Else
+                bg = vbWhite
+            End If
+            ws.Range(ws.Cells(r, c), ws.Cells(r, c + 1)).Interior.Color = bg
+            If inMonth Then
+                With ws.Cells(r, c)
+                    .NumberFormat = "@"
+                    .Value = Format$(d, "d") & IIf(hol(k) <> "", "  " & hol(k), "")
+                    .Font.Bold = True: .Font.Size = 11
+                    .VerticalAlignment = xlCenter
+                    If hol(k) <> "" Then .Font.Color = RGB(176, 0, 32)
+                End With
+                With ws.Cells(r, c + 1)
+                    If cD(k) <> "" Then .Value = "Days " & cD(k) & "  |  Nights " & cN(k)
+                    .Font.Size = 7.5: .Font.Color = RGB(100, 100, 100)
+                    .HorizontalAlignment = xlRight: .VerticalAlignment = xlCenter
+                End With
+            End If
+        Next k
         r = r + 1
-    Next d
+        ' day lines (yellow), then night lines (blue)
+        For k = 0 To 6
+            d = wk + k
+            c = 2 + 2 * k
+            If Month(d) = Month(m0) Then
+                ws.Range(ws.Cells(r, c), ws.Cells(r + mxD - 1, c + 1)).Interior.Color = RGB(255, 249, 196)
+                ws.Range(ws.Cells(r + mxD, c), ws.Cells(r + mxD + mxN - 1, c + 1)).Interior.Color = RGB(227, 236, 250)
+                PaintLines ws, r, c, dTxt(k)
+                PaintLines ws, r + mxD, c, nTxt(k)
+            Else
+                ws.Range(ws.Cells(r, c), ws.Cells(r + mxD + mxN - 1, c + 1)).Interior.Color = RGB(236, 239, 243)
+            End If
+            With ws.Range(ws.Cells(r - 1, c), ws.Cells(r + mxD + mxN - 1, c + 1))
+                .BorderAround xlContinuous, xlThin, , RGB(160, 175, 200)
+            End With
+        Next k
+        With ws.Range(ws.Cells(r, 2), ws.Cells(r + mxD + mxN - 1, 15))
+            .Font.Size = 8.5
+            .ShrinkToFit = True
+            .RowHeight = 14
+        End With
+        r = r + mxD + mxN
+        wk = wk + 7
+    Loop
+    On Error Resume Next
+    With ws.PageSetup
+        .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, 15)).Address
+        .Orientation = xlLandscape
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = 1
+    End With
+    On Error GoTo 0
+Finish:
     ProtectWs ws
     MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
+End Sub
+
+' < Month / Month >: the previous or next month the roster published
+Private Sub StepMonth(ByVal delta As Long)
+    Dim ws As Worksheet: Set ws = WsOf(SH_CAL)
+    Dim ls As Worksheet: Set ls = WsOf(SH_LISTS)
+    Dim m0 As Date: m0 = CalMonthStart(ws)
+    Dim cur As String: cur = IIf(m0 = 0, Txt(ws.Range(CAL_MONTH).Value), Format$(m0, "mmm yyyy"))
+    Dim n As Long: n = ls.Cells(ls.Rows.Count, 5).End(xlUp).Row
+    Dim i As Long, at As Long
+    For i = 1 To n
+        If StrComp(Txt(ls.Cells(i, 5).Value), cur, vbTextCompare) = 0 Then at = i: Exit For
+    Next i
+    If at = 0 Then at = 1 Else at = at + delta
+    If at < 1 Or at > n Or Txt(ls.Cells(at, 5).Value) = "" Then
+        MsgBox "That is the " & IIf(delta < 0, "first", "last") & " month the roster published.", vbInformation, "Calendar"
+        Exit Sub
+    End If
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Application.EnableEvents = False
+    UnprotectWs ws
+    ws.Range(CAL_MONTH).NumberFormat = "@"
+    ws.Range(CAL_MONTH).Value = Txt(ls.Cells(at, 5).Value)
+    ProtectWs ws
+    Application.EnableEvents = evWas
+    MemberShowCalendar
+End Sub
+
+Public Sub MemberCalPrev()
+    StepMonth -1
+End Sub
+
+Public Sub MemberCalNext()
+    StepMonth 1
+End Sub
+
+Public Sub MemberCalPrint()
+    On Error Resume Next
+    WsOf(SH_CAL).PrintOut Copies:=1
+    If Err.Number <> 0 Then MsgBox "The calendar couldn't be printed: " & Err.Description, vbExclamation, "Calendar"
 End Sub
 
 
@@ -937,6 +1255,103 @@ Private Function CloseTime() As String        ' published by the master; a defau
     If CloseTime = "" Then CloseTime = "8:00 AM"
 End Function
 
+' The moment a posting stops taking sign-ups: its closing date at the published time
+Private Function ClosesAt(ByVal closesOn As Date) As Date
+    ClosesAt = Int(closesOn)
+    If IsDate(CloseTime()) Then ClosesAt = ClosesAt + TimeValue(CloseTime())
+End Function
+
+Private Function SignupsOn() As Boolean
+    SignupsOn = (LCase$(Txt(Meta("Sign-ups"))) = "on")
+End Function
+
+' The person's place on a posting's published list: their rank (1 = first), 0 = not
+' on the list. signedTxt = what the master published for them ("" / "Yes" / "8 h").
+Private Function MyPlace(ByRef l As Variant, ByVal postId As String, ByVal nm As String, ByRef signedTxt As String) As Long
+    signedTxt = ""
+    If Not IsArray(l) Then Exit Function
+    Dim j As Long
+    For j = 2 To UBound(l, 1)
+        If StrComp(Txt(l(j, 1)), postId, vbTextCompare) = 0 And StrComp(Txt(l(j, 3)), nm, vbTextCompare) = 0 Then
+            If UBound(l, 2) >= 5 Then signedTxt = Txt(l(j, 5))
+            MyPlace = CLng(Num(l(j, 2)))
+            Exit Function
+        End If
+    Next j
+End Function
+
+' The newest sign-up file this person has in the inbox for a posting (their own
+' request, read back so the sheet can say "sent"). False = none / can't read.
+Private Function InboxMine(ByVal postId As String, ByVal nm As String, ByRef action As String, _
+                           ByRef hrs As Double, ByRef stamp As Date) As Boolean
+    action = "": hrs = 0: stamp = 0
+    Dim folder As String: folder = Txt(Meta("Signup folder"))
+    If folder = "" Or Not SignupsOn() Then Exit Function
+    Dim files() As String, n As Long, f As String, i As Long, ff As Integer, ln As String, p As Long
+    Dim emp As String, act As String, h As Double, st As Date, s As String
+    On Error GoTo Quit
+    f = Dir$(folder & postId & "__*.txt")
+    Do While f <> ""
+        n = n + 1
+        ReDim Preserve files(1 To n)
+        files(n) = f
+        f = Dir$()
+    Loop
+    For i = 1 To n
+        emp = "": act = "": h = 0: st = 0
+        ff = FreeFile
+        Open folder & files(i) For Input Access Read Shared As #ff
+        Do While Not EOF(ff)
+            Line Input #ff, ln
+            p = InStr(ln, "=")
+            If p > 1 Then
+                s = Trim$(Mid$(ln, p + 1))
+                Select Case LCase$(Trim$(Left$(ln, p - 1)))
+                    Case "employee": emp = s
+                    Case "action": act = LCase$(s)
+                    Case "hours": If IsNumeric(s) Then h = CDbl(s)
+                    Case "stamp"
+                        If s Like "####-##-## ##:##:##*" Then
+                            st = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2))) + _
+                                 TimeSerial(CLng(Mid$(s, 12, 2)), CLng(Mid$(s, 15, 2)), CLng(Mid$(s, 18, 2)))
+                        End If
+                End Select
+            End If
+        Loop
+        Close #ff
+        If StrComp(emp, nm, vbTextCompare) = 0 And st >= stamp And (act = "signup" Or act = "withdraw") Then
+            action = act: hrs = h: stamp = st
+            InboxMine = True
+        End If
+    Next i
+    Exit Function
+Quit:
+    On Error Resume Next
+    Close #ff
+End Function
+
+' What the sheet says about this person's sign-up, and whether they count as signed
+' up right now. A file sent after the last publish wins over the published status.
+Private Function MyStatus(ByVal postId As String, ByVal nm As String, ByVal signedTxt As String, ByRef isSigned As Boolean) As String
+    Dim act As String, h As Double, st As Date
+    isSigned = (signedTxt <> "")
+    If InboxMine(postId, nm, act, h, st) Then
+        If st > Dt(Meta("Published at")) Then
+            isSigned = (act = "signup")
+            If act = "signup" Then
+                MyStatus = "Sent " & Format$(st, "mmm d h:nn AM/PM") & IIf(h > 0, " (" & NumTxt(h) & " h)", "")
+            Else
+                MyStatus = "Withdrawn " & Format$(st, "mmm d h:nn AM/PM")
+            End If
+            Exit Function
+        End If
+    End If
+    If signedTxt <> "" Then MyStatus = "Signed up" & IIf(StrComp(signedTxt, "Yes", vbTextCompare) = 0, "", " (" & signedTxt & ")")
+End Function
+
+' M2: mine first (the postings the picked person is qualified for: on the list,
+' or holding a code in the unit = out of department), then ONE table of every
+' open posting, then the full list of the posting picked in the box at the top.
 Public Sub MemberShowPostings()
     Dim ws As Worksheet: Set ws = WsOf(SH_POST)
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -944,53 +1359,432 @@ Public Sub MemberShowPostings()
     Application.ScreenUpdating = False
     UnprotectWs ws
     ClearBelow ws, 4
+    Dim i As Long, j As Long, k As Long
+    For i = ws.Shapes.Count To 1 Step -1
+        If Left$(ws.Shapes(i).Name, 5) = "mb_su" Then ws.Shapes(i).Delete
+    Next i
     Dim p As Variant: p = Data("dPost")
     Dim l As Variant: l = Data("dPostList")
+    Dim rv As Variant: rv = Data("dRoster")
+    Dim who As String: who = WhoAmI()
     Dim r As Long: r = 5
-    Dim i As Long, j As Long, k As Long
-    If Not IsArray(p) Then
+    Dim nP As Long
+    If IsArray(p) Then nP = UBound(p, 1) - 1
+    If nP < 1 Then
         ws.Cells(r, 1).Value = "No open postings."
-    ElseIf UBound(p, 1) < 2 Then
-        ws.Cells(r, 1).Value = "No open postings."
-    Else
-        For i = 2 To UBound(p, 1)
-            ws.Rows(r).RowHeight = 22
-            With ws.Range(ws.Cells(r, 1), ws.Cells(r, 5))
-                .Merge
-                .Value = Txt(p(i, 1)) & "   " & Txt(p(i, 2)) & "   " & Format$(Dt(p(i, 3)), "dddd mmm d, yyyy") & "   " & Txt(p(i, 4)) & _
-                         "   " & Num(p(i, 5)) & " h   " & Num(p(i, 6)) & " position(s)   " & Txt(p(i, 7)) & _
-                         "   |   closes " & Format$(Dt(p(i, 8)), "ddd mmm d") & " " & CloseTime()
-                .Interior.Color = NAVY
-                .Font.Color = vbWhite: .Font.Bold = True
-                .VerticalAlignment = xlCenter
-            End With
-            r = r + 1
-            Header ws, r, Array("#", "Name", "Hours", "", "")
-            r = r + 1
-            k = 0
-            If IsArray(l) Then
-                For j = 2 To UBound(l, 1)
-                    If StrComp(Txt(l(j, 1)), Txt(p(i, 1)), vbTextCompare) = 0 Then
-                        ws.Cells(r, 1).Value = Num(l(j, 2))
-                        ws.Cells(r, 2).Value = Txt(l(j, 3))
-                        ws.Cells(r, 3).Value = Num(l(j, 4))
-                        ws.Cells(r, 1).HorizontalAlignment = xlCenter
-                        ws.Cells(r, 3).HorizontalAlignment = xlCenter
-                        r = r + 1
-                        k = k + 1
-                    End If
-                Next j
-            End If
-            If k = 0 Then ws.Cells(r, 2).Value = "(list not published)": r = r + 1
-            ws.Cells(r, 2).Value = "Listed in call order with hours as of the posting date. Out-of-department sign-ups go on the blank lines of the paper sheet."
-            ws.Cells(r, 2).Font.Size = 8: ws.Cells(r, 2).Font.Italic = True: ws.Cells(r, 2).Font.Color = RGB(100, 100, 100)
-            r = r + 2
-        Next i
+        GoTo Finish
     End If
+    ' soonest shift first
+    Dim ord() As Long, t As Long
+    ReDim ord(1 To nP)
+    For i = 1 To nP
+        ord(i) = i + 1
+    Next i
+    For i = 2 To nP
+        t = ord(i): j = i - 1
+        Do While j >= 1
+            If Dt(p(ord(j), 3)) <= Dt(p(t, 3)) Then Exit Do
+            ord(j + 1) = ord(j): j = j - 1
+        Loop
+        ord(j + 1) = t
+    Next i
+
+    ' ---- 1. the postings this person can sign up for ----
+    Dim meRow As Long, place As Long, signedTxt As String, statusTxt As String, isSigned As Boolean
+    Dim nMine As Long, codeCol As Long, placeTxt As String, isClosed As Boolean, idTxt As String
+    If who <> "" Then
+        meRow = RosterRowOf(rv, who)
+        SectionBar ws, r, "POSTINGS " & UCase$(who) & " CAN SIGN UP FOR"
+        r = r + 1
+        Header ws, r, Array("Posting", "Unit", "Shift date", "Shift", "Hours", "My place", "Closes", "Sign-up", "", "")
+        r = r + 1
+        For i = 1 To nP
+            k = ord(i)
+            idTxt = Txt(p(k, 1))
+            place = MyPlace(l, idTxt, who, signedTxt)
+            placeTxt = ""
+            If place > 0 Then
+                placeTxt = "#" & place & " on the list"
+            ElseIf meRow > 0 Then
+                codeCol = UnitCodeCol(Txt(p(k, 2)))
+                If codeCol > 0 Then
+                    If codeCol <= UBound(rv, 2) Then
+                        If Txt(rv(meRow, codeCol)) <> "" Then placeTxt = "out of department"
+                    End If
+                End If
+            End If
+            If placeTxt <> "" Then
+                nMine = nMine + 1
+                statusTxt = MyStatus(idTxt, who, signedTxt, isSigned)
+                isClosed = (Now > ClosesAt(Dt(p(k, 8))))
+                ws.Cells(r, 1).Value = idTxt
+                ws.Cells(r, 2).Value = Txt(p(k, 2))
+                ws.Cells(r, 3).Value = Dt(p(k, 3)): ws.Cells(r, 3).NumberFormat = "ddd mmm d"
+                ws.Cells(r, 4).Value = Txt(p(k, 4))
+                ws.Cells(r, 5).Value = Num(p(k, 5))
+                ws.Cells(r, 6).Value = placeTxt
+                ws.Cells(r, 7).Value = Format$(Dt(p(k, 8)), "ddd mmm d") & " " & CloseTime() & IIf(isClosed, " (closed)", "")
+                ws.Cells(r, 8).Value = statusTxt
+                ws.Rows(r).RowHeight = 19
+                If SignupsOn() And Not isClosed Then
+                    If isSigned Then
+                        Btn ws, "mb_su" & nMine, "Withdraw", "'MemberWithdraw """ & idTxt & """'", _
+                            ws.Cells(r, 9).Left + 2, ws.Cells(r, 9).Top + 2, 72, 15, LIGHT, INK
+                    Else
+                        Btn ws, "mb_su" & nMine, "Sign me up", "'MemberSignUp """ & idTxt & """'", _
+                            ws.Cells(r, 9).Left + 2, ws.Cells(r, 9).Top + 2, 72, 15, GREEN, vbWhite
+                    End If
+                End If
+                r = r + 1
+            End If
+        Next i
+        If nMine = 0 Then
+            ws.Cells(r, 1).Value = "None right now: no open posting lists you, and none is in a unit you hold a code in."
+            ws.Cells(r, 1).Font.Italic = True
+            r = r + 1
+        End If
+        ws.Cells(r, 1).Value = IIf(SignupsOn(), "Sign me up sends your request to the supervisors' roster. The supervisor still confirms it; the paper sheet counts too. ", _
+                                   "Sign up on the posted paper sheet. ") & _
+                               "'Out of department' counts only if nobody on the list takes the shift."
+        ws.Cells(r, 1).Font.Size = 8: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = RGB(100, 100, 100)
+        r = r + 2
+    Else
+        ws.Cells(r, 1).Value = "Pick your name on Home (Find me) to see the postings you can sign up for."
+        ws.Cells(r, 1).Font.Italic = True
+        r = r + 2
+    End If
+
+    ' ---- 2. every open posting, one row each ----
+    SectionBar ws, r, "ALL OPEN POSTINGS"
+    r = r + 1
+    Dim hdrRow As Long: hdrRow = r
+    Header ws, r, Array("Posting", "Unit", "Shift date", "Shift", "Hours", "Positions", "Reason", "Closes", "Listed", "Signed up")
+    r = r + 1
+    For i = 1 To nP
+        k = ord(i)
+        ws.Cells(r, 1).Value = Txt(p(k, 1))
+        ws.Cells(r, 2).Value = Txt(p(k, 2))
+        ws.Cells(r, 3).Value = Dt(p(k, 3)): ws.Cells(r, 3).NumberFormat = "ddd mmm d"
+        ws.Cells(r, 4).Value = Txt(p(k, 4))
+        ws.Cells(r, 5).Value = Num(p(k, 5))
+        ws.Cells(r, 6).Value = Num(p(k, 6))
+        ws.Cells(r, 7).Value = Txt(p(k, 7))
+        ws.Cells(r, 8).Value = Dt(p(k, 8)): ws.Cells(r, 8).NumberFormat = "ddd mmm d"
+        If UBound(p, 2) >= 10 Then
+            ws.Cells(r, 9).Value = Num(p(k, 9))
+            ws.Cells(r, 10).Value = Num(p(k, 10))
+        End If
+        r = r + 1
+    Next i
+    ws.Range(ws.Cells(hdrRow + 1, 4), ws.Cells(r - 1, 6)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(hdrRow + 1, 9), ws.Cells(r - 1, 10)).HorizontalAlignment = xlCenter
+    With ws.Range(ws.Cells(hdrRow, 1), ws.Cells(r - 1, 10))
+        .Borders(xlInsideHorizontal).LineStyle = xlContinuous
+        .Borders(xlInsideHorizontal).Color = RGB(228, 232, 238)
+        .AutoFilter
+    End With
+    r = r + 1
+
+    ' ---- 3. the full list of the posting picked at the top ----
+    Dim pick As String: pick = Txt(ws.Range(POST_PICK).Value)
+    If pick <> "" Then
+        SectionBar ws, r, "LIST FOR " & UCase$(pick) & "  (call order, hours as of the posting date)"
+        r = r + 1
+        Header ws, r, Array("#", "Name", "Hours posted", "Signed up")
+        r = r + 1
+        k = 0
+        If IsArray(l) Then
+            For j = 2 To UBound(l, 1)
+                If StrComp(Txt(l(j, 1)), pick, vbTextCompare) = 0 Then
+                    If Num(l(j, 2)) > 0 Then ws.Cells(r, 1).Value = Num(l(j, 2)) Else ws.Cells(r, 1).Value = "out of dept"
+                    ws.Cells(r, 2).Value = Txt(l(j, 3))
+                    If Txt(l(j, 4)) <> "" Then ws.Cells(r, 3).Value = Num(l(j, 4))
+                    If UBound(l, 2) >= 5 Then ws.Cells(r, 4).Value = Txt(l(j, 5))
+                    ws.Cells(r, 1).HorizontalAlignment = xlCenter
+                    ws.Cells(r, 3).HorizontalAlignment = xlCenter
+                    r = r + 1
+                    k = k + 1
+                End If
+            Next j
+        End If
+        If k = 0 Then ws.Cells(r, 2).Value = "(no list published for " & pick & ")": r = r + 1
+    Else
+        ws.Cells(r, 1).Value = "Pick a posting in the box at the top to see everyone listed on it."
+        ws.Cells(r, 1).Font.Size = 8.5: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = RGB(100, 100, 100)
+    End If
+Finish:
     ProtectWs ws
     MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
+End Sub
+
+Private Sub SectionBar(ByVal ws As Worksheet, ByVal r As Long, ByVal cap As String)
+    With ws.Cells(r, 1)
+        .Value = cap
+        .Font.Bold = True: .Font.Size = 10: .Font.Color = NAVY
+    End With
+    ws.Rows(r).RowHeight = 20
+End Sub
+
+
+' ====================================================================
+'  SIGN ME UP / WITHDRAW  (M2)
+'  Each click writes ONE new text file into the inbox folder the master
+'  published. Nothing is edited or deleted, and this workbook is never
+'  written to. The file is a request: the supervisors' roster reads it
+'  when the posting is awarded, and the supervisor confirms.
+' ====================================================================
+Public Sub MemberSignUp(ByVal postId As String)
+    SendSignup postId, "signup"
+End Sub
+
+Public Sub MemberWithdraw(ByVal postId As String)
+    SendSignup postId, "withdraw"
+End Sub
+
+' letters, digits, dot, dash and underscore only (the login goes in a file name)
+Private Function SafeName(ByVal s As String) As String
+    Dim i As Long, ch As String
+    For i = 1 To Len(s)
+        ch = Mid$(s, i, 1)
+        If ch Like "[A-Za-z0-9._-]" Then SafeName = SafeName & ch
+    Next i
+    If SafeName = "" Then SafeName = "user"
+End Function
+
+Private Sub SendSignup(ByVal postId As String, ByVal action As String)
+    Const TTL As String = "Overtime posting"
+    Dim who As String: who = WhoAmI()
+    If who = "" Then MsgBox "Pick your name in Find me on the Home sheet first.", vbInformation, TTL: Exit Sub
+    If Not SignupsOn() Then MsgBox "Sign-up from this file isn't switched on. Sign up on the posted paper sheet.", vbInformation, TTL: Exit Sub
+    Dim folder As String: folder = Txt(Meta("Signup folder"))
+    Dim ok As Boolean
+    On Error Resume Next
+    If folder <> "" Then ok = (Len(Dir$(folder, vbDirectory)) > 0)
+    On Error GoTo 0
+    If Not ok Then
+        MsgBox "The sign-up folder can't be reached from this PC, so nothing was sent." & vbNewLine & vbNewLine & _
+               "Sign up on the posted paper sheet, and tell your supervisor.", vbExclamation, TTL
+        Exit Sub
+    End If
+    ' the posting, as published
+    Dim p As Variant: p = Data("dPost")
+    Dim i As Long, k As Long
+    If IsArray(p) Then
+        For i = 2 To UBound(p, 1)
+            If StrComp(Txt(p(i, 1)), postId, vbTextCompare) = 0 Then k = i: Exit For
+        Next i
+    End If
+    If k = 0 Then MsgBox postId & " is no longer open in this file. See your supervisor.", vbExclamation, TTL: Exit Sub
+    If Now > ClosesAt(Dt(p(k, 8))) Then
+        MsgBox postId & " closed " & Format$(Dt(p(k, 8)), "ddd mmm d") & " at " & CloseTime() & ". See your supervisor.", vbExclamation, TTL
+        Exit Sub
+    End If
+    Dim what As String
+    what = postId & "   " & Txt(p(k, 2)) & "   " & Format$(Dt(p(k, 3)), "dddd mmm d, yyyy") & "   " & Txt(p(k, 4)) & "   " & NumTxt(Num(p(k, 5))) & " h"
+
+    Dim hrs As Double, a As Variant
+    If action = "signup" Then
+        a = Application.InputBox(what & vbNewLine & vbNewLine & "Signing up: " & who & vbNewLine & vbNewLine & _
+                                 "For the WHOLE shift, leave this blank and click OK." & vbNewLine & _
+                                 "For PART of it, enter the hours you can work.", TTL, Type:=2)
+        If VarType(a) = vbBoolean Then Exit Sub                    ' Cancel
+        If Trim$(CStr(a)) <> "" Then
+            If Not IsNumeric(Trim$(CStr(a))) Then MsgBox "Enter a number of hours, or leave it blank for the whole shift.", vbExclamation, TTL: Exit Sub
+            hrs = CDbl(Trim$(CStr(a)))
+            If hrs <= 0 Then MsgBox "The hours must be more than 0.", vbExclamation, TTL: Exit Sub
+            If hrs >= Num(p(k, 5)) Then hrs = 0                    ' the whole shift
+        End If
+        If MsgBox("Sign up " & who & " for" & vbNewLine & what & vbNewLine & _
+                  IIf(hrs > 0, "for " & NumTxt(hrs) & " of the " & NumTxt(Num(p(k, 5))) & " hours?", "for the whole shift?") & vbNewLine & vbNewLine & _
+                  "Your request goes to the supervisors' roster with this PC's login (" & Environ$("USERNAME") & ").", _
+                  vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
+    Else
+        If MsgBox("Withdraw " & who & "'s sign-up for" & vbNewLine & what & "?", vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
+    End If
+
+    ' one new file; never an existing one
+    Dim login As String: login = SafeName(Environ$("USERNAME"))
+    Dim stamp As Date: stamp = Now
+    Dim path As String, n As Long, ff As Integer, em As String
+    path = folder & UCase$(postId) & "__" & login & "__" & Format$(stamp, "yyyymmdd-hhnnss") & ".txt"
+    Do While Len(Dir$(path)) > 0 And n < 20
+        n = n + 1
+        path = folder & UCase$(postId) & "__" & login & "__" & Format$(stamp, "yyyymmdd-hhnnss") & "-" & n & ".txt"
+    Loop
+    On Error GoTo Failed
+    ff = FreeFile
+    Open path For Output As #ff
+    Print #ff, "posting=" & UCase$(postId)
+    Print #ff, "employee=" & who
+    Print #ff, "hours=" & IIf(hrs > 0, Replace(CStr(hrs), ",", "."), "")
+    Print #ff, "action=" & action
+    Print #ff, "login=" & Environ$("USERNAME")
+    Print #ff, "machine=" & Environ$("COMPUTERNAME")
+    Print #ff, "stamp=" & Format$(stamp, "yyyy-mm-dd hh:nn:ss")
+    Close #ff
+    On Error GoTo 0
+    MemberShowPostings
+    DrawHomeCard
+    MsgBox IIf(action = "signup", "Sign-up sent.", "Withdrawal sent.") & vbNewLine & vbNewLine & _
+           who & vbNewLine & what & IIf(action = "signup" And hrs > 0, vbNewLine & NumTxt(hrs) & " hours", "") & vbNewLine & _
+           Format$(stamp, "ddd mmm d, h:nn AM/PM") & vbNewLine & vbNewLine & _
+           "The supervisor confirms sign-ups when the posting is awarded.", vbInformation, TTL
+    Exit Sub
+Failed:
+    em = Err.Description
+    On Error Resume Next
+    Close #ff
+    MsgBox "The sign-up could NOT be sent (" & em & ")." & vbNewLine & vbNewLine & _
+           "Sign up on the posted paper sheet, and tell your supervisor.", vbExclamation, TTL
+End Sub
+
+
+' ====================================================================
+'  WHERE I STAND  (M2: the card on Home for the picked name)
+'  Everything here is a published value looked up for one person.
+' ====================================================================
+Private Sub CardLine(ByVal ws As Worksheet, ByRef r As Long, ByVal label As String, ByVal txtVal As String, _
+                     Optional ByVal boldVal As Boolean = False)
+    ws.Cells(r, 2).Value = label
+    ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Size = 9: ws.Cells(r, 2).Font.Color = RGB(100, 100, 100)
+    With ws.Cells(r, 3)
+        .NumberFormat = "@"
+        .Value = txtVal
+        .Font.Bold = boldVal
+    End With
+    r = r + 1
+End Sub
+
+Private Sub DrawHomeCard()
+    Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
+    Dim who As String: who = WhoAmI()
+    UnprotectWs ws
+    ClearBelow ws, CARD_ROW
+    Dim r As Long: r = CARD_ROW
+    If who = "" Or Not HasData() Then GoTo Finish
+    Dim rv As Variant: rv = Data("dRoster")
+    Dim meRow As Long: meRow = RosterRowOf(rv, who)
+    If meRow = 0 Then
+        ws.Cells(r, 2).Value = who & " isn't in the published roster. Ask your supervisor."
+        GoTo Finish
+    End If
+    With ws.Cells(r, 2)
+        .Value = "WHERE I STAND  -  " & who
+        .Font.Bold = True: .Font.Size = 13: .Font.Color = NAVY
+    End With
+    r = r + 1
+    ws.Cells(r, 2).Value = "As published " & Format$(Dt(Meta("Published at")), "ddd mmm d, h:mm AM/PM") & _
+                           ", Kronos hours through " & Format$(Dt(Meta("Kronos data through")), "mmm d") & "."
+    ws.Cells(r, 2).Font.Size = 8.5: ws.Cells(r, 2).Font.Italic = True: ws.Cells(r, 2).Font.Color = RGB(100, 100, 100)
+    r = r + 2
+
+    CardLine ws, r, "Crew / home unit", Txt(rv(meRow, RC_CREW)) & "   |   " & IIf(Txt(rv(meRow, RC_HOME)) = "", "(no home unit on file)", Txt(rv(meRow, RC_HOME)))
+    CardLine ws, r, "Total hours", CStr(HoursText(rv(meRow, RC_TOTAL), rv(meRow, RC_PROV))) & _
+             IIf(Num(rv(meRow, RC_PROV)) > 0, "   (* includes " & NumTxt(Num(rv(meRow, RC_PROV))) & " h accepted, not yet in Kronos)", ""), True
+    CardLine ws, r, "Worked", NumTxt(Num(rv(meRow, RC_WORKED)))
+    CardLine ws, r, "Refused", NumTxt(Num(rv(meRow, RC_REFUSED))) & IIf(RefusedKinds(rv, meRow) <> "", "   =   " & RefusedKinds(rv, meRow), "")
+
+    ' call position in every unit they hold a code in
+    Dim units As Variant: units = UnitList()
+    Dim i As Long, c As Long, posTxt As String
+    For i = LBound(units) To UBound(units)
+        c = RC_FIXED + 2 * (i - LBound(units)) + 1
+        If c + 1 <= UBound(rv, 2) Then
+            If Txt(rv(meRow, c)) <> "" Then
+                posTxt = posTxt & IIf(posTxt = "", "", "     ") & Txt(units(i)) & " #" & Txt(rv(meRow, c + 1)) & " (" & Txt(rv(meRow, c)) & ")"
+            End If
+        End If
+    Next i
+    CardLine ws, r, "Call position", IIf(posTxt = "", "(no unit code on file)", posTxt)
+    r = r + 1
+
+    ' sick time: counts only (decided Oct 12, 2026) - never a date of a sick day
+    Dim av As Variant: av = Data("dAttend")
+    Dim j As Long, found As Boolean
+    If IsArray(av) Then
+        For j = 2 To UBound(av, 1)
+            If StrComp(Txt(av(j, 1)), who, vbTextCompare) = 0 And UBound(av, 2) >= 6 Then
+                CardLine ws, r, "Sick time", "sick days used " & NumTxt(Num(av(j, 2))) & "   |   paid sick days left " & NumTxt(Num(av(j, 3))) & _
+                         "   |   occurrences used " & NumTxt(Num(av(j, 4))) & "   |   personal days used " & NumTxt(Num(av(j, 5)))
+                CardLine ws, r, "", Txt(av(j, 6)), True
+                found = True
+                Exit For
+            End If
+        Next j
+    End If
+    If Not found Then CardLine ws, r, "Sick time", "not published - ask your supervisor"
+    ws.Cells(r, 3).Value = "Counts since Jan 1, or since your counters restarted. Ask your supervisor for the days behind them."
+    ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
+    r = r + 2
+
+    ' open postings they can sign up for (the buttons are on the Postings sheet)
+    Dim p As Variant: p = Data("dPost")
+    Dim l As Variant: l = Data("dPostList")
+    Dim place As Long, signedTxt As String, isSigned As Boolean, statusTxt As String, codeCol As Long, placeTxt As String, nMine As Long
+    ws.Cells(r, 2).Value = "Open postings I can sign up for"
+    ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Color = NAVY
+    r = r + 1
+    If IsArray(p) Then
+        For i = 2 To UBound(p, 1)
+            place = MyPlace(l, Txt(p(i, 1)), who, signedTxt)
+            placeTxt = ""
+            If place > 0 Then
+                placeTxt = "#" & place & " on the list"
+            Else
+                codeCol = UnitCodeCol(Txt(p(i, 2)))
+                If codeCol > 0 And codeCol <= UBound(rv, 2) Then
+                    If Txt(rv(meRow, codeCol)) <> "" Then placeTxt = "out of department"
+                End If
+            End If
+            If placeTxt <> "" Then
+                nMine = nMine + 1
+                statusTxt = MyStatus(Txt(p(i, 1)), who, signedTxt, isSigned)
+                ws.Cells(r, 2).Value = Txt(p(i, 1)) & "  " & Txt(p(i, 2))
+                ws.Cells(r, 3).NumberFormat = "@"
+                ws.Cells(r, 3).Value = Format$(Dt(p(i, 3)), "ddd mmm d") & "  " & Txt(p(i, 4)) & "  " & NumTxt(Num(p(i, 5))) & " h   |   " & placeTxt & _
+                                       "   |   closes " & Format$(Dt(p(i, 8)), "ddd mmm d") & IIf(statusTxt <> "", "   |   " & statusTxt, "")
+                r = r + 1
+            End If
+        Next i
+    End If
+    If nMine = 0 Then
+        ws.Cells(r, 3).Value = "none right now"
+        r = r + 1
+    Else
+        ws.Cells(r, 3).Value = IIf(SignupsOn(), "Open Postings has the Sign me up buttons.", "Sign up on the posted paper sheet.")
+        ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
+        r = r + 1
+    End If
+    r = r + 1
+
+    ' the next days where they are among the first three free in their home unit
+    Dim nv As Variant: nv = Data("dNext")
+    Dim homeU As String: homeU = Txt(rv(meRow, RC_HOME))
+    Dim nextTxt As String, nNext As Long
+    If IsArray(nv) And homeU <> "" Then
+        For i = 2 To UBound(nv, 1)
+            If Num(nv(i, 4)) <= 3 Then
+                If StrComp(Txt(nv(i, 5)), who, vbTextCompare) = 0 And StrComp(Txt(nv(i, 1)), homeU, vbTextCompare) = 0 Then
+                    nNext = nNext + 1
+                    If nNext <= 12 Then nextTxt = nextTxt & IIf(nextTxt = "", "", "     ") & Format$(Dt(nv(i, 2)), "ddd mmm d") & " " & Txt(nv(i, 3)) & " #" & NumTxt(Num(nv(i, 4)))
+                End If
+            End If
+        Next i
+    End If
+    ws.Cells(r, 2).Value = "Near the top of the call list"
+    ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Color = NAVY
+    r = r + 1
+    ws.Cells(r, 3).NumberFormat = "@"
+    ws.Cells(r, 3).Value = IIf(nextTxt = "", "Not in the first three for " & IIf(homeU = "", "any unit", homeU) & " in the published days.", _
+                               homeU & ":  " & nextTxt & IIf(nNext > 12, "  ...", ""))
+    r = r + 1
+    ws.Cells(r, 3).Value = "Who is free changes with time off and switches: this is as of the last publish."
+    ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
+Finish:
+    ProtectWs ws
+    MarkClean
 End Sub
 
 
@@ -1049,7 +1843,7 @@ Private Sub DrawHistory(ByVal nm As String)
     Next i
     Dim out() As Variant: ReDim out(1 To n, 1 To nc)
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
-    Dim yearTot As Double, ps As String
+    Dim yearTot As Double, ps As String, kCall As Double, kPost As Double, kOther As Double
     For i = 1 To n
         out(i, 1) = Dt(v(idx(i), 1))
         out(i, 2) = Txt(v(idx(i), 2))
@@ -1063,6 +1857,11 @@ Private Sub DrawHistory(ByVal nm As String)
         ps = Format$(Dt(v(idx(i), 10)), "yyyy-mm-dd")
         totals(ps) = Num(totals(ps)) + Num(v(idx(i), 9))
         yearTot = yearTot + Num(v(idx(i), 9))
+        Select Case LCase$(Txt(v(idx(i), 3)))              ' M2: Refused by kind
+            Case "callout": kCall = kCall + Num(v(idx(i), 9))
+            Case "posting": kPost = kPost + Num(v(idx(i), 9))
+            Case Else: kOther = kOther + Num(v(idx(i), 9))
+        End Select
     Next i
     With ws.Range(ws.Cells(6, 1), ws.Cells(5 + n, nc))
         .Value = out
@@ -1097,6 +1896,14 @@ Private Sub DrawHistory(ByVal nm As String)
     ws.Cells(r, 2).Value = yearTot
     ws.Cells(r, 2).Font.Bold = True
     ws.Cells(r, 2).HorizontalAlignment = xlCenter
+    r = r + 1
+    ws.Cells(r, 1).Value = "  call-out refusals": ws.Cells(r, 2).Value = kCall: ws.Cells(r, 2).HorizontalAlignment = xlCenter
+    r = r + 1
+    ws.Cells(r, 1).Value = "  posting refusals": ws.Cells(r, 2).Value = kPost: ws.Cells(r, 2).HorizontalAlignment = xlCenter
+    If Abs(kOther) > 0.0001 Then
+        r = r + 1
+        ws.Cells(r, 1).Value = "  other (adjustments)": ws.Cells(r, 2).Value = kOther: ws.Cells(r, 2).HorizontalAlignment = xlCenter
+    End If
     ProtectWs ws
     MarkClean
     Application.ScreenUpdating = True
@@ -1128,15 +1935,18 @@ Public Sub MemberSheetChanged(ByVal Sh As Object, ByVal Target As Range)
     Select Case Sh.Name
         Case SH_ROSTER
             If Not Application.Intersect(Target, Sh.Range(ROSTER_CREW)) Is Nothing Then MemberShowAll
-            If Not Application.Intersect(Target, Sh.Range(ROSTER_FIND)) Is Nothing Then MemberFindMe
+            If Not Application.Intersect(Target, Sh.Range(ROSTER_FIND)) Is Nothing Then ApplyMe Txt(Sh.Range(ROSTER_FIND).Value), SH_ROSTER
         Case SH_NEXT
             If Not Application.Intersect(Target, Sh.Range(NEXT_UNIT & "," & NEXT_DATE & "," & NEXT_SHIFT)) Is Nothing Then MemberShowNext
         Case SH_CAL
             If Not Application.Intersect(Target, Sh.Range(CAL_MONTH & "," & CAL_UNIT)) Is Nothing Then MemberShowCalendar
         Case SH_HIST
             If Not Application.Intersect(Target, Sh.Range(HIST_NAME)) Is Nothing Then MemberShowHistory
-        Case SH_HOME
-            MarkClean                                  ' picking a name on Home changes nothing worth saving
+        Case SH_POST
+            If Not Application.Intersect(Target, Sh.Range(POST_PICK)) Is Nothing Then MemberShowPostings
+        Case SH_HOME                                   ' M2: Find me drives every sheet and the card below it
+            If Not Application.Intersect(Target, Sh.Range(HOME_FIND)) Is Nothing Then ApplyMe Txt(Sh.Range(HOME_FIND).Value), SH_HOME
+            MarkClean
     End Select
 End Sub
 

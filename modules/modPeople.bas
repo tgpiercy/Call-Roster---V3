@@ -92,6 +92,8 @@ Private Type CrewPick
     CrewFirst As String
 End Type
 
+Private Const NO_CREW_ROW As String = "~no dated row~"
+
 Private mHist As Variant            ' the table's rows (Empty = no rows)
 Private mIdx As Object              ' employee -> Collection of row numbers in mHist
 Private mHistLoaded As Boolean
@@ -172,8 +174,9 @@ Public Function CrewOn(ByVal emp As String, ByVal d As Date, Optional ByVal fall
         If mIdx.Exists(nm) Then
             Dim rowList As Collection
             Set rowList = mIdx(nm)
-            CrewOn = CrewOnCore(mHist, nm, d, "", rowList)
-            Exit Function
+            CrewOn = CrewOnCore(mHist, nm, d, NO_CREW_ROW, rowList)
+            If CrewOn <> NO_CREW_ROW Then Exit Function         ' (rows with no readable date fall through to the roster crew)
+            CrewOn = ""
         End If
     End If
     If IsMissing(fallback) Then
@@ -534,11 +537,11 @@ Private Function AskCrewDate(ByVal listTxt As String, ByVal notBefore As Date, B
                          "Cancel puts the old crew back.", "Crew change", Format$(Date, "mmm d, yyyy"))
         If Trim$(s) = "" Then Exit Function
         If Not ParseTypedDate(s, d) Then
-            MsgBox "That isn't a date I can read. Try  Jan 12  or  1/12/2027.", vbExclamation, "Crew change"
+            MsgBox "That isn't a date I can read. Try  Jan 12  or  Jan 12, 2027.", vbExclamation, "Crew change"
         ElseIf notBefore > 0 And d < notBefore Then
             MsgBox "The date must be " & Format$(notBefore, "mmm d, yyyy") & " or later: that is when the crew being replaced started." & _
                    vbNewLine & "To correct an earlier row, edit it on the Crew History sheet.", vbExclamation, "Crew change"
-        Else
+        ElseIf MsgBox("Crew change from " & Format$(d, "dddd, mmmm d, yyyy") & "?", vbYesNo + vbQuestion, "Crew change") = vbYes Then
             eff = d
             AskCrewDate = True
             Exit Function
@@ -698,7 +701,7 @@ Private Function TotalsPlain(ByVal packed As String) As String
 End Function
 
 Private Function PlainNum(ByVal s As String) As String
-    If IsNumeric(s) Then PlainNum = Format$(CDbl(s), "0.##") Else PlainNum = s
+    If IsNumeric(s) Then PlainNum = HoursText(CDbl(s)) Else PlainNum = s
     If Right$(PlainNum, 1) = "." Or Right$(PlainNum, 1) = "," Then PlainNum = Left$(PlainNum, Len(PlainNum) - 1)
 End Function
 
@@ -965,6 +968,14 @@ Public Function IsFormer(ByVal emp As String) As Boolean
     IsFormer = (FormerRowOf(emp, v) > 0)
 End Function
 
+' The day a person still on the Former sheet left (0 = not there)
+Public Function FormerLeftOn(ByVal emp As String) As Date
+    Dim v As Variant, fr As Long
+    fr = FormerRowOf(emp, v)
+    If fr = 0 Then Exit Function
+    If IsDate(v(fr, FM_LEFT)) Then FormerLeftOn = Int(CDate(v(fr, FM_LEFT)))
+End Function
+
 ' Everyone on the Former sheet (Former or Returned): name -> True.
 ' IntegrityCheck and the Kronos import use it: these names are known.
 Public Function FormerNameSet() As Object
@@ -1159,6 +1170,10 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
     If LogTable() Is Nothing Then Exit Function
     nm = Trim$(nm): gradeCode = Trim$(gradeCode): crewTxt = NormCrew(crewTxt)
     If nm = "" Then MsgBox "Enter the name.", vbExclamation, "Add employee": Exit Function
+    If InStr(nm, ";") > 0 Or InStr(nm, "|") > 0 Or InStr(nm, "/") > 0 Then
+        MsgBox "A name can't contain  ;  |  or  /  (the calendar and the postings use them between names).", vbExclamation, "Add employee"
+        Exit Function
+    End If
     If RosterRowOf(nm) > 0 Then MsgBox nm & " is already on the roster.", vbExclamation, "Add employee": Exit Function
     If IsFormer(nm) Then
         MsgBox nm & " is on the Former sheet. Use Bring back instead, so their history comes back with them.", vbExclamation, "Add employee"
@@ -1180,6 +1195,7 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
     Application.Calculate
     Set before = RosterTotalsMap()
     logBefore = LogChargedTotal()
+    Dim ownBefore As Double: ownBefore = LogTotalOnRoster(nm)     ' hours already in the log under this name (0 for a real new hire)
     On Error GoTo Failed
     Application.ScreenUpdating = False
     Application.EnableEvents = False
@@ -1214,8 +1230,8 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
     diff = TotalsDifference(before, RosterTotalsMap(), nm)
     If Abs(LogChargedTotal() - logBefore - hoursToAdd) > 0.0001 Then diff = diff & "  OT Log total Hours Charged is off" & vbNewLine
     If PeriodColumn(ps) > 0 Or hoursToAdd = 0 Then
-        If Abs(NumOr0(ws.Cells(r, C_REFUSED).Value2) - hoursToAdd) > 0.0001 Then
-            diff = diff & "  " & nm & ": starting hours show " & NumOr0(ws.Cells(r, C_REFUSED).Value2) & ", expected " & hoursToAdd & vbNewLine
+        If Abs(NumOr0(ws.Cells(r, C_REFUSED).Value2) - ownBefore - hoursToAdd) > 0.0001 Then
+            diff = diff & "  " & nm & ": Refused shows " & NumOr0(ws.Cells(r, C_REFUSED).Value2) & ", expected " & (ownBefore + hoursToAdd) & vbNewLine
         End If
     End If
     QuietOff evWas, scrWas, calcWas
@@ -1228,7 +1244,9 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
     RefreshGradeSnapshot
     AfterPeopleChange
     SaveIfWritable
-    report = nm & " added on row " & r & " with " & Format$(hoursToAdd, "0.0") & " h" & _
+    report = IIf(ownBefore <> 0, "NOTE: the OT Log already held " & HoursText(ownBefore) & " h under the name " & nm & _
+                 " this year, and they now show on the new row as well. If this is a different person, rename one of them." & vbNewLine & vbNewLine, "") & _
+             nm & " added on row " & r & " with " & Format$(hoursToAdd, "0.0") & " h" & _
              IIf(refId <> "", " (" & refId & " in the OT Log; Void Entry undoes the hours)", "") & "." & vbNewLine & _
              "Worked hours stay 0 until the next Kronos import: the name must be spelled the way Kronos spells it."
     SaveNewHire = True
@@ -1489,6 +1507,66 @@ Private Function RenameColumn(ByVal lo As ListObject, ByVal col As Long, ByVal o
     Next i
 End Function
 
+' What ties a calendar line to one person (v24 rename). Two people can share a
+' short calendar name ("Fred C"), so a line is theirs only when:
+'   tied     its Source is a call-out / posting they ACCEPTED or were AWARDED,
+'            or a shift switch that names them
+'   absTied  it covers one of their own absences
+Private Sub CalendarTies(ByVal emp As String, ByRef tied As Object, ByRef absTied As Object)
+    Set tied = CreateObject("Scripting.Dictionary")
+    tied.CompareMode = 1
+    Set absTied = CreateObject("Scripting.Dictionary")
+    absTied.CompareMode = 1
+    Dim v As Variant, i As Long
+    v = BodyOf(TableOn(LOG_SHEET, LOG_TABLE))
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If StrComp(Trim$(SafeStr(v(i, L_EMP))), emp, vbTextCompare) = 0 And Trim$(SafeStr(v(i, L_REF))) <> "" Then
+                Select Case SafeStr(v(i, L_OUTCOME))
+                    Case "Accepted", "Awarded": tied(Trim$(SafeStr(v(i, L_REF)))) = True
+                End Select
+            End If
+        Next i
+    End If
+    v = BodyOf(SwitchTable(False))
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If StrComp(Trim$(SafeStr(v(i, SW_OFF))), emp, vbTextCompare) = 0 Or _
+               StrComp(Trim$(SafeStr(v(i, SW_WORKS))), emp, vbTextCompare) = 0 Then tied(Trim$(SafeStr(v(i, SW_ID)))) = True
+        Next i
+    End If
+    v = BodyOf(AbsTable(False))
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If StrComp(Trim$(SafeStr(v(i, AB_EMP))), emp, vbTextCompare) = 0 And Trim$(SafeStr(v(i, AB_ID))) <> "" Then
+                absTied(Trim$(SafeStr(v(i, AB_ID)))) = True
+            End If
+        Next i
+    End If
+End Sub
+
+' Live calendar lines that mention the short name but are NOT tied to the
+' person: the rename leaves them alone and says which ("" = none).
+Private Function CalendarLinesLeftAlone(ByVal shortName As String, ByVal tied As Object, ByVal absTied As Object) As String
+    Dim v As Variant: v = BodyOf(CovTable(False))
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long, hits As Long, n As Long, s As String
+    For i = 1 To UBound(v, 1)
+        If UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
+            If Not tied.Exists(Trim$(SafeStr(v(i, CV_SOURCE)))) And Not absTied.Exists(Trim$(SafeStr(v(i, CV_ABS)))) Then
+                hits = 0
+                ReplaceNameToken SafeStr(v(i, CV_BY)) & " / " & SafeStr(v(i, CV_NEED)), shortName, shortName, hits
+                If hits > 0 Then
+                    n = n + 1
+                    If n <= 8 Then s = s & "  " & SafeStr(v(i, CV_ID)) & " " & IIf(IsDate(v(i, CV_DATE)), Format$(v(i, CV_DATE), "mmm d"), "") & vbNewLine
+                End If
+            End If
+        End If
+    Next i
+    If n > 8 Then s = s & "  ...and " & (n - 8) & " more" & vbNewLine
+    CalendarLinesLeftAlone = s
+End Function
+
 ' What a rename would touch, for the confirm. False = not allowed (txt says why).
 Public Function RenamePreview(ByVal oldName As String, ByVal newName As String, ByRef txt As String) As Boolean
     txt = ""
@@ -1518,7 +1596,13 @@ Public Function RenamePreview(ByVal oldName As String, ByVal newName As String, 
         End If
     Next i
     If CalName(oldName) <> CalName(newName) Then
-        txt = txt & "  Calendar lines: '" & CalName(oldName) & "' becomes '" & CalName(newName) & "' on lines tied to their call-outs, postings and switches" & vbNewLine
+        Dim tied As Object, absTied As Object, leftTxt As String
+        CalendarTies oldName, tied, absTied
+        leftTxt = CalendarLinesLeftAlone(CalName(oldName), tied, absTied)
+        txt = txt & "  Calendar lines: '" & CalName(oldName) & "' becomes '" & CalName(newName) & "' on lines tied to their own call-outs, awards, switches and time off" & vbNewLine
+        If leftTxt <> "" Then
+            txt = txt & vbNewLine & "These calendar lines also say '" & CalName(oldName) & "' but aren't tied to this person (someone else with the same short name, or typed by hand). They will be LEFT ALONE:" & vbNewLine & leftTxt
+        End If
     End If
     If mergeTxt <> "" Then
         txt = txt & vbNewLine & "CAREFUL: the name " & newName & " already has rows of its own. They would be combined with " & oldName & "'s:" & vbNewLine & mergeTxt
@@ -1555,7 +1639,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     Dim evWas As Boolean, scrWas As Boolean, calcWas As Long
     QuietOn evWas, scrWas, calcWas
     Dim before As Object, logBefore As Double, em As String, diff As String
-    Dim tied As Object, lo As ListObject, v As Variant, hits As Long, newTxt As String
+    Dim tied As Object, absTied As Object, lo As ListObject, v As Variant, hits As Long, newTxt As String
     Dim oldShort As String, newShort As String, covDone As Long, covLeft As String, awardDone As Long
     Application.Calculate
     Set before = RosterTotalsMap()
@@ -1566,22 +1650,8 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     Application.Calculation = xlCalculationManual
     mBusy = True
 
-    ' what ties a calendar line to this person: their OT Log refs and their switches (read BEFORE the rename)
-    Set tied = CreateObject("Scripting.Dictionary")
-    tied.CompareMode = 1
-    v = BodyOf(TableOn(LOG_SHEET, LOG_TABLE))
-    If IsArray(v) Then
-        For i = 1 To UBound(v, 1)
-            If StrComp(Trim$(SafeStr(v(i, L_EMP))), oldName, vbTextCompare) = 0 And Trim$(SafeStr(v(i, L_REF))) <> "" Then tied(Trim$(SafeStr(v(i, L_REF)))) = True
-        Next i
-    End If
-    v = BodyOf(SwitchTable(False))
-    If IsArray(v) Then
-        For i = 1 To UBound(v, 1)
-            If StrComp(Trim$(SafeStr(v(i, SW_OFF))), oldName, vbTextCompare) = 0 Or _
-               StrComp(Trim$(SafeStr(v(i, SW_WORKS))), oldName, vbTextCompare) = 0 Then tied(Trim$(SafeStr(v(i, SW_ID)))) = True
-        Next i
-    End If
+    ' what ties a calendar line to this person (read BEFORE the rename)
+    CalendarTies oldName, tied, absTied
 
     ' the name columns
     For i = 1 To n
@@ -1609,26 +1679,25 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     ' calendar lines: the short name, only on lines tied to this person
     oldShort = CalName(oldName): newShort = CalName(newName)
     If StrComp(oldShort, newShort, vbBinaryCompare) <> 0 Then
+        covLeft = CalendarLinesLeftAlone(oldShort, tied, absTied)
         Set lo = CovTable(False)
         v = BodyOf(lo)
         If IsArray(v) Then
             lo.Parent.Unprotect Password:=SHEET_PASSWORD
             For i = 1 To UBound(v, 1)
                 If UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
+                    ' "Covered By" is theirs when the line came from their own call-out, award or switch
                     If tied.Exists(Trim$(SafeStr(v(i, CV_SOURCE)))) Then
                         hits = 0
                         newTxt = ReplaceNameToken(SafeStr(v(i, CV_BY)), oldShort, newShort, hits)
-                        If hits > 0 Then lo.DataBodyRange.Cells(i, CV_BY).Value = newTxt
-                        covDone = covDone + IIf(hits > 0, 1, 0)
+                        If hits > 0 Then lo.DataBodyRange.Cells(i, CV_BY).Value = newTxt: covDone = covDone + 1
+                    End If
+                    ' "Off / Need" is theirs on a switch of theirs, or a line covering their own time off
+                    If Left$(UCase$(Trim$(SafeStr(v(i, CV_SOURCE)))), 3) = "SS-" And tied.Exists(Trim$(SafeStr(v(i, CV_SOURCE)))) _
+                       Or absTied.Exists(Trim$(SafeStr(v(i, CV_ABS)))) Then
                         hits = 0
                         newTxt = ReplaceNameToken(SafeStr(v(i, CV_NEED)), oldShort, newShort, hits)
-                        If hits > 0 Then lo.DataBodyRange.Cells(i, CV_NEED).Value = newTxt
-                        covDone = covDone + IIf(hits > 0, 1, 0)
-                    Else
-                        hits = 0
-                        ReplaceNameToken SafeStr(v(i, CV_BY)) & " / " & SafeStr(v(i, CV_NEED)), oldShort, newShort, hits
-                        If hits > 0 And Len(covLeft) < 300 Then covLeft = covLeft & "  " & SafeStr(v(i, CV_ID)) & " " & _
-                            IIf(IsDate(v(i, CV_DATE)), Format$(v(i, CV_DATE), "mmm d"), "") & vbNewLine
+                        If hits > 0 Then lo.DataBodyRange.Cells(i, CV_NEED).Value = newTxt: covDone = covDone + 1
                     End If
                 End If
             Next i
@@ -1779,8 +1848,8 @@ Public Function RemoveEmployee(ByVal emp As String, ByVal leftOn As Date, ByRef 
     AfterPeopleChange
     SaveIfWritable
     report = emp & " is on the Former sheet (left " & Format$(leftOn, "mmm d, yyyy") & ") and off the roster." & vbNewLine & _
-             "Final figures kept: Total " & Format$(rec(1, FM_TOTAL), "0.##") & ", Worked " & Format$(rec(1, FM_WORKED), "0.##") & _
-             ", Refused " & Format$(rec(1, FM_REFUSED), "0.##") & ". Their " & Format$(logHrs, "0.##") & " h in the OT Log stay there." & _
+             "Final figures kept: Total " & HoursText(rec(1, FM_TOTAL)) & ", Worked " & HoursText(rec(1, FM_WORKED)) & _
+             ", Refused " & HoursText(rec(1, FM_REFUSED)) & ". Their " & HoursText(logHrs) & " h in the OT Log stay there." & _
              IIf(postTxt <> "", vbNewLine & "Not chargeable on open posting(s): " & postTxt, "") & vbNewLine & _
              "Everyone else's totals are unchanged. Publish the members' file again." & vbNewLine & "Backup: " & bk
     RemoveEmployee = True
@@ -1789,7 +1858,7 @@ Failed:
     em = Err.Description
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
-    ProtectSheet ws
+    ProtectAll
     MarkNoSave
     MsgBox "Removing " & emp & " stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Remove"
@@ -1814,7 +1883,7 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     QuietOn evWas, scrWas, calcWas
     Dim before As Object, logBefore As Double, em As String, diff As String, r As Long, c As Long
     Dim codes() As String: ReDim codes(0 To UnitColLast() - UnitColFirst())
-    Dim lo As ListObject, found As Boolean, crewTxt As String, newest As String
+    Dim lo As ListObject, found As Boolean, crewTxt As String, newest As String, postTxt As String
     For c = UnitColFirst() To UnitColLast()
         codes(c - UnitColFirst()) = Trim$(SafeStr(fv(fr, FM_CODE1 + c - UnitColFirst())))
     Next c
@@ -1838,6 +1907,7 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     If Not found Or newest <> crewTxt Then
         If Not AddCrewRow(emp, crewTxt, Date) Then Err.Raise vbObjectError + 741, , "the crew history row couldn't be written"
     End If
+    postTxt = ClearLeftExemptions(emp)                   ' chargeable again on open postings
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap(), emp)
     If Abs(LogChargedTotal() - logBefore) > 0.0001 Then diff = diff & "  OT Log total Hours Charged changed" & vbNewLine
@@ -1854,9 +1924,10 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     RefreshGradeSnapshot
     AfterPeopleChange
     SaveIfWritable
-    report = emp & " is back on the roster (row " & r & ") with " & Format$(NumOr0(ws.Cells(r, C_REFUSED).Value2), "0.##") & _
+    report = emp & " is back on the roster (row " & r & ") with " & HoursText(NumOr0(ws.Cells(r, C_REFUSED).Value2)) & _
              " h charged this year from the OT Log." & vbNewLine & _
              "Type their phone and email in again (they aren't kept on the Former sheet). Worked hours fill in at the next Kronos import." & _
+             IIf(postTxt <> "", vbNewLine & "Chargeable again on open posting(s): " & postTxt, "") & _
              vbNewLine & "Backup: " & bk
     BringBack = True
     Exit Function
@@ -1864,7 +1935,7 @@ Failed:
     em = Err.Description
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
-    ProtectSheet ws
+    ProtectAll
     MarkNoSave
     MsgBox "Bringing " & emp & " back stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Bring back"

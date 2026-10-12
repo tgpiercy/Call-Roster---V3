@@ -162,8 +162,10 @@ Sub SyncKronosData()
     Dim extra As String, nExtra As Long, kk As Variant
     Dim formerKeys As Object: Set formerKeys = CreateObject("Scripting.Dictionary")     ' v24: people on the Former sheet are known
     On Error Resume Next
+    Dim fk As String
     For Each kk In FormerNameSet().Keys
-        formerKeys(NameKey(CStr(kk))) = True
+        fk = FindKey(dict, alt, NameKey(CStr(kk)))         ' the same match a roster name gets (middle initial in Kronos)
+        If fk <> "" Then formerKeys(fk) = True
     Next kk
     On Error GoTo 0
     For Each kk In dict.Keys

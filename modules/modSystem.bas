@@ -28,7 +28,7 @@ Public Const EXPECTED_RELEASE As String = "v24"
 Private Const N_MODULES As Long = 18
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24"
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v22,frmNewPosting|v21,frmPostingEntry|v24,frmShiftSwitch|v21," & _
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24,frmNewPosting|v21,frmPostingEntry|v24,frmShiftSwitch|v24," & _
                                         "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22,frmEmployee|v24"
 
 Private mBackupWarned As Boolean

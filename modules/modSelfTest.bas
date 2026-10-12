@@ -861,5 +861,6 @@ Private Sub LoadCases()
     AddCase "awardcover,dst-night-partial,13,1,1:6.5:Y,,,6.5|6.5"
     AddCase "awardcover,full-shift,12,1,1:F:Y,,,12|0"
     AddCase "posting,partial-award-remainder-uncharged,award,12,1:1:N:N;2:1:Y:Y;3:1:N:N,,,1=21;2=0;3=0"
+    AddCase "awardorder,filled-comes-before-full-first,12,1,1:F:Y;2:F:N;3:8:Y,,,filled"
 ' <<< CASES
 End Sub

@@ -1,5 +1,5 @@
 Option Explicit
-' @version v21 (Oct 12)
+' @version v24 (Jan 5)
 
 ' ================================================================
 ' SHIFT SWITCH (S/S)
@@ -482,7 +482,7 @@ Private Function PaybackProblem(ByVal d2 As Date, ByVal sh2 As String) As String
         If BookedOff(mOff.Text, d2, t) Then PaybackProblem = who & " is booked off (" & t & ")"
         Exit Function
     End If
-    Dim code As String: code = EmpCrewCode(mOff.Text)
+    Dim code As String: code = EmpCrewCode(mOff.Text, d2)          ' v24: their crew on the payback date
     Select Case NotFreeReason(mOff.Text, code, d2, sh2)
         Case "", "S/S off"
         Case "scheduled": PaybackProblem = who & " is scheduled to work " & LCase$(CrewShiftOn(code, d2)) & " that day"

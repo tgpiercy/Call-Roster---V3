@@ -139,7 +139,7 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
     Dim depts As Variant: depts = DeptList()
     Dim recs() As EmpRec, n As Long, d As Long
     For d = 0 To UBound(depts)
-        n = LoadEligible(CStr(depts(d)), "ALL", recs)
+        n = LoadEligible(CStr(depts(d)), "ALL", recs, 999, True, Date)     ' v24: today's crew
         nUnits = nUnits + 1
         nPeople = nPeople + n
         r = WriteSection(ws, r, DeptRosterTitle(CStr(depts(d))), recs, n, lightFill, greyTxt, lineCol)

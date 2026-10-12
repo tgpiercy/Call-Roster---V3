@@ -264,12 +264,15 @@ End Function
 
 ' Problems with "works" covering the shift (blank = looks fine)
 Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal isNight As Boolean) As String
+    ' v24: a crew change can fall between d - 1, d and d + 1, so each day has its own crew
     Dim code As String: code = EmpCrewCode(empName, d)
+    Dim codePrev As String: codePrev = EmpCrewCode(empName, d - 1)
+    Dim codeNext As String: codeNext = EmpCrewCode(empName, d + 1)
     If IsPairCrew(code) Or code = "DAYS" Then   ' DAYS: Mon-Fri days (v20)
         If CrewShiftOn(code, d) = "Days" Then
             WorksConflict = code & " is already working days that day"
-        ElseIf isNight And CrewShiftOn(code, d + 1) = "Days" Then
-            WorksConflict = code & " starts days the next morning"
+        ElseIf isNight And CrewShiftOn(codeNext, d + 1) = "Days" Then
+            WorksConflict = codeNext & " starts days the next morning"
         End If
         Exit Function
     End If
@@ -277,10 +280,10 @@ Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal is
     If c = "" Then Exit Function
     If c = DaysCrew(d) Or c = NightsCrew(d) Then
         WorksConflict = "crew " & c & " is already working that day"
-    ElseIf Not isNight And c = NightsCrew(d - 1) Then
-        WorksConflict = "crew " & c & " is coming off nights that morning"
-    ElseIf isNight And c = DaysCrew(d + 1) Then
-        WorksConflict = "crew " & c & " starts days the next morning"
+    ElseIf Not isNight And CrewShiftOn(codePrev, d - 1) = "Nights" Then
+        WorksConflict = "crew " & codePrev & " is coming off nights that morning"
+    ElseIf isNight And CrewShiftOn(codeNext, d + 1) = "Days" Then
+        WorksConflict = "crew " & codeNext & " starts days the next morning"
     End If
 End Function
 

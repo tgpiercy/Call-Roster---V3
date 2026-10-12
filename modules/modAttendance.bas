@@ -92,7 +92,11 @@ Private mBatch As Boolean
 ' a wait set one year restarts the next year part-way, which changes the
 ' year after that, so no fixed look-back is safe (the table is small).
 Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef sickN() As Boolean, ByVal nSick As Long, _
-                          ByRef perD() As Date, ByVal nPer As Long, ByVal asOf As Date, ByRef st As AttendanceStatus)
+                          ByRef perD() As Date, ByVal nPer As Long, ByVal asOf As Date, ByRef st As AttendanceStatus, _
+                          Optional ByVal whoName As String = "")
+    ' whoName (v24): when given, each day's crew comes from the crew history, with
+    ' crewCode as the answer for someone who has none. Left out (SelfTest, the
+    ' Python mirror): crewCode for every day.
     Dim blank As AttendanceStatus: st = blank
     Dim blankS As AtState: mS = blankS
     Dim n As Long: n = nSick + nPer
@@ -133,7 +137,7 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
             If evK(i) = EV_SICK Then
                 mS.Used = mS.Used + 1
                 sameOcc = False
-                If mS.HaveLast Then sameOcc = Not SchedBetween(crewCode, mS.LastD, mS.LastN, evD(i), evN(i))
+                If mS.HaveLast Then sameOcc = Not SchedBetween(crewCode, mS.LastD, mS.LastN, evD(i), evN(i), whoName)
                 If Not sameOcc Then
                     mS.Occ = mS.Occ + 1
                     If mS.Occ = 1 Then mS.Occ1 = evD(i)
@@ -243,13 +247,17 @@ End Function
 
 ' True when a scheduled shift of the crew lies strictly between two shifts
 Public Function SchedBetween(ByVal crewCode As String, ByVal d1 As Date, ByVal n1 As Boolean, _
-                             ByVal d2 As Date, ByVal n2 As Boolean) As Boolean
+                             ByVal d2 As Date, ByVal n2 As Boolean, Optional ByVal whoName As String = "") As Boolean
     Dim p1 As Double, p2 As Double, p As Double, x As Date, s As String
     p1 = EvPos(d1, n1, 1): p2 = EvPos(d2, n2, 1)
     If p2 <= p1 Then Exit Function
     If Int(d2) - Int(d1) > 60 Then SchedBetween = True: Exit Function
     For x = Int(d1) To Int(d2)
-        s = CrewShiftOn(crewCode, x)
+        If whoName <> "" Then
+            s = CrewShiftOn(CrewOn(whoName, x, crewCode), x)       ' v24: the crew they were on that day
+        Else
+            s = CrewShiftOn(crewCode, x)
+        End If
         If s = "?" Then s = "Days"
         If s <> "" Then
             p = EvPos(x, (s = "Nights"), 1)
@@ -319,7 +327,7 @@ Public Function AttendanceFor(ByVal emp As String, ByVal asOf As Date, ByRef st 
         If nS > UBound(sd) Then ReDim Preserve sd(1 To nS + 1): ReDim Preserve sn(1 To nS + 1)
         sd(nS) = Int(addDate): sn(nS) = IsNightShift(addShift)
     End If
-    AttendanceCore EmpCrewCode(emp), sd, sn, nS, pd, nP, asOf, st
+    AttendanceCore EmpCrewCode(emp), sd, sn, nS, pd, nP, asOf, st, emp
     AttendanceFor = True
 End Function
 
@@ -476,7 +484,7 @@ Public Sub ShowAttendance()
             AttendanceFor CStr(names(LBound(names) + i - 1)), Date, st
             lvl = AttendanceLevel(st)
             v(i, 1) = CStr(names(LBound(names) + i - 1))
-            v(i, 2) = EmpCrewCode(v(i, 1))
+            v(i, 2) = EmpCrewCode(v(i, 1), Date)            ' today's crew (column E can hold one that starts later)
             v(i, 3) = HomeUnitOf(v(i, 1))
             v(i, 4) = st.SickUsed
             v(i, 5) = st.PaidUsed

@@ -282,10 +282,10 @@ def award_order_problem(hours: float, positions: int, lst: list[Listed]) -> str:
     if n_part_aw == 0:
         return ""
     pos = max(positions, 1)
-    if n_full_waiting > 0:
-        return "full-first"
     if n_full_aw >= pos:
         return "filled"
+    if n_full_waiting > 0:
+        return "full-first"
     if part_hrs > (pos - n_full_aw) * hours + 0.0001:
         return "over-hours"
     return ""

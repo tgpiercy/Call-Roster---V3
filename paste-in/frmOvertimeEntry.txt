@@ -1,5 +1,5 @@
 Option Explicit
-' @version v22 (Oct 13)
+' @version v24 (Jan 5)
 
 ' ================================================================
 ' CALLOUT SESSION FORM
@@ -271,7 +271,9 @@ Private Sub btnLoad_Click()
     End If
 
     Application.Calculate
-    mCount = LoadEligible(C("cmbDept").Value, CrewFilter(C("cmbShift").Value), mEntries, 999, CALLOUT_INCLUDE_DAYS)
+    ' v24: each person's crew is the one they are on that date (crew history)
+    mCount = LoadEligible(C("cmbDept").Value, CrewFilter(C("cmbShift").Value), mEntries, 999, CALLOUT_INCLUDE_DAYS, _
+                          CDate(C("txtDate").Value))
     ' only people free that shift: not scheduled, rest rule, not booked off, not on a switch
     Dim offList As String
     If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, CDate(C("txtDate").Value), C("cmbDN").Text, offList)

@@ -298,3 +298,4 @@ awardcover,full-plus-partial,12,2,1:F:Y;2:8:Y,,,20|4
 awardcover,dst-night-partial,13,1,1:6.5:Y,,,6.5|6.5
 awardcover,full-shift,12,1,1:F:Y,,,12|0
 posting,partial-award-remainder-uncharged,award,12,1:1:N:N;2:1:Y:Y;3:1:N:N,,,1=21;2=0;3=0
+awardorder,filled-comes-before-full-first,12,1,1:F:Y;2:F:N;3:8:Y,,,filled

@@ -9,14 +9,14 @@ In the VBA editor (Alt+F11), for EACH module, right-click > **Remove** (answer *
 
 `modOvertimeEntry`, `modOTLog`, `modPostings`, `modShiftCycle`, `modShiftSwitch`, `modCalendar`, `modHolidays`, `modSystem`, `modUI`, `ImportKronosData`, `modGradeLog`, `modSelfTest`, `modPublish`, `Call_Out_Roster`, `modLeave`, `modAttendance`, `modIntegrity`, `modRollover`
 
-(Code changed in `modOvertimeEntry`, `modOTLog`, `modPostings`, `modShiftSwitch`, `modCalendar`, `modSystem`, `modUI`, `ImportKronosData`, `modGradeLog`, `modSelfTest`, `modIntegrity`, `modRollover`. The others are the same code with a v24 stamp. `modOTLog` carries no stamp but DID change: replace it. `modLogLayout`, `modMigration`, `modCleanup`, `Sort_Hours_Dept`, `OT_Posting` and `LoginFullAccess` are unchanged.)
+(Code changed in `modOvertimeEntry`, `modOTLog`, `modPostings`, `modShiftSwitch`, `modCalendar`, `modSystem`, `modUI`, `ImportKronosData`, `modGradeLog`, `modSelfTest`, `modPublish`, `Call_Out_Roster`, `modAttendance`, `modIntegrity`, `modRollover`. The others are the same code with a v24 stamp. `modOTLog` carries no stamp but DID change: replace it. `modLogLayout`, `modMigration`, `modCleanup`, `Sort_Hours_Dept`, `OT_Posting` and `LoginFullAccess` are unchanged.)
 
 ## 2. Import the new module
 **File > Import File:** `modules/modPeople.bas`.
 
-## 3. Re-paste ThisWorkbook and one form
+## 3. Re-paste ThisWorkbook and three forms
 - Double-click **ThisWorkbook**, Ctrl+A, paste `paste-in/ThisWorkbook.txt`.
-- Double-click **frmPostingEntry** > View Code, Ctrl+A, paste `paste-in/frmPostingEntry.txt`. Do not change the form's design.
+- For each of **frmPostingEntry**, **frmOvertimeEntry** and **frmShiftSwitch**: right-click > View Code, Ctrl+A, paste the file of the same name from `paste-in/`. Do not change any form's design.
 
 ## 4. Add the new form
 **Insert > UserForm**. In the Properties window set **(Name)** to `frmEmployee`. View Code, Ctrl+A, paste `paste-in/frmEmployee.txt`. Leave the form itself blank: the code builds it.
@@ -39,7 +39,7 @@ The ADMIN button **Rename Employee** becomes **Employee**.
 Expect **"Modules: 18 of 18 on v24"**, no ThisWorkbook or form line, and a new line **"Crew History: n rows"**.
 
 ## 9. SelfTest (Alt+F8)
-Expect **"299 passed, 0 failed"** and "all 35 suites passed".
+Expect **"300 passed, 0 failed"** and "all 35 suites passed".
 
 ## 10. IntegrityCheck (Alt+F8)
 Same result as before the install.

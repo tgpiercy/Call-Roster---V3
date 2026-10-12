@@ -475,6 +475,9 @@ Private Sub SaveMove()
           "Codes cleared: " & IIf(clearTxt = "", "none", Replace(clearTxt, "|", ", ")) & vbNewLine & _
           "Crew: " & IIf(crewTxt = "", "no change", "changes to " & crewTxt & " from " & Format$(pc.AsOf, "mmm d, yyyy")) & vbNewLine
     If pc.Warnings <> "" Then msg = msg & "Check: " & pc.Warnings & vbNewLine
+    Dim posts As String
+    If clearTxt <> "" Then posts = ExemptFromOpenPostings(pc.Emp, pc.AsOf, "|" & clearTxt & "|", "", True)
+    If posts <> "" Then msg = msg & "Open posting(s) in the old unit where they will not be charged: " & posts & vbNewLine
     If clearTxt = "" Then msg = msg & vbNewLine & "NOTE: no code is being cleared. If this is only an extra sign-off, Cancel and type the code on the roster instead." & vbNewLine
     msg = msg & vbNewLine & IIf(pc.AddHours > 0, "This logs one Adjustment (Ref UM-####, Reason 'Unit move'). Void Entry undoes the hours.", "No hours are logged.") & _
           vbNewLine & "The code changes go in the Grade Log." & vbNewLine & vbNewLine & "Save?"

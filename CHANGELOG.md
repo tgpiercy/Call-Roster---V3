@@ -14,7 +14,7 @@ Brief: `briefs/v24.md`. Report-back and decisions: `docs/v24-report-back.md`. In
 - **Moved or left = not chargeable on open postings.** Their row on an open posting's frozen list is marked `Exempt - moved / left <date>` for shifts on or after the date, and no award, no-takers or out-of-department close charges it. A reopened posting keeps the mark.
 - IntegrityCheck and the Kronos import treat names on the Former sheet as known. The rollover's Year End record includes people who left during the year (their figures at removal).
 - `SetupPeople` (Alt+F8, once): Crew History, Former, the Signup Hours column; verified. SystemCheck: 18 modules on v24, the new form, a Crew History line, and warnings when SetupPeople hasn't been run. ADMIN button "Rename Employee" becomes "Employee" (run `ApplyRosterLayout`).
-- SelfTest 299 cases (+51): crew on a date, a crew change keeping a past date on the old crew's shifts, the rest rule across a crew change, new-hire average, unit move (up, own hours higher, mover not their own target), partial vs full award order, partial remainder, exempt list rows, the rename helpers.
+- SelfTest 300 cases (+52): crew on a date, a crew change keeping a past date on the old crew's shifts, the rest rule across a crew change, new-hire average, unit move (up, own hours higher, mover not their own target), partial vs full award order, partial remainder, exempt list rows, the rename helpers.
 - Out of scope: partial hours on call-outs and on out-of-department awards; dated unit codes.
 
 ## Hotfix, Oct 12, 2026 (v22, v22.1 and v23 zips rebuilt twice)

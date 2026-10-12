@@ -275,15 +275,15 @@ Private Sub RefreshList(ByVal keepIdx As Long)
         If Not mL(i).SignedUp Then
             lstEmployees.List(i - 1, 4) = ""
         ElseIf IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then
-            lstEmployees.List(i - 1, 4) = Format$(mL(i).SignupHrs, "0.##") & " h"
+            lstEmployees.List(i - 1, 4) = HoursText(mL(i).SignupHrs) & " h"
         Else
             lstEmployees.List(i - 1, 4) = "Yes"
         End If
         Select Case mL(i).Result
             Case "Awarded"
                 res = "AWARDED"
-                If IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then res = res & "  " & Format$(mL(i).SignupHrs, "0.##") & " h"
-            Case "Charged": res = "REFUSED  " & Format$(mL(i).Charged, "0.##")
+                If IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then res = res & "  " & HoursText(mL(i).SignupHrs) & " h"
+            Case "Charged": res = "REFUSED  " & HoursText(mL(i).Charged)
             Case "Signed up": res = "not charged"
             Case Else
                 res = ""
@@ -303,13 +303,13 @@ Private Sub RefreshList(ByVal keepIdx As Long)
             Case "filled": coverTxt = vbLf & "NOT ALLOWED: every position already has a full-shift award"
             Case "over-hours": coverTxt = vbLf & "NOT ALLOWED: the partial awards add up to more than the hours left"
             Case Else
-                If covered < mP.Positions * mP.Hours Then
-                    coverTxt = vbLf & "Covered " & Format$(covered, "0.##") & " h; " & Format$(uncovered, "0.##") & " h not covered (nobody charged for them)"
+                If uncovered > 0 And covered > 0 Then
+                    coverTxt = vbLf & "Covered " & HoursText(covered) & " h; " & HoursText(uncovered) & " h not covered (nobody charged for them)"
                 End If
         End Select
         C("lblSummary").Caption = "Awarded " & nAw & " of " & mP.Positions & "   |   last awarded in call order: #" & _
             maxRank & " (" & Format$(maxHrs, "#,##0") & " hrs)" & vbLf & _
-            "Charged (didn't sign up, ahead of #" & maxRank & "): " & nCh & " operator(s), " & Format$(tot, "0.##") & " hrs total" & coverTxt
+            "Charged (didn't sign up, ahead of #" & maxRank & "): " & nCh & " operator(s), " & HoursText(tot) & " hrs total" & coverTxt
     End If
 End Sub
 

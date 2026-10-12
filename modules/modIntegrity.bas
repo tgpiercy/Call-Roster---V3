@@ -464,8 +464,13 @@ Private Sub CheckOrphans()
                 If Not mOnRoster.Exists(emp) Then
                     If IsDate(v(i, AB_END)) Then e2 = CDate(v(i, AB_END)) Else e2 = DateSerial(2999, 12, 31)
                     If e2 >= Date Then
-                        AddIssue SEV_WARN, "Not on roster", "Booking " & SafeStr(v(i, AB_ID)) & " is for " & emp & ", who isn't on the roster", _
-                                 "Void it in Book Time Off, or fix the name"
+                        If former.Exists(emp) Then
+                            AddIssue SEV_WARN, "Not on roster", "Booking " & SafeStr(v(i, AB_ID)) & " is for " & emp & ", who has left (Former sheet)", _
+                                     "Void the booking in Book Time Off so the calendar stops showing it"
+                        Else
+                            AddIssue SEV_WARN, "Not on roster", "Booking " & SafeStr(v(i, AB_ID)) & " is for " & emp & ", who isn't on the roster", _
+                                     "Void it in Book Time Off, or fix the name"
+                        End If
                     End If
                 End If
             End If

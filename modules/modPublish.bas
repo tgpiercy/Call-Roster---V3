@@ -361,7 +361,7 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
             If nm <> "" Then
                 k = k + 1                       ' out() is sized to the roster above, so no cap test is needed here
                 out(k, 1) = nm
-                out(k, 2) = Trim$(SafeStr(v(r, C_SHIFT)))
+                out(k, 2) = CrewOn(nm, Date, Trim$(SafeStr(v(r, C_SHIFT))))     ' v24: today's crew
                 out(k, 3) = Trim$(SafeStr(v(r, C_HOME)))
                 out(k, 4) = NumOr0(v(r, C_TOTAL))
                 out(k, 5) = NumOr0(v(r, C_WORKED))

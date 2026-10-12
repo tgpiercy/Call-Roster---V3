@@ -3286,7 +3286,7 @@ End Function
 
 Private Function EmpCrewOf(ByVal empName As String) As String
     If mShiftMap Is Nothing Then Exit Function
-    If mShiftMap.Exists(Trim$(empName)) Then EmpCrewOf = mShiftMap(Trim$(empName))
+    If mShiftMap.Exists(Trim$(empName)) Then EmpCrewOf = CrewOn(empName, Date, CStr(mShiftMap(Trim$(empName))))   ' v24: today's crew
 End Function
 
 ' coloured bar + column headings; returns the first row for data

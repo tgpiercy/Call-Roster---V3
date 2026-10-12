@@ -70,6 +70,7 @@ Public Const PL_RESULT As Long = 8
 Public Const PL_CHARGED As Long = 9
 Public Const PL_SIGNHRS As Long = 10        ' v24: hours signed up for when it is only PART of the shift (blank = the whole shift)
 Public Const PL_N As Long = 10
+Public Const EXEMPT_TAG As String = "Exempt - "    ' v24: starts the "never charged on this posting" note in a list row's Result
 
 Public Type PostRec
     ID As String
@@ -826,7 +827,7 @@ Public Function LoadPosting(ByVal id As String, ByRef p As PostRec, ByRef lst() 
                 .TotalHrs = NumOr0(v(i, PL_HRS))
                 .SignedUp = (UCase$(SafeStr(v(i, PL_SIGNED))) = "YES")
                 .Result = SafeStr(v(i, PL_RESULT))
-                If Left$(.Result, 6) = "Exempt" Then .ExemptNote = .Result
+                SplitExempt .Result, .ExemptNote          ' "Signed up | Exempt - moved Jan 12" -> the two parts
                 If UBound(v, 2) >= PL_SIGNHRS Then .SignupHrs = NumOr0(v(i, PL_SIGNHRS))
                 .Awarded = (.Result = "Awarded")
                 .Charged = NumOr0(v(i, PL_CHARGED))
@@ -850,6 +851,34 @@ Public Function LoadPosting(ByVal id As String, ByRef p As PostRec, ByRef lst() 
         lst(j + 1) = tmp
     Next i
     LoadPosting = n
+End Function
+
+' The Result cell of a list row can carry "Exempt - ..." on its own or after
+' the result ("Signed up | Exempt - moved Jan 12"), so marking an exempt
+' person signed up or awarded never loses the exemption.
+Private Sub SplitExempt(ByRef result As String, ByRef exemptNote As String)
+    Dim p As Long: p = InStr(1, result, EXEMPT_TAG, vbTextCompare)
+    exemptNote = ""
+    If p = 0 Then Exit Sub
+    exemptNote = Trim$(Mid$(result, p))
+    result = Trim$(Left$(result, p - 1))
+    If Right$(result, 1) = "|" Then result = Trim$(Left$(result, Len(result) - 1))
+End Sub
+
+' What goes in the Result cell for one list person
+Private Function ResultCellText(ByRef rec As PListRec) As String
+    If rec.ExemptNote = "" Or rec.Result = rec.ExemptNote Then
+        ResultCellText = rec.Result
+    ElseIf rec.Result = "" Then
+        ResultCellText = rec.ExemptNote
+    Else
+        ResultCellText = rec.Result & " | " & rec.ExemptNote
+    End If
+End Function
+
+' Hours as text without a trailing point: 8 -> "8", 22.75 -> "22.75" (HoursText(8) gives "8.")
+Public Function HoursText(ByVal x As Double) As String
+    HoursText = CStr(Round(x, 2))
 End Function
 
 ' Open postings for the award pop-up. ids() gets the Posting IDs.
@@ -1048,8 +1077,8 @@ End Function
 ' no full-shift sign-up is left for that position. Counted per position: with
 ' 2 positions and 1 full sign-up, partials may take the second.
 '   ""           fine (or no partial is awarded)
-'   "full-first" a partial is awarded while a full-shift sign-up isn't (who = that person)
 '   "filled"     every position already has a full-shift award
+'   "full-first" a partial is awarded while a full-shift sign-up isn't (who = that person)
 '   "over-hours" the awarded partials add up to more than the hours left
 Public Function AwardOrderProblem(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
                                   Optional ByRef who As String) As String
@@ -1071,10 +1100,10 @@ Public Function AwardOrderProblem(ByRef p As PostRec, ByRef lst() As PListRec, B
     If nPartAw = 0 Then who = "": Exit Function
     pos = p.Positions
     If pos < 1 Then pos = 1
-    If nFullWaiting > 0 Then
-        AwardOrderProblem = "full-first"
-    ElseIf nFullAw >= pos Then
+    If nFullAw >= pos Then                      ' nothing left for a partial: say so before pointing at anyone
         who = "": AwardOrderProblem = "filled"
+    ElseIf nFullWaiting > 0 Then
+        AwardOrderProblem = "full-first"
     ElseIf partHrs > (pos - nFullAw) * p.Hours + 0.0001 Then
         who = "": AwardOrderProblem = "over-hours"
     Else
@@ -1210,7 +1239,7 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
             awardShow = awardShow & IIf(awardShow = "", "", "; ") & lst(i).EmpName
             If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
                 anyPartial = True
-                awardShow = awardShow & " (" & Format$(lst(i).SignupHrs, "0.##") & " h)"
+                awardShow = awardShow & " (" & HoursText(lst(i).SignupHrs) & " h)"
             End If
         End If
         If lst(i).SignedUp And Not lst(i).Awarded And lst(i).Rank < maxRank Then
@@ -1237,10 +1266,10 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
     Dim msg As String
     msg = p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
           "Awarded: " & awardShow & vbNewLine & _
-          IIf(anyPartial, "Covered: " & Format$(covered, "0.##") & " h" & _
-              IIf(uncovered > 0, "; the other " & Format$(uncovered, "0.##") & " h are not covered and nobody is charged for them", "") & vbNewLine, "") & _
+          IIf(anyPartial, "Covered: " & HoursText(covered) & " h" & _
+              IIf(uncovered > 0, "; the other " & HoursText(uncovered) & " h are not covered and nobody is charged for them", "") & vbNewLine, "") & _
           "Charged (didn't sign up, ahead in call order): " & nCh & " x " & _
-          Format$(p.Hours * CHARGE_MULTIPLIER, "0.##") & " hrs = " & Format$(tot, "0.##") & " hrs" & _
+          HoursText(p.Hours * CHARGE_MULTIPLIER) & " hrs = " & HoursText(tot) & " hrs" & _
           IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "")
     If MsgBox(msg & vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm award") <> vbOK Then Exit Function
 
@@ -1250,7 +1279,11 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
         If lst(i).Awarded Then
             calNames = calNames & IIf(calNames = "", "", " / ") & CalName(lst(i).EmpName)
             ' a partial award shows its hours beside the name: "Joe D 8h"
-            If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then calNames = calNames & " " & CDbl(lst(i).SignupHrs) & "h"
+            If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
+                calNames = calNames & " " & CDbl(lst(i).SignupHrs) & "h"
+            ElseIf anyPartial And p.Hours < USUAL_SHIFT_HOURS Then
+                calNames = calNames & " " & CDbl(p.Hours) & "h"        ' a short posting: the whole-shift person keeps their tag too
+            End If
         End If
     Next i
     Dim calTxt As String: calTxt = CalendarOutcome(p, calNames, anyPartial)
@@ -1298,6 +1331,10 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
 
     Dim code As String, hrs As Double, onRoster As Boolean, inUnit As Boolean, crew As String, why As String
     onRoster = RosterLookup(outName, code, hrs, p.Unit, inUnit, crew)
+    If onRoster Then
+        crew = CrewOn(outName, p.ShiftDate, crew)          ' v24: the crew they are on that date
+        code = "OD " & crew
+    End If
     If onRoster And Not inUnit Then
         If MsgBox(outName & " isn't signed off in " & p.Unit & " (no code in that column on the OT Roster)." & vbNewLine & _
                   "Award anyway?", vbYesNo + vbExclamation, "Out of department") = vbNo Then Exit Function
@@ -1314,8 +1351,8 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
 
     If MsgBox(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
               "Award OUT OF DEPARTMENT to: " & outName & IIf(code <> "", "  (" & code & ")", "") & vbNewLine & _
-              "Charged (in department, didn't sign up): " & nCh & " x " & Format$(p.Hours * CHARGE_MULTIPLIER, "0.##") & _
-              " hrs = " & Format$(tot, "0.##") & " hrs" & IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "") & _
+              "Charged (in department, didn't sign up): " & nCh & " x " & HoursText(p.Hours * CHARGE_MULTIPLIER) & _
+              " hrs = " & HoursText(tot) & " hrs" & IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "") & _
               vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm out-of-department award") <> vbOK Then Exit Function
 
     Dim awardTxt As String: awardTxt = outName & " (out of dept)"
@@ -1409,8 +1446,8 @@ Public Function SubmitNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
         If Not ConfirmPeriod(ps) Then Exit Function
     End If
     If MsgBox(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
-              "NO TAKERS: charge all " & nCh & " eligible operator(s) " & Format$(p.Hours * CHARGE_MULTIPLIER, "0.##") & _
-              " hrs each (" & Format$(tot, "0.##") & " hrs total)" & vbNewLine & _
+              "NO TAKERS: charge all " & nCh & " eligible operator(s) " & HoursText(p.Hours * CHARGE_MULTIPLIER) & _
+              " hrs each (" & HoursText(tot) & " hrs total)" & vbNewLine & _
               "Pay period starting " & Format$(ps, "mmm d, yyyy") & vbNewLine & vbNewLine & "Submit?", _
               vbOKCancel + vbExclamation, "Confirm no takers") <> vbOK Then Exit Function
     If Not WriteOutcome(p, lst, n, "No takers", "", ps, 0) Then Exit Function
@@ -1476,7 +1513,7 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                     ' partial award must carry the hours awarded, not the posting's
                     data(k, L_BASEHRS) = AwardedHours(p.Hours, lst(i).SignupHrs)
                     If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
-                        data(k, L_REASON) = "Partial award: " & Format$(lst(i).SignupHrs, "0.##") & " of " & Format$(p.Hours, "0.##") & " h"
+                        data(k, L_REASON) = "Partial award: " & HoursText(lst(i).SignupHrs) & " of " & HoursText(p.Hours) & " h"
                     End If
                 ElseIf lst(i).Charged > 0 Then
                     data(k, L_OUTCOME) = "Refused"
@@ -1490,7 +1527,7 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                 Else
                     data(k, L_OUTCOME) = "Signed Up"
                     If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
-                        data(k, L_REASON) = "Signed up for " & Format$(lst(i).SignupHrs, "0.##") & " of " & Format$(p.Hours, "0.##") & " h"
+                        data(k, L_REASON) = "Signed up for " & HoursText(lst(i).SignupHrs) & " of " & HoursText(p.Hours) & " h"
                     End If
                 End If
                 data(k, L_CHARGED) = lst(i).Charged
@@ -1574,7 +1611,13 @@ Private Function CalendarOutcome(ByRef p As PostRec, ByVal byText As String, _
         CalendarOutcome = CalendarPlace(p.ShiftDate, p.ShiftLbl, p.Unit, _
                                         p.ID & " wasn't on the calendar - which line does it cover?", _
                                         byText, lineHrs, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason))
-        If CalendarOutcome = "" Then CalendarOutcome = "not on the calendar (left off)" Else CalendarOutcome = "added: " & CalendarOutcome
+        If CalendarOutcome = "" Then
+            CalendarOutcome = "not on the calendar (left off)"
+        Else
+            ' a line that already had its own Hours would draw them after the per-name hours
+            If perNameHours Then UpdateCoverageBySource p.ID, byText, lineHrs, True
+            CalendarOutcome = "added: " & CalendarOutcome
+        End If
     End If
     SaveIfWritable
     RefreshCalendar
@@ -1637,17 +1680,53 @@ Public Function ExemptFromOpenPostings(ByVal emp As String, ByVal fromDate As Da
     For i = 1 To UBound(lv, 1)
         id = Trim$(SafeStr(lv(i, PL_ID)))
         If openIds.Exists(id) Then
-            If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 And Left$(SafeStr(lv(i, PL_RESULT)), 6) <> "Exempt" Then
+            If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 And _
+               InStr(1, SafeStr(lv(i, PL_RESULT)), EXEMPT_TAG, vbTextCompare) = 0 Then
                 outS = outS & IIf(outS = "", "", ", ") & id
                 If Not listOnly Then
                     If Not hit Then lr.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
-                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = "Exempt - " & noteTxt
+                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = EXEMPT_TAG & noteTxt
                 End If
             End If
         End If
     Next i
     If hit Then ProtectSheet lr.Parent
     ExemptFromOpenPostings = outS
+End Function
+
+' Bring back (v24): the person is on the roster again, so the "Exempt - left ..."
+' marks on OPEN postings come off. Returns the posting IDs ("" = none).
+Public Function ClearLeftExemptions(ByVal emp As String) As String
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lo Is Nothing Or lr Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Or lr.DataBodyRange Is Nothing Then Exit Function
+    Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
+    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+    Dim openIds As Object: Set openIds = CreateObject("Scripting.Dictionary")
+    openIds.CompareMode = 1
+    Dim i As Long, id As String, hit As Boolean, outS As String, res As String, note As String
+    For i = 1 To UBound(pv, 1)
+        id = Trim$(SafeStr(pv(i, PS_ID)))
+        If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then openIds(id) = True
+    Next i
+    If openIds.Count = 0 Then Exit Function
+    For i = 1 To UBound(lv, 1)
+        id = Trim$(SafeStr(lv(i, PL_ID)))
+        If openIds.Exists(id) Then
+            If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then
+                res = SafeStr(lv(i, PL_RESULT))
+                SplitExempt res, note
+                If LCase$(Left$(note, Len(EXEMPT_TAG) + 4)) = LCase$(EXEMPT_TAG & "left") Then
+                    If Not hit Then lr.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
+                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = res
+                    outS = outS & IIf(outS = "", "", ", ") & id
+                End If
+            End If
+        End If
+    Next i
+    If hit Then ProtectSheet lr.Parent
+    ClearLeftExemptions = outS
 End Function
 
 Public Function HasActiveLogRows(ByVal id As String) As Boolean
@@ -1705,7 +1784,7 @@ Private Sub UpdatePostingRecords(ByRef p As PostRec, ByRef lst() As PListRec, By
                         If lr.ListColumns.Count >= PL_SIGNHRS Then lr.DataBodyRange.Cells(i, PL_SIGNHRS).ClearContents
                     Else
                         lr.DataBodyRange.Cells(i, PL_SIGNED).Value = IIf(lst(j).SignedUp, "Yes", "")
-                        lr.DataBodyRange.Cells(i, PL_RESULT).Value = lst(j).Result
+                        lr.DataBodyRange.Cells(i, PL_RESULT).Value = ResultCellText(lst(j))
                         lr.DataBodyRange.Cells(i, PL_CHARGED).Value = lst(j).Charged
                         If lr.ListColumns.Count >= PL_SIGNHRS Then
                             If lst(j).SignedUp And IsPartialSignup(p.Hours, lst(j).SignupHrs) Then
@@ -1747,6 +1826,26 @@ Public Sub ReopenPosting()
         Exit Sub
     End If
     If MsgBox("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion) = vbNo Then Exit Sub
+    ' v24: the list is frozen, the people aren't. Someone who has left by the shift
+    ' date, or no longer holds a code in this unit, must not be charged on the re-award.
+    Dim j As Long, leftOn As Date, dc As Long
+    dc = DeptCol(p.Unit)
+    For j = 1 To n
+        If lst(j).ExemptNote = "" Then
+            If RosterRowOf(lst(j).EmpName) = 0 Then
+                leftOn = FormerLeftOn(lst(j).EmpName)
+                If leftOn = 0 Then
+                    lst(j).ExemptNote = EXEMPT_TAG & "not on the roster"
+                ElseIf Int(leftOn) <= Int(p.ShiftDate) Then
+                    lst(j).ExemptNote = EXEMPT_TAG & "left " & Format$(leftOn, "mmm d")
+                End If
+            ElseIf dc > 0 Then
+                If Trim$(SafeStr(RosterSheet().Cells(RosterRowOf(lst(j).EmpName), dc).Value)) = "" Then
+                    lst(j).ExemptNote = EXEMPT_TAG & "no code in " & p.Unit & " now"
+                End If
+            End If
+        End If
+    Next j
     UpdatePostingRecords p, lst, n, "Open", ""
     On Error Resume Next
     UpdateCoverageBySource p.ID, "POSTED " & p.ID

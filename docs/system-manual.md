@@ -34,6 +34,7 @@ Current as of v23 (Dec 2026). It replaces the rules in all older guides.
 | Crews A, B, C, D | A 28-day rotation of days and nights. It repeats, so it works for any date. |
 | Crews A/B and C/D | Work their pair's day shifts whenever either crew of the pair is on days. Never nights. |
 | DAYS | Monday to Friday days. Off on plant holidays. |
+| Which crew | The crew a person was on **that date**. The Crew History sheet holds each crew with the date it started, so a crew change does not move earlier time off or switches onto other shifts. The roster shows the newest crew. |
 | Clock-change nights | The night starting the Saturday before the first Sunday in November is 13 hours. The night starting the Saturday before the second Sunday in March is 11 hours. Day shifts are not affected. |
 
 ## 3. Plant holidays
@@ -144,6 +145,10 @@ Charged hours go into Refused, so they raise Total Hours.
 | Who is awarded | The supervisor marks who signed up and who is awarded. The system does not pick. |
 | Signed up, ahead, not awarded | The system warns. These people are not charged. |
 | More than one position | "Ahead" means ahead of the last awarded person in call order. |
+| Partial sign-ups | Someone can sign up for part of the shift. Full-shift sign-ups are awarded first, in call order, even with more hours. A partial is awarded only when no full-shift sign-up is left for that position; the system refuses otherwise. Several partials can share a shift. |
+| Hours nobody covers | They drop off. Nobody is charged for them. |
+| Charging with a partial award | The same people as any award: ahead of the last awarded person and did not sign up at all. They are charged the posting's full hours x 1.75. A partial sign-up that is not awarded is not charged. |
+| Moved unit or left | Someone who moved out of the unit, or left, before the shift is never charged on that posting, even though the frozen list still shows them. |
 | Award email | A draft opens to the awarded person, with the unit's CC list. The supervisor checks it and sends it. |
 | Reopen | A closed posting can be reopened only after its log rows are voided. Nothing is charged twice. |
 
@@ -282,7 +287,7 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | A void | The row stays, marked VOID, with the reason, who voided it and when. It stops counting in every total. |
 | Who can void | The admin, with Void Entry. A reason is required. |
 | Roster cells | Hours are never typed into the roster. The totals are formulas over the log. |
-| Name changes | Rename Employee changes the name on the roster and on that person's log rows together. Hours do not change. |
+| Name changes | Employee > Rename changes the name on the roster and in every table together: the log, postings, time off, switches, calendar lines, grade log, hours history and crew history. Hours do not change. Closed years keep the old name. |
 | Grade changes | A change to a unit code on the roster is logged with the old code, the new code, who and when. |
 
 | ID starts with | Meaning |
@@ -291,6 +296,8 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | P- | A posting |
 | ADJ- | An adjustment |
 | LV- | A leave return top-up |
+| NH- | A new hire's starting hours |
+| UM- | A unit move top-up |
 | SC- | A sick call (in the time-off records) |
 | SS- | A shift switch (in the switch records) |
 | OB- | An opening balance |
@@ -309,6 +316,9 @@ An adjustment adds or removes charged hours for one person. Only the admin can m
 | Date | The admin gives the date it applies to. That decides the pay period. |
 | Confirm | The system shows the hours, pay period, type and reason before saving. |
 | Undo | Void Entry on its number. |
+| New hire (NH-) | Starting hours = the home unit's average Total Hours on the start date, among grade 2 and below who are not on leave. The peers and their figures are in the Note. |
+| Unit move (UM-) | For a full move only. Hours are raised to the highest Total Hours among grade 2 and below in the new unit on the move date. They are never lowered. An extra sign-off changes no hours. |
+| Leaving | Employee > Remove moves the roster row to the Former sheet with the person's final figures. Their log rows stay. Bring back returns them to the roster. |
 
 ## 16. The yearly reset
 

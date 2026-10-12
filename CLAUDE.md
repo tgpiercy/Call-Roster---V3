@@ -29,11 +29,11 @@ CHANGELOG.md
 **Never commit data:** no `*.xls*`, Kronos exports, posting PDFs or plant CSVs (names, phones, emails, leave codes). Test fixtures use made-up names only.
 
 ## Workbook map (as built, v21 + M1)
-### Modules (17 checked by SystemCheck, plus 6 legacy)
+### Modules (18 checked by SystemCheck, plus 6 legacy)
 | Module | Holds |
 |---|---|
 | `modOvertimeEntry` | **All settings** at the top (`ADMIN_USERS`, folders, Kronos path, `KRONOS_STALE_DAYS`, `DST_USE_ACTUAL_HOURS`, `BACKUP_FOLDER`, member file names ...), roster column constants, `EmpRec`, `LoadEligible` (the one call order), `CalloutCharge`, provisional-OT formulas, OT Log access (`AppendLogRows`), protection, `ApplyView`. Every other module depends on it. |
-| `modOTLog` | Roster formulas (`ConvertRosterToFormulas`), `RefreshRosterFormulas`, `AddAdjustment` (type required), `VoidEntry`, `RenameEmployee`, `PublishMemberView` (wrapper) |
+| `modOTLog` | Roster formulas (`ConvertRosterToFormulas`), `RefreshRosterFormulas`, `AddAdjustment` (type required), `VoidEntry`, `RenameEmployee` (v24: opens the Employee pop-up on Rename), `PublishMemberView` (wrapper) |
 | `modLogLayout` | OT Log column layout, `FormatOTLog`, `UpgradeOTLogLayout` (the model for verified upgrades) |
 | `modMigration` | Original `RunMigration` (keep: the backup / move / verify / block-save pattern) |
 | `modPostings` | Postings, awards, charging (`ComputeAward`, `ComputeNoTakers`, `ComputeOutside`, `ComputeCancel`), emails (CC constants, `POSTING_CLOSE_TIME`, `POSTING_CLOSE_DAYS` 14, `POSTING_OUTSIDE_LINES` 3), `ReopenPosting`, Outlook + mailto fallback |
@@ -51,18 +51,19 @@ CHANGELOG.md
 | `modAttendance` | v22.1: the sick / personal day rule (`AttendanceCore`), `AttendanceFor`, Sick Call preview, past sick days, the Attendance sheet |
 | `modIntegrity` | v23: `IntegrityCheck` / `RunIntegrity` (read-only; PROBLEM / Check / Note), `IntegrityOnOpen`, the Integrity sheet, pure `PeriodCellCode`, `DuplicatesIn` |
 | `modRollover` | v23: `RolloverYear` (the only code that removes OT Log rows, verified), Year End sheet, frozen FINAL copy, archive sheets, the 27th period column, `ArchiveHasActiveRef` |
+| `modPeople` | v24: crew history (`tblCrewHistory`, `CrewOn`, pure `CrewOnCore`, the typed-crew prompt), the Employee pop-up's work (`SaveNewHire`, `SaveUnitMove`, `RenameEverywhere`, `RemoveEmployee`, `BringBack`), the Former sheet (`tblFormer`, `FormerNameSet`), `SetupPeople`, the shared before/after check (`RosterTotalsMap`, `TotalsDifference`) |
 | `Call_Out_Roster` | Printed call-out roster (`Call_Out`), redrawn from the data |
 | `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess`, `modCleanup` | Sort buttons, legacy posting print, admin, one-time cleanup (not version-checked) |
 
 ### Forms
-`frmOvertimeEntry` and `frmPostingEntry` have designer layouts (don't touch the designs). `frmNewPosting`, `frmShiftSwitch`, `frmTimeOff`, `frmSickCall`, `frmLeave`, `frmConvert` are **blank in the designer and built entirely in code**. New forms follow the code-built pattern so install is "Insert > UserForm, set (Name), paste code". Every form and ThisWorkbook carries a `' @version vNN (date)` line; SystemCheck checks each against the release that last changed it (`FORM_RELEASES` / `THISWB_RELEASE` in modSystem), so bump that table when a form changes.
+`frmOvertimeEntry` and `frmPostingEntry` have designer layouts (don't touch the designs). `frmNewPosting`, `frmShiftSwitch`, `frmTimeOff`, `frmSickCall`, `frmLeave`, `frmConvert`, `frmEmployee` (v24) are **blank in the designer and built entirely in code**. New forms follow the code-built pattern so install is "Insert > UserForm, set (Name), paste code". Every form and ThisWorkbook carries a `' @version vNN (date)` line; SystemCheck checks each against the release that last changed it (`FORM_RELEASES` / `THISWB_RELEASE` in modSystem), so bump that table when a form changes.
 
 ### Sheets and tables
 | Sheet | Notes |
 |---|---|
 | `OT Roster` | Rows 1-4 command bar + navy date block (period start / "to" / end); frozen panes. **A hidden (empty), B = Home Unit, C hidden = Provisional accepted OT (formula)**, D name, E crew, F phone, G Total Hours = H + I + C, H Worked (Kronos), I Refused = SUM(periods), J Plant Seniority, K EMAIL, L:S unit code columns (grade codes like D1.5, P2), T:AS pay-period columns = **SUMIFS over the OT Log**. |
 | `OT Log` (`tblOTLog`) | **Append-only, newest first.** Event: Ref ID, Type, Shift Date, Unit, Shift, Crew, Reason, Hours. Person: Call Order, Employee, Dept Code, Total Hrs Then, Outcome, Note, Hours Charged, Period Start. Audit (grouped): Entry ID, Logged By, Timestamp, Status, Void Note. Adjustment rows carry their type in **Reason** (column 7). |
-| `Postings` (`tblPostings`, `tblPostingList`) | Posting header + frozen list with hours at posting time |
+| `Postings` (`tblPostings`, `tblPostingList`) | Posting header + frozen list with hours at posting time. v24: the list's 10th column `Signup Hours` (blank = whole shift); a Result starting `Exempt` = moved unit or left, never charged on that posting |
 | `Absences` (`tblAbsence`) | One row per booking; start/end (blank end = open-ended), hours per shift, times note. Admin only, hidden in saved copies. |
 | `Coverage` (`tblCoverage`) | One row per date + shift line |
 | `Shift Switches` (`tblShiftSwitch`) | SS-#### with payback links |
@@ -74,12 +75,14 @@ CHANGELOG.md
 | `Integrity` | v23: the last IntegrityCheck report (admin, drawn) |
 | `Year End` (`tblYearEnd`) | v23: each person's final G / H / I / C per closed year (admin) |
 | `OT Log 2026` ... (`tblOTLog2026`) | v23: one per closed year, the archived log rows; protected even in admin view |
+| `Crew History` (`tblCrewHistory`) | v24: Employee, Crew, Effective From (+ who, when). Admin. Roster column E shows the newest row |
+| `Former` (`tblFormer`) | v24: one row per person taken off the roster, as values (final figures, Left On, Status Former / Returned). Admin, never published; no phone or email |
 | `CalMap` (hidden) | Calendar change counters |
 | `Overtime Posting`, `Blank Call Out Roster` | Output only, redrawn each time |
 | `Legacy Entry Log` (hidden) | Pre-migration history |
 
 ### Ref ID prefixes
-`OB-` opening balance, `MAN-` manual cells, `S-` call-out session, `P-` posting, `ADJ-` adjustment, `SS-` shift switch, `KR-` Kronos snapshot, `#n` = Entry ID. Planned: `LV-` leave return, `SC-` sick call (v22), `UM-` unit move, `NH-` new hire (v24), `YE-` year-end (if needed).
+`OB-` opening balance, `MAN-` manual cells, `S-` call-out session, `P-` posting, `ADJ-` adjustment, `SS-` shift switch, `KR-` Kronos snapshot, `#n` = Entry ID. `LV-` leave return, `SC-` sick call (v22), `UM-` unit move, `NH-` new hire (v24).
 
 ## Canonical business rules
 These win over anything older in `docs/`. Each rule lives in **one** function that forms, printouts, Needs Attention and the member publish all call. If you find a second copy, consolidate it instead of patching both.
@@ -91,7 +94,7 @@ These win over anything older in `docs/`. Each rule lives in **one** function th
 **Who's listed (call-outs and postings):** anyone with a code in the unit's column, **any grade**, who is free for that date and shift (`NotFreeReason` in modCalendar). Not free when:
 | Reason | Rule |
 |---|---|
-| Scheduled | Crew on that shift per rotation. A/B and C/D work their pair's **day** shifts whenever either is on days, never nights. DAYS = Mon-Fri days, **off on plant holidays** (observed date). |
+| Scheduled | Crew on that shift per rotation. A/B and C/D work their pair's **day** shifts whenever either is on days, never nights. DAYS = Mon-Fri days, **off on plant holidays** (observed date). **The crew is the one the person is on THAT DATE** (v24: `CrewOn`, crew history). |
 | Rest rule | Day OT: crew coming off nights that morning. Night OT: crew starting days next morning. A switch worked the night before / day after counts. |
 | Booked off | Absences row covering the date (not imported calendar lines, which are display only until converted in v22). |
 | Switch | Working a switch that day, or gave up a shift that day. |
@@ -104,6 +107,8 @@ These win over anything older in `docs/`. Each rule lives in **one** function th
 | Posting: Award Out of Dept | Everyone eligible in dept who didn't sign up (`ComputeOutside`) | shift date |
 | Posting: No Takers | Everyone eligible on the list (`ComputeNoTakers`) | shift date |
 | Posting: Cancel | Nobody (`ComputeCancel`) | - |
+| Posting: partial sign-ups (v24) | Same people as Submit Award, charged the posting's **full** hours x 1.75. Full-shift sign-ups are awarded first; a partial only when no full-shift sign-up is left for the position (`AwardOrderProblem`, blocked otherwise). A partial sign-up that isn't awarded: not charged. Hours nobody covers: dropped, uncharged. The Awarded log row carries the hours awarded | shift date |
+| Posting: moved unit / left (v24) | Never charged on an open posting for a shift on or after the date (list row marked `Exempt - ...`) | - |
 | DST nights | **Actual hours** (fall night = 13 h -> 22.75; spring night = 11 h -> 19.25), `DST_USE_ACTUAL_HOURS` | - |
 
 Postings compare using the **posted** totals (frozen at creation). Awarded is chosen in the Award pop-up, not "first sign-up".
@@ -112,14 +117,14 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 
 **Privacy:** STD, parental, LOA show only as "Leave" everywhere outside the Absences sheet. Never publish phone, email, leave type, leave notes, void notes, Logged By or Timestamp. The members' file gets values only, pushed by the master, and contains no rules.
 
-**People changes (v22/v24):** every rule-driven hours change is an **Adjustment** row in the OT Log with the calculation in Note, its type in Reason, shown in a confirm before saving, undoable by Void Entry.
+**People changes (v22/v24):** every rule-driven hours change is an **Adjustment** row in the OT Log with the calculation in Note, its type in Reason, shown in a confirm before saving, undoable by Void Entry. v24's Employee pop-up does Add (`NH-`: the home unit's average, grade <= 2, not on leave on the start date), Move to unit (`UM-`: up to the highest among grade <= 2 in the new unit, never lowered), Rename (every table together), Remove (the row goes to the Former sheet) and Bring back. Peers are everyone with a code in that unit's column, as the leave top-up counts them.
 
 ## Engineering conventions
 1. **Versioning.** Every module has `Public Const X_VERSION As String = "Name vNN (Mon d)"`; forms and ThisWorkbook have the `' @version` line; `modSystem.EXPECTED_RELEASE` is the release and `N_MODULES` the count. Bump every module that ships, and the expected release, in the same update. SystemCheck must say "N of N on vNN".
-2. **Append-only log.** Never edit or delete OT Log rows. Corrections are voids (Status VOID, Void Note) plus a new entry. Never type hours into roster cells; they are formulas over the log. The ONE sanctioned removal is `RolloverYear` moving a closed year's rows to its `OT Log YYYY` sheet, verified. Because of it, IDs come from `NextRefID` / `NextEntryID` (which honour the `IdMark_*` high-water marks): never work out a next ID by scanning the log yourself.
+2. **Append-only log.** Never edit or delete OT Log rows. Corrections are voids (Status VOID, Void Note) plus a new entry. Never type hours into roster cells; they are formulas over the log. The ONE sanctioned removal is `RolloverYear` moving a closed year's rows to its `OT Log YYYY` sheet, verified. (Roster ROWS are removed only by `RemoveEmployee`, verified, and names are changed only by `RenameEverywhere`, which rewrites the Employee column of the log and every other table together.) Because of it, IDs come from `NextRefID` / `NextEntryID` (which honour the `IdMark_*` high-water marks): never work out a next ID by scanning the log yourself.
 3. **Verified data changes.** Any macro that restructures data: dated backup first -> change -> compare every roster period, Refused (I) and Total (G) value and the log's total Hours Charged before vs after -> on mismatch, `MarkNoSave` and tell the user to close without saving. Copy `UpgradeOTLogLayout` / `RunMigration` / `SetupHomeUnit`.
 4. **Read every row, whatever the view.** Use `ListObject.DataBodyRange` or the roster's cell reads, never last-visible-row. Handle `DataBodyRange Is Nothing`.
-5. **Columns.** Roster and log columns are constants in modOvertimeEntry (`C_*`, `L_*`); use them. For anything new, find by header text where the code already does that.
+5. **Columns.** Roster and log columns are constants in modOvertimeEntry (`C_*`, `L_*`); use them. For anything new, find by header text where the code already does that. **Crew (v24): never read roster column E to answer a question about a date.** Use `CrewOn(emp, d)`, `EmpCrewCode(emp, d)`, `EmpShiftOn(emp, d)` or `LoadEligible(..., asOf:=d)`. Column E is the newest crew, for display. Code that writes column E turns events off and adds the crew row itself (`AddCrewRow`).
 6. **Bulk work:** turn off ScreenUpdating, EnableEvents and calculation, and restore them in an error handler on every exit path. Capture the "was" values **before** `On Error GoTo`.
 7. **Calendar dirty flag:** writes to Absences, Coverage, Postings or Shift Switches with events off must call `MarkCalDirty`.
 8. **Late binding only** (Outlook, Scripting). No new references.
@@ -185,6 +190,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - Release zips hold the full set from v22 on.
 - `PUBLISH_FOLDER = "."` (Oct 12, 2026): Member View saves the members' file next to the master for now (`modPublish.PublishFolderPath`). It moves to the members' network folder at the next roll-out wave; the P: path is kept in the comment above the setting.
 - `BACKUP_FOLDER = "."`: daily backups go into the roster's own folder (`ResolveFolder` handles "." and ".\sub"). Can be pointed at a network folder later. `ARCHIVE_FOLDER = "."` the same way.
+- v24 (Oct 12, 2026): refusers are charged the posting's full hours when only a partial is awarded; a partial award while a full-shift sign-up is free is **blocked**; Remove **moves the row to a Former sheet** (Graeme chose it over the brief's inactive flag: not date-aware, so it is run on or after the last day); someone who moves or leaves is never charged on open postings from that date; a rename leaves closed-year sheets (`OT Log 2026`, `Year End`) under the old name with a note on the Grade Log; a unit move's date is today or earlier (unit codes aren't dated), a crew change may be future-dated; one v24 install.
 - Year end (v23): old log rows are archived AND removed at the rollover (Graeme chose the brief's option over keeping one growing log); 26- and 27-period years are both handled now; nothing is built for OT worked Dec 27-31 or for Kronos year-to-date until the first January 2027 export is seen; the rollover is run by Graeme with his boss; IntegrityCheck PROBLEMs block it, Checks don't; the live file can't be rolled before the new year's first period starts.
 
 ## Still open (use the default unless Graeme answers)
@@ -206,7 +212,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | v22 | mid-Nov | Sick Call, Leave going/returning, convert imported lines | built, tagged `v22` |
 | v22.1 | Oct 2026 | Sick / personal day counters, Attendance sheet, vacation on scheduled shifts | built, tagged `v22.1` |
 | v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | built, tagged `v23`; dry run on a copy first week of December |
-| v24 | before Jan 16 | Employee pop-up, crew history, partial OT | kit brief 05 |
+| v24 | install Jan 5 - 15, 2027 | Employee pop-up, crew history, partial OT | built, tagged `v24`; needs the rollover done first |
 | v25 | Feb-Mar 2027 | Employee ID key, protection, calendar speed | kit brief 06 |
 | v26 | Mar 2027+ | History report, staffing check, board print, payback aging | kit brief 07 |
 

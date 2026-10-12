@@ -29,15 +29,17 @@ Refused and Left Message are charged (grade 2 and below). `>>` means above grade
 **Award it**
 1. Click **Award Posting**. Pick the posting and click **LOAD**.
 2. Double-click each name that signed up.
-3. Select the person who gets it and click **AWARD (on / off)**. Repeat for more positions.
-4. Read the charge summary. Click **SUBMIT AWARD**, then OK.
-5. An email draft opens. Check it and send it.
+3. If someone signed up for only part of the shift: select the name, click **PARTIAL HOURS** and enter the hours.
+4. Select the person who gets it and click **AWARD (on / off)**. Repeat for more positions. Anyone who signed up for the whole shift comes before a partial sign-up.
+5. Read the charge summary. Click **SUBMIT AWARD**, then OK.
+6. An email draft opens. Check it and send it.
 
 | Case | Do this | Charged |
 |---|---|---|
 | Someone from another department signed a blank line | Pick the name in the "Out of department" box. Click **AWARD OUT OF DEPT**. | In-department people who did not sign up |
 | Nobody took it | Click **NO TAKERS**. | Everyone eligible on the list |
 | Overtime no longer needed | Click **CANCEL REQUEST**. | Nobody |
+| Only part of the shift was taken | Award the partial sign-up(s). The rest of the hours drop off. | People ahead who did not sign up at all, the posting's full hours |
 | Awarded wrong | Ask the admin to void the posting number (P-0003) and reopen it. Then award it again. | - |
 
 ## Shift switch and payback

@@ -63,6 +63,7 @@ The ones that change data check the roster totals before and after. They block s
 | `SetupHomeUnit` | Adds the Home Unit column (B) and fills in anyone with a code in exactly one unit. |
 | `UpgradeAbsenceColumns` | Adds the Home Unit, Leave Group and Shift columns to the Absences table. |
 | `UpgradeOTLogLayout` | Moves an old OT Log to the current column layout. |
+| `SetupPeople` | v24: adds the Crew History sheet (one row per person), the Former sheet and the Signup Hours column on the posted lists. Saves a backup first. |
 
 ### Macros you run when needed
 
@@ -94,6 +95,8 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 | Home Unit column not set up | Column B is not ready. | Run `SetupHomeUnit`. |
 | N with no Home Unit (column B) | Those people have no Home Unit. | Pick it from the drop-down in column B. |
 | Absences table needs its v22 columns | The table is from before v22. | Run `UpgradeAbsenceColumns`. |
+| Crew History / Former sheets not set up | v24's one-time setup has not been run. | Run `SetupPeople`. |
+| posting lists need their Signup Hours column | The same. | Run `SetupPeople`. |
 | N imported vacation line(s) ... not booked yet | Old-calendar lines are display only. | Click Convert imports. |
 | members' template not found | The template is not next to the roster. | See section 10. |
 | BACKUP_FOLDER isn't set | Daily backups are off. | Set it (section 6). |
@@ -157,7 +160,7 @@ To add or remove a login:
 4. Save, close and reopen.
 5. Make the same change in the repository copy. If not, the next install puts the old list back.
 
-Void Entry, Add Adjustment and Rename Employee are open to every login on this list.
+Void Entry, Add Adjustment and Employee are open to every login on this list.
 
 ## 8. Settings
 
@@ -292,7 +295,8 @@ Restore the backup only if the reopened file is wrong.
 | **Import Kronos** | Reads worked hours from the Kronos workbook and saves a dated snapshot |
 | **Add Adjustment** | Adds or removes charged hours for the person in the selected roster row |
 | **Void Entry** | Voids a session, posting or adjustment by its number, or one row by `#` and its Entry ID |
-| **Rename Employee** | Changes a name on the roster and on that person's log rows together |
+| **Employee** | Add a person, move one to another unit, rename, remove (to the Former sheet) or bring back. Each shows what it will do first, saves a backup where rows move, and checks every total after. |
+| Crew column (E) on the roster | Type the new crew. A box asks from which date; Cancel puts the old crew back. Earlier time off and switches stay on the old crew's shifts. |
 | **Full Access** | Puts the admin view back for a login on the admin list |
 | **Attendance** | Draws the sick and personal day sheet |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |

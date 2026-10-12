@@ -38,7 +38,7 @@ Option Explicit
 '  ReplaceNameToken.
 ' ====================================================================
 
-Public Const PPL_VERSION As String = "People v24 (Jan 5)"
+Public Const PPL_VERSION As String = "People v24.1 (Jan 5)"
 Public Const CH_SHEET As String = "Crew History"
 Public Const CH_TABLE As String = "tblCrewHistory"
 Public Const CH_EMP As Long = 1

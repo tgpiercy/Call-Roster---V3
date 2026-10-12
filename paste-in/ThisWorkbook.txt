@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24 (Jan 5)
+' @version v24.1 (Jan 5)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object
@@ -27,7 +27,7 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v24 (Jan 5)"
+    CodeVersion = "ThisWorkbook v24.1 (Jan 5)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the

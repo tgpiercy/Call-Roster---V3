@@ -15,7 +15,7 @@ Option Explicit
 '                (they'd be working straight through)
 ' ====================================================================
 
-Public Const ROT_VERSION As String = "Shift cycle v24 (Jan 5)"
+Public Const ROT_VERSION As String = "Shift cycle v24.1 (Jan 5)"
 
 Private Const ROT_ANCHOR As Date = #12/28/2025#
 Private Const ROT_DAYS As String = "BDDAACCCBBDDAAACCBBDDDAACCBB"     ' crew on days, cycle day 1..28

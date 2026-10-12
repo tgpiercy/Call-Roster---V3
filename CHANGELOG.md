@@ -8,7 +8,7 @@ Brief: `briefs/v22.1.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v22.1.zi
 - **Book Time Off:** new type `PER - Personal day (unpaid)` (calendar "Personal"; off call lists like any booking; members see "Personal"); new type `SIC - Sick day (past)` to back-fill this year's sick days (one row per scheduled shift, oldest first); vacation and personal days are booked on scheduled shifts only: a range with none is refused, days off at either end offer a trim (Yes trims, No saves as typed).
 - **Attendance** sheet (ADMIN button, next to Full Access): everyone's counters and status, worst first; admin only, hidden in saved copies, never published. **Needs Attention** gains an ATTENDANCE section for anyone at or over a limit (double-click opens the sheet).
 - SystemCheck: 15 modules on v22.1; forms and ThisWorkbook are now checked against the release that last changed each one (no false "re-paste" warnings). Every module carries a v22.1 stamp; only frmTimeOff and frmSickCall changed among the forms.
-- Known limit: occurrence grouping follows the crew rotation, not shift switches; the Sick Call counters read the Absences table, so sick days before v22 count only once back-filled.
+- Known limit: occurrence grouping follows the crew rotation, not shift switches. Counting starts at the v22.1 install (decided Oct 12, 2026: no back-fill), so 2026 figures cover only what is logged from then on; 2027 is the first complete year.
 
 ## v22 - sick calls and leave (Oct 2026)
 Brief: `briefs/v22.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v22.zip` (full set).

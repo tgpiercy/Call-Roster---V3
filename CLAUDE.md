@@ -171,7 +171,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 - Full unit move (v24): up to the highest Total Hours among grade <= 2 in the new unit; never lowered. Extra sign-offs don't trigger it.
 - New hire (v24): home unit's average (grade <= 2, not on leave).
 - Sick call-in (v22): opens a line, starts a call-out; off call lists for any shift starting within 24 h after the sick shift ends; shown as "Sick" on the calendar; WSIB and LTD are added as leave types.
-- Attendance (v22.1): 5 paid sick days / calendar year in up to 3 occurrences (day = scheduled shift, partial counts; occurrence = consecutive scheduled shifts), 5 unpaid personal days; over 5 combined = no paid sick until a year after the 2nd occurrence's first day, then restart to Dec 31; a sick call on an unscheduled shift counts; members see "Personal"; vacation and personal days only on scheduled shifts (refuse none, offer to trim ends). Tracking only: never touches hours.
+- Attendance (v22.1): 5 paid sick days / calendar year in up to 3 occurrences (day = scheduled shift, partial counts; occurrence = consecutive scheduled shifts), 5 unpaid personal days; over 5 combined = no paid sick until a year after the 2nd occurrence's first day, then restart to Dec 31; a sick call on an unscheduled shift counts; members see "Personal"; vacation and personal days only on scheduled shifts (refuse none, offer to trim ends). Tracking only: never touches hours. **No back-fill:** counting starts at the v22.1 install; 2027 is the first complete year.
 - Member workbook (M1, built): plant PCs, desktop Excel, everyone's hours visible, master pushes values into the template next to the master, published to `PUBLISH_FOLDER`, My history shows anyone, member file has no rules.
 - Platform: stay on the Excel desktop master through Q1 2027; keep tables platform-ready.
 - Release zips hold the full set from v22 on.
@@ -194,8 +194,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | M1 | live Nov 15 | Member workbook + Publish | built, tagged `M1` |
 | v21 | before Oct 31 | Provisional OT, DST, Home Unit, adjustment types, grade log, backup, SelfTest, printable roster | built, tagged `v21`, installed |
 | v22 | mid-Nov | Sick Call, Leave going/returning, convert imported lines | built, tagged `v22` |
-| v22.1 | Oct 2026 | Sick / personal day counters, Attendance sheet, vacation on scheduled shifts | `briefs/v22.1.md` |
-| v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | kit brief 04 |
+| v22.1 | Oct 2026 | Sick / personal day counters, Attendance sheet, vacation on scheduled shifts | built, tagged `v22.1` |
+| v23 | build by Nov 30, live Dec 27 | RolloverYear, Integrity check, docs | `briefs/v23.md`, report-back in `docs/v23-report-back.md` |
 | v24 | before Jan 16 | Employee pop-up, crew history, partial OT | kit brief 05 |
 | v25 | Feb-Mar 2027 | Employee ID key, protection, calendar speed | kit brief 06 |
 | v26 | Mar 2027+ | History report, staffing check, board print, payback aging | kit brief 07 |

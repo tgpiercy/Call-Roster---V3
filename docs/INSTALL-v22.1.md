@@ -36,8 +36,10 @@ Expect **"200 passed, 0 failed"** (18 new `attend` cases).
 ## 8. Members' template (optional)
 `member/modMember.bas` only gained a colour for personal days. Re-import it in the template when convenient (Remove + Import `modMember`, Compile, save), then click Member View once.
 
-## 9. Back-fill this year's sick days (optional, once)
-Book Time Off > type **SIC - Sick day (past)**, the person, From / To. One sick row is recorded per scheduled shift in the range (no OPEN line, no call-out), oldest first, each noted paid / unpaid by the rule. Do this before trusting the counters for 2026.
+## 9. Counting starts here (decided Oct 12, 2026)
+No back-fill: the counters start at this install. Sick and personal days taken earlier in 2026 are not in the system, so for the rest of 2026 the Attendance sheet shows what was logged from now on. From Jan 1, 2027 the counts are complete.
+
+Book Time Off > **SIC - Sick day (past)** stays for the odd correction (a sick day that wasn't logged at the time): one row per scheduled shift in the range, no OPEN line, no call-out.
 
 ## Smoke test (on a copy)
 1. **Sick Call:** pick someone. Under the Note box a line shows "2026: N sick days (N paid of 5) in N of 3 occurrences; personal N of 5." and "This shift: Paid sick day ..." (or why not). Save only; the Absences row's Note ends with that outcome.

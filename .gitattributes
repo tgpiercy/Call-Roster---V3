@@ -7,3 +7,5 @@ paste-in/*.txt text eol=crlf
 *.md   text
 *.py   text
 *.csv  text
+member/*.bas text eol=crlf
+member/*.txt text eol=crlf

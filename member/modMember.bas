@@ -214,13 +214,16 @@ End Sub
 
 Private Sub Picker(ByVal ws As Worksheet, ByVal addr As String, ByVal listRef As String, ByVal labelTxt As String)
     Dim c As Range: Set c = ws.Range(addr)
-    With c.Offset(0, -1)
-        .Value = labelTxt
-        .Font.Bold = True: .Font.Size = 9
-        .HorizontalAlignment = xlRight
-    End With
+    If labelTxt <> "" Then
+        With c.Offset(0, -1)
+            .Value = labelTxt
+            .Font.Bold = True: .Font.Size = 9
+            .HorizontalAlignment = xlRight
+        End With
+    End If
     With c
         .Locked = False
+        .NumberFormat = "@"                        ' "Oct 2026" / "Mon Oct 12" stay text, never auto-dates
         .Interior.Color = RGB(255, 251, 230)
         .Font.Size = 10
         .BorderAround xlContinuous, xlThin, , RGB(160, 175, 200)
@@ -261,15 +264,16 @@ Public Sub BuildMemberTemplate()
     For i = 0 To 5
         ThisWorkbook.Worksheets(CStr(order(i))).Move Before:=ThisWorkbook.Worksheets(i + 1)
     Next i
-    ' the blank workbook's own sheet(s)
+    ' the blank workbook's own sheet(s) - by index, backwards, so none is skipped
     Dim sh As Worksheet
     Application.DisplayAlerts = False
-    For Each sh In ThisWorkbook.Worksheets
+    For i = ThisWorkbook.Worksheets.Count To 1 Step -1
+        Set sh = ThisWorkbook.Worksheets(i)
         If sh.Visible = xlSheetVisible Then
             If InStr(1, "|" & SH_HOME & "|" & SH_ROSTER & "|" & SH_NEXT & "|" & SH_CAL & "|" & SH_POST & "|" & SH_HIST & "|", _
                      "|" & sh.Name & "|") = 0 Then sh.Delete
         End If
-    Next sh
+    Next i
     Application.DisplayAlerts = True
 
     LayoutHome
@@ -306,9 +310,7 @@ Private Sub LayoutHome()
     Btn ws, "mb_cal", "CALENDAR", "MemberGoCalendar", lft + 320, top, 150, 44, RGB(31, 56, 100), vbWhite
     Btn ws, "mb_post", "OPEN POSTINGS", "MemberGoPostings", lft, top + 54, 150, 44, RGB(93, 64, 55), vbWhite
     Btn ws, "mb_hist", "MY HISTORY", "MemberGoHistory", lft + 160, top + 54, 150, 44, RGB(106, 27, 154), vbWhite
-    ws.Range("B14").Value = "Find me:"
-    ws.Range("B14").Font.Bold = True
-    Picker ws, "C14", "", ""
+    Picker ws, "C14", "", "Find me:"
     ws.Range("C14").ColumnWidth = 26
     Btn ws, "mb_find", "Show me on the roster", "MemberFindFromHome", ws.Range("D14").Left + 4, ws.Range("D14").Top - 2, 150, 20, LIGHT, INK
     With ws.Range("B17")
@@ -419,6 +421,7 @@ End Sub
 ' ====================================================================
 Public Sub MemberRefreshAll()
     Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim suWas As Boolean: suWas = Application.ScreenUpdating
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     mDrawing = True
@@ -432,8 +435,15 @@ Public Sub MemberRefreshAll()
     DrawHistory ""
 Done:
     mDrawing = False
-    Application.ScreenUpdating = True
+    MarkClean
+    Application.ScreenUpdating = suWas
     Application.EnableEvents = evWas
+End Sub
+
+' redraws change nothing worth saving - no "save changes?" on close
+Private Sub MarkClean()
+    On Error Resume Next
+    ThisWorkbook.Saved = True
 End Sub
 
 ' picker lists on dLists: A names, B units (+ All units), C shifts, D next dates, E months
@@ -441,27 +451,29 @@ Private Sub BuildLists()
     Dim ws As Worksheet: Set ws = WsOf(SH_LISTS, True)
     UnprotectWs ws
     ws.Cells.ClearContents
-    Dim v As Variant, i As Long, k As Long
+    ws.Columns("A:E").NumberFormat = "@"           ' lists are text: "Oct 2026" must not become a date
+    Dim v As Variant, i As Long, nNames As Long, nUnits As Long, nMonths As Long
     v = Data("dRoster")
     If IsArray(v) Then
         Dim names() As String: ReDim names(1 To UBound(v, 1))
         For i = 2 To UBound(v, 1)
-            If Txt(v(i, RC_NAME)) <> "" Then k = k + 1: names(k) = Txt(v(i, RC_NAME))
+            If Txt(v(i, RC_NAME)) <> "" Then nNames = nNames + 1: names(nNames) = Txt(v(i, RC_NAME))
         Next i
-        If k > 0 Then
-            ReDim Preserve names(1 To k)
-            SortStrings names, k
-            For i = 1 To k
+        If nNames > 0 Then
+            ReDim Preserve names(1 To nNames)
+            SortStrings names, nNames
+            For i = 1 To nNames
                 ws.Cells(i, 1).Value = names(i)
             Next i
         End If
     End If
     Dim u As Variant: u = UnitList()
-    k = 0
-    For i = LBound(u) To UBound(u)
-        If Txt(u(i)) <> "" Then k = k + 1: ws.Cells(k, 2).Value = u(i)
-    Next i
-    ws.Cells(k + 1, 2).Value = "All units"
+    If UBound(u) >= LBound(u) Then
+        For i = LBound(u) To UBound(u)
+            If Txt(u(i)) <> "" Then nUnits = nUnits + 1: ws.Cells(nUnits, 2).Value = u(i)
+        Next i
+    End If
+    If nUnits > 0 Then ws.Cells(nUnits + 1, 2).Value = "All units"
     ws.Cells(1, 3).Value = "Days": ws.Cells(2, 3).Value = "Nights"
     Dim nDays As Long: nDays = CLng(Num(Meta("Who's next days")))
     If nDays <= 0 Then nDays = 14
@@ -472,41 +484,45 @@ Private Sub BuildLists()
     Next i
     ' months present in dCal
     v = Data("dCal")
-    k = 0
     If IsArray(v) Then
         Dim seen As String, m As String
         For i = 2 To UBound(v, 1)
             m = Format$(Dt(v(i, 1)), "mmm yyyy")
             If InStr("|" & seen, "|" & m & "|") = 0 Then
                 seen = seen & m & "|"
-                k = k + 1
-                ws.Cells(k, 5).Value = m
+                nMonths = nMonths + 1
+                ws.Cells(nMonths, 5).Value = m
             End If
         Next i
     End If
     ProtectWs ws
-    ' point the pickers at the lists
-    Dim nNames As Long: nNames = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-    Dim nUnits As Long: nUnits = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
-    Dim nMonths As Long: nMonths = ws.Cells(ws.Rows.Count, 5).End(xlUp).Row
-    SetList WsOf(SH_ROSTER), ROSTER_FIND, "='" & SH_LISTS & "'!$A$1:$A$" & nNames
-    SetList WsOf(SH_ROSTER), ROSTER_CREW, "A,B,A/B,C,D,C/D,DAYS,All"
-    SetList WsOf(SH_NEXT), NEXT_UNIT, "='" & SH_LISTS & "'!$B$1:$B$" & (nUnits - 1)
-    SetList WsOf(SH_NEXT), NEXT_DATE, "='" & SH_LISTS & "'!$D$1:$D$" & nDays
-    SetList WsOf(SH_NEXT), NEXT_SHIFT, "='" & SH_LISTS & "'!$C$1:$C$2"
-    SetList WsOf(SH_CAL), CAL_MONTH, "='" & SH_LISTS & "'!$E$1:$E$" & nMonths
-    SetList WsOf(SH_CAL), CAL_UNIT, "='" & SH_LISTS & "'!$B$1:$B$" & nUnits
-    SetList WsOf(SH_HIST), HIST_NAME, "='" & SH_LISTS & "'!$A$1:$A$" & nNames
-    SetList WsOf(SH_HOME), "C14", "='" & SH_LISTS & "'!$A$1:$A$" & nNames
+    ' point the pickers at the lists (an empty list = no drop-down until the first publish)
+    Dim crews As String: crews = Replace(Txt(Meta("Crews")), "|", ",")
+    If crews = "" Then crews = "A,B,A/B,C,D,C/D,DAYS"
+    SetList WsOf(SH_ROSTER), ROSTER_FIND, ListRef("A", nNames)
+    SetList WsOf(SH_ROSTER), ROSTER_CREW, crews & ",All"
+    SetList WsOf(SH_NEXT), NEXT_UNIT, ListRef("B", nUnits)
+    SetList WsOf(SH_NEXT), NEXT_DATE, ListRef("D", nDays)
+    SetList WsOf(SH_NEXT), NEXT_SHIFT, ListRef("C", 2)
+    SetList WsOf(SH_CAL), CAL_MONTH, ListRef("E", nMonths)
+    SetList WsOf(SH_CAL), CAL_UNIT, ListRef("B", IIf(nUnits > 0, nUnits + 1, 0))
+    SetList WsOf(SH_HIST), HIST_NAME, ListRef("A", nNames)
+    SetList WsOf(SH_HOME), "C14", ListRef("A", nNames)
 End Sub
+
+Private Function ListRef(ByVal col As String, ByVal n As Long) As String
+    If n > 0 Then ListRef = "='" & SH_LISTS & "'!$" & col & "$1:$" & col & "$" & n
+End Function
 
 Private Sub SetList(ByVal ws As Worksheet, ByVal addr As String, ByVal listRef As String)
     UnprotectWs ws
     With ws.Range(addr).Validation
         .Delete
-        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=listRef
-        .InCellDropdown = True
-        .ShowError = False
+        If listRef <> "" Then
+            .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=listRef
+            .InCellDropdown = True
+            .ShowError = False
+        End If
     End With
     ws.Range(addr).Locked = False
     ProtectWs ws
@@ -584,14 +600,16 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
     Dim crew As String: crew = UCase$(Txt(ws.Range(ROSTER_CREW).Value))
     If crew = "ALL" Then crew = ""
 
-    ' buttons: one per unit (rebuilt each draw so the active one shows)
+    ' buttons: one per unit, inside row 4 (rebuilt each draw so the active one shows)
     Dim i As Long, x As Double, y As Double
-    x = ws.Range("A4").Left: y = ws.Range("A4").Top - 26
-    For i = 0 To nU - 1
-        Btn ws, "mb_u" & i, Txt(units(i)), "'MemberSortUnit """ & Txt(units(i)) & """'", x + i * 92, y, 88, 22, _
-            IIf(Txt(units(i)) = unit, NAVY, LIGHT), IIf(Txt(units(i)) = unit, vbWhite, INK)
-    Next i
     ws.Rows(4).RowHeight = 30
+    x = ws.Range("A4").Left: y = ws.Range("A4").Top + 4
+    If UBound(units) >= LBound(units) Then
+        For i = 0 To nU - 1
+            Btn ws, "mb_u" & i, Txt(units(i)), "'MemberSortUnit """ & Txt(units(i)) & """'", x + i * 92, y, 88, 22, _
+                IIf(Txt(units(i)) = unit, NAVY, LIGHT), IIf(Txt(units(i)) = unit, vbWhite, INK)
+        Next i
+    End If
 
     Dim heads As Variant
     If unit = "" Then
@@ -686,6 +704,7 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
     ' AutoFilter so the A-Z view still filters with macros off
     If unit = "" Then ws.Range(ws.Cells(5, 1), ws.Cells(5 + n, nc)).AutoFilter
     ProtectWs ws
+    MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
 End Sub
@@ -706,7 +725,8 @@ Private Sub DrawNextDefault()
     Dim ws As Worksheet: Set ws = WsOf(SH_NEXT)
     Dim u As Variant: u = UnitList()
     UnprotectWs ws
-    If Txt(ws.Range(NEXT_UNIT).Value) = "" Then ws.Range(NEXT_UNIT).Value = Txt(u(LBound(u)))
+    If Txt(ws.Range(NEXT_UNIT).Value) = "" And UBound(u) >= LBound(u) Then ws.Range(NEXT_UNIT).Value = Txt(u(LBound(u)))
+    ws.Range(NEXT_DATE).NumberFormat = "@"
     ws.Range(NEXT_DATE).Value = Format$(Int(Dt(Meta("Published at"))), "ddd mmm d")
     If Txt(ws.Range(NEXT_SHIFT).Value) = "" Then ws.Range(NEXT_SHIFT).Value = "Days"
     ProtectWs ws
@@ -717,6 +737,8 @@ Public Sub MemberShowNext()
     Dim ws As Worksheet: Set ws = WsOf(SH_NEXT)
     Dim unit As String: unit = Txt(ws.Range(NEXT_UNIT).Value)
     Dim dTxt As String: dTxt = Txt(ws.Range(NEXT_DATE).Value)
+    Dim dPick As Date                              ' if Excel turned the picker into a real date, match on that
+    If VarType(ws.Range(NEXT_DATE).Value) = vbDate Then dPick = Int(ws.Range(NEXT_DATE).Value): dTxt = Format$(dPick, "ddd mmm d")
     Dim sh As String: sh = Txt(ws.Range(NEXT_SHIFT).Value)
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False
@@ -729,8 +751,8 @@ Public Sub MemberShowNext()
     If IsArray(v) And unit <> "" And dTxt <> "" And sh <> "" Then
         ReDim out(1 To UBound(v, 1), 1 To 5)
         For i = 2 To UBound(v, 1)
-            If StrComp(Txt(v(i, 1)), unit, vbTextCompare) = 0 And Format$(Dt(v(i, 2)), "ddd mmm d") = dTxt And _
-               StrComp(Txt(v(i, 3)), sh, vbTextCompare) = 0 Then
+            If StrComp(Txt(v(i, 1)), unit, vbTextCompare) = 0 And StrComp(Txt(v(i, 3)), sh, vbTextCompare) = 0 And _
+               (Format$(Dt(v(i, 2)), "ddd mmm d") = dTxt Or (dPick > 0 And Int(Dt(v(i, 2))) = dPick)) Then
                 n = n + 1
                 out(n, 1) = Num(v(i, 4)): out(n, 2) = Txt(v(i, 5)): out(n, 3) = "": out(n, 4) = Txt(v(i, 8))
                 out(n, 5) = HoursText(v(i, 6), v(i, 7))
@@ -768,6 +790,7 @@ Public Sub MemberShowNext()
         ws.Cells(6, 2).Font.Italic = True
     End If
     ProtectWs ws
+    MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
 End Sub
@@ -780,10 +803,42 @@ Private Sub DrawCalendarDefault()
     Dim ws As Worksheet: Set ws = WsOf(SH_CAL)
     Dim u As Variant: u = UnitList()
     UnprotectWs ws
+    ws.Range(CAL_MONTH).NumberFormat = "@"
     ws.Range(CAL_MONTH).Value = Format$(Dt(Meta("Published at")), "mmm yyyy")
-    If Txt(ws.Range(CAL_UNIT).Value) = "" Then ws.Range(CAL_UNIT).Value = Txt(u(LBound(u)))
+    If Txt(ws.Range(CAL_UNIT).Value) = "" And UBound(u) >= LBound(u) Then ws.Range(CAL_UNIT).Value = Txt(u(LBound(u)))
     ProtectWs ws
     MemberShowCalendar
+End Sub
+
+' the master's TypeColor values, copied (no rule here, just the same colours)
+Private Function LineColour(ByVal code As String) As Long
+    Select Case UCase$(code)
+        Case "VAC": LineColour = RGB(21, 101, 192)
+        Case "LV", "LOA", "STD", "PAR": LineColour = RGB(106, 27, 154)
+        Case "TRN": LineColour = RGB(0, 121, 107)
+        Case "PHA": LineColour = RGB(46, 125, 50)
+        Case "SUP": LineColour = RGB(93, 64, 55)
+        Case "SS": LineColour = RGB(194, 24, 91)
+        Case "OPEN": LineColour = RGB(190, 30, 30)
+        Case Else: LineColour = RGB(97, 97, 97)
+    End Select
+End Function
+
+' colours each line of a multi-line cell by its type code ("VAC|LV|OPEN" ...)
+Private Sub ColourLines(ByVal c As Range, ByVal txt As String, ByVal types As String)
+    If txt = "" Then Exit Sub
+    Dim lines As Variant: lines = Split(txt, Chr$(10))
+    Dim codes As Variant: codes = Split(types, "|")
+    Dim i As Long, p As Long: p = 1
+    For i = LBound(lines) To UBound(lines)
+        If i <= UBound(codes) Then
+            With c.Characters(p, Len(lines(i))).Font
+                .Color = LineColour(CStr(codes(i)))
+                .Bold = (UCase$(CStr(codes(i))) = "OPEN")
+            End With
+        End If
+        p = p + Len(lines(i)) + 1
+    Next i
 End Sub
 
 Public Sub MemberShowCalendar()
@@ -798,19 +853,26 @@ Public Sub MemberShowCalendar()
     Header ws, 5, Array("Date", "Day", "DAYS  (who's off  ->  covered by)", "", "NIGHTS  (who's off  ->  covered by)")
     ws.Range("A3").Value = "Month: " & mTxt & "   |   " & unit & "   |   OPEN = still needs cover.  Leave shows as 'Leave'."
     Dim v As Variant: v = Data("dCal")
-    If Not IsArray(v) Or mTxt = "" Then ProtectWs ws: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
+    If Not IsArray(v) Or mTxt = "" Then ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
+    ' the month: "Oct 2026" as text, or a real date if Excel converted the picker
     Dim m0 As Date
-    On Error Resume Next
-    m0 = CDate("1 " & mTxt)
-    On Error GoTo 0
-    If m0 = 0 Then ProtectWs ws: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
+    If VarType(ws.Range(CAL_MONTH).Value) = vbDate Then
+        m0 = DateSerial(Year(ws.Range(CAL_MONTH).Value), Month(ws.Range(CAL_MONTH).Value), 1)
+    Else
+        On Error Resume Next
+        m0 = CDate("1 " & mTxt)
+        If m0 = 0 Then m0 = CDate(mTxt)
+        On Error GoTo 0
+        If m0 <> 0 Then m0 = DateSerial(Year(m0), Month(m0), 1)
+    End If
+    If m0 = 0 Then ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
     Dim m1 As Date: m1 = DateSerial(Year(m0), Month(m0) + 1, 1) - 1
     Dim allUnits As Boolean: allUnits = (StrComp(unit, "All units", vbTextCompare) = 0)
     Dim d As Date, r As Long, i As Long, dayTxt As String, nightTxt As String, hol As String
-    Dim dayOpen As Boolean, nightOpen As Boolean, line As String, pre As String
+    Dim dayTypes As String, nightTypes As String, line As String, pre As String, code As String
     r = 6
     For d = m0 To m1
-        dayTxt = "": nightTxt = "": hol = "": dayOpen = False: nightOpen = False
+        dayTxt = "": nightTxt = "": hol = "": dayTypes = "": nightTypes = ""
         For i = 2 To UBound(v, 1)
             If Int(Dt(v(i, 1))) = Int(d) Then
                 If Txt(v(i, 3)) = "*" Then
@@ -818,12 +880,13 @@ Public Sub MemberShowCalendar()
                 ElseIf allUnits Or StrComp(Txt(v(i, 3)), unit, vbTextCompare) = 0 Then
                     pre = IIf(allUnits, Txt(v(i, 3)) & ": ", "")
                     line = pre & Txt(v(i, 4)) & IIf(Txt(v(i, 5)) <> "", "  ->  " & Txt(v(i, 5)), "  ->  OPEN")
+                    code = IIf(CBool(v(i, 7)), "OPEN", Txt(v(i, 6)))
                     If Txt(v(i, 2)) = "Nights" Then
                         nightTxt = nightTxt & IIf(nightTxt = "", "", Chr$(10)) & line
-                        If CBool(v(i, 7)) Then nightOpen = True
+                        nightTypes = nightTypes & IIf(nightTypes = "", "", "|") & code
                     Else
                         dayTxt = dayTxt & IIf(dayTxt = "", "", Chr$(10)) & line
-                        If CBool(v(i, 7)) Then dayOpen = True
+                        dayTypes = dayTypes & IIf(dayTypes = "", "", "|") & code
                     End If
                 End If
             End If
@@ -841,8 +904,8 @@ Public Sub MemberShowCalendar()
         End With
         ws.Cells(r, 3).Interior.Color = RGB(255, 249, 196)        ' days: yellow
         ws.Cells(r, 5).Interior.Color = RGB(227, 236, 250)        ' nights: blue
-        If dayOpen Then ws.Cells(r, 3).Font.Color = RGB(190, 30, 30): ws.Cells(r, 3).Font.Bold = True
-        If nightOpen Then ws.Cells(r, 5).Font.Color = RGB(190, 30, 30): ws.Cells(r, 5).Font.Bold = True
+        ColourLines ws.Cells(r, 3), dayTxt, dayTypes
+        ColourLines ws.Cells(r, 5), nightTxt, nightTypes
         If Weekday(d, vbMonday) >= 6 Then ws.Range(ws.Cells(r, 1), ws.Cells(r, 2)).Interior.Color = RGB(240, 242, 245)
         If hol <> "" Then ws.Cells(r, 2).Font.Color = RGB(176, 0, 32)
         ws.Rows(r).AutoFit
@@ -850,6 +913,7 @@ Public Sub MemberShowCalendar()
         r = r + 1
     Next d
     ProtectWs ws
+    MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
 End Sub
@@ -858,6 +922,11 @@ End Sub
 ' ====================================================================
 '  POSTINGS
 ' ====================================================================
+Private Function CloseTime() As String        ' published by the master; a default only until the first publish
+    CloseTime = Txt(Meta("Posting close time"))
+    If CloseTime = "" Then CloseTime = "8:00 AM"
+End Function
+
 Public Sub MemberShowPostings()
     Dim ws As Worksheet: Set ws = WsOf(SH_POST)
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -880,7 +949,7 @@ Public Sub MemberShowPostings()
                 .Merge
                 .Value = Txt(p(i, 1)) & "   " & Txt(p(i, 2)) & "   " & Format$(Dt(p(i, 3)), "dddd mmm d, yyyy") & "   " & Txt(p(i, 4)) & _
                          "   " & Num(p(i, 5)) & " h   " & Num(p(i, 6)) & " position(s)   " & Txt(p(i, 7)) & _
-                         "   |   closes " & Format$(Dt(p(i, 8)), "ddd mmm d") & " 8:00 AM"
+                         "   |   closes " & Format$(Dt(p(i, 8)), "ddd mmm d") & " " & CloseTime()
                 .Interior.Color = NAVY
                 .Font.Color = vbWhite: .Font.Bold = True
                 .VerticalAlignment = xlCenter
@@ -909,6 +978,7 @@ Public Sub MemberShowPostings()
         Next i
     End If
     ProtectWs ws
+    MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
 End Sub
@@ -934,8 +1004,16 @@ Private Sub DrawHistory(ByVal nm As String)
     End If
     Dim v As Variant: v = Data("dLog")
     Dim hasNote As Boolean
-    If IsArray(v) Then hasNote = (UBound(v, 2) >= 11)
-    Header ws, 5, Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Outcome", "Charged", "Pay period")
+    If IsArray(v) Then hasNote = (UBound(v, 2) >= 11)      ' Note is published only when the master says so
+    Dim nc As Long: nc = IIf(hasNote, 9, 8)
+    If hasNote Then
+        Header ws, 5, Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Outcome", "Charged", "Pay period", "Note")
+        ws.Columns("I").ColumnWidth = 36
+    Else
+        Header ws, 5, Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Outcome", "Charged", "Pay period")
+    End If
+    Dim perDays As Long: perDays = CLng(Num(Meta("Pay period days")))
+    If perDays <= 0 Then perDays = 14
     Dim r As Long: r = 6
     Dim i As Long, idx() As Long, n As Long
     If IsArray(v) Then
@@ -959,7 +1037,7 @@ Private Sub DrawHistory(ByVal nm As String)
         Loop
         idx(j + 1) = t
     Next i
-    Dim out() As Variant: ReDim out(1 To n, 1 To 8)
+    Dim out() As Variant: ReDim out(1 To n, 1 To nc)
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
     Dim yearTot As Double, ps As String
     For i = 1 To n
@@ -971,11 +1049,12 @@ Private Sub DrawHistory(ByVal nm As String)
         out(i, 6) = Txt(v(idx(i), 8))
         out(i, 7) = Num(v(idx(i), 9))
         out(i, 8) = Format$(Dt(v(idx(i), 10)), "mmm d")
+        If hasNote Then out(i, 9) = Txt(v(idx(i), 11))
         ps = Format$(Dt(v(idx(i), 10)), "yyyy-mm-dd")
         totals(ps) = Num(totals(ps)) + Num(v(idx(i), 9))
         yearTot = yearTot + Num(v(idx(i), 9))
     Next i
-    With ws.Range(ws.Cells(6, 1), ws.Cells(5 + n, 8))
+    With ws.Range(ws.Cells(6, 1), ws.Cells(5 + n, nc))
         .Value = out
         .RowHeight = 17
         .Borders(xlInsideHorizontal).LineStyle = xlContinuous
@@ -997,7 +1076,7 @@ Private Sub DrawHistory(ByVal nm As String)
         Next i
         SortStrings ks, nk
         For i = nk To 1 Step -1
-            ws.Cells(r, 1).Value = Format$(CDate(ks(i)), "mmm d") & " - " & Format$(CDate(ks(i)) + 13, "mmm d")
+            ws.Cells(r, 1).Value = Format$(CDate(ks(i)), "mmm d") & " - " & Format$(CDate(ks(i)) + perDays - 1, "mmm d")
             ws.Cells(r, 2).Value = Num(totals(ks(i)))
             ws.Cells(r, 2).HorizontalAlignment = xlCenter
             r = r + 1
@@ -1009,6 +1088,7 @@ Private Sub DrawHistory(ByVal nm As String)
     ws.Cells(r, 2).Font.Bold = True
     ws.Cells(r, 2).HorizontalAlignment = xlCenter
     ProtectWs ws
+    MarkClean
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
 End Sub
@@ -1028,6 +1108,7 @@ Public Sub MemberOnOpen()
     MemberRefreshAll
     WsOf(SH_HOME).Activate
     ActiveWindow.DisplayGridlines = False
+    MarkClean
 End Sub
 
 ' a picker cell changed -> redraw that view

@@ -495,7 +495,7 @@ End Sub
 Private Sub PlannedOnOpen()
     Dim en As Long, em As String
     On Error GoTo Oops
-    ApplyDuePlannedMoves False
+    ApplyDuePlannedMoves False, True            ' v24.3.1: the open ASKS; No leaves the moves waiting
     Exit Sub
 Oops:
     en = Err.Number: em = Err.Description
@@ -2250,7 +2250,10 @@ End Function
 ' as of the effective date) and SaveUnitMove, oldest first. One backup, one
 ' save, one message. A move that can't be applied stays Planned with the
 ' reason in its Note. byHand = run from Alt+F8 (says so when nothing is due).
-Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
+' askFirst (v24.3.1, decided Oct 13 - review H1): the open offers to apply the due moves and
+' No leaves them waiting. Before this the open applied them by itself, and a move whose
+' after-check failed blocked the save on EVERY open (cancelling it needs a save too).
+Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False, Optional ByVal askFirst As Boolean = False)
     Const TTL As String = "Planned unit moves"
     If ThisWorkbook.ReadOnly Then Exit Sub
     If NoSave() Then Exit Sub
@@ -2287,6 +2290,23 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
         Loop
         due(j + 1) = t
     Next i
+    If askFirst Then
+        Dim lines As String
+        For i = 1 To nDue
+            If i <= 10 Then
+                lines = lines & "  " & Trim$(SafeStr(v(due(i), PM_ID))) & "  " & Trim$(SafeStr(v(due(i), PM_EMP))) & " -> " & _
+                        Trim$(SafeStr(v(due(i), PM_UNIT))) & " (" & Trim$(SafeStr(v(due(i), PM_CODE))) & "), due " & _
+                        Format$(CDate(v(due(i), PM_FROM)), "ddd mmm d") & vbNewLine
+            End If
+        Next i
+        If nDue > 10 Then lines = lines & "  ... and " & (nDue - 10) & " more" & vbNewLine
+        If MsgBox(nDue & " planned unit move(s) " & IIf(nDue = 1, "is", "are") & " due:" & vbNewLine & lines & vbNewLine & _
+                  "Apply " & IIf(nDue = 1, "it", "them") & " now?" & vbNewLine & vbNewLine & _
+                  "Yes = apply (a backup copy is saved first; one box then says what went in)." & vbNewLine & _
+                  "No = leave " & IIf(nDue = 1, "it", "them") & " waiting. Needs Attention lists " & IIf(nDue = 1, "it", "them") & _
+                  ", you are asked again at the next open, and Alt+F8 > ApplyPlannedMoves does it any time.", _
+                  vbYesNo + vbQuestion, TTL) <> vbYes Then Exit Sub
+    End If
 
     Dim bk As String, backedUp As Boolean
     Dim pc As PeopleCalc, rep As String, why As String, ok As Boolean, nRows As Long

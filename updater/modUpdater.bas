@@ -32,6 +32,11 @@ Option Explicit
 '  here none of the roster's code is running while its modules change.
 '  The macros refuse to run if this module is found inside a roster.
 '
+'  v3 (Oct 13, 2026): v2 said "No roster is open" with the roster open
+'  (UpdateMemberTemplate, first real run). The roster is now known by its
+'  code OR by its OT Log table, and when nothing is recognised the box
+'  lists what Excel can see and offers the workbook in front.
+'
 '  RULES FOR THIS MODULE
 '   - It calls the roster's code only by name and only when none of it
 '     is being changed: the admin test before anything is touched, and
@@ -44,7 +49,7 @@ Option Explicit
 '     code back, so that flag still has working code behind it.
 ' ====================================================================
 
-Public Const UPD_VERSION As String = "Updater v2 (Jan 5)"
+Public Const UPD_VERSION As String = "Updater v3 (Jan 5)"
 
 Private Const UPD_TITLE As String = "Update the roster code"
 Private Const UPD_TEMPLATE As String = "Call Out Roster - Members TEMPLATE.xlsm"
@@ -692,10 +697,15 @@ Private Function UpdIsAdmin(ByVal wb As Workbook) As Boolean
     End If
 End Function
 
-' The roster to work on: the one open workbook (other than this one) whose
-' project holds modOvertimeEntry. Nothing (after a message) = can't tell.
+' The roster to work on: the one open workbook (other than this one) that
+' is a roster. Nothing (after a message) = can't tell.
+' v3: a roster is known by its code (modOvertimeEntry) OR by its data (the
+' OT Log table), so a project that can't be read no longer hides it. When
+' nothing is recognised the message lists what Excel can see and why each
+' was passed over, and the admin can pick the workbook in front.
 Private Function UpdTarget() As Workbook
     Dim why As String, w As Workbook, hit As Workbook, n As Long, activeIsOne As Boolean
+    Dim seen As String, nOther As Long
     Dim own As Object: Set own = UpdProject(ThisWorkbook, why)
     If own Is Nothing Then
         MsgBox why, vbExclamation, UPD_TITLE
@@ -709,19 +719,22 @@ Private Function UpdTarget() As Workbook
         Exit Function
     End If
     For Each w In Application.Workbooks
-        If Not w Is ThisWorkbook Then
-            If UpdIsRoster(w) Then
+        If Not UpdSame(w, ThisWorkbook) Then
+            nOther = nOther + 1
+            why = ""
+            If UpdIsRoster(w, why) Then
                 n = n + 1
                 Set hit = w
-                If w Is ActiveWorkbook Then activeIsOne = True
+                If UpdSame(w, ActiveWorkbook) Then activeIsOne = True
+            ElseIf nOther <= 8 Then
+                seen = seen & "  " & w.Name & ": " & why & vbNewLine
             End If
         End If
     Next w
     If n = 0 Then
-        MsgBox "No roster is open. Open the roster workbook, then run this again.", vbExclamation, UPD_TITLE
-        Exit Function
-    End If
-    If n > 1 Then
+        Set hit = UpdAskTarget(nOther, seen)
+        If hit Is Nothing Then Exit Function
+    ElseIf n > 1 Then
         If Not activeIsOne Then
             MsgBox n & " rosters are open. Click the one to update so it is in front (or close the others), then run this again.", vbExclamation, UPD_TITLE
             Exit Function
@@ -741,11 +754,78 @@ Private Function UpdTarget() As Workbook
     Set UpdTarget = hit
 End Function
 
-Private Function UpdIsRoster(ByVal w As Workbook) As Boolean
-    Dim why As String, proj As Object
+' Two workbook variables for the same open file (compared by path, which
+' does not depend on how Excel handed the object over)
+Private Function UpdSame(ByVal a As Workbook, ByVal b As Workbook) As Boolean
+    If a Is Nothing Or b Is Nothing Then Exit Function
+    Dim fa As String, fb As String
     On Error Resume Next
-    Set proj = UpdProject(w, why)
-    If Not proj Is Nothing Then UpdIsRoster = Not UpdFindComp(proj, "modOvertimeEntry") Is Nothing
+    fa = a.FullName
+    fb = b.FullName
+    On Error GoTo 0
+    If fa = "" Or fb = "" Then Exit Function
+    UpdSame = (StrComp(fa, fb, vbTextCompare) = 0)
+End Function
+
+' True when w is a roster. why = the reason it was passed over.
+Private Function UpdIsRoster(ByVal w As Workbook, ByRef why As String) As Boolean
+    Dim proj As Object, comp As Object, pwhy As String, ws As Worksheet, lo As Object
+    why = ""
+    On Error Resume Next
+    Set proj = UpdProject(w, pwhy)
+    If proj Is Nothing Then
+        why = "its VBA project can't be read"
+    Else
+        Set comp = Nothing
+        Set comp = UpdFindComp(proj, "modOvertimeEntry")
+        If Not comp Is Nothing Then
+            UpdIsRoster = True
+            Exit Function
+        End If
+        why = "its code has no modOvertimeEntry module"
+    End If
+    ' the data says so even when the code can't: the OT Log table
+    For Each ws In w.Worksheets
+        Set lo = Nothing
+        Set lo = ws.ListObjects("tblOTLog")
+        If Not lo Is Nothing Then
+            why = ""
+            UpdIsRoster = True
+            Exit Function
+        End If
+    Next ws
+    why = why & ", and it holds no OT Log table"
+End Function
+
+' No open workbook passed the roster test: say what Excel can see, and let
+' the admin use the workbook in front. Nothing = stop.
+Private Function UpdAskTarget(ByVal nOther As Long, ByVal seen As String) As Workbook
+    Dim aw As Workbook
+    On Error Resume Next
+    Set aw = ActiveWorkbook
+    On Error GoTo 0
+    If nOther = 0 Then
+        MsgBox "This Excel has no other workbook open, so the roster can't be found." & vbNewLine & vbNewLine & _
+               "If the roster IS open on your screen, it is in a second Excel that this one can't see. " & _
+               "Close Roster Updater.xlsm, click the roster, open Roster Updater.xlsm with File > Open from there, " & _
+               "and run this again.", vbExclamation, UPD_TITLE
+        Exit Function
+    End If
+    If aw Is Nothing Then
+        MsgBox "No open workbook was recognised as a roster:" & vbNewLine & seen & vbNewLine & _
+               "Click the roster so it is in front, then run this again. Send me this box.", vbExclamation, UPD_TITLE
+        Exit Function
+    End If
+    If UpdSame(aw, ThisWorkbook) Then
+        MsgBox "No open workbook was recognised as a roster:" & vbNewLine & seen & vbNewLine & _
+               "Click the roster so it is in front, then press Alt+F8 and run this again. Send me this box.", vbExclamation, UPD_TITLE
+        Exit Function
+    End If
+    If MsgBox("No open workbook was recognised as a roster:" & vbNewLine & seen & vbNewLine & _
+              "The workbook in front is " & aw.Name & "." & vbNewLine & _
+              "Is that the roster?   Yes = use it.   No = stop." & vbNewLine & vbNewLine & _
+              "(Send me a photo of this box either way: it says why the roster wasn't recognised.)", _
+              vbYesNo + vbQuestion + vbDefaultButton2, UPD_TITLE) = vbYes Then Set UpdAskTarget = aw
 End Function
 
 ' The workbook's VBA project, or Nothing with the reason in why
@@ -772,12 +852,18 @@ Private Function UpdProject(ByVal wb As Workbook, ByRef why As String) As Object
     Set UpdProject = proj
 End Function
 
+' (v3: one component whose name can't be read no longer stops the search)
 Private Function UpdFindComp(ByVal proj As Object, ByVal compName As String) As Object
-    Dim comp As Object
+    Dim comp As Object, nm As String
+    On Error Resume Next
     For Each comp In proj.VBComponents
-        If StrComp(comp.Name, compName, vbTextCompare) = 0 Then
-            Set UpdFindComp = comp
-            Exit Function
+        nm = ""
+        nm = comp.Name
+        If nm <> "" Then
+            If StrComp(nm, compName, vbTextCompare) = 0 Then
+                Set UpdFindComp = comp
+                Exit Function
+            End If
         End If
     Next comp
 End Function

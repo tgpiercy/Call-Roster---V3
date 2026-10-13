@@ -148,8 +148,9 @@ Public Sub PublishMembers()
     If Not RequireAdmin() Then Exit Sub
     ' v24.3.1 (review M2): yesterday's backup sits beside the template; opened to look something up,
     ' Member View from it would overwrite the live members' file with old hours stamped today.
-    ' A practice copy is NOT refused, even one made from a FINAL or "Backup before" file (its name then
-    ' carries both words): it publishes "PRACTICE - ..." beside itself (PublishFolderPath).
+    ' A practice copy is NOT refused (its name may also carry FINAL or Backup if it was copied by hand
+    ' from such a file; since v24.3.2 MakePracticeCopy itself refuses to run there): it publishes
+    ' "PRACTICE - ..." beside itself (PublishFolderPath).
     If IsBackupCopyName(ThisWorkbook.Name) And Not IsDryRunName(ThisWorkbook.Name) Then
         MsgBox "This file is a backup or frozen copy of the roster, not the live roster:" & vbNewLine & _
                ThisWorkbook.Name & vbNewLine & vbNewLine & _
@@ -943,7 +944,9 @@ Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef
         For i = 2 To UBound(post, 1)
             w = LeaveWordsIn(SafeStr(post(i, 7)))
             If w <> "" Then
-                LeaveCodesIn = DS_POST & " row " & i & " (" & SafeStr(post(i, 1)) & ", Reason): the text says '" & w & "'"
+                LeaveCodesIn = DS_POST & " row " & i & " (" & SafeStr(post(i, 1)) & ", Reason): the text says '" & w & "'" & vbNewLine & _
+                               "That is posting " & SafeStr(post(i, 1)) & "'s Reason: on Needs Attention (or its calendar line), double-click " & _
+                               "the posting > Change the Reason of posting " & SafeStr(post(i, 1)) & "."
                 Exit Function
             End If
         Next i

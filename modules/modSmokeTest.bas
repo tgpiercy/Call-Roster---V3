@@ -468,7 +468,7 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     SmkFilterList False
     ' v24.3.2: the words on the posting's calendar line can be changed (Change the text of this line):
     ' a leave word is refused and nothing is written; otherwise the line and the OPEN posting's Reason
-    ' change together (SetLineText, the one write to a line's text after it is made)
+    ' change together (SetLineText; SetReasonText goes the other way)
     Dim covId As String, txtRep As String
     Const SMK_TXT As String = "Unit Operator Support (smoke)"
     covId = CovIdOfSource(st.PostId2)
@@ -479,11 +479,18 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     If CovCellOf(covId, CV_NEED) <> SMK_TXT Then why = "line " & covId & " reads '" & CovCellOf(covId, CV_NEED) & "' after the text change": Exit Function
     n = LoadPosting(st.PostId2, p, lst)
     If p.Reason <> SMK_TXT Then why = st.PostId2 & "'s Reason is '" & p.Reason & "' after the text change": Exit Function
+    ' and the other way (Change the Reason of posting): the line carrying the Reason's words follows
+    Const SMK_TXT2 As String = "Unit Operator Support (smoke 2)"
+    If SetReasonText(st.PostId2, "Unit Operator Support LOA", txtRep) Then why = "a leave word in the Reason was NOT refused": Exit Function
+    If Not SetReasonText(st.PostId2, SMK_TXT2, txtRep) Then why = "the Reason couldn't be changed: " & txtRep: Exit Function
+    If CovCellOf(covId, CV_NEED) <> SMK_TXT2 Then why = "line " & covId & " reads '" & CovCellOf(covId, CV_NEED) & "' after the Reason change": Exit Function
+    n = LoadPosting(st.PostId2, p, lst)
+    If p.Reason <> SMK_TXT2 Then why = st.PostId2 & "'s Reason is '" & p.Reason & "' after the Reason change": Exit Function
     ' the posting itself is cancelled (nobody is charged), so nothing of it stays open
     If Not SubmitCancel(p, lst, n) Then why = st.PostId2 & " couldn't be cancelled": Exit Function
     If PostingStatus(st.PostId2) <> "Cancelled" Then why = st.PostId2 & " is " & PostingStatus(st.PostId2) & " after the cancel": Exit Function
     st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & "; +1/-1 list row on " & st.PostId2 & _
-              " (filtered); line " & covId & " text changed with the Reason, leave word refused; cancelled"
+              " (filtered); line " & covId & " text and the Reason changed each way, leave words refused; cancelled"
     SmkPlanned = True
     Exit Function
 Fail:

@@ -2255,11 +2255,17 @@ Private Sub CalEditTextKey(ByVal keyTxt As String)
     Dim prompt As String
     prompt = "New text for the line  " & Clip(leftTxt, 40) & "  on " & Format$(d, "ddd mmm d") & " " & KeyShift(keyTxt) & "." & vbNewLine & vbNewLine & _
              "Members see this text on their calendar: never the kind of anyone's leave."
+    Dim stat As String
     If UCase$(Left$(src, 2)) = "P-" Then
-        If PostingStatus(src) = "Open" Then
-            prompt = prompt & vbNewLine & vbNewLine & "Posting " & src & " is open: its Reason changes with it."
-        Else
-            prompt = prompt & vbNewLine & vbNewLine & "Posting " & src & " is closed: its own Reason stays as it was."
+        stat = PostingStatus(src)
+        If stat = "Open" Then
+            If StrComp(Trim$(leftTxt), PostingReasonOf(src), vbTextCompare) = 0 Then
+                prompt = prompt & vbNewLine & vbNewLine & "Posting " & src & " is open and these are its Reason's words: its Reason changes with it."
+            Else
+                prompt = prompt & vbNewLine & vbNewLine & "Posting " & src & " is open; its Reason has other words and stays (Change the Reason of posting changes it)."
+            End If
+        ElseIf stat <> "" Then
+            prompt = prompt & vbNewLine & vbNewLine & "Posting " & src & " is " & LCase$(stat) & ": its own Reason stays as it was."
         End If
     End If
     Dim ans As String
@@ -2276,44 +2282,144 @@ Private Sub CalEditTextKey(ByVal keyTxt As String)
     MsgBox rep, vbInformation, TTL
 End Sub
 
-' v24.3.2: the work behind "Change the text of this line" (and SmokeTest step 9). Writes the need
+' v24.3.2: the work behind "Change the text of this line" (and SmokeTest step 9): with RenameEverywhere
+' the only write to a line's need text after it is made. Writes the need
 ' text of coverage line covId and, when its source is a posting that is still Open, that posting's
 ' Reason. Refused, writing nothing, when the text is blank, holds a leave word (LeaveWordsIn: the
 ' publish would refuse it) or the line is gone. report says what was done, or why not.
 Public Function SetLineText(ByVal covId As String, ByVal newText As String, ByRef report As String) As Boolean
     newText = Trim$(newText)
-    If newText = "" Then report = "The text can't be blank.": Exit Function
-    Dim w As String: w = LeaveWordsIn(newText)
-    If w <> "" Then
-        report = "Not changed: '" & w & "' would tell members the kind of someone's leave, and Member View would refuse to publish it. Use other words."
-        Exit Function
-    End If
+    report = TextRefusal(newText)
+    If report <> "" Then Exit Function
     Dim lo As ListObject: Set lo = CovTable()
     If lo Is Nothing Then report = "There is no Coverage table.": Exit Function
     Dim v As Variant: v = TableData(lo)
     Dim cr As Long: cr = RowOf(v, covId)
-    If cr = 0 Then report = "Calendar line " & covId & " wasn't found - the calendar will redraw.": Exit Function
+    If cr = 0 Then report = "Calendar line " & covId & " wasn't found: close the Calendar and open it again.": Exit Function
     If UCase$(SafeStr(v(cr, CV_STATUS))) = "VOID" Then report = "Calendar line " & covId & " has been removed.": Exit Function
     Dim src As String: src = Trim$(SafeStr(v(cr, CV_SOURCE)))
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
-    lo.DataBodyRange.Cells(cr, CV_NEED).Value = newText
-    ProtectSheet lo.Parent
+    Dim oldTxt As String: oldTxt = Trim$(SafeStr(v(cr, CV_NEED)))
+    WriteNeedText lo, cr, newText
     MarkCalDirty
     MarkMembersDirty
     report = "The line now reads '" & newText & "'."
     If UCase$(Left$(src, 2)) = "P-" Then
         Dim stat As String: stat = PostingStatus(src)
         If stat = "Open" Then
-            If SetPostingReason(src, newText) Then
-                report = report & " Posting " & src & "'s Reason too: print its sheet again if it is on the board."
+            ' the posting's Reason follows only when the line's words WERE its Reason (a posting that
+            ' filled an existing need line kept that line's own words; its Reason is changed on its own)
+            If StrComp(oldTxt, PostingReasonOf(src), vbTextCompare) = 0 Then
+                If SetPostingReason(src, newText) Then
+                    report = report & " Posting " & src & "'s Reason too: print its sheet again if it is on the board."
+                End If
             Else
-                report = report & " Posting " & src & "'s Reason could NOT be changed: it isn't on the Postings sheet."
+                report = report & " Posting " & src & "'s own Reason ('" & PostingReasonOf(src) & "') has other words and was left: " & _
+                         "Change the Reason of posting changes it."
             End If
         ElseIf stat <> "" Then
             report = report & " Posting " & src & " is " & LCase$(stat) & ": its own Reason was left as it was."
         End If
     End If
     SetLineText = True
+End Function
+
+' v24.3.2: why a text may not go on the calendar or a posting ("" = it may). The same two screens
+' the publish runs on every free text (LeaveWordsIn, PrivateValueKind), so what is accepted here
+' publishes.
+Private Function TextRefusal(ByVal txt As String) As String
+    If txt = "" Then TextRefusal = "The text can't be blank.": Exit Function
+    Dim w As String: w = LeaveWordsIn(txt)
+    If w <> "" Then
+        TextRefusal = "Not changed: '" & w & "' would tell members the kind of someone's leave, and Member View would refuse to publish it. Use other words."
+        Exit Function
+    End If
+    Select Case PrivateValueKind(txt)
+        Case "email": TextRefusal = "Not changed: that looks like an email address, and Member View would refuse to publish it."
+        Case "phone": TextRefusal = "Not changed: that holds a run of digits like a phone number or an ID, and Member View would refuse to publish it."
+    End Select
+End Function
+
+' v24.3.2: the protected write of a coverage line's need text. As text, whatever it starts with
+' (an = + - or a date would be converted). Re-protects and re-raises if the write fails.
+Private Sub WriteNeedText(ByVal lo As ListObject, ByVal rowIx As Long, ByVal txt As String)
+    Dim en As Long, em As String
+    On Error GoTo Failed
+    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    lo.DataBodyRange.Cells(rowIx, CV_NEED).Value = "'" & txt
+    ProtectSheet lo.Parent
+    Exit Sub
+Failed:
+    en = Err.Number: em = Err.Description
+    On Error Resume Next
+    ProtectSheet lo.Parent
+    Err.Raise en, , em
+End Sub
+
+' v24.3.2 (review): "Change the Reason of posting" on a line or a Needs Attention entry. For a
+' posting whose words are not on a need line of its own (placed on a time-off line, filled an
+' existing line, or not on the calendar), where Change the text of this line can't reach them.
+Private Sub CalEditReasonId(ByVal id As String)
+    Const TTL As String = "Change the Reason"
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim stat As String: stat = PostingStatus(id)
+    If stat = "" Then MsgBox "Posting " & id & " isn't on the Postings sheet.", vbExclamation, TTL: Exit Sub
+    If stat <> "Open" Then
+        MsgBox "Posting " & id & " is " & LCase$(stat) & ". Only an open posting's Reason is changed: it is the one members see.", vbInformation, TTL
+        Exit Sub
+    End If
+    Dim oldTxt As String: oldTxt = PostingReasonOf(id)
+    Dim ans As String
+    ans = Trim$(VBA.InputBox("New Reason for posting " & id & " (now '" & oldTxt & "')." & vbNewLine & vbNewLine & _
+                             "Members see it on the posting and on their calendar: never the kind of anyone's leave." & vbNewLine & _
+                             "A calendar line of this posting that carries these same words changes with it.", TTL, oldTxt))
+    If ans = "" Then Exit Sub
+    If StrComp(ans, oldTxt, vbBinaryCompare) = 0 Then Exit Sub
+    Dim rep As String
+    If Not SetReasonText(id, ans, rep) Then
+        MsgBox rep, vbExclamation, TTL
+        Exit Sub
+    End If
+    SaveIfWritable
+    RefreshCalendar
+    MsgBox rep, vbInformation, TTL
+End Sub
+
+' v24.3.2: the work behind "Change the Reason of posting" (and SmokeTest step 9). Screened as
+' SetLineText; only an Open posting. Every live calendar line the posting wrote whose text IS the
+' old Reason changes with it; a line with other words is left.
+Public Function SetReasonText(ByVal id As String, ByVal newText As String, ByRef report As String) As Boolean
+    newText = Trim$(newText)
+    report = TextRefusal(newText)
+    If report <> "" Then Exit Function
+    Dim stat As String: stat = PostingStatus(id)
+    If stat = "" Then report = "Posting " & id & " isn't on the Postings sheet.": Exit Function
+    If stat <> "Open" Then report = "Posting " & id & " is " & LCase$(stat) & ": only an open posting's Reason is changed.": Exit Function
+    Dim oldTxt As String: oldTxt = PostingReasonOf(id)
+    If Not SetPostingReason(id, newText) Then report = "Posting " & id & "'s row couldn't be found.": Exit Function
+    Dim lo As ListObject: Set lo = CovTable()
+    Dim nLines As Long, i As Long, v As Variant
+    If Not lo Is Nothing Then
+        v = TableData(lo)
+        If IsArray(v) Then
+            For i = 1 To UBound(v, 1)
+                If StrComp(Trim$(SafeStr(v(i, CV_SOURCE))), Trim$(id), vbTextCompare) = 0 Then
+                    If UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
+                        If StrComp(Trim$(SafeStr(v(i, CV_NEED))), oldTxt, vbTextCompare) = 0 Then
+                            WriteNeedText lo, i, newText
+                            nLines = nLines + 1
+                        End If
+                    End If
+                End If
+            Next i
+        End If
+    End If
+    MarkCalDirty
+    MarkMembersDirty
+    report = "Posting " & id & "'s Reason now reads '" & newText & "'" & _
+             IIf(nLines = 1, ", and so does its calendar line", IIf(nLines > 1, ", and so do its " & nLines & " calendar lines", "")) & _
+             ". Print its sheet again if it is on the board."
+    SetReasonText = True
 End Function
 
 ' v24.3.2: one cell of one coverage line, as text ("" when the line isn't there)
@@ -3829,6 +3935,7 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
                 If PostRow(postId) > 0 Then
                     If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then
                         AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", True
+                        AddChoice caps, macs, grpBreak, n, "Change the Reason of posting " & postId & "...", "CalMenuEditReason", False
                     End If
                 End If
                 AddChoice caps, macs, grpBreak, n, "View posting " & postId, "CalMenuViewPosting", False
@@ -3864,6 +3971,7 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
             If PostRow(postId) > 0 Then
                 If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then
                     AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", True
+                    AddChoice caps, macs, grpBreak, n, "Change the Reason of posting " & postId & "...", "CalMenuEditReason", False
                 End If
             End If
             AddChoice caps, macs, grpBreak, n, "View posting " & postId, "CalMenuViewPosting", False
@@ -4018,6 +4126,17 @@ Public Sub CalMenuEditText()
     Exit Sub
 Oops:
     ReportError "CalMenuEditText"
+End Sub
+
+' v24.3.2: an open posting's Reason, from its line or its Needs Attention entry
+Public Sub CalMenuEditReason()
+    On Error GoTo Oops
+    Dim id As String: id = MenuPostId()
+    If id = "" Then Exit Sub
+    CalEditReasonId id
+    Exit Sub
+Oops:
+    ReportError "CalMenuEditReason"
 End Sub
 
 Public Sub CalMenuPostSupport()

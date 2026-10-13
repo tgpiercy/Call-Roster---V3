@@ -28,7 +28,7 @@ Public Const EXPECTED_RELEASE As String = "v24.3.2"
 Private Const N_MODULES As Long = 23
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24.3.1"
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.3.1,frmNewPosting|v24.3.1,frmPostingEntry|v24.3.1,frmShiftSwitch|v24.3.1," & _
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.3.1,frmNewPosting|v24.3.2,frmPostingEntry|v24.3.1,frmShiftSwitch|v24.3.1," & _
                                         "frmTimeOff|v24.3.1,frmLeave|v24.3.1,frmSickCall|v24.3.1,frmConvert|v24.3.1,frmEmployee|v24.3.1"
 
 Private mBackupWarned As Boolean
@@ -272,11 +272,18 @@ Public Sub MakePracticeCopy()
     If Not RequireAdmin() Then Exit Sub
     ' v24.3.2 (Graeme's Oct 13 test): a copy made from inside a copy carries everything done in
     ' it, saved or not - after SmokeTest, its test person and the rows it left. Copies come from the roster.
+    If NoSave() Then
+        MsgBox "Saving is blocked in this file (SmokeTest ran here, or a change did not verify), so a copy of it would carry " & _
+               "that state: after SmokeTest, its test person and the rows it left." & vbNewLine & vbNewLine & _
+               "Close this file without saving and run MakePracticeCopy from the roster you are testing.", vbExclamation, "Practice copy"
+        Exit Sub
+    End If
     If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then
         MsgBox "This file is itself a copy:" & vbNewLine & ThisWorkbook.Name & vbNewLine & vbNewLine & _
-               "A practice copy made from here would carry everything done in this one, saved or not " & _
-               "(after SmokeTest: its test person and the rows it left). " & vbNewLine & vbNewLine & _
-               "Close this copy without saving, go to the real roster and run MakePracticeCopy there.", _
+               "A practice copy made from here would carry everything done in this one, saved or not. " & _
+               "Close it without saving and run MakePracticeCopy from the roster you are testing." & vbNewLine & vbNewLine & _
+               "(If this IS the roster you are testing and Windows put 'Copy' in its name, rename the file first: " & _
+               "COPY, DRY RUN, FINAL or Backup in the name marks a practice or backup file to every check.)", _
                vbExclamation, "Practice copy"
         Exit Sub
     End If

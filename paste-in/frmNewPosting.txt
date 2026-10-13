@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24.3.1 (Oct 14)
+' @version v24.3.2 (Oct 15)
 
 ' ================================================================
 ' NEW OVERTIME POSTING  /  LOAD POSTING
@@ -456,7 +456,12 @@ Private Sub mCreate_Click()
     If Not IsDate(Trim$(mDate.Text)) Then Flag problems, firstBad, "Shift date", mDate
     If C("cboShift").ListIndex < 0 Then Flag problems, firstBad, "Shift (Days / Nights)", C("cboShift")
     If mCrew.ListIndex < 0 Then Flag problems, firstBad, "Crew available", mCrew
-    If Trim$(C("cboReason").Text) = "" Then Flag problems, firstBad, "Reason", C("cboReason")
+    If Trim$(C("cboReason").Text) = "" Then
+        Flag problems, firstBad, "Reason", C("cboReason")
+    ElseIf LeaveWordsIn(Trim$(C("cboReason").Text)) <> "" Then
+        ' v24.3.2: members see the Reason (the posting, their calendar): never the kind of anyone's leave
+        Flag problems, firstBad, "Reason without '" & LeaveWordsIn(Trim$(C("cboReason").Text)) & "' (members see it; Member View would refuse it)", C("cboReason")
+    End If
     If Not IsNumeric(hrs) Then
         Flag problems, firstBad, "Hours (a number)", C("txtHours")
     ElseIf CDbl(hrs) <= 0 Or CDbl(hrs) > 24 Then

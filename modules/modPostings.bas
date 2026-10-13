@@ -1644,17 +1644,37 @@ Public Function SetPostingReason(ByVal id As String, ByVal reason As String) As 
     If lo.DataBodyRange Is Nothing Then Exit Function
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
     Dim ws As Worksheet: Set ws = lo.Parent
-    Dim i As Long
+    Dim i As Long, en As Long, em As String
     For i = 1 To UBound(v, 1)
         If UCase$(Trim$(SafeStr(v(i, PS_ID)))) = UCase$(Trim$(id)) Then
+            On Error GoTo Failed
             ws.Unprotect Password:=SHEET_PASSWORD
-            lo.DataBodyRange.Cells(i, PS_REASON).Value = reason
+            lo.DataBodyRange.Cells(i, PS_REASON).Value = "'" & reason      ' text, whatever it starts with (= + - or a date)
             ProtectSheet ws
+            On Error GoTo 0
             MarkMembersDirty
             MarkCalDirty
             SetPostingReason = True
             Exit Function
         End If
+    Next i
+    Exit Function
+Failed:
+    en = Err.Number: em = Err.Description
+    On Error Resume Next
+    ProtectSheet ws
+    Err.Raise en, , em
+End Function
+
+' v24.3.2: one posting's Reason as it is on the Postings sheet ("" when the row isn't there)
+Public Function PostingReasonOf(ByVal id As String) As String
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If UCase$(Trim$(SafeStr(v(i, PS_ID)))) = UCase$(Trim$(id)) Then PostingReasonOf = Trim$(SafeStr(v(i, PS_REASON))): Exit Function
     Next i
 End Function
 

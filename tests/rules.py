@@ -213,6 +213,18 @@ def call_order(people: list[Emp]) -> list[Emp]:
     return sorted(people, key=lambda e: (e.grade, e.total_hrs, seniority_key(e.seniority), e.name.casefold()))
 
 
+def list_insert_index(frozen: list[Emp], new: Emp) -> int:
+    """modOvertimeEntry.ListInsertIndex: where a newcomer goes in a list that is
+    already in order and is not re-sorted (a posting's frozen list): before the
+    first row they come before in call order. 1 .. n + 1."""
+    def key(e: Emp):
+        return (e.grade, e.total_hrs, seniority_key(e.seniority), e.name.casefold())
+    for i, e in enumerate(frozen, start=1):
+        if key(new) < key(e):
+            return i
+    return len(frozen) + 1
+
+
 # ---------------------------------------------------------------- charging
 def callout_charge(outcome: str, grade: float, hours: float) -> float:
     """modOvertimeEntry.CalloutCharge."""

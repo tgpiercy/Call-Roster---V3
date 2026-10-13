@@ -529,6 +529,20 @@ Public Sub SortEmpRecs(recs() As EmpRec, ByVal n As Long)
     Next i
 End Sub
 
+' v24.3.1. Where a newcomer goes in a list that is already in order and must
+' not be re-sorted (a posting's frozen list): before the first row they come
+' before in call order. Returns 1 .. n + 1. Pure; mirrored in tests/rules.py.
+Public Function ListInsertIndex(ByRef recs() As EmpRec, ByVal n As Long, ByRef newRec As EmpRec) As Long
+    Dim i As Long
+    For i = 1 To n
+        If RecBefore(newRec, recs(i)) Then
+            ListInsertIndex = i
+            Exit Function
+        End If
+    Next i
+    ListInsertIndex = n + 1
+End Function
+
 Private Function RecBefore(a As EmpRec, b As EmpRec) As Boolean
     If a.Grade <> b.Grade Then RecBefore = (a.Grade < b.Grade): Exit Function
     If a.TotalHrs <> b.TotalHrs Then RecBefore = (a.TotalHrs < b.TotalHrs): Exit Function

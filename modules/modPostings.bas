@@ -1787,42 +1787,212 @@ Private Function PlanIdIn(ByVal note As String) As String
     If b > a Then PlanIdIn = Mid$(note, a + 1, b - a - 1)
 End Function
 
-' v24.3: the OPEN postings in the given units ("|A|B|"), for shifts on or after
-' fromDate, CREATED on or after postedFrom, whose frozen list holds emp
-' (wantListed) or does not. A cancelled planned move uses it to name the lists
-' that were made while it was waiting. "" = none.
-Public Function OpenPostingsSince(ByVal emp As String, ByVal fromDate As Date, ByVal units As String, _
-                                  ByVal postedFrom As Date, ByVal wantListed As Boolean) As String
+' ====================================================================
+'  ONE PERSON JOINS OR LEAVES AN OPEN POSTING'S LIST  (v24.3.1)
+'
+'  A posting's list is frozen when it is created. Two things may change
+'  it afterwards, both for a unit move:
+'   - someone who moves INTO the unit (planned or today) is added to the
+'     open postings for shifts on or after the move, in the place call
+'     order gives them among the frozen rows;
+'   - a planned move that is cancelled takes them off again (and puts
+'     them back on the old unit's postings made while it was waiting).
+'  Nobody else's row, code or posted hours change; only Rank numbers
+'  move to make room. A row is deleted only while the posting is Open.
+' ====================================================================
+' Brings emp into line on the OPEN postings of unit for shifts on or after
+' fromDate that were created on or after postedFrom (0 = any).
+'   addMissing  not on the list, holds a code in the unit on the shift date,
+'             passes the posting's crew and grade filters and is free that
+'             shift -> added
+'   dropGone  on the list but holds no code in the unit on the shift date
+'             -> taken off (never the only row of a list)
+'   refresh   on the list and holds a code -> taken off and put back at
+'             today's code and hours (a cancelled move left the planned ones)
+' addedTxt / removedTxt get the posting IDs. An error raises to the caller,
+' whose handler blocks the save.
+Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal fromDate As Date, ByVal postedFrom As Date, _
+                                ByVal addMissing As Boolean, ByVal dropGone As Boolean, ByVal refresh As Boolean, _
+                                ByRef addedTxt As String, ByRef removedTxt As String)
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
     Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
-    If lo Is Nothing Or lr Is Nothing Then Exit Function
-    If lo.DataBodyRange Is Nothing Then Exit Function
+    If lo Is Nothing Or lr Is Nothing Then Exit Sub
+    If lo.DataBodyRange Is Nothing Or lr.DataBodyRange Is Nothing Then Exit Sub
+    emp = Trim$(emp)
+    If emp = "" Or DeptCol(unit) = 0 Then Exit Sub
+    Dim rosterRow As Long: rosterRow = RosterRowOf(emp)
+    If rosterRow = 0 Then Exit Sub                      ' not on the roster: the "left" marks cover them
+
+    ' the postings first (the list table changes while we work)
     Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
-    Dim seen As Object: Set seen = CreateObject("Scripting.Dictionary")     ' posting ID -> is emp on its list
-    seen.CompareMode = 1
-    Dim i As Long, id As String, k As Variant, outS As String, lv As Variant
+    Dim ids() As String, nIds As Long, i As Long, id As String
+    ReDim ids(1 To UBound(pv, 1))
     For i = 1 To UBound(pv, 1)
         id = Trim$(SafeStr(pv(i, PS_ID)))
         If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then
-            If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) And Int(ToDate(pv(i, PS_POSTED))) >= Int(postedFrom) Then
-                If InStr(1, units, "|" & Trim$(SafeStr(pv(i, PS_UNIT))) & "|", vbTextCompare) > 0 Then seen(id) = False
+            If StrComp(Trim$(SafeStr(pv(i, PS_UNIT))), Trim$(unit), vbTextCompare) = 0 Then
+                If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) And Int(ToDate(pv(i, PS_POSTED))) >= Int(postedFrom) Then
+                    nIds = nIds + 1
+                    ids(nIds) = id
+                End If
             End If
         End If
     Next i
-    If seen.Count = 0 Then Exit Function
-    If Not lr.DataBodyRange Is Nothing Then
-        lv = RangeTo2D(lr.DataBodyRange)
+    If nIds = 0 Then Exit Sub
+
+    Dim p As PostRec, lst() As PListRec, n As Long, j As Long, idx As Long, wasOn As Boolean
+    Dim recs() As EmpRec, k As Long, hit As Long, codeNow As String, holds As Boolean, changed As Boolean
+    Dim blankP As PostRec
+    For i = 1 To nIds
+        p = blankP
+        n = LoadPosting(ids(i), p, lst)
+        If n > 0 And p.Status = "Open" Then
+            idx = 0
+            For j = 1 To n
+                If StrComp(Trim$(lst(j).EmpName), emp, vbTextCompare) = 0 Then
+                    idx = j
+                    Exit For
+                End If
+            Next j
+            wasOn = False
+            ' do they hold a code in this unit on the shift date (a waiting move counts from its date)?
+            codeNow = Trim$(SafeStr(RosterSheet().Cells(rosterRow, DeptCol(p.Unit)).Value))
+            holds = (UnitCodeOn(emp, p.Unit, p.ShiftDate, codeNow) <> "")
+
+            If idx > 0 And ((dropGone And Not holds) Or (refresh And holds)) Then
+                ' never the only row of a list, and never a row that already carries a sign-up or an outcome
+                If n > 1 And lst(idx).Result = "" And Not lst(idx).SignedUp And lst(idx).Charged = 0 Then
+                    DeleteListRow p.ID, emp, n
+                    wasOn = True
+                    changed = True
+                    idx = 0
+                    n = LoadPosting(ids(i), p, lst)         ' the list without them
+                End If
+            End If
+
+            ' (a refresh puts back the row it has just taken off, whatever addMissing says)
+            If idx = 0 And holds And n > 0 And (addMissing Or wasOn) Then
+                ' the same list CreatePostingFrom would build today for this posting: are they on it?
+                k = LoadEligible(p.Unit, CrewFilter(p.Crew), recs, DeptPostingMaxGrade(p.Unit), True, p.ShiftDate)
+                hit = 0
+                For j = 1 To k
+                    If StrComp(recs(j).EmpName, emp, vbTextCompare) = 0 Then
+                        hit = j
+                        Exit For
+                    End If
+                Next j
+                If hit > 0 Then
+                    If NotFreeReason(emp, recs(hit).EmpShift, p.ShiftDate, p.ShiftLbl) = "" Then
+                        InsertListRow p, lst, n, recs(hit)
+                        addedTxt = addedTxt & IIf(addedTxt = "", "", ", ") & p.ID
+                        changed = True
+                        wasOn = False
+                    End If
+                End If
+            End If
+            If wasOn Then removedTxt = removedTxt & IIf(removedTxt = "", "", ", ") & p.ID      ' taken off and not put back
+        End If
+    Next i
+    If changed Then
+        MarkMembersDirty
+        MarkCalDirty
+    End If
+End Sub
+
+' Adds one row to posting p's frozen list (lst, n: in rank order, as LoadPosting
+' returns it) for the person in rec. Their place is before the first frozen row
+' they come before in call order (the frozen code and posted hours, seniority
+' from the roster); rows from there down move one rank.
+Private Sub InsertListRow(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, ByRef rec As EmpRec)
+    Dim frozen() As EmpRec, i As Long, pos As Long, newRank As Long
+    ReDim frozen(1 To n)
+    For i = 1 To n
+        frozen(i).EmpName = lst(i).EmpName
+        frozen(i).Grade = lst(i).Grade
+        frozen(i).TotalHrs = lst(i).TotalHrs
+        frozen(i).Seniority = RosterSeniorityKey(lst(i).EmpName)
+    Next i
+    pos = ListInsertIndex(frozen, n, rec)
+    If pos <= n Then newRank = lst(pos).Rank Else newRank = lst(n).Rank + 1
+
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    Dim ws As Worksheet: Set ws = lr.Parent
+    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+    ws.Unprotect Password:=SHEET_PASSWORD
+    For i = 1 To UBound(lv, 1)
+        If UCase$(Trim$(SafeStr(lv(i, PL_ID)))) = UCase$(p.ID) Then
+            If CLng(NumOr0(lv(i, PL_RANK))) >= newRank Then lr.DataBodyRange.Cells(i, PL_RANK).Value = CLng(NumOr0(lv(i, PL_RANK))) + 1
+        End If
+    Next i
+    ProtectSheet ws
+
+    Dim one() As Variant: ReDim one(1 To 1, 1 To PL_N)
+    one(1, PL_ID) = p.ID
+    one(1, PL_RANK) = newRank
+    one(1, PL_EMP) = rec.EmpName
+    one(1, PL_SHIFT) = rec.EmpShift
+    one(1, PL_CODE) = rec.DeptCode
+    one(1, PL_HRS) = rec.TotalHrs
+    If Not AppendRows(lr, one, PL_N) Then Err.Raise vbObjectError + 771, , "the posting list row for " & p.ID & " couldn't be written"
+    If ListRowCount(p.ID) <> n + 1 Then
+        Err.Raise vbObjectError + 773, , p.ID & " has " & ListRowCount(p.ID) & " list rows after adding one (expected " & (n + 1) & ")"
+    End If
+End Sub
+
+' How many rows of the list table belong to one posting
+Private Function ListRowCount(ByVal id As String) As Long
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lr Is Nothing Then Exit Function
+    If lr.DataBodyRange Is Nothing Then Exit Function
+    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(lv, 1)
+        If UCase$(Trim$(SafeStr(lv(i, PL_ID)))) = UCase$(id) Then ListRowCount = ListRowCount + 1
+    Next i
+End Function
+
+' Takes one person's row off an OPEN posting's frozen list (nWas = how many rows the
+' posting had). The rows below move up one rank, so the numbers stay 1, 2, 3 ...
+Private Sub DeleteListRow(ByVal id As String, ByVal emp As String, ByVal nWas As Long)
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    Dim ws As Worksheet: Set ws = lr.Parent
+    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+    Dim i As Long, rowAt As Long, cntWas As Long, rankWas As Long
+    For i = 1 To UBound(lv, 1)
+        If UCase$(Trim$(SafeStr(lv(i, PL_ID)))) = UCase$(id) Then
+            If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then
+                rowAt = i
+                Exit For
+            End If
+        End If
+    Next i
+    If rowAt = 0 Then Exit Sub
+    rankWas = CLng(NumOr0(lv(rowAt, PL_RANK)))
+    cntWas = lr.ListRows.Count
+    ws.Unprotect Password:=SHEET_PASSWORD
+    lr.ListRows(rowAt).Delete
+    If Not lr.DataBodyRange Is Nothing And rankWas > 0 Then
+        lv = RangeTo2D(lr.DataBodyRange)                ' the table as it is now
         For i = 1 To UBound(lv, 1)
-            id = Trim$(SafeStr(lv(i, PL_ID)))
-            If seen.Exists(id) Then
-                If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then seen(id) = True
+            If UCase$(Trim$(SafeStr(lv(i, PL_ID)))) = UCase$(id) Then
+                If CLng(NumOr0(lv(i, PL_RANK))) > rankWas Then lr.DataBodyRange.Cells(i, PL_RANK).Value = CLng(NumOr0(lv(i, PL_RANK))) - 1
             End If
         Next i
     End If
-    For Each k In seen.Keys
-        If CBool(seen(k)) = wantListed Then outS = outS & IIf(outS = "", "", ", ") & CStr(k)
-    Next k
-    OpenPostingsSince = outS
+    ProtectSheet ws
+    If lr.ListRows.Count <> cntWas - 1 Or ListRowCount(id) <> nWas - 1 Then
+        Err.Raise vbObjectError + 772, , id & " has " & ListRowCount(id) & " list rows after taking one off (expected " & (nWas - 1) & ")"
+    End If
+End Sub
+
+' Seniority as call order uses it, for a name on a frozen list (blank / not on the roster sorts last)
+Private Function RosterSeniorityKey(ByVal emp As String) As Double
+    Dim r As Long: r = RosterRowOf(emp)
+    If r = 0 Then
+        RosterSeniorityKey = SeniorityKey(Empty)
+    Else
+        RosterSeniorityKey = SeniorityKey(RosterSheet().Cells(r, C_SENIORITY).Value)
+    End If
 End Function
 
 ' v24.3: the person now moves (or has moved) into unit after all, so a

@@ -114,6 +114,8 @@ Private Function RunCase(f() As String) As String
             RunCase = NumText(DstNightHours(ParseD(i1)))
         Case "callorder"
             RunCase = CaseCallOrder(i1)
+        Case "listinsert"                          ' v24.3.1: frozen list in its order, newcomer -> index 1..n+1
+            RunCase = CaseListInsert(i1, i2)
         Case "callout"
             RunCase = NumText(CalloutCharge(i1, CDbl(i2), CDbl(i3)))
         Case "posting"
@@ -232,6 +234,34 @@ Private Function CaseHolOff(ByVal dTxt As String, ByVal fixture As String) As St
 End Function
 
 ' "Name:grade:hours:seniority;..." -> names in call order
+' "name:grade:hours:seniority;..." -> recs(1..n) in the order given. Returns n.
+Private Function CasePeople(ByVal spec As String, ByRef recs() As EmpRec) As Long
+    Dim recsTxt As Variant: recsTxt = Split(spec, ";")
+    Dim n As Long: n = UBound(recsTxt) + 1
+    ReDim recs(1 To n)
+    Dim i As Long, p As Variant
+    For i = 1 To n
+        p = Split(recsTxt(i - 1), ":")
+        recs(i).EmpName = CStr(p(0))
+        recs(i).Grade = CDbl(p(1))
+        recs(i).TotalHrs = CDbl(p(2))
+        If CStr(p(3)) = "" Then
+            recs(i).Seniority = SeniorityKey(Empty)
+        Else
+            recs(i).Seniority = SeniorityKey(ParseD(CStr(p(3))))
+        End If
+    Next i
+    CasePeople = n
+End Function
+
+' a frozen list (kept in the order given) and one newcomer -> where they go
+Private Function CaseListInsert(ByVal frozenSpec As String, ByVal newSpec As String) As String
+    Dim frozen() As EmpRec, one() As EmpRec, n As Long
+    n = CasePeople(frozenSpec, frozen)
+    CasePeople newSpec, one
+    CaseListInsert = CStr(ListInsertIndex(frozen, n, one(1)))
+End Function
+
 Private Function CaseCallOrder(ByVal spec As String) As String
     Dim recsTxt As Variant: recsTxt = Split(spec, ";")
     Dim n As Long: n = UBound(recsTxt) + 1
@@ -798,6 +828,14 @@ Private Sub LoadCases()
     AddCase "callorder,blank-seniority-last,Gus:1:50:;Hal:1:50:2020-01-01,,,,,Hal/Gus"
     AddCase "callorder,grade-before-hours,Ivy:2:0:2001-01-01;Jon:1:500:2001-01-01,,,,,Jon/Ivy"
     AddCase "callorder,name-case,bea:1:10:2001-01-01;Abe:1:10:2001-01-01,,,,,Abe/bea"
+    AddCase "listinsert,fewest-hours-goes-first,Ann:1:50:2010-01-01;Bob:1:80:2010-01-01,New:1:10:2015-01-01,,,,1"
+    AddCase "listinsert,between-two,Ann:1:50:2010-01-01;Bob:1:80:2010-01-01,New:1:60:2015-01-01,,,,2"
+    AddCase "listinsert,most-hours-goes-last,Ann:1:50:2010-01-01;Bob:1:80:2010-01-01,New:1:100:2001-01-01,,,,3"
+    AddCase "listinsert,grade-before-hours,Ann:1:500:2010-01-01;Bob:2:0:2010-01-01,New:1.5:999:2015-01-01,,,,2"
+    AddCase "listinsert,tie-earlier-seniority-first,Ann:1:50:2010-01-01,New:1:50:2005-01-01,,,,1"
+    AddCase "listinsert,tie-later-seniority-after,Ann:1:50:2010-01-01,New:1:50:2015-01-01,,,,2"
+    AddCase "listinsert,tie-blank-seniority-after,Ann:1:50:2010-01-01,New:1:50:,,,,2"
+    AddCase "listinsert,frozen-order-is-kept,Bob:1:80:2010-01-01;Ann:1:50:2010-01-01,New:1:60:2015-01-01,,,,1"
     AddCase "callout,refused-g1,Refused,1,12,,,21"
     AddCase "callout,leftmsg-g2,Left Message,2,12,,,21"
     AddCase "callout,accepted,Accepted,1,12,,,0"

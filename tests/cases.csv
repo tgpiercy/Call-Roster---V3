@@ -92,6 +92,14 @@ callorder,ties,Ann:1:100:2010-01-01;Bob:1:100:2008-05-05;Cal:1:80:2015-01-01;Dee
 callorder,blank-seniority-last,Gus:1:50:;Hal:1:50:2020-01-01,,,,,Hal/Gus
 callorder,grade-before-hours,Ivy:2:0:2001-01-01;Jon:1:500:2001-01-01,,,,,Jon/Ivy
 callorder,name-case,bea:1:10:2001-01-01;Abe:1:10:2001-01-01,,,,,Abe/bea
+listinsert,fewest-hours-goes-first,Ann:1:50:2010-01-01;Bob:1:80:2010-01-01,New:1:10:2015-01-01,,,,1
+listinsert,between-two,Ann:1:50:2010-01-01;Bob:1:80:2010-01-01,New:1:60:2015-01-01,,,,2
+listinsert,most-hours-goes-last,Ann:1:50:2010-01-01;Bob:1:80:2010-01-01,New:1:100:2001-01-01,,,,3
+listinsert,grade-before-hours,Ann:1:500:2010-01-01;Bob:2:0:2010-01-01,New:1.5:999:2015-01-01,,,,2
+listinsert,tie-earlier-seniority-first,Ann:1:50:2010-01-01,New:1:50:2005-01-01,,,,1
+listinsert,tie-later-seniority-after,Ann:1:50:2010-01-01,New:1:50:2015-01-01,,,,2
+listinsert,tie-blank-seniority-after,Ann:1:50:2010-01-01,New:1:50:,,,,2
+listinsert,frozen-order-is-kept,Bob:1:80:2010-01-01;Ann:1:50:2010-01-01,New:1:60:2015-01-01,,,,1
 callout,refused-g1,Refused,1,12,,,21
 callout,leftmsg-g2,Left Message,2,12,,,21
 callout,accepted,Accepted,1,12,,,0

@@ -121,6 +121,8 @@ def evaluate(row: dict) -> str:
         return fmt_num(rules.dst_night_hours(d(i1)))
     if suite == "callorder":                     # people -> names in order
         return "/".join(e.name for e in rules.call_order(parse_people(i1)))
+    if suite == "listinsert":                    # frozen list in its order, newcomer -> index 1..n+1
+        return str(rules.list_insert_index(parse_people(i1), parse_people(i2)[0]))
     if suite == "callout":                       # outcome, grade, hours -> charged
         return fmt_num(rules.callout_charge(i1, float(i2), float(i3)))
     if suite == "posting":                       # mode, hours, list -> rank=charged;...

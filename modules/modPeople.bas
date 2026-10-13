@@ -1540,12 +1540,17 @@ Public Function SaveUnitMove(ByVal emp As String, ByVal newUnit As String, ByVal
                "Saving is blocked. Close WITHOUT saving and reopen.", vbCritical, "Move to unit"
         Exit Function
     End If
+    ' v24.3.1: open postings in the new unit for shifts on or after the move get them on the list
+    ' (after the check, so the hours on the new row include the top-up; a planned mover is on them already)
+    Dim addTxt As String, dropTxt As String
+    SyncPersonOnPostings emp, newUnit, pc.AsOf, 0, True, False, False, addTxt, dropTxt
     AfterPeopleChange
     If Not batch Then SaveIfWritable
     report = emp & " moved to " & newUnit & " (" & gradeCode & ")." & vbNewLine & _
              IIf(pc.AddHours > 0, Format$(pc.AddHours, "0.0#") & " h added (" & refId & "; Void Entry undoes the hours).", "No hours added.") & _
              IIf(crewChanges, vbNewLine & "Crew " & crewNow & " -> " & crewTo & " from " & Format$(pc.AsOf, "mmm d") & ".", "") & _
-             IIf(postTxt <> "", vbNewLine & "Not chargeable on open posting(s): " & postTxt, "")
+             IIf(postTxt <> "", vbNewLine & "Not chargeable on open posting(s): " & postTxt, "") & _
+             IIf(addTxt <> "", vbNewLine & "Added to the list of open " & newUnit & " posting(s): " & addTxt & ". Print those sheets again.", "")
     SaveUnitMove = True
     Exit Function
 Failed:
@@ -2002,6 +2007,9 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
     If cleared <> "" Then
         postTxt = ExemptFromOpenPostings(emp, eff, "|" & cleared & "|", "moves " & Format$(eff, "mmm d") & " (" & id & ")")
     End If
+    ' v24.3.1: postings already open in the new unit for shifts on or after the date get them on the list
+    Dim addTxt As String, dropTxt As String
+    SyncPersonOnPostings emp, newUnit, eff, 0, True, False, False, addTxt, dropTxt
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap())
     If Abs(LogChargedTotal() - logBefore) > 0.0001 Then diff = diff & "  OT Log total Hours Charged changed" & vbNewLine
@@ -2021,6 +2029,7 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
         report = report & "Crew " & crewNow & " -> " & crewTo & " from " & Format$(eff, "mmm d") & " (in the Crew History now)." & vbNewLine
     End If
     If postTxt <> "" Then report = report & "Not chargeable on open posting(s): " & postTxt & vbNewLine
+    If addTxt <> "" Then report = report & "Added to the list of open " & newUnit & " posting(s): " & addTxt & ". Print those sheets again." & vbNewLine
     report = report & "It is applied the first time an admin opens the file on or after that date." & vbNewLine & _
              "To cancel it: Needs Attention > Planned unit moves, double-click the line." & vbNewLine & "Backup: " & bk
     SavePlannedMove = True
@@ -2040,7 +2049,11 @@ End Function
 ' The work of a cancel, with no questions and no save. The caller has events
 ' off and mBusy set. False (didTxt says why) = nothing was written; a write
 ' that fails raises, so the caller's handler blocks the save.
-Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, ByRef didTxt As String) As Boolean
+' syncPostings (v24.3.1): take them off the new unit's open posting lists and put
+' them back on the old unit's lists made while the move was waiting. False when
+' the person is being removed from the roster (the "left" marks cover that).
+Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, ByRef didTxt As String, _
+                                   Optional ByVal syncPostings As Boolean = True) As Boolean
     Dim v As Variant, i As Long
     i = PlannedRowById(id, v)
     If i = 0 Then didTxt = id & " isn't on the Planned Moves sheet.": Exit Function
@@ -2057,7 +2070,7 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
     Dim ws As Worksheet
     Dim newUnit As String: newUnit = Trim$(SafeStr(v(i, PM_UNIT)))
     Dim clearTxt As String: clearTxt = TrimBarList(SafeStr(v(i, PM_CLEAR)))
-    Dim stuckTxt As String, missTxt As String, heldTxt As String, entered As Date
+    Dim stuckTxt As String, entered As Date
     If IsDate(v(i, PM_STAMP)) Then entered = Int(CDate(v(i, PM_STAMP)))
     r = RosterRowOf(emp)
     If crewTo <> "" And eff > 0 Then
@@ -2081,32 +2094,36 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
         End If
     End If
     postTxt = ClearMoveExemptions(emp, id)
-    ' Postings made while the move was waiting froze their lists as if it would happen.
-    ' New unit: they are on those lists but hold no code there, so they must never be charged.
-    ' (If they do hold a code there, those lists carry the planned code and the hours after the top-up.)
+    If Not MarkPlannedRow(id, "Cancelled", reason) Then Err.Raise vbObjectError + 762, , "the Planned Moves row couldn't be updated"
+    ' From here the move no longer counts on any list (MarkPlannedRow cleared the cache).
+    ' Postings made or changed while it was waiting carry it on their frozen lists: put those right.
+    Dim offTxt As String, reTxt As String, backTxt As String, skipTxt As String, u As Variant
+    If syncPostings And eff > 0 And r > 0 Then
+        ' new unit: no code there -> off the list; holds a code -> back to today's code and hours on lists made since
+        SyncPersonOnPostings emp, newUnit, eff, 0, False, True, False, skipTxt, offTxt
+        If entered > 0 Then                             ' (only lists made since the move was entered; no date = leave them)
+            SyncPersonOnPostings emp, newUnit, eff, entered, False, False, True, reTxt, offTxt
+            ' old unit(s): back on the lists made without them
+            For Each u In Split(clearTxt, "|")
+                If CStr(u) <> "" Then SyncPersonOnPostings emp, CStr(u), eff, entered, True, False, False, backTxt, skipTxt
+            Next u
+        End If
+    End If
+    ' whatever could not be taken off (the only name on a list, or a removal) is at least never charged
     If eff > 0 And r > 0 And DeptCol(newUnit) > 0 Then
         If Trim$(SafeStr(RosterSheet().Cells(r, DeptCol(newUnit)).Value)) = "" Then
             stuckTxt = ExemptFromOpenPostings(emp, eff, "|" & newUnit & "|", "move cancelled (" & id & ")")
-        Else
-            heldTxt = OpenPostingsSince(emp, eff, "|" & newUnit & "|", entered, True)
         End If
     End If
-    ' Old unit(s): they are missing from the lists made since, and a frozen list can't take them back.
-    If eff > 0 And clearTxt <> "" Then missTxt = OpenPostingsSince(emp, eff, "|" & clearTxt & "|", entered, False)
-    If Not MarkPlannedRow(id, "Cancelled", reason) Then Err.Raise vbObjectError + 762, , "the Planned Moves row couldn't be updated"
     didTxt = id & " cancelled: " & emp & " stays where they are." & crewTxt
     If postTxt <> "" Then didTxt = didTxt & vbNewLine & "Chargeable again on open posting(s): " & postTxt & "."
+    If offTxt <> "" Then didTxt = didTxt & vbNewLine & "Taken off the list of " & newUnit & " posting(s): " & offTxt & "."
+    If reTxt <> "" Then didTxt = didTxt & vbNewLine & newUnit & " posting(s) " & reTxt & " list them at today's code and hours again."
+    If backTxt <> "" Then didTxt = didTxt & vbNewLine & "Put back on the list of posting(s): " & backTxt & "."
     If stuckTxt <> "" Then
-        didTxt = didTxt & vbNewLine & "Still listed on " & newUnit & " posting(s) made while the move was waiting, now marked not chargeable: " & stuckTxt & "."
+        didTxt = didTxt & vbNewLine & "Still on the list of " & newUnit & " posting(s) " & stuckTxt & ", marked not chargeable."
     End If
-    If heldTxt <> "" Then
-        didTxt = didTxt & vbNewLine & newUnit & " posting(s) " & heldTxt & " were made while the move was waiting and list them at the planned code " & _
-                 "and the hours after the top-up. If the order matters there, cancel that posting and create it again."
-    End If
-    If missTxt <> "" Then
-        didTxt = didTxt & vbNewLine & "NOT on the list of open posting(s) " & missTxt & ", made while the move was waiting (or they aren't free that shift). " & _
-                 "To offer them one of those shifts, cancel that posting and create it again."
-    End If
+    If offTxt <> "" Or reTxt <> "" Or backTxt <> "" Then didTxt = didTxt & vbNewLine & "Print those posting sheets again."
     CancelPlannedCore = True
 End Function
 
@@ -2699,7 +2716,7 @@ Public Function RemoveEmployee(ByVal emp As String, ByVal leftOn As Date, ByRef 
     Dim planId As String, planTxt As String
     planId = PlannedFor(emp)
     If planId <> "" Then
-        If Not CancelPlannedCore(planId, "removed from the roster, left " & Format$(leftOn, "mmm d, yyyy"), planTxt) Then
+        If Not CancelPlannedCore(planId, "removed from the roster, left " & Format$(leftOn, "mmm d, yyyy"), planTxt, False) Then
             Err.Raise vbObjectError + 732, , planTxt
         End If
         planTxt = vbNewLine & "Their planned move " & planId & " was cancelled."

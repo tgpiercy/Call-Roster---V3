@@ -92,6 +92,7 @@ Public Sub SmokeTest()
               vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
 
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
+    Dim repShort As String                         ' v24.3.1: the step lines without their notes - what the PASSED box shows (the notes go to the Error Log line)
     Dim before As Object, logBefore As Double, nErr0 As Long, nWarn0 As Long, diff As String
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -110,6 +111,7 @@ Public Sub SmokeTest()
         Application.StatusBar = "Smoke test: step " & k & " of " & SMK_STEPS & " - " & SmkName(k)
         ok = SmkStep(k, st, nErr0, why)
         If ok Then
+            repShort = repShort & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & vbNewLine
             rep = rep & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & _
                   IIf(st.Note <> "", "  (" & st.Note & ")", "") & vbNewLine
         Else
@@ -133,7 +135,8 @@ Public Sub SmokeTest()
     End If
     On Error Resume Next
     LogError "SmokeTest", 0, IIf(failedAt = 0 And diff = "", "all steps OK, totals unchanged", _
-                                 IIf(failedAt > 0, "FAILED at step " & failedAt & " (" & SmkName(failedAt) & ")", "totals changed")), Left$(why & diff, 400)
+                                 IIf(failedAt > 0, "FAILED at step " & failedAt & " (" & SmkName(failedAt) & ")", "totals changed")), _
+             IIf(failedAt = 0 And diff = "", Left$(rep, 400), Left$(why & diff, 400))
     On Error GoTo 0
 
     Dim head As String
@@ -144,6 +147,7 @@ Public Sub SmokeTest()
         head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
     Else
         head = "SMOKE TEST PASSED: all steps OK, totals unchanged."
+        rep = repShort                             ' 14 plain lines fit in one box; the notes are on the Error Log line
     End If
     If Len(head) > 420 Then head = Left$(head, 400) & " ..." & vbNewLine
     If Len(rep) > 880 - Len(head) Then rep = Left$(rep, 860 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters

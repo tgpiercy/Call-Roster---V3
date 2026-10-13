@@ -78,9 +78,10 @@ Sub SyncKronosData()
     Dim lastSrc As Long, lastCol As Long, lastCell As Range
     ' the last cell that holds anything, by rows and by columns (UsedRange can run to the sheet's end
     ' when a column carries a whole-column format); nothing found = an empty sheet, read 2 x 2
-    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlValues, SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
+    ' (LookIn:=xlFormulas, not xlValues: a hidden or filtered-out last row or column still counts)
+    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
     If lastCell Is Nothing Then lastSrc = 2 Else lastSrc = lastCell.Row
-    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlValues, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious)
+    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious)
     If lastCell Is Nothing Then lastCol = 2 Else lastCol = lastCell.Column
     If lastSrc < 2 Then lastSrc = 2                   ' always a 2-D array below
     If lastCol < 2 Then lastCol = 2

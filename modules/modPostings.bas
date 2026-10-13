@@ -1778,6 +1778,51 @@ Public Function ClearLeftExemptions(ByVal emp As String) As String
     ClearLeftExemptions = outS
 End Function
 
+' "Exempt - moves Feb 1 (PM-0007)" -> "PM-0007" ("" = the note carries no planned-move ID)
+Private Function PlanIdIn(ByVal note As String) As String
+    Dim a As Long, b As Long
+    a = InStr(1, note, "(PM-", vbTextCompare)
+    If a = 0 Then Exit Function
+    b = InStr(a, note, ")")
+    If b > a Then PlanIdIn = Mid$(note, a + 1, b - a - 1)
+End Function
+
+' v24.3: the OPEN postings in the given units ("|A|B|"), for shifts on or after
+' fromDate, whose frozen list does NOT hold emp. A cancelled planned move uses it
+' to say which lists were made without the person. "" = none.
+Public Function OpenPostingsWithout(ByVal emp As String, ByVal fromDate As Date, ByVal units As String) As String
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lo Is Nothing Or lr Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
+    Dim want As Object: Set want = CreateObject("Scripting.Dictionary")
+    want.CompareMode = 1
+    Dim i As Long, id As String, k As Variant, outS As String
+    For i = 1 To UBound(pv, 1)
+        id = Trim$(SafeStr(pv(i, PS_ID)))
+        If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then
+            If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) Then
+                If InStr(1, units, "|" & SafeStr(pv(i, PS_UNIT)) & "|", vbTextCompare) > 0 Then want(id) = False
+            End If
+        End If
+    Next i
+    If want.Count = 0 Then Exit Function
+    If Not lr.DataBodyRange Is Nothing Then
+        Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+        For i = 1 To UBound(lv, 1)
+            id = Trim$(SafeStr(lv(i, PL_ID)))
+            If want.Exists(id) Then
+                If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then want(id) = True
+            End If
+        Next i
+    End If
+    For Each k In want.Keys
+        If Not want(k) Then outS = outS & IIf(outS = "", "", ", ") & CStr(k)
+    Next k
+    OpenPostingsWithout = outS
+End Function
+
 ' v24.3: a planned unit move was cancelled, so its "Exempt - moves ... (PM-0007)"
 ' marks come off OPEN postings. Only marks carrying that move's ID are touched.
 ' Returns the posting IDs ("" = none).
@@ -1922,7 +1967,12 @@ Public Sub ReopenPosting()
     ' corrected while the posting is open, clear the person's Result cell on the Postings sheet.)
     Dim j As Long, leftOn As Date, dc As Long
     dc = DeptCol(p.Unit)
+    Dim planId As String, planOn As Date, planUnit As String, codeNow As String
     For j = 1 To n
+        ' v24.3: a mark left by a planned unit move that was cancelled since no longer applies
+        If InStr(1, lst(j).ExemptNote, "(PM-", vbTextCompare) > 0 Then
+            If StrComp(PlannedStatusOf(PlanIdIn(lst(j).ExemptNote)), "Cancelled", vbTextCompare) = 0 Then lst(j).ExemptNote = ""
+        End If
         If lst(j).ExemptNote = "" Then
             If RosterRowOf(lst(j).EmpName) = 0 Then
                 leftOn = FormerLeftOn(lst(j).EmpName)
@@ -1932,10 +1982,16 @@ Public Sub ReopenPosting()
                     lst(j).ExemptNote = EXEMPT_TAG & "left " & Format$(leftOn, "mmm d")
                 End If
             ElseIf dc > 0 Then
-                ' v24.3: the code they hold on the SHIFT date (a waiting unit move counts from its date)
-                If UnitCodeOn(lst(j).EmpName, p.Unit, p.ShiftDate, _
-                              Trim$(SafeStr(RosterSheet().Cells(RosterRowOf(lst(j).EmpName), dc).Value))) = "" Then
-                    lst(j).ExemptNote = EXEMPT_TAG & "no code in " & p.Unit & " on the shift date"
+                ' v24.3: the code they hold on the SHIFT date (a waiting unit move counts from its date,
+                ' and its mark carries the move's ID so a cancel can take it off again)
+                codeNow = Trim$(SafeStr(RosterSheet().Cells(RosterRowOf(lst(j).EmpName), dc).Value))
+                If UnitCodeOn(lst(j).EmpName, p.Unit, p.ShiftDate, codeNow) = "" Then
+                    If codeNow = "" Then
+                        lst(j).ExemptNote = EXEMPT_TAG & "no code in " & p.Unit & " now"
+                    Else
+                        planId = PlannedFor(lst(j).EmpName, planOn, planUnit)
+                        lst(j).ExemptNote = EXEMPT_TAG & "moves " & Format$(planOn, "mmm d") & " (" & planId & ")"
+                    End If
                 End If
             End If
         End If

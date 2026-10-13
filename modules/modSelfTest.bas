@@ -531,7 +531,7 @@ Private Function CaseUnitMove(ByVal own As Double, ByVal spec As String) As Stri
 End Function
 
 ' "unit:code:clear|clear:yyyy-mm-dd:status[:other];..." -> rows in the tblPlannedMoves
-' layout for ST_NAME ("other" = someone else's move). Empty when blank.
+' layout for ST_NAME ("other" = someone else's move, "lower" = the name in lower case). Empty when blank.
 Private Function CasePlans(ByVal spec As String) As Variant
     If spec = "" Then Exit Function
     Dim parts As Variant: parts = Split(spec, ";")
@@ -544,6 +544,7 @@ Private Function CasePlans(ByVal spec As String) As Variant
         h(i, PM_EMP) = ST_NAME
         If UBound(p) >= 5 Then
             If CStr(p(5)) = "other" Then h(i, PM_EMP) = "Someone Else"
+            If CStr(p(5)) = "lower" Then h(i, PM_EMP) = LCase$(ST_NAME)
         End If
         h(i, PM_UNIT) = CStr(p(0))
         h(i, PM_CODE) = CStr(p(1))
@@ -1083,6 +1084,13 @@ Private Sub LoadCases()
     AddCase "plancode,someone-elses-move,Derivatives:D2:Phosphine:2027-02-01:Planned:other,Phosphine,2027-03-15,P2,,P2"
     AddCase "plancode,unit-name-any-case,Derivatives:D2:Phosphine:2027-02-01:Planned,phosphine,2027-02-01,P2,,none"
     AddCase "plancode,no-plans,,Phosphine,2027-02-01,P2,,P2"
+    AddCase "plancode,employee-name-any-case,Derivatives:D2:Phosphine:2027-02-01:Planned:lower,Phosphine,2027-02-01,P2,,none"
+    AddCase "plancode,status-any-case,Derivatives:D2:Phosphine:2027-02-01:planned,Phosphine,2027-02-01,P2,,none"
+    AddCase "plancode,clear-list-typed-with-spaces,Derivatives:D2:Phosphine | Cypure:2027-02-01:Planned,Cypure,2027-02-01,C3,,none"
+    AddCase "plancode,two-moves-only-the-first-is-due,Derivatives:D2:Phosphine:2027-02-01:Planned;Cypure:C2:Derivatives:2027-04-01:Planned,Derivatives,2027-03-01,,,D2"
+    AddCase "plancode,two-moves-the-later-one-counts,Derivatives:D2:Phosphine:2027-02-01:Planned;Cypure:C2:Derivatives:2027-04-01:Planned,Derivatives,2027-04-01,D2,,none"
+    AddCase "plancode,same-date-later-row-wins,Derivatives:D2:Phosphine:2027-02-01:Planned;Cypure:C2:Phosphine:2027-02-01:Planned,Cypure,2027-02-01,,,C2"
+    AddCase "plancode,new-unit-also-ticked-to-clear,Derivatives:D2:Derivatives|Phosphine:2027-02-01:Planned,Derivatives,2027-02-01,D3,,D2"
     AddCase "planhours,below-the-highest-peer,40,1:N:100;2:N:60,,,,100"
     AddCase "planhours,already-above-keeps-own,120,1:N:100,,,,120"
     AddCase "planhours,own-entry-is-not-a-peer,10,1:Y:10;1:N:55.25,,,,55.25"

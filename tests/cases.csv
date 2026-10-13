@@ -378,6 +378,13 @@ plancode,applied-is-ignored,Derivatives:D2:Phosphine:2027-02-01:Applied,Derivati
 plancode,someone-elses-move,Derivatives:D2:Phosphine:2027-02-01:Planned:other,Phosphine,2027-03-15,P2,,P2
 plancode,unit-name-any-case,Derivatives:D2:Phosphine:2027-02-01:Planned,phosphine,2027-02-01,P2,,none
 plancode,no-plans,,Phosphine,2027-02-01,P2,,P2
+plancode,employee-name-any-case,Derivatives:D2:Phosphine:2027-02-01:Planned:lower,Phosphine,2027-02-01,P2,,none
+plancode,status-any-case,Derivatives:D2:Phosphine:2027-02-01:planned,Phosphine,2027-02-01,P2,,none
+plancode,clear-list-typed-with-spaces,Derivatives:D2:Phosphine | Cypure:2027-02-01:Planned,Cypure,2027-02-01,C3,,none
+plancode,two-moves-only-the-first-is-due,Derivatives:D2:Phosphine:2027-02-01:Planned;Cypure:C2:Derivatives:2027-04-01:Planned,Derivatives,2027-03-01,,,D2
+plancode,two-moves-the-later-one-counts,Derivatives:D2:Phosphine:2027-02-01:Planned;Cypure:C2:Derivatives:2027-04-01:Planned,Derivatives,2027-04-01,D2,,none
+plancode,same-date-later-row-wins,Derivatives:D2:Phosphine:2027-02-01:Planned;Cypure:C2:Phosphine:2027-02-01:Planned,Cypure,2027-02-01,,,C2
+plancode,new-unit-also-ticked-to-clear,Derivatives:D2:Derivatives|Phosphine:2027-02-01:Planned,Derivatives,2027-02-01,D3,,D2
 planhours,below-the-highest-peer,40,1:N:100;2:N:60,,,,100
 planhours,already-above-keeps-own,120,1:N:100,,,,120
 planhours,own-entry-is-not-a-peer,10,1:Y:10;1:N:55.25,,,,55.25

@@ -147,6 +147,8 @@ Public Type EmpRec
     EmpShift As String
     Outcome As String
     Reason As String
+    RosterHrs As Double         ' v24.3: Total Hours on the roster (set by LoadEligible)
+    EstHrs As Boolean           ' v24.3: TotalHrs is a planned mover's hours AFTER the top-up, an estimate for call order
 End Type
 
 ' Session flags
@@ -473,6 +475,8 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                         .DeptCode = code
                         .Grade = g
                         .TotalHrs = NumOr0(v(i, C_TOTAL))
+                        .RosterHrs = .TotalHrs
+                        .EstHrs = False
                         If provLive Then .ProvHrs = NumOr0(v(i, C_PROV)) Else .ProvHrs = 0
                         .Seniority = SeniorityKey(v(i, C_SENIORITY))
                         .Phone = Trim$(SafeStr(v(i, C_PHONE)))
@@ -491,8 +495,15 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
 
     If n = 0 Then Exit Function
     If anyMoved Then                                ' before the sort: these hours decide the mover's place
+        Dim listHrs As Double
         For i = 1 To n
-            If recMover(i) Then recs(i).TotalHrs = PlannedListHours(recs(i).TotalHrs, allGrade, allMover, allTotal, nAll)
+            If recMover(i) Then
+                listHrs = PlannedListHours(recs(i).TotalHrs, allGrade, allMover, allTotal, nAll)
+                If listHrs > recs(i).TotalHrs Then
+                    recs(i).TotalHrs = listHrs
+                    recs(i).EstHrs = True
+                End If
+            End If
         Next i
     End If
     ReDim Preserve recs(1 To n)
@@ -1034,6 +1045,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
             data(k, L_EMP) = entries(i).EmpName
             data(k, L_CODE) = entries(i).DeptCode
             data(k, L_EMPHRS) = entries(i).TotalHrs
+            If entries(i).EstHrs Then data(k, L_EMPHRS) = entries(i).RosterHrs     ' v24.3: the log keeps their real total, never the estimate
             data(k, L_OUTCOME) = entries(i).Outcome
             data(k, L_REASON) = entries(i).Reason
             If entries(i).Outcome = "Accepted" And taken(i) > 0 And taken(i) < offers(i) Then

@@ -513,7 +513,7 @@ Private Sub SavePlanned(ByRef pc As PeopleCalc, ByVal clearTxt As String, ByVal 
     msg = "PLANNED MOVE - nothing changes on the roster today." & vbNewLine & vbNewLine & _
           pc.Emp & " moves to " & pc.Unit & " (" & code & ") on " & Format$(pc.AsOf, "ddd mmm d, yyyy") & "." & vbNewLine & _
           "Codes cleared on that day: " & IIf(clearTxt = "", "none", Replace(clearTxt, "|", ", ")) & vbNewLine & _
-          "Crew: " & IIf(crewTxt = "", "no change", "changes to " & crewTxt & " from that date (it goes in the Crew History now)") & vbNewLine & vbNewLine
+          "Crew: " & IIf(crewTxt = "", "no change", "changes to " & crewTxt & " from that date (column E shows it from today; lists use the old crew until then)") & vbNewLine & vbNewLine
     msg = msg & "For shifts on or after that date they are on " & pc.Unit & "'s call lists" & _
           IIf(clearTxt = "", "", " and off " & Replace(clearTxt, "|", ", ") & "'s") & ". Until the move is applied they are listed in " & _
           pc.Unit & " at the hours they would have after the top-up." & vbNewLine & vbNewLine

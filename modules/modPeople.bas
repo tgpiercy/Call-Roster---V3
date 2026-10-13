@@ -1612,9 +1612,22 @@ Public Function PlannedCodeCore(ByRef plans As Variant, ByVal emp As String, ByV
     If StrComp(Trim$(SafeStr(plans(best, PM_UNIT))), Trim$(unit), vbTextCompare) = 0 Then
         PlannedCodeCore = Trim$(SafeStr(plans(best, PM_CODE)))
         movedIn = True
-    ElseIf InStr(1, "|" & Trim$(SafeStr(plans(best, PM_CLEAR))) & "|", "|" & Trim$(unit) & "|", vbTextCompare) > 0 Then
+    ElseIf InBarList(SafeStr(plans(best, PM_CLEAR)), unit) Then
         PlannedCodeCore = ""
     End If
+End Function
+
+' Is item one of the "|"-separated entries of listTxt? (trimmed, any case; a blank item never is)
+Private Function InBarList(ByVal listTxt As String, ByVal item As String) As Boolean
+    Dim part As Variant
+    item = Trim$(item)
+    If item = "" Then Exit Function
+    For Each part In Split(listTxt, "|")
+        If StrComp(Trim$(CStr(part)), item, vbTextCompare) = 0 Then
+            InBarList = True
+            Exit Function
+        End If
+    Next part
 End Function
 
 ' The Total a planned mover is listed at in the new unit before the top-up:
@@ -1707,6 +1720,13 @@ Public Function PlannedFor(ByVal emp As String, Optional ByRef eff As Date, Opti
             Exit Function
         End If
     Next i
+End Function
+
+' Planned / Applied / Cancelled for one ID, whatever its state ("" = no such row)
+Public Function PlannedStatusOf(ByVal id As String) As String
+    Dim v As Variant, i As Long
+    i = PlannedRowById(id, v)
+    If i > 0 Then PlannedStatusOf = Trim$(SafeStr(v(i, PM_STATUS)))
 End Function
 
 ' True when a waiting move takes effect after d1 and on or before d2
@@ -2010,11 +2030,17 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
     If IsDate(v(i, PM_FROM)) Then eff = Int(CDate(v(i, PM_FROM)))
     Dim crewTxt As String, postTxt As String, r As Long, found As Boolean, since As Date, newest As String
     Dim ws As Worksheet
-    If crewTo <> "" And crewOld <> "" And eff > 0 Then
-        r = RosterRowOf(emp)
+    Dim newUnit As String: newUnit = Trim$(SafeStr(v(i, PM_UNIT)))
+    Dim clearTxt As String: clearTxt = Trim$(SafeStr(v(i, PM_CLEAR)))
+    Dim stuckTxt As String, missTxt As String
+    r = RosterRowOf(emp)
+    If crewTo <> "" And eff > 0 Then
         newest = NewestCrew(emp, found, since)
         If r > 0 Then
-            If found And newest = crewTo And Int(since) = Int(eff) Then
+            If crewOld = "" Then
+                crewTxt = " They had no crew before this move, so crew " & crewTo & " (from " & Format$(eff, "mmm d") & _
+                          ") was left in place: correct column E by hand if it is wrong."
+            ElseIf found And newest = crewTo And Int(since) = Int(eff) Then
                 ' same date, later row: of two rows with the same date the later one wins
                 Set ws = RosterSheet()
                 ws.Unprotect Password:=SHEET_PASSWORD
@@ -2023,14 +2049,31 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
                 If Not AddCrewRow(emp, crewOld, eff) Then Err.Raise vbObjectError + 761, , "the crew history row couldn't be written"
                 crewTxt = " Crew back to " & crewOld & "."
             Else
-                crewTxt = " The crew was changed again after this move was entered, so it was left alone: check column E."
+                crewTxt = " The crew was changed again after this move was entered, so it was left alone: check column E and the " & _
+                          "Crew History row dated " & Format$(eff, "mmm d") & "."
             End If
         End If
     End If
     postTxt = ClearMoveExemptions(emp, id)
+    ' Postings made while the move was waiting froze their lists as if it would happen.
+    ' New unit: they are on those lists but hold no code there, so they must never be charged.
+    If eff > 0 And r > 0 And DeptCol(newUnit) > 0 Then
+        If Trim$(SafeStr(RosterSheet().Cells(r, DeptCol(newUnit)).Value)) = "" Then
+            stuckTxt = ExemptFromOpenPostings(emp, eff, "|" & newUnit & "|", "move cancelled (" & id & ")")
+        End If
+    End If
+    ' Old unit(s): they are missing from those lists, and a frozen list can't take them back.
+    If eff > 0 And clearTxt <> "" Then missTxt = OpenPostingsWithout(emp, eff, "|" & clearTxt & "|")
     If Not MarkPlannedRow(id, "Cancelled", reason) Then Err.Raise vbObjectError + 762, , "the Planned Moves row couldn't be updated"
-    didTxt = id & " cancelled: " & emp & " stays where they are." & crewTxt & _
-             IIf(postTxt <> "", " Chargeable again on open posting(s): " & postTxt & ".", "")
+    didTxt = id & " cancelled: " & emp & " stays where they are." & crewTxt
+    If postTxt <> "" Then didTxt = didTxt & vbNewLine & "Chargeable again on open posting(s): " & postTxt & "."
+    If stuckTxt <> "" Then
+        didTxt = didTxt & vbNewLine & "Still listed on " & newUnit & " posting(s) made while the move was waiting, now marked not chargeable: " & stuckTxt & "."
+    End If
+    If missTxt <> "" Then
+        didTxt = didTxt & vbNewLine & "NOT on the list of open posting(s) " & missTxt & " (made while the move was waiting, or they aren't free that shift). " & _
+                 "To offer them one of those shifts, cancel that posting and create it again."
+    End If
     CancelPlannedCore = True
 End Function
 
@@ -2135,11 +2178,10 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
         due(j + 1) = t
     Next i
 
-    Dim bk As String
-    If Not PeopleBackup("planned moves", bk) Then Exit Sub
+    Dim bk As String, backedUp As Boolean
     Dim pc As PeopleCalc, rep As String, why As String, ok As Boolean, nRows As Long
     Dim id As String, emp As String, unit As String, code As String, eff As Date
-    Dim okTxt As String, failTxt As String, nOk As Long, nFail As Long
+    Dim okTxt As String, failTxt As String, nOk As Long, nFail As Long, noteTxt As String
     For i = 1 To nDue
         id = Trim$(SafeStr(v(due(i), PM_ID)))
         emp = Trim$(SafeStr(v(due(i), PM_EMP)))
@@ -2151,18 +2193,32 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
             why = "not on the roster"
         ElseIf nRows > 1 Then
             why = "on the roster " & nRows & " times"
+        ElseIf DeptCol(unit) = 0 Then
+            why = "'" & unit & "' isn't a unit"
+        ElseIf code = "" Then
+            why = "no grade code on the Planned Moves row"
         ElseIf Not ComputeUnitMove(emp, unit, eff, pc) Then
             why = pc.Warnings
         Else
+            If Not backedUp Then                        ' one backup, and only when a move is really about to go in
+                If Not PeopleBackup("planned moves", bk) Then Exit Sub
+                backedUp = True
+            End If
             ok = SaveUnitMove(emp, unit, code, SafeStr(v(due(i), PM_CLEAR)), "", pc, rep, True, why)
         End If
         If NoSave() Then Exit Sub                       ' a failed check: SaveUnitMove has said so and blocked the save
         If ok Then
             nOk = nOk + 1
-            okTxt = okTxt & "  " & emp & " -> " & unit & " (" & code & "), " & _
-                    IIf(pc.AddHours > 0, Format$(pc.AddHours, "0.0#") & " h added", "no hours added") & vbNewLine
-            MarkPlannedRow id, "Applied", "applied by " & CurrentUser() & ": " & _
-                           IIf(pc.AddHours > 0, Format$(pc.AddHours, "0.0#") & " h added", "no hours added")
+            noteTxt = IIf(pc.AddHours > 0, Format$(pc.AddHours, "0.0#") & " h added", "no hours added")
+            okTxt = okTxt & "  " & emp & " -> " & unit & " (" & code & "), " & noteTxt & vbNewLine
+            If Not MarkPlannedRow(id, "Applied", "applied by " & CurrentUser() & ": " & noteTxt) Then
+                ' the roster has moved but the row still says Planned: saving that would apply it again at the next open
+                MarkNoSave
+                MsgBox emp & "'s move went in, but its row on the Planned Moves sheet couldn't be marked Applied." & vbNewLine & vbNewLine & _
+                       "Saving is blocked. Close WITHOUT saving and open the file again: the move is then applied afresh." & vbNewLine & _
+                       "If it happens twice, send me this box. Backup: " & bk, vbCritical, TTL
+                Exit Sub
+            End If
         Else
             nFail = nFail + 1
             If why = "" Then why = "the move didn't go through"
@@ -2178,7 +2234,8 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
         msg = msg & nFail & " could NOT be applied and still wait(s):" & vbNewLine & Left$(failTxt, 400) & vbNewLine & _
               "Fix what the line says, then Alt+F8 > ApplyPlannedMoves. Or cancel it: Needs Attention > Planned unit moves." & vbNewLine & vbNewLine
     End If
-    MsgBox msg & "Backup: " & bk, IIf(nFail > 0, vbExclamation, vbInformation), TTL
+    If backedUp Then msg = msg & "Backup: " & bk
+    MsgBox msg, IIf(nFail > 0, vbExclamation, vbInformation), TTL
 End Sub
 
 ' Alt+F8: applies the moves that are due (the open does this by itself;
@@ -2199,7 +2256,7 @@ Public Sub PlannedMoveMenu(ByVal id As String)
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
-    Dim v As Variant, i As Long, eff As Date, txt As String, ans As Long, report As String, reason As String
+    Dim v As Variant, i As Long, eff As Date, txt As String, ans As Long, report As String
     i = PlannedRowById(id, v)
     If i = 0 Then MsgBox id & " isn't on the Planned Moves sheet.", vbExclamation, TTL: Exit Sub
     If Not IsPlannedStatus(v(i, PM_STATUS)) Then
@@ -2227,8 +2284,7 @@ Public Sub PlannedMoveMenu(ByVal id As String)
                   "To change it, cancel it and enter it again (Employee > Move to unit).", _
                   vbYesNo + vbQuestion + vbDefaultButton2, TTL) <> vbYes Then Exit Sub
     End If
-    reason = InputBox("Why is it cancelled? (It goes in the Note. Leave blank if you like.)", TTL)
-    If CancelPlannedMove(id, reason, report) Then
+    If CancelPlannedMove(id, "cancelled from Needs Attention", report) Then
         RedrawNeedsIfShown
         MsgBox report, vbInformation, TTL
     End If

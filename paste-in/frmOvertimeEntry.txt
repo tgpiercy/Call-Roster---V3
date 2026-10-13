@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24.2 (Jan 5)
+' @version v24.3 (Jan 5)
 
 ' ================================================================
 ' CALLOUT SESSION FORM
@@ -363,7 +363,8 @@ Private Sub RefreshList()
         If mSS(i) <> "" Then displayName = displayName & "  [S/S]"
         lstEmployees.AddItem displayName
         lstEmployees.List(i - 1, 1) = IIf(mEntries(i).Phone = "", "- no phone -", mEntries(i).Phone)
-        lstEmployees.List(i - 1, 2) = Format$(mEntries(i).TotalHrs, "0") & IIf(mEntries(i).ProvHrs > 0, "*", "")
+        lstEmployees.List(i - 1, 2) = Format$(mEntries(i).TotalHrs, "0") & IIf(mEntries(i).ProvHrs > 0, "*", "") & _
+                                      IIf(mEntries(i).EstHrs, "~", "")         ' v24.3: ~ = hours after a planned unit move's top-up
         lstEmployees.List(i - 1, 3) = outcomeText
     Next i
     If mCurrent >= 1 And mCurrent <= mCount Then lstEmployees.ListIndex = mCurrent - 1
@@ -386,6 +387,9 @@ Private Sub UpdateCurrentLabel()
     If mSS(mCurrent) <> "" Then gradeNote = gradeNote & "  ** working shift switch " & mSS(mCurrent) & " **"
     Dim provNote As String
     If mEntries(mCurrent).ProvHrs > 0 Then provNote = ", incl. " & Format$(mEntries(mCurrent).ProvHrs, "0.##") & " provisional"
+    If mEntries(mCurrent).EstHrs Then
+        provNote = provNote & ", after their planned unit move's top-up; " & Format$(mEntries(mCurrent).RosterHrs, "0") & " today"
+    End If
     C("lblCurrent").Caption = mEntries(mCurrent).EmpName & _
         " [" & mEntries(mCurrent).DeptCode & "] " & _
         "(" & Format$(mEntries(mCurrent).TotalHrs, "0") & " hrs" & provNote & ")" & gradeNote

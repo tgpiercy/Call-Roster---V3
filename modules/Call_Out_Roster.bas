@@ -216,8 +216,8 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
     Dim v() As Variant: ReDim v(1 To n, 1 To 5)
     For i = 1 To n
         v(i, 1) = i
-        If recs(i).ProvHrs > 0 Then
-            v(i, 2) = Format$(recs(i).TotalHrs, "#,##0") & "*"
+        If recs(i).ProvHrs > 0 Or recs(i).EstHrs Then          ' v24.3: ~ = hours after a planned unit move's top-up
+            v(i, 2) = Format$(recs(i).TotalHrs, "#,##0") & IIf(recs(i).ProvHrs > 0, "*", "") & IIf(recs(i).EstHrs, "~", "")
         Else
             v(i, 2) = recs(i).TotalHrs
         End If

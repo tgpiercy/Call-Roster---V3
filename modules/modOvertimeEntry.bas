@@ -412,6 +412,10 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                              Optional ByVal asOf As Variant) As Long
     ' asOf (v24): a shift date. Each person's crew is then the crew they are on
     ' that day (crew history); left out, it is the roster's crew column.
+    ' v24.3: a unit move that is waiting counts from its date (UnitCodeOn): the
+    ' person is off the cleared units' lists and on the new unit's, at the hours
+    ' they would have after the top-up (PlannedListHours). With no asOf the date
+    ' is today, so a move that is due but not applied yet already counts.
     Dim dc As Long: dc = DeptCol(dept)
     If dc = 0 Then Exit Function
 
@@ -431,9 +435,31 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
     End If
     ReDim recs(1 To UBound(v, 1))
 
+    ' planned unit moves (v24.3): everyone holding a code in this unit on the date,
+    ' whatever their crew or grade, is a peer for the mover's listed hours
+    Dim planned As Boolean: planned = HasPlannedMoves()
+    Dim planDate As Date: planDate = Date
+    If hasAsOf Then planDate = asOfDate
+    Dim movedIn As Boolean, anyMoved As Boolean, nAll As Long
+    Dim allGrade() As Double, allTotal() As Double, allMover() As Boolean, recMover() As Boolean
+    If planned Then
+        ReDim allGrade(1 To UBound(v, 1)): ReDim allTotal(1 To UBound(v, 1))
+        ReDim allMover(1 To UBound(v, 1)): ReDim recMover(1 To UBound(v, 1))
+    End If
+
     For i = 1 To UBound(v, 1)
         nm = Trim$(SafeStr(v(i, C_NAME)))
         code = Trim$(SafeStr(v(i, dc)))
+        movedIn = False
+        If planned And nm <> "" Then
+            code = UnitCodeOn(nm, dept, planDate, code, movedIn)
+            If code <> "" Then
+                nAll = nAll + 1
+                allGrade(nAll) = DeptCodeValue(code)
+                allTotal(nAll) = NumOr0(v(i, C_TOTAL))
+                allMover(nAll) = movedIn
+            End If
+        End If
         If nm <> "" And code <> "" Then
             crewTxt = Trim$(SafeStr(v(i, C_SHIFT)))
             If hasAsOf Then crewTxt = CrewOn(nm, asOfDate, crewTxt)
@@ -454,12 +480,21 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                         .Outcome = ""
                         .Reason = ""
                     End With
+                    If movedIn Then
+                        recMover(n) = True
+                        anyMoved = True
+                    End If
                 End If
             End If
         End If
     Next i
 
     If n = 0 Then Exit Function
+    If anyMoved Then                                ' before the sort: these hours decide the mover's place
+        For i = 1 To n
+            If recMover(i) Then recs(i).TotalHrs = PlannedListHours(recs(i).TotalHrs, allGrade, allMover, allTotal, nAll)
+        Next i
+    End If
     ReDim Preserve recs(1 To n)
     SortEmpRecs recs, n
     LoadEligible = n
@@ -1163,7 +1198,7 @@ End Sub
 Public Sub ApplyView(ByVal adminView As Boolean)
     gAdminUnlocked = adminView
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, REFUSAL_SHEET, EL_SHEET)   ' absences hold leave types - admin only
+    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET)   ' absences hold leave types - admin only
         If SheetExists(CStr(nm)) Then
             If adminView Then
                 ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible

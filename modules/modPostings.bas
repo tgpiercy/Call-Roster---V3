@@ -1366,6 +1366,8 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
     If onRoster Then
         crew = CrewOn(outName, p.ShiftDate, crew)          ' v24: the crew they are on that date
         code = "OD " & crew
+        ' v24.3: a unit move that is waiting counts from its date
+        inUnit = (UnitCodeOn(outName, p.Unit, p.ShiftDate, IIf(inUnit, "x", "")) <> "")
     End If
     If onRoster And Not inUnit Then
         If MsgBox(outName & " isn't signed off in " & p.Unit & " (no code in that column on the OT Roster)." & vbNewLine & _
@@ -1776,6 +1778,46 @@ Public Function ClearLeftExemptions(ByVal emp As String) As String
     ClearLeftExemptions = outS
 End Function
 
+' v24.3: a planned unit move was cancelled, so its "Exempt - moves ... (PM-0007)"
+' marks come off OPEN postings. Only marks carrying that move's ID are touched.
+' Returns the posting IDs ("" = none).
+Public Function ClearMoveExemptions(ByVal emp As String, ByVal moveId As String) As String
+    If Trim$(moveId) = "" Then Exit Function
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lo Is Nothing Or lr Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Or lr.DataBodyRange Is Nothing Then Exit Function
+    Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
+    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+    Dim openIds As Object: Set openIds = CreateObject("Scripting.Dictionary")
+    openIds.CompareMode = 1
+    Dim i As Long, id As String, hit As Boolean, outS As String, res As String, note As String
+    For i = 1 To UBound(pv, 1)
+        id = Trim$(SafeStr(pv(i, PS_ID)))
+        If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then openIds(id) = True
+    Next i
+    If openIds.Count = 0 Then Exit Function
+    For i = 1 To UBound(lv, 1)
+        id = Trim$(SafeStr(lv(i, PL_ID)))
+        If openIds.Exists(id) Then
+            If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then
+                res = SafeStr(lv(i, PL_RESULT))
+                SplitExempt res, note
+                If InStr(1, note, "(" & Trim$(moveId) & ")", vbTextCompare) > 0 Then
+                    If Not hit Then
+                        lr.Parent.Unprotect Password:=SHEET_PASSWORD
+                        hit = True
+                    End If
+                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = res
+                    outS = outS & IIf(outS = "", "", ", ") & id
+                End If
+            End If
+        End If
+    Next i
+    If hit Then ProtectSheet lr.Parent
+    ClearMoveExemptions = outS
+End Function
+
 Public Function HasActiveLogRows(ByVal id As String) As Boolean
     Dim lo As ListObject: Set lo = LogTable()
     If lo Is Nothing Then Exit Function
@@ -1890,8 +1932,10 @@ Public Sub ReopenPosting()
                     lst(j).ExemptNote = EXEMPT_TAG & "left " & Format$(leftOn, "mmm d")
                 End If
             ElseIf dc > 0 Then
-                If Trim$(SafeStr(RosterSheet().Cells(RosterRowOf(lst(j).EmpName), dc).Value)) = "" Then
-                    lst(j).ExemptNote = EXEMPT_TAG & "no code in " & p.Unit & " now"
+                ' v24.3: the code they hold on the SHIFT date (a waiting unit move counts from its date)
+                If UnitCodeOn(lst(j).EmpName, p.Unit, p.ShiftDate, _
+                              Trim$(SafeStr(RosterSheet().Cells(RosterRowOf(lst(j).EmpName), dc).Value))) = "" Then
+                    lst(j).ExemptNote = EXEMPT_TAG & "no code in " & p.Unit & " on the shift date"
                 End If
             End If
         End If

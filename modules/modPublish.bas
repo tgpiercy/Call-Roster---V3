@@ -496,21 +496,28 @@ Private Function BuildNext(ByRef nN As Long) As Variant
     On Error GoTo Done
     Dim u As Long, base() As EmpRec, recs() As EmpRec, n As Long, m As Long, i As Long, dd As Long
     Dim d As Date, sh As Variant, removed As String
+    ' v24.3: one list per unit serves all the days, unless a planned unit move takes
+    ' effect inside the window - then each date gets its own list, as the master's
+    ' call-out and posting lists do
+    Dim perDate As Boolean: perDate = PlannedWithin(Date, Date + MEMBER_NEXT_DAYS - 1)
     For u = 0 To UBound(depts)
         n = LoadEligible(CStr(depts(u)), "ALL", base)
-        If n > 0 Then
+        If n > 0 Or perDate Then
             For dd = 0 To MEMBER_NEXT_DAYS - 1
                 d = Date + dd
-                For Each sh In Array("Days", "Nights")
-                    recs = base
-                    m = FilterNotFree(recs, n, d, CStr(sh), removed, True)
-                    For i = 1 To m
-                        k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
-                        out(k, 1) = depts(u): out(k, 2) = d: out(k, 3) = CStr(sh): out(k, 4) = i
-                        out(k, 5) = recs(i).EmpName: out(k, 6) = recs(i).TotalHrs
-                        out(k, 7) = recs(i).ProvHrs: out(k, 8) = recs(i).DeptCode
-                    Next i
-                Next sh
+                If perDate Then n = LoadEligible(CStr(depts(u)), "ALL", base, 999, True, d)
+                If n > 0 Then
+                    For Each sh In Array("Days", "Nights")
+                        recs = base
+                        m = FilterNotFree(recs, n, d, CStr(sh), removed, True)
+                        For i = 1 To m
+                            k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
+                            out(k, 1) = depts(u): out(k, 2) = d: out(k, 3) = CStr(sh): out(k, 4) = i
+                            out(k, 5) = recs(i).EmpName: out(k, 6) = recs(i).TotalHrs
+                            out(k, 7) = recs(i).ProvHrs: out(k, 8) = recs(i).DeptCode
+                        Next i
+                    Next sh
+                End If
             Next dd
         End If
     Next u

@@ -23,13 +23,13 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v24.2 (Jan 5)"
-Public Const EXPECTED_RELEASE As String = "v24.2"
+Public Const SYS_VERSION As String = "System v24.3 (Jan 5)"
+Public Const EXPECTED_RELEASE As String = "v24.3"
 Private Const N_MODULES As Long = 22
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24.2"
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.2,frmNewPosting|v21,frmPostingEntry|v24.2,frmShiftSwitch|v24," & _
-                                        "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22,frmEmployee|v24"
+                                        "frmTimeOff|v22.1,frmLeave|v22,frmSickCall|v22.1,frmConvert|v22,frmEmployee|v24.3"
 
 Private mBackupWarned As Boolean
 
@@ -185,6 +185,13 @@ Public Sub SystemCheck()
     Else
         info = info & "Crew History: " & Format$(CrewTable(False).ListRows.Count, "#,##0") & " rows" & vbNewLine
     End If
+    ' v24.3: unit moves entered ahead of time
+    Dim pmRows As Variant, nPm As Long
+    On Error Resume Next
+    pmRows = PlannedRows()
+    On Error GoTo 0
+    If IsArray(pmRows) Then nPm = UBound(pmRows, 1)
+    info = info & "Planned unit moves waiting: " & nPm & vbNewLine
     If Not PostingListCurrent() Then warn = warn & "- posting lists need their Signup Hours column: run SetupPeople" & vbNewLine
     ' M1: members' file
     If Not MemberTemplateExists() Then

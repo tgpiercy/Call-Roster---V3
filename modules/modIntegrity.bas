@@ -26,7 +26,7 @@ Option Explicit
 '  SelfTest can hand them a planted bad cell / duplicate ID in memory.
 ' ====================================================================
 
-Public Const IC_VERSION As String = "Integrity v24.2 (Jan 5)"
+Public Const IC_VERSION As String = "Integrity v24.3 (Jan 5)"
 Public Const IC_SHEET As String = "Integrity"
 
 Private Const SEV_ERR As String = "PROBLEM"
@@ -131,7 +131,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 10
+        For k = 1 To 11
             RunCheck k
         Next k
     End If
@@ -153,6 +153,7 @@ Private Function CheckName(ByVal k As Long) As String
         Case 8: CheckName = "Kronos"
         Case 9: CheckName = "Log types"
         Case 10: CheckName = "Sign-ups"
+        Case 11: CheckName = "Planned moves"
     End Select
 End Function
 
@@ -170,6 +171,7 @@ Private Sub RunCheck(ByVal k As Long)
         Case 8: CheckKronos
         Case 9: CheckLogTypes
         Case 10: CheckSignups
+        Case 11: CheckPlannedMoves
     End Select
     Exit Sub
 Oops:
@@ -663,6 +665,33 @@ Private Sub CheckPaybacks()
         AddIssue SEV_WARN, "Paybacks", n & " shift-switch payback(s) owed for more than " & PAYBACK_WARN_DAYS & " days: " & txt, _
                  "See SHIFT SWITCH PAYBACKS OWED on Needs Attention"
     End If
+End Sub
+
+' ---- 11. planned unit moves (v24.3) ----
+' A waiting move for someone who isn't on the roster, to a unit that doesn't
+' exist, with no readable date, or more than 3 days past its date.
+Private Sub CheckPlannedMoves()
+    Dim pv As Variant: pv = PlannedRows()
+    If Not IsArray(pv) Then Exit Sub
+    Dim i As Long, id As String, emp As String, n As Long
+    For i = 1 To UBound(pv, 1)
+        n = n + 1
+        id = Trim$(SafeStr(pv(i, PM_ID)))
+        emp = Trim$(SafeStr(pv(i, PM_EMP)))
+        If Not mOnRoster.Exists(emp) Then
+            AddIssue SEV_WARN, "Planned moves", id & ": " & emp & " isn't on the roster", "Cancel it: Needs Attention > Planned unit moves"
+        End If
+        If DeptCol(Trim$(SafeStr(pv(i, PM_UNIT)))) = 0 Then
+            AddIssue SEV_WARN, "Planned moves", id & ": '" & SafeStr(pv(i, PM_UNIT)) & "' isn't a unit", "Cancel it and enter it again"
+        End If
+        If Not IsDate(pv(i, PM_FROM)) Then
+            AddIssue SEV_WARN, "Planned moves", id & ": the Effective From date can't be read", "Cancel it and enter it again"
+        ElseIf Int(CDate(pv(i, PM_FROM))) < Date - 3 Then
+            AddIssue SEV_WARN, "Planned moves", id & ": " & emp & "'s move was due " & Format$(CDate(pv(i, PM_FROM)), "mmm d, yyyy") & _
+                     " and hasn't been applied", "Alt+F8 > ApplyPlannedMoves (the Note on the Planned Moves sheet says why)"
+        End If
+    Next i
+    AddIssue SEV_INFO, "Planned moves", n & " unit move(s) waiting for their date", "Listed on Needs Attention"
 End Sub
 
 ' ---- 8. Kronos ----

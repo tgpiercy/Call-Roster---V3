@@ -241,6 +241,16 @@ def evaluate(row: dict) -> str:
     if suite == "unitmove":                      # own total, peers 'grade:mover:total;...' -> hours added
         peers = [(float(g), mv == "Y", float(tot)) for g, mv, tot in (r.split(":") for r in i2.split(";") if r)]
         return fmt_num(rules.unit_move_top_up(float(i1), rules.highest_peer_total(peers)))
+    if suite == "plancode":                      # plans 'unit:code:clear:from:status[:other];...', unit, date, roster code -> code / none
+        plans = []
+        for r in (x for x in i1.split(";") if x):
+            p = r.split(":")
+            who = "Someone Else" if len(p) > 5 and p[5] == "other" else "Test Person"
+            plans.append((who, p[0], p[1], p[2], d(p[3]), p[4]))
+        return rules.planned_code(plans, "Test Person", i2, d(i3), i4) or "none"
+    if suite == "planhours":                     # own total, others 'grade:mover:total;...' -> the Total the mover is listed at
+        peers = [(float(g), mv == "Y", float(tot)) for g, mv, tot in (r.split(":") for r in i2.split(";") if r)]
+        return fmt_num(rules.planned_list_hours(float(i1), peers))
     if suite == "renamelist":                    # text, old name, new name -> text
         return rules.rename_in_list(i1, i2, i3)
     if suite == "nametoken":                     # text, old short name, new short name -> text

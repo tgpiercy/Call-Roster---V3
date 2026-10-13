@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24 (Jan 5)
+' @version v24.3 (Jan 5)
 
 ' ================================================================
 ' EMPLOYEE (v24, admin) - five jobs in one pop-up
@@ -12,6 +12,8 @@ Option Explicit
 '                raised to the highest Total Hours among grade 2 and below
 '                in the new unit (never lowered): ONE Adjustment, UM-####.
 '                An extra sign-off is NOT a move: type the code on the roster.
+'                v24.3: a date AFTER today plans the move (SavePlannedMove):
+'                nothing on the roster changes until that day.
 '  Rename        every table together, with a backup and a check.
 '  Remove        retired / left: the row goes to the Former sheet.
 '  Bring back    a former person returns to the roster with their history.
@@ -168,6 +170,7 @@ Private Sub UserForm_Initialize()
     AddLabel "mLDate", "Effective date", LBL_L, RowT(4) + 3, 110, "M"
     Set o = AddText("mDate", BOX_L, RowT(4), 110, "M")
     o.Text = Format$(Date, "mmm d, yyyy")
+    o.ControlTipText = "A date after today PLANS the move: nothing changes on the roster until that day."
     AddLabel "mLCrew", "New crew", BOX_L + 122, RowT(4) + 3, 50, "M"
     Set o = AddCombo("mCrew", BOX_L + 174, RowT(4), 90, "M", Empty)
     o.AddItem NO_CREW_CHANGE
@@ -363,8 +366,16 @@ Private Function CalcMove(ByRef pc As PeopleCalc) As Boolean
         MsgBox "Enter the effective date, e.g. " & Format$(Date, "mmm d, yyyy") & ".", vbExclamation, "Move to unit"
         Exit Function
     End If
+    Dim had As String, hadOn As Date, hadUnit As String
+    had = PlannedFor(mMoveEmp.Text, hadOn, hadUnit)          ' v24.3: one move at a time per person
+    If had <> "" Then
+        MsgBox mMoveEmp.Text & " already has a planned move: " & had & ", to " & hadUnit & " on " & Format$(hadOn, "mmm d, yyyy") & "." & vbNewLine & vbNewLine & _
+               "To change it, cancel it first (Needs Attention > Planned unit moves, double-click the line), then enter it again.", _
+               vbExclamation, "Move to unit"
+        Exit Function
+    End If
     Me.MousePointer = fmMousePointerHourGlass
-    CalcMove = ComputeUnitMove(mMoveEmp.Text, C("mUnit").Text, eff, pc)
+    CalcMove = ComputeUnitMove(mMoveEmp.Text, C("mUnit").Text, eff, pc, True)
     Me.MousePointer = fmMousePointerDefault
     ShowCalc CalcMove, pc
 End Function
@@ -470,6 +481,10 @@ Private Sub SaveMove()
     Dim clearTxt As String: clearTxt = ClearList()
     Dim crewTxt As String: crewTxt = PickedCrew()
     Dim msg As String
+    If pc.AsOf > Date Then                      ' v24.3: a date after today plans the move
+        SavePlanned pc, clearTxt, crewTxt
+        Exit Sub
+    End If
     msg = pc.Summary & vbNewLine & vbNewLine & _
           "New code: " & Trim$(C("mCode").Text) & " in " & pc.Unit & " (Home Unit becomes " & pc.Unit & ")" & vbNewLine & _
           "Codes cleared: " & IIf(clearTxt = "", "none", Replace(clearTxt, "|", ", ")) & vbNewLine & _
@@ -485,6 +500,34 @@ Private Sub SaveMove()
 
     Dim report As String
     If Not SaveUnitMove(pc.Emp, pc.Unit, C("mCode").Text, clearTxt, crewTxt, pc, report) Then Exit Sub
+    C("mCode").Text = "": C("mCrew").ListIndex = 0
+    C("result").Caption = ""
+    Finished report, "Move to unit"
+End Sub
+
+' v24.3: the move is dated after today. Nothing on the roster changes now;
+' SavePlannedMove writes one row and the move is applied on the day.
+Private Sub SavePlanned(ByRef pc As PeopleCalc, ByVal clearTxt As String, ByVal crewTxt As String)
+    Dim msg As String, posts As String, report As String
+    Dim code As String: code = Trim$(C("mCode").Text)
+    msg = "PLANNED MOVE - nothing changes on the roster today." & vbNewLine & vbNewLine & _
+          pc.Emp & " moves to " & pc.Unit & " (" & code & ") on " & Format$(pc.AsOf, "ddd mmm d, yyyy") & "." & vbNewLine & _
+          "Codes cleared on that day: " & IIf(clearTxt = "", "none", Replace(clearTxt, "|", ", ")) & vbNewLine & _
+          "Crew: " & IIf(crewTxt = "", "no change", "changes to " & crewTxt & " from that date (it goes in the Crew History now)") & vbNewLine & vbNewLine
+    msg = msg & "For shifts on or after that date they are on " & pc.Unit & "'s call lists" & _
+          IIf(clearTxt = "", "", " and off " & Replace(clearTxt, "|", ", ") & "'s") & ". Until the move is applied they are listed in " & _
+          pc.Unit & " at the hours they would have after the top-up." & vbNewLine & vbNewLine
+    msg = msg & pc.Summary & vbNewLine
+    If pc.Warnings <> "" Then msg = msg & "Check: " & pc.Warnings & vbNewLine
+    If clearTxt <> "" Then posts = ExemptFromOpenPostings(pc.Emp, pc.AsOf, "|" & clearTxt & "|", "", True)
+    If posts <> "" Then msg = msg & "Open posting(s) in the old unit where they will not be charged: " & posts & vbNewLine
+    If clearTxt = "" Then msg = msg & vbNewLine & "NOTE: no code is being cleared, so they stay on their present lists as well." & vbNewLine
+    msg = msg & vbNewLine & "The move is applied the first time an admin opens the file on or after that date." & vbNewLine & _
+          "To change or cancel it: Needs Attention > Planned unit moves." & vbNewLine & vbNewLine & _
+          "A backup copy is saved first. Save the planned move?"
+    If MsgBox(msg, vbOKCancel + vbQuestion, "Confirm planned move") <> vbOK Then Exit Sub
+
+    If Not SavePlannedMove(pc.Emp, pc.Unit, code, clearTxt, crewTxt, pc.AsOf, report) Then Exit Sub
     C("mCode").Text = "": C("mCrew").ListIndex = 0
     C("result").Caption = ""
     Finished report, "Move to unit"
@@ -515,6 +558,7 @@ Private Sub SaveRemove()
               "The row moves to the Former sheet. They come off every call list, posting list and the members' file, for every date." & vbNewLine & _
               "Their OT Log, time off and switch rows are kept." & _
               IIf(posts <> "", vbNewLine & "Open posting(s) they are listed on, where they will not be charged: " & posts, "") & _
+              IIf(PlannedFor(emp) <> "", vbNewLine & "Their planned unit move (" & PlannedFor(emp) & ") is cancelled.", "") & _
               vbNewLine & vbNewLine & "A backup copy is saved first. Bring back undoes it." & vbNewLine & vbNewLine & "Remove?", _
               vbOKCancel + vbExclamation, "Confirm remove") <> vbOK Then Exit Sub
     Me.MousePointer = fmMousePointerHourGlass

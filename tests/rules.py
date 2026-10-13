@@ -747,6 +747,40 @@ def unit_move_top_up(own: float, highest_peer) -> float:
     return math.floor((highest_peer - own) * 100 + 0.5 + 0.000001) / 100
 
 
+def planned_code(plans: list[tuple[str, str, str, str, date, str]], emp: str, unit: str, d: date,
+                 roster_code: str) -> str:
+    """modPeople.PlannedCodeCore. plans = (employee, new unit, grade code,
+    'unit|unit' to clear, effective from, status), in table order. Only
+    Planned rows for emp dated on or before d count (of two, the later date;
+    of two with the same date, the later row). The new unit gets the planned
+    code, a cleared unit gets '', any other unit keeps the roster's code."""
+    best = None
+    for who, new_unit, code, clear, frm, status in plans:
+        if status.strip().lower() != "planned" or who.strip().lower() != emp.strip().lower():
+            continue
+        if frm <= d and (best is None or frm >= best[3]):
+            best = (new_unit, code, clear, frm)
+    if best is None:
+        return roster_code
+    new_unit, code, clear, _ = best
+    if new_unit.strip().lower() == unit.strip().lower():
+        return code.strip()
+    if unit.strip().lower() in [c.strip().lower() for c in clear.split("|") if c.strip()]:
+        return ""
+    return roster_code
+
+
+def planned_list_hours(own: float, peers: list[tuple[float, bool, float]]) -> float:
+    """modPeople.PlannedListHours: the Total a planned mover is listed at in
+    the new unit before the top-up. peers = (grade, is a mover, Total Hours)
+    for everyone holding a code in the unit on the date: the highest among
+    grade 2 and below who aren't movers, never under their own."""
+    top = highest_peer_total(peers)
+    if top is None or top <= own:
+        return own
+    return top
+
+
 def rename_in_list(txt: str, old: str, new: str) -> str:
     """modPeople.RenameInList: one full name inside 'A; B (out of dept)'."""
     if not txt.strip():

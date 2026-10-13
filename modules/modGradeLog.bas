@@ -15,7 +15,7 @@ Option Explicit
 '  made with macros off is still recorded (login marked "on open").
 ' ====================================================================
 
-Public Const GL_VERSION As String = "Grade log v24.2 (Jan 5)"
+Public Const GL_VERSION As String = "Grade log v24.3 (Jan 5)"
 Public Const GL_SHEET As String = "Grade Log"
 Public Const GL_TABLE As String = "tblGradeChange"
 Public Const GS_SHEET As String = "GradeSnap"

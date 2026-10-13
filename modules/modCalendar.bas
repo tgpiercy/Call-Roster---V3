@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v24.2 (Jan 5)"
+Public Const CAL_VERSION As String = "Calendar v24.3 (Jan 5)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -3188,6 +3188,26 @@ Public Sub DrawNeeds()
         Next uk
     End If
 
+    ' V. unit moves entered ahead of time (v24.3): waiting for their date, or due and not applied
+    Dim vr() As NARow, nV As Long, pmv As Variant, pmD As Date, pmDue As Boolean, pmWho As String
+    ReDim vr(1 To 10)
+    On Error Resume Next
+    pmv = PlannedRows()
+    On Error GoTo Failed
+    If IsArray(pmv) Then
+        For i = 1 To UBound(pmv, 1)
+            pmD = Dt2(pmv(i, PM_FROM))
+            pmDue = (Int(pmD) <= Date)
+            pmWho = SafeStr(pmv(i, PM_EMP))
+            NAAdd vr, nV, Format$(pmD, "ddd mmm d"), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
+                  CalName(pmWho) & "   " & HomeUnitOf(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
+                  SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmDue, "DUE - not applied", "Planned"), WhenText(pmD), _
+                  "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), IIf(pmDue, thOpen(), thMuted()), _
+                  IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
+        Next i
+        NASort vr, nV
+    End If
+
     ' T. attendance (v22.1): sick / personal days at or over the limit, by home unit
     Dim tr() As NARow, nT As Long, rn As Variant, ast As AttendanceStatus, lvl As Long, hu As String, nmT As String
     ReDim tr(1 To 20)
@@ -3300,6 +3320,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "IMPORTED, NOT BOOKED  -  old-calendar vacations that don't keep people off call lists yet (double-click to convert)", _
                       nI, TypeColor("VAC"), Array("Date", "Shift", "", "Unit", "As imported", "Type", "Status", "When"))
         r = NARows(ws, r, ir, nI, "")
+    End If
+    If nV > 0 Then
+        r = NASection(ws, r, "PLANNED UNIT MOVES  -  applied when an admin opens the file on or after the date (double-click to cancel)", _
+                      nV, thMuted(), Array("Effective", "", "New crew", "New unit", "Who", "Type", "Status", "When"))
+        r = NARows(ws, r, vr, nV, "")
     End If
     If nT > 0 Then
         r = NASection(ws, r, "ATTENDANCE  -  sick / personal days at or over the limit (double-click for the Attendance sheet)", _
@@ -3583,6 +3608,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         ShowErrorLog
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "V:" Then              ' v24.3: a planned unit move - cancel it, or apply it when due
+        PlannedMoveMenu Mid$(keyTxt, 3)
+        Exit Sub
+    End If
     If Left$(keyTxt, 2) = "I:" Then              ' v22: imported line - open the convert pop-up
         ShowConvertForm
         Exit Sub
@@ -3612,6 +3641,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "X:" Then
         ShowErrorLog
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "V:" Then
+        PlannedMoveMenu Mid$(keyTxt, 3)
         Exit Sub
     End If
     If Left$(keyTxt, 2) = "I:" Then

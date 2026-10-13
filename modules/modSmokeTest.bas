@@ -12,9 +12,10 @@ Option Explicit
 '    full sign-up and submits the award, logs a call-out with a part
 '    acceptance, books time off and a sick call, logs a shift switch,
 '    changes the test person's crew from a date, moves them to another
-'    unit, renames them, publishes to a scratch members' file and reads
-'    it back, voids everything it logged, removes the test person and
-'    runs the integrity check.
+'    unit, plans a unit move for tomorrow and cancels it (v24.3: the
+'    lists must follow the date), renames them, publishes to a scratch
+'    members' file and reads it back, voids everything it logged,
+'    removes the test person and runs the integrity check.
 '
 '  Then every person's totals and the OT Log's charged total must be
 '  what they were before it started. The first failure stops the run.
@@ -30,12 +31,12 @@ Option Explicit
 '  check. Queued for v25.
 ' ====================================================================
 
-Public Const SMK_VERSION As String = "Smoke test v24.2 (Jan 5)"
+Public Const SMK_VERSION As String = "Smoke test v24.3 (Jan 5)"
 
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
 Private Const SMK_WHY As String = "SmokeTest"
-Private Const SMK_STEPS As Long = 13
+Private Const SMK_STEPS As Long = 14
 
 Private Type SmkState
     Emp As String           ' the test person's current name
@@ -172,11 +173,12 @@ Private Function SmkName(ByVal k As Long) As String
         Case 6: SmkName = "shift switch"
         Case 7: SmkName = "crew change from a date"
         Case 8: SmkName = "move to another unit"
-        Case 9: SmkName = "rename"
-        Case 10: SmkName = "publish to a scratch file and read it back"
-        Case 11: SmkName = "void everything it logged"
-        Case 12: SmkName = "remove the test employee"
-        Case 13: SmkName = "integrity check"
+        Case 9: SmkName = "plan a unit move for tomorrow, then cancel it"
+        Case 10: SmkName = "rename"
+        Case 11: SmkName = "publish to a scratch file and read it back"
+        Case 12: SmkName = "void everything it logged"
+        Case 13: SmkName = "remove the test employee"
+        Case 14: SmkName = "integrity check"
     End Select
 End Function
 
@@ -192,11 +194,12 @@ Private Function SmkStep(ByVal k As Long, ByRef st As SmkState, ByVal nErr0 As L
         Case 6: SmkStep = SmkSwitch(st, why)
         Case 7: SmkStep = SmkCrew(st, why)
         Case 8: SmkStep = SmkMove(st, why)
-        Case 9: SmkStep = SmkRename(st, why)
-        Case 10: SmkStep = SmkPublish(st, why)
-        Case 11: SmkStep = SmkVoid(st, why)
-        Case 12: SmkStep = SmkRemove(st, why)
-        Case 13: SmkStep = SmkIntegrity(st, nErr0, why)
+        Case 9: SmkStep = SmkPlanned(st, why)
+        Case 10: SmkStep = SmkRename(st, why)
+        Case 11: SmkStep = SmkPublish(st, why)
+        Case 12: SmkStep = SmkVoid(st, why)
+        Case 13: SmkStep = SmkRemove(st, why)
+        Case 14: SmkStep = SmkIntegrity(st, nErr0, why)
     End Select
     If Not SmkStep And why = "" Then why = "the function returned False (a message above says why)"
     Exit Function
@@ -380,7 +383,44 @@ Private Function SmkMove(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkMove = True
 End Function
 
-' ---- 9. rename ----
+' ---- 9. a planned unit move (v24.3): back to the first unit, dated tomorrow, then cancelled ----
+Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolean
+    If st.Unit2 = "" Then st.Note = "SKIPPED: no second unit with people": SmkPlanned = True: Exit Function
+    Dim report As String, id As String, eff As Date
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long: r = RosterRowOf(st.Emp)
+    eff = Date + 1
+    ' after step 8 the person is in Unit2; the plan moves them back to Unit
+    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, "", eff, report) Then Exit Function
+    id = PlannedFor(st.Emp)
+    If id = "" Then why = "SavePlannedMove said yes but no Planned row was found": Exit Function
+    If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "" Then why = "the roster's " & st.Unit & " code changed today": Exit Function
+    If StrComp(Trim$(SafeStr(ws.Cells(r, C_HOME).Value)), st.Unit2, vbTextCompare) <> 0 Then why = "the Home Unit changed today": Exit Function
+    If SmkOnList(st.Emp, st.Unit, Date) Then why = "listed in " & st.Unit & " for TODAY, before the move's date": Exit Function
+    If Not SmkOnList(st.Emp, st.Unit2, Date) Then why = "not listed in " & st.Unit2 & " for today": Exit Function
+    If Not SmkOnList(st.Emp, st.Unit, eff) Then why = "not listed in " & st.Unit & " for the move's date": Exit Function
+    If SmkOnList(st.Emp, st.Unit2, eff) Then why = "still listed in " & st.Unit2 & " for the move's date": Exit Function
+    If Not CancelPlannedMove(id, SMK_WHY, report) Then Exit Function
+    If PlannedFor(st.Emp) <> "" Then why = "the move is still waiting after the cancel": Exit Function
+    If SmkOnList(st.Emp, st.Unit, eff) Then why = "still listed in " & st.Unit & " for tomorrow after the cancel": Exit Function
+    If Not SmkOnList(st.Emp, st.Unit2, eff) Then why = "not back on " & st.Unit2 & "'s list for tomorrow after the cancel": Exit Function
+    st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & ", listed by date, cancelled"
+    SmkPlanned = True
+End Function
+
+' Is the person on the unit's list (anyone with a code, any crew) for that date?
+Private Function SmkOnList(ByVal emp As String, ByVal unit As String, ByVal d As Date) As Boolean
+    Dim recs() As EmpRec, n As Long, i As Long
+    n = LoadEligible(unit, "ALL", recs, 999, True, d)
+    For i = 1 To n
+        If StrComp(recs(i).EmpName, emp, vbTextCompare) = 0 Then
+            SmkOnList = True
+            Exit Function
+        End If
+    Next i
+End Function
+
+' ---- 10. rename ----
 Private Function SmkRename(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim report As String
     If Not RenameEverywhere(st.Emp, SMK_EMP2, report) Then Exit Function
@@ -389,7 +429,7 @@ Private Function SmkRename(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkRename = True
 End Function
 
-' ---- 10. publish to a scratch file, read it back ----
+' ---- 11. publish to a scratch file, read it back ----
 Private Function SmkPublish(ByRef st As SmkState, ByRef why As String) As Boolean
     If Not MemberTemplateExists() Then st.Note = "SKIPPED: no members' template beside this copy": SmkPublish = True: Exit Function
     Dim folder As String: folder = EnsureSlash(Environ$("TEMP")) & "RosterSmoke\"
@@ -444,7 +484,7 @@ Private Function SmkRows(ByVal wb As Workbook, ByVal sheetName As String) As Lon
     If last > 1 Then SmkRows = last - 1
 End Function
 
-' ---- 11. void everything ----
+' ---- 12. void everything ----
 Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     ' every Ref ID that is the session, the posting, or carries a row under either test name
     Dim lo As ListObject: Set lo = LogTable()
@@ -481,7 +521,7 @@ Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkVoid = True
 End Function
 
-' ---- 12. remove ----
+' ---- 13. remove ----
 Private Function SmkRemove(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim report As String
     If Not RemoveEmployee(st.Emp, Date, report) Then Exit Function
@@ -490,7 +530,7 @@ Private Function SmkRemove(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkRemove = True
 End Function
 
-' ---- 13. integrity ----
+' ---- 14. integrity ----
 Private Function SmkIntegrity(ByRef st As SmkState, ByVal nErr0 As Long, ByRef why As String) As Boolean
     Dim nErr As Long, nWarn As Long
     Application.Calculate

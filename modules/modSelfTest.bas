@@ -20,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v24.2 (Jan 5)"
+Public Const ST_VERSION As String = "Self test v24.3 (Jan 5)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -167,6 +167,11 @@ Private Function RunCase(f() As String) As String
             RunCase = CaseNewHire(i1)
         Case "unitmove"
             RunCase = CaseUnitMove(CDbl(i1), i2)
+        Case "plancode"                            ' v24.3: plans, unit asked, date, roster code -> code / none
+            RunCase = PlannedCodeCore(CasePlans(i1), ST_NAME, i2, ParseD(i3), i4)
+            If RunCase = "" Then RunCase = "none"
+        Case "planhours"                           ' own total, others 'grade:mover:total;...' -> listed Total
+            RunCase = CasePlanHours(CDbl(i1), i2)
         Case "renamelist"
             RunCase = RenameInList(i1, i2, i3, mHits)
         Case "nametoken"
@@ -523,6 +528,44 @@ Private Function CaseUnitMove(ByVal own As Double, ByVal spec As String) As Stri
     Next i
     top = HighestPeerTotal(grades, isMover, totals, n, found)
     If found Then CaseUnitMove = NumText(UnitMoveTopUp(own, top)) Else CaseUnitMove = "0"
+End Function
+
+' "unit:code:clear|clear:yyyy-mm-dd:status[:other];..." -> rows in the tblPlannedMoves
+' layout for ST_NAME ("other" = someone else's move). Empty when blank.
+Private Function CasePlans(ByVal spec As String) As Variant
+    If spec = "" Then Exit Function
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim h() As Variant: ReDim h(1 To n, 1 To PM_N)
+    Dim i As Long, p As Variant
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        h(i, PM_ID) = "PM-" & Format$(i, "0000")
+        h(i, PM_EMP) = ST_NAME
+        If UBound(p) >= 5 Then
+            If CStr(p(5)) = "other" Then h(i, PM_EMP) = "Someone Else"
+        End If
+        h(i, PM_UNIT) = CStr(p(0))
+        h(i, PM_CODE) = CStr(p(1))
+        h(i, PM_CLEAR) = CStr(p(2))
+        h(i, PM_FROM) = ParseD(CStr(p(3)))
+        h(i, PM_STATUS) = CStr(p(4))
+    Next i
+    CasePlans = h
+End Function
+
+' own total, "grade:mover:total;..." -> the Total a planned mover is listed at
+Private Function CasePlanHours(ByVal own As Double, ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim grades() As Double, isMover() As Boolean, totals() As Double
+    ReDim grades(1 To n): ReDim isMover(1 To n): ReDim totals(1 To n)
+    Dim i As Long, p As Variant
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        grades(i) = CDbl(p(0)): isMover(i) = (CStr(p(1)) = "Y"): totals(i) = CDbl(p(2))
+    Next i
+    CasePlanHours = NumText(PlannedListHours(own, grades, isMover, totals, n))
 End Function
 
 ' "crew:yyyy-mm-dd;..." -> rows in the tblCrewHistory layout for ST_NAME (Empty when blank)
@@ -1025,5 +1068,26 @@ Private Sub LoadCases()
     AddCase "payroll,number-not-in-kronos,10045678,N,N,,,name"
     AddCase "payroll,number-and-name-agree,10045678,Y,Y,,,number"
     AddCase "payroll,number-under-another-name,10045678,Y,N,,,mismatch"
+    AddCase "plancode,before-date-old-unit-stays,Derivatives:D2:Phosphine:2027-02-01:Planned,Phosphine,2027-01-31,P2,,P2"
+    AddCase "plancode,before-date-new-unit-blank,Derivatives:D2:Phosphine:2027-02-01:Planned,Derivatives,2027-01-31,,,none"
+    AddCase "plancode,on-the-date-old-unit-cleared,Derivatives:D2:Phosphine:2027-02-01:Planned,Phosphine,2027-02-01,P2,,none"
+    AddCase "plancode,on-the-date-new-unit-code,Derivatives:D2:Phosphine:2027-02-01:Planned,Derivatives,2027-02-01,,,D2"
+    AddCase "plancode,after-the-date-new-unit-code,Derivatives:D2:Phosphine:2027-02-01:Planned,Derivatives,2027-03-15,,,D2"
+    AddCase "plancode,unit-not-in-the-move,Derivatives:D2:Phosphine:2027-02-01:Planned,Cypure,2027-03-15,C3,,C3"
+    AddCase "plancode,extra-code-kept-nothing-cleared,Derivatives:D2::2027-02-01:Planned,Phosphine,2027-03-15,P2,,P2"
+    AddCase "plancode,two-units-cleared,Derivatives:D2:Phosphine|Cypure:2027-02-01:Planned,Cypure,2027-02-01,C3,,none"
+    AddCase "plancode,new-code-replaces-old-code,Derivatives:D2:Phosphine:2027-02-01:Planned,Derivatives,2027-02-01,D3,,D2"
+    AddCase "plancode,old-code-until-the-date,Derivatives:D2:Phosphine:2027-02-01:Planned,Derivatives,2027-01-31,D3,,D3"
+    AddCase "plancode,cancelled-is-ignored,Derivatives:D2:Phosphine:2027-02-01:Cancelled,Phosphine,2027-03-15,P2,,P2"
+    AddCase "plancode,applied-is-ignored,Derivatives:D2:Phosphine:2027-02-01:Applied,Derivatives,2027-03-15,,,none"
+    AddCase "plancode,someone-elses-move,Derivatives:D2:Phosphine:2027-02-01:Planned:other,Phosphine,2027-03-15,P2,,P2"
+    AddCase "plancode,unit-name-any-case,Derivatives:D2:Phosphine:2027-02-01:Planned,phosphine,2027-02-01,P2,,none"
+    AddCase "plancode,no-plans,,Phosphine,2027-02-01,P2,,P2"
+    AddCase "planhours,below-the-highest-peer,40,1:N:100;2:N:60,,,,100"
+    AddCase "planhours,already-above-keeps-own,120,1:N:100,,,,120"
+    AddCase "planhours,own-entry-is-not-a-peer,10,1:Y:10;1:N:55.25,,,,55.25"
+    AddCase "planhours,another-mover-is-not-a-peer,10,1:Y:10;1:Y:900;2:N:60,,,,60"
+    AddCase "planhours,grade-3-is-not-a-peer,40,3:N:900;2:N:50,,,,50"
+    AddCase "planhours,nobody-to-match-keeps-own,40,3:N:900,,,,40"
 ' <<< CASES
 End Sub

@@ -48,6 +48,7 @@ Private Type SmkState
     PostDate As Date
     PostShift As String
     PostId As String
+    PostId2 As String       ' v24.3.1: step 9's open posting in Unit (a list row is added by the plan and removed by the cancel)
     SessionId As String
     AbsId As String
     SickId As String
@@ -173,7 +174,7 @@ Private Function SmkName(ByVal k As Long) As String
         Case 6: SmkName = "shift switch"
         Case 7: SmkName = "crew change from a date"
         Case 8: SmkName = "move to another unit"
-        Case 9: SmkName = "plan a unit move for tomorrow, then cancel it"
+        Case 9: SmkName = "plan a unit move for tomorrow (a list row is added), cancel it through a filtered list (the row comes off), cancel that posting"
         Case 10: SmkName = "rename"
         Case 11: SmkName = "publish to a scratch file and read it back"
         Case 12: SmkName = "void everything it logged"
@@ -394,7 +395,12 @@ Private Function SmkMove(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim r As Long: r = RosterRowOf(st.Emp)
     If StrComp(Trim$(SafeStr(ws.Cells(r, C_HOME).Value)), st.Unit2, vbTextCompare) <> 0 Then why = "Home Unit didn't change to " & st.Unit2: Exit Function
     If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "" Then why = "the old " & st.Unit & " code wasn't cleared": Exit Function
-    st.Note = st.Unit & " -> " & st.Unit2 & ", " & HoursText(pc.AddHours) & " h added"
+    ' v24.3.1: the move put them on the list of every open Unit2 posting for a shift from today that
+    ' can still be signed up for and that they are free for - and on no other
+    Dim nOpen As Long
+    why = SmkListMismatch(st.Emp, st.Unit2, Date, nOpen)
+    If why <> "" Then Exit Function
+    st.Note = st.Unit & " -> " & st.Unit2 & ", " & HoursText(pc.AddHours) & " h added, " & nOpen & " open " & st.Unit2 & " posting list(s) checked"
     SmkMove = True
 End Function
 
@@ -405,23 +411,166 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim r As Long: r = RosterRowOf(st.Emp)
     eff = Date + 1
+    ' v24.3.1: an open posting in Unit for a shift the person is free for, three weeks or more out,
+    ' with at least one other person on its list. The plan must ADD the person to that list and
+    ' the cancel must take the row OFF again - through a FILTERED list (DeleteListRow, the only
+    ' ListRows.Delete in the codebase, clears the filter itself; a filtered delete would take a
+    ' whole sheet row, and a posting's header with it). Both tables are counted before and after.
+    Dim p As PostRec, lst() As PListRec, n As Long, dd As Long, d As Date, found As Boolean
+    For dd = 21 To 60
+        d = Date + dd
+        If SmkFreeListed(st.Emp, st.Unit2, d, "Days") Then        ' free that day (they hold the Unit2 code since step 8)
+            If SmkFreeCount(st.Unit, d, "Days") >= 1 Then found = True: Exit For
+        End If
+    Next dd
+    If Not found Then why = "no day shift in the next 60 days has " & st.Emp & " free and someone free in " & st.Unit: Exit Function
+    p.Unit = st.Unit
+    p.ShiftDate = d
+    p.ShiftLbl = "Days"
+    p.Crew = CREW_ALL
+    p.Reason = "Unit Operator Support"
+    p.Hours = USUAL_SHIFT_HOURS
+    p.Positions = 1
+    p.ClosesOn = d - POSTING_CLOSE_DAYS
+    If Not CreatePostingFrom(p, False, False) Then why = "the second posting couldn't be created": Exit Function
+    st.PostId2 = p.ID
+    Dim rowsWas As Long, postWas As Long
+    rowsWas = SmkPostingRows(st.PostId2)
+    postWas = SmkTableRows(PT_TABLE)
+    If SmkOnPostingList(st.PostId2, st.Emp) Then why = st.Emp & " is on " & st.PostId2 & "'s list before the move was planned": Exit Function
+    SmkFilterList True
     ' after step 8 the person is in Unit2; the plan moves them back to Unit
-    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, "", eff, report) Then Exit Function
+    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, "", eff, report) Then GoTo Fail
     id = PlannedFor(st.Emp)
-    If id = "" Then why = "SavePlannedMove said yes but no Planned row was found": Exit Function
-    If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "" Then why = "the roster's " & st.Unit & " code changed today": Exit Function
-    If StrComp(Trim$(SafeStr(ws.Cells(r, C_HOME).Value)), st.Unit2, vbTextCompare) <> 0 Then why = "the Home Unit changed today": Exit Function
-    If SmkOnList(st.Emp, st.Unit, Date) Then why = "listed in " & st.Unit & " for TODAY, before the move's date": Exit Function
-    If Not SmkOnList(st.Emp, st.Unit2, Date) Then why = "not listed in " & st.Unit2 & " for today": Exit Function
-    If Not SmkOnList(st.Emp, st.Unit, eff) Then why = "not listed in " & st.Unit & " for the move's date": Exit Function
-    If SmkOnList(st.Emp, st.Unit2, eff) Then why = "still listed in " & st.Unit2 & " for the move's date": Exit Function
-    If Not CancelPlannedMove(id, SMK_WHY, report) Then Exit Function
-    If PlannedFor(st.Emp) <> "" Then why = "the move is still waiting after the cancel": Exit Function
-    If SmkOnList(st.Emp, st.Unit, eff) Then why = "still listed in " & st.Unit & " for tomorrow after the cancel": Exit Function
-    If Not SmkOnList(st.Emp, st.Unit2, eff) Then why = "not back on " & st.Unit2 & "'s list for tomorrow after the cancel": Exit Function
-    st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & ", listed by date, cancelled"
+    If id = "" Then why = "SavePlannedMove said yes but no Planned row was found": GoTo Fail
+    If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "" Then why = "the roster's " & st.Unit & " code changed today": GoTo Fail
+    If StrComp(Trim$(SafeStr(ws.Cells(r, C_HOME).Value)), st.Unit2, vbTextCompare) <> 0 Then why = "the Home Unit changed today": GoTo Fail
+    If SmkOnList(st.Emp, st.Unit, Date) Then why = "listed in " & st.Unit & " for TODAY, before the move's date": GoTo Fail
+    If Not SmkOnList(st.Emp, st.Unit2, Date) Then why = "not listed in " & st.Unit2 & " for today": GoTo Fail
+    If Not SmkOnList(st.Emp, st.Unit, eff) Then why = "not listed in " & st.Unit & " for the move's date": GoTo Fail
+    If SmkOnList(st.Emp, st.Unit2, eff) Then why = "still listed in " & st.Unit2 & " for the move's date": GoTo Fail
+    If Not SmkOnPostingList(st.PostId2, st.Emp) Then why = "the planned move didn't add " & st.Emp & " to " & st.PostId2 & "'s list": GoTo Fail
+    If SmkPostingRows(st.PostId2) <> rowsWas + 1 Then why = st.PostId2 & " has " & SmkPostingRows(st.PostId2) & " list rows after the plan, expected " & (rowsWas + 1): GoTo Fail
+    If Not CancelPlannedMove(id, SMK_WHY, report) Then GoTo Fail
+    If PlannedFor(st.Emp) <> "" Then why = "the move is still waiting after the cancel": GoTo Fail
+    If SmkOnList(st.Emp, st.Unit, eff) Then why = "still listed in " & st.Unit & " for tomorrow after the cancel": GoTo Fail
+    If Not SmkOnList(st.Emp, st.Unit2, eff) Then why = "not back on " & st.Unit2 & "'s list for tomorrow after the cancel": GoTo Fail
+    If SmkOnPostingList(st.PostId2, st.Emp) Then why = st.Emp & " is still on " & st.PostId2 & "'s list after the cancel": GoTo Fail
+    If SmkPostingRows(st.PostId2) <> rowsWas Then why = st.PostId2 & " has " & SmkPostingRows(st.PostId2) & " list rows after the cancel, expected " & rowsWas: GoTo Fail
+    If SmkTableRows(PT_TABLE) <> postWas Then why = "the postings table has " & SmkTableRows(PT_TABLE) & " rows after the cancel; it had " & postWas & " (a filtered delete took a posting's row)": GoTo Fail
+    SmkFilterList False
+    ' the posting itself is cancelled (nobody is charged), so nothing of it stays open
+    n = LoadPosting(st.PostId2, p, lst)
+    If Not SubmitCancel(p, lst, n) Then why = st.PostId2 & " couldn't be cancelled": Exit Function
+    If PostingStatus(st.PostId2) <> "Cancelled" Then why = st.PostId2 & " is " & PostingStatus(st.PostId2) & " after the cancel": Exit Function
+    st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & "; on " & st.PostId2 & "'s list (" & _
+              Format$(d, "mmm d") & ") and off again through a filtered list; " & st.PostId2 & " cancelled"
     SmkPlanned = True
+    Exit Function
+Fail:
+    SmkFilterList False
 End Function
+
+' v24.3.1: posting-list helpers for the assertions above. They count rows and ask the
+' roster's own list builders; no rule lives here.
+Private Function SmkPostingTable(ByVal nm As String) As ListObject
+    On Error Resume Next
+    Set SmkPostingTable = ThisWorkbook.Worksheets(POSTINGS_SHEET).ListObjects(nm)
+End Function
+
+Private Function SmkTableRows(ByVal nm As String) As Long
+    Dim lo As ListObject: Set lo = SmkPostingTable(nm)
+    If lo Is Nothing Then Exit Function
+    SmkTableRows = lo.ListRows.Count
+End Function
+
+' rows of the list table that belong to one posting
+Private Function SmkPostingRows(ByVal id As String) As Long
+    Dim lo As ListObject: Set lo = SmkPostingTable(PL_TABLE)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, PL_ID))), id, vbTextCompare) = 0 Then SmkPostingRows = SmkPostingRows + 1
+    Next i
+End Function
+
+Private Function SmkOnPostingList(ByVal id As String, ByVal emp As String) As Boolean
+    Dim lo As ListObject: Set lo = SmkPostingTable(PL_TABLE)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, PL_ID))), id, vbTextCompare) = 0 Then
+            If StrComp(Trim$(SafeStr(v(i, PL_EMP))), emp, vbTextCompare) = 0 Then SmkOnPostingList = True: Exit Function
+        End If
+    Next i
+End Function
+
+' Is the person on the unit's list for that date and shift, and free for it? (the same calls
+' that build a posting's list: LoadEligible by date, then FilterNotFree)
+Private Function SmkFreeListed(ByVal emp As String, ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String) As Boolean
+    Dim recs() As EmpRec, n As Long, i As Long, offTxt As String
+    n = LoadEligible(unit, CrewFilter(CREW_ALL), recs, DeptPostingMaxGrade(unit), True, d)
+    If n > 0 Then n = FilterNotFree(recs, n, d, shiftLbl, offTxt)
+    For i = 1 To n
+        If StrComp(recs(i).EmpName, emp, vbTextCompare) = 0 Then SmkFreeListed = True: Exit Function
+    Next i
+End Function
+
+' how many people a posting in that unit for that shift would list
+Private Function SmkFreeCount(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String) As Long
+    Dim recs() As EmpRec, n As Long, offTxt As String
+    n = LoadEligible(unit, CrewFilter(CREW_ALL), recs, DeptPostingMaxGrade(unit), True, d)
+    If n > 0 Then n = FilterNotFree(recs, n, d, shiftLbl, offTxt)
+    SmkFreeCount = n
+End Function
+
+' For every Open posting in the unit for a shift from fromDate that can still be signed up for
+' (closing day not passed): the person is on its list exactly when they are listed and free for
+' that shift. "" when every posting agrees; otherwise the first disagreement. nOpen = how many
+' such postings there are.
+Private Function SmkListMismatch(ByVal emp As String, ByVal unit As String, ByVal fromDate As Date, ByRef nOpen As Long) As String
+    Dim lo As ListObject: Set lo = SmkPostingTable(PT_TABLE)
+    nOpen = 0
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long, sd As Date, cl As Date, id As String, onList As Boolean, shouldBe As Boolean
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, PS_STATUS))), "Open", vbTextCompare) = 0 And _
+           StrComp(Trim$(SafeStr(v(i, PS_UNIT))), unit, vbTextCompare) = 0 And IsDate(v(i, PS_DATE)) Then
+            sd = Int(CDate(v(i, PS_DATE)))
+            cl = 0
+            If IsDate(v(i, PS_CLOSES)) Then cl = Int(CDate(v(i, PS_CLOSES)))
+            If sd >= Int(fromDate) And sd >= Date And (cl = 0 Or Date <= cl) Then
+                nOpen = nOpen + 1
+                id = Trim$(SafeStr(v(i, PS_ID)))
+                onList = SmkOnPostingList(id, emp)
+                shouldBe = SmkFreeListed(emp, unit, sd, SafeStr(v(i, PS_SHIFT)))
+                If onList <> shouldBe Then
+                    SmkListMismatch = id & " (" & Format$(sd, "mmm d") & " " & SafeStr(v(i, PS_SHIFT)) & "): " & emp & _
+                                      IIf(shouldBe, " should be on its list and isn't", " is on its list and shouldn't be")
+                    Exit Function
+                End If
+            End If
+        End If
+    Next i
+End Function
+
+' a filter on the list table (Rank = 1), as a supervisor might leave one; False clears it
+Private Sub SmkFilterList(ByVal turnOn As Boolean)
+    Dim lr As ListObject: Set lr = SmkPostingTable(PL_TABLE)
+    If lr Is Nothing Then Exit Sub
+    On Error Resume Next
+    If turnOn Then
+        lr.Range.AutoFilter Field:=PL_RANK, Criteria1:="1"
+    Else
+        lr.AutoFilter.ShowAllData
+    End If
+End Sub
 
 ' Is the person on the unit's list (anyone with a code, any crew) for that date?
 Private Function SmkOnList(ByVal emp As String, ByVal unit As String, ByVal d As Date) As Boolean

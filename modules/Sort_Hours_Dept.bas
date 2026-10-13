@@ -42,10 +42,7 @@ Public Sub SortForDept(ByVal dept As String)
     Application.ScreenUpdating = True
     Exit Sub
 Oops:
-    On Error Resume Next
-    If Not ws Is Nothing Then ProtectSheet ws
-    Application.ScreenUpdating = True
-    ReportError "SortForDept"
+    ReportError "SortForDept"                  ' first after the label (any On Error clears Err); it re-protects the roster and restores the screen itself
 End Sub
 
 ' Show All: everyone, A - Z

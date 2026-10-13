@@ -431,7 +431,7 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
         Exit Function
     End If
     If Int(returnDate) > Int(mYearTo) Then       ' v24.3.1 (review L2): logged before the rollover, the LV row would carry this year's average into the new year
-        lc.Warnings = "The return date is after this roster's last pay period (" & Format$(mYearTo, "mmm d, yyyy") & "). " & _
+        lc.Warnings = "The return date is after the last day of this roster's year (" & Format$(mYearTo, "mmm d, yyyy") & "). " & _
                       "Run the year-end rollover first, then log the return."
         EndHoursBatch
         Exit Function

@@ -1022,6 +1022,13 @@ def is_payroll_header(s: str) -> bool:
     return t in ("payroll#", "payroll", "payrollno", "payrollnumber", "payrollnum", "payrollid")
 
 
+def is_header_match(cell_text: str, want: str) -> bool:
+    """modOvertimeEntry.IsHeaderMatch (v24.3.1): letters and digits only, case and spacing ignored."""
+    def key(s: str) -> str:
+        return "".join(ch for ch in s.lower() if ch.isascii() and ch.isalnum())
+    return key(cell_text) != "" and key(cell_text) == key(want)
+
+
 def payroll_decision(roster_num: str, num_in_kronos: bool, names_agree: bool) -> str:
     if roster_num == "" or not num_in_kronos:
         return "name"

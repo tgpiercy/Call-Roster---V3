@@ -71,16 +71,43 @@ Sub SyncKronosData()
     Dim rawOf As Object: Set rawOf = CreateObject("Scripting.Dictionary")   ' key -> name as Kronos spells it
     Dim used As Object: Set used = CreateObject("Scripting.Dictionary")    ' keys matched to a roster name
     Dim alt As Object: Set alt = CreateObject("Scripting.Dictionary")   ' "Last,First X" -> "last,first"
-    Dim lastSrc As Long: lastSrc = wsSource.Cells(wsSource.Rows.Count, 2).End(xlUp).Row
-    Dim src As Variant: src = wsSource.Range("A1:M" & lastSrc).Value
+    ' v24.3.1 (review I3, decided D-I4): the sheet is read whole, and the name and total columns are
+    ' found by their headings, never by position. Before this, column 2 and column 13 were read for
+    ' every row: a report with one pay-code column more or fewer would have put a pay-code column
+    ' into everyone's Worked hours (or read no Grand Total at all) and still said "complete".
+    Dim lastSrc As Long, lastCol As Long
+    With wsSource.UsedRange
+        lastSrc = .Row + .Rows.Count - 1
+        lastCol = .Column + .Columns.Count - 1
+    End With
+    If lastSrc < 2 Then lastSrc = 2                   ' always a 2-D array below
+    If lastCol < 2 Then lastCol = 2
+    Dim src As Variant: src = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(lastSrc, lastCol)).Value
     Dim i As Long, k As String, raw As String, a As String
+    Dim nameCol As Long, totCol As Long, hdrName As Long, hdrTot As Long, missingHdr As String
+    nameCol = HeaderColumn(src, hdrName, "Employee Name")
+    totCol = HeaderColumn(src, hdrTot, "Grand Total")
+    If nameCol = 0 Then missingHdr = "'Employee Name'"
+    If totCol = 0 Then missingHdr = missingHdr & IIf(missingHdr = "", "", " and ") & "'Grand Total'"
+    If missingHdr = "" And hdrName <> hdrTot Then missingHdr = "'Employee Name' and 'Grand Total' on the same heading row"
+    If missingHdr <> "" Then
+        If openedHere Then wbSource.Close SaveChanges:=False
+        ThisWorkbook.Activate
+        MsgBox "The Kronos sheet doesn't have the heading(s) the import needs: " & missingHdr & "." & vbNewLine & _
+               "Nothing was changed." & vbNewLine & vbNewLine & _
+               "Open " & fileName & ", sheet '" & KRONOS_SHEET & "', and check its heading row (it must be within the first 10 rows). " & _
+               "If the report's layout has changed, send me a screenshot of its first rows.", vbExclamation, "Kronos import"
+        Exit Sub
+    End If
     ' v24.2: the Payroll # column, found by its header (not there = the import works as before)
     Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary")        ' name key -> Payroll #
     Dim keyOfNum As Object: Set keyOfNum = CreateObject("Scripting.Dictionary")  ' Payroll # -> name key ("" = two people share it)
     Dim pCol As Long, hdrRow As Long, pn As String
     pCol = PayrollColumn(src, hdrRow)
-    For i = 1 To UBound(src, 1)
-        raw = Trim$(SafeStr(src(i, 2)))
+    If pCol > 0 And hdrRow <> hdrName Then pCol = 0   ' a "Payroll #" cell off the heading row isn't the column
+    hdrRow = hdrName
+    For i = hdrRow + 1 To UBound(src, 1)
+        raw = Trim$(SafeStr(src(i, nameCol)))
         k = NameKey(raw)
         If k <> "" Then
             If pCol > 0 And i > hdrRow And Not dict.Exists(k) Then
@@ -90,7 +117,7 @@ Sub SyncKronosData()
                     If keyOfNum.Exists(pn) Then keyOfNum(pn) = "" Else keyOfNum.Add pn, k
                 End If
             End If
-            If Not dict.Exists(k) Then dict.Add k, src(i, 13): rawOf.Add k, raw
+            If Not dict.Exists(k) Then dict.Add k, src(i, totCol): rawOf.Add k, raw
             If raw Like "* [A-Za-z]" Or raw Like "* [A-Za-z]." Then
                 a = NameKey(Left$(raw, InStrRev(raw, " ") - 1))
                 If alt.Exists(a) Then
@@ -570,6 +597,27 @@ Fail:
     On Error Resume Next
     ProtectSheet ws
     MsgBox "Worked hours were imported, but the Hours History snapshot couldn't be saved:" & vbNewLine & em, vbExclamation
+End Function
+
+' v24.3.1: the column whose heading (first 10 rows) says `want` by its letters and digits
+' (IsHeaderMatch in modOvertimeEntry: "Employee  Name" and "EMPLOYEE NAME" match, "Name" doesn't).
+' 0 = none; hdrRow = the row it was found on.
+Private Function HeaderColumn(ByRef src As Variant, ByRef hdrRow As Long, ByVal want As String) As Long
+    Dim r As Long, c As Long, rMax As Long
+    hdrRow = 0
+    rMax = UBound(src, 1)
+    If rMax > 10 Then rMax = 10
+    For r = 1 To rMax
+        For c = 1 To UBound(src, 2)
+            If VarType(src(r, c)) = vbString Then
+                If IsHeaderMatch(CStr(src(r, c)), want) Then
+                    HeaderColumn = c
+                    hdrRow = r
+                    Exit Function
+                End If
+            End If
+        Next c
+    Next r
 End Function
 
 ' The column of the Kronos sheet whose header says Payroll # (0 = none). Looks in the first 10 rows.

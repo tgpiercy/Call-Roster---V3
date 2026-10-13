@@ -205,6 +205,8 @@ Private Function RunCase(f() As String) As String
         Case "paytext"                             ' a cell value -> the Payroll # as text / blank
             RunCase = PayrollText(CaseValue(i1))
             If RunCase = "" Then RunCase = "blank"
+        Case "krhdr"                               ' v24.3.1: heading cell, wanted heading -> yes / no
+            RunCase = IIf(IsHeaderMatch(i1, i2), "yes", "no")
         Case "payhdr"                              ' header text -> yes / no
             RunCase = IIf(IsPayrollHeader(i1), "yes", "no")
         Case "payroll"                             ' roster number, in Kronos Y|N, names agree Y|N -> name / number / mismatch
@@ -1120,6 +1122,16 @@ Private Sub LoadCases()
     AddCase "payhdr,employee-name,Employee Name,,,,,no"
     AddCase "payhdr,grand-total,Grand Total,,,,,no"
     AddCase "payhdr,payroll-hours-is-not-it,Payroll Hours,,,,,no"
+    AddCase "krhdr,name-as-reported,Employee Name,Employee Name,,,,yes"
+    AddCase "krhdr,name-upper,EMPLOYEE NAME,Employee Name,,,,yes"
+    AddCase "krhdr,name-double-space,Employee  Name,Employee Name,,,,yes"
+    AddCase "krhdr,name-alone-is-not-it,Name,Employee Name,,,,no"
+    AddCase "krhdr,total-as-reported,Grand Total,Grand Total,,,,yes"
+    AddCase "krhdr,total-lower,Grand total,Grand Total,,,,yes"
+    AddCase "krhdr,total-joined,GrandTotal,Grand Total,,,,yes"
+    AddCase "krhdr,total-colon,Grand Total:,Grand Total,,,,yes"
+    AddCase "krhdr,total-hours-is-not-it,Total Hours,Grand Total,,,,no"
+    AddCase "krhdr,empty-cell,,Grand Total,,,,no"
     AddCase "payroll,no-number-yet,,N,N,,,name"
     AddCase "payroll,number-not-in-kronos,10045678,N,N,,,name"
     AddCase "payroll,number-and-name-agree,10045678,Y,Y,,,number"

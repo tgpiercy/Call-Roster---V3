@@ -379,6 +379,16 @@ payhdr,no-dot,Payroll No.,,,,,yes
 payhdr,employee-name,Employee Name,,,,,no
 payhdr,grand-total,Grand Total,,,,,no
 payhdr,payroll-hours-is-not-it,Payroll Hours,,,,,no
+krhdr,name-as-reported,Employee Name,Employee Name,,,,yes
+krhdr,name-upper,EMPLOYEE NAME,Employee Name,,,,yes
+krhdr,name-double-space,Employee  Name,Employee Name,,,,yes
+krhdr,name-alone-is-not-it,Name,Employee Name,,,,no
+krhdr,total-as-reported,Grand Total,Grand Total,,,,yes
+krhdr,total-lower,Grand total,Grand Total,,,,yes
+krhdr,total-joined,GrandTotal,Grand Total,,,,yes
+krhdr,total-colon,Grand Total:,Grand Total,,,,yes
+krhdr,total-hours-is-not-it,Total Hours,Grand Total,,,,no
+krhdr,empty-cell,,Grand Total,,,,no
 payroll,no-number-yet,,N,N,,,name
 payroll,number-not-in-kronos,10045678,N,N,,,name
 payroll,number-and-name-agree,10045678,Y,Y,,,number

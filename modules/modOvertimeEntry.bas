@@ -990,6 +990,22 @@ Public Function IsPayrollHeader(ByVal s As String) As Boolean
     IsPayrollHeader = (t = "payroll#" Or t = "payroll" Or t = "payrollno" Or t = "payrollnumber" Or t = "payrollnum" Or t = "payrollid")
 End Function
 
+' v24.3.1: does a heading cell say `want`? Letters and digits only, case and spacing ignored:
+' "Employee  Name" and "EMPLOYEE NAME" match "Employee Name"; "Name" alone does not; an empty cell
+' never matches. Pure; mirrored (krhdr cases). The Kronos import finds its columns with it.
+Public Function IsHeaderMatch(ByVal cellText As String, ByVal want As String) As Boolean
+    Dim a As String: a = AlnumKey(cellText)
+    IsHeaderMatch = (a <> "" And a = AlnumKey(want))
+End Function
+
+Private Function AlnumKey(ByVal s As String) As String
+    Dim i As Long, ch As String
+    For i = 1 To Len(s)
+        ch = LCase$(Mid$(s, i, 1))
+        If ch Like "[a-z0-9]" Then AlnumKey = AlnumKey & ch
+    Next i
+End Function
+
 ' How a roster row is matched to Kronos: "name" (no number on the row, or Kronos
 ' doesn't have that number), "number" (the number is in Kronos under the same
 ' name), "mismatch" (the number is in Kronos under a DIFFERENT name: nothing is

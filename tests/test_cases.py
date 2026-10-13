@@ -206,6 +206,8 @@ def evaluate(row: dict) -> str:
         return rules.payroll_text(case_value(i1)) or "blank"
     if suite == "payhdr":                        # header text -> yes / no
         return "yes" if rules.is_payroll_header(i1) else "no"
+    if suite == "krhdr":                         # v24.3.1: heading cell, wanted heading -> yes / no
+        return "yes" if rules.is_header_match(i1, i2) else "no"
     if suite == "payroll":                       # roster number, in Kronos, names agree -> name / number / mismatch
         return rules.payroll_decision(i1, i2 == "Y", i3 == "Y")
     if suite == "dryname":                       # file name -> yes / no

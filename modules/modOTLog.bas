@@ -1,7 +1,7 @@
 Attribute VB_Name = "modOTLog"
 Option Explicit
 
-Public Const OTL_VERSION As String = "OT Log v24.3.1 (Oct 14)"
+Public Const OTL_VERSION As String = "OT Log v24.3.2 (Oct 15)"
 
 ' ====================================================================
 '  OT LOG MAINTENANCE (admin)

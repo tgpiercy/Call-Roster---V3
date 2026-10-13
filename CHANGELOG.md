@@ -1,5 +1,14 @@
 # Changelog
 
+## v24.3.2 - two findings from Graeme's v24.3.1 test (built Oct 13, 2026)
+Report-back: `docs/v24.3.2-report-back.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v24.3.2.zip` (full set). Needs v24.3.1. ThisWorkbook, the nine forms, the members' template and the Roster Updater are not touched.
+
+- **A private word on a calendar line can be changed (test C3).** A posting writes its Reason as the need text of its calendar line; cancelling the posting sets the line to NCN and keeps the text, so "covering J. Smith STD" still went to the members' calendar and Member View kept refusing, as it should. The line's double-click menu (admin) gains **Change the text of this line...** (`CalMenuEditText` / `CalEditTextKey`, work in `SetLineText`): the new text goes through the publish's own `LeaveWordsIn` and a leave word is refused with the word named; the line's need text is written and, when the line came from a posting that is still Open, that posting's Reason with it (`modPostings.SetPostingReason`; a closed posting's Reason is not published and is left). Only a need ("C:") line has text of its own; a time-off line's text comes from the booking. The refusal box now says where the word lives and which button fixes it (`CalFixHint`: the line, its source posting, Set coverage for a covered-by, Book Time Off for a times note). Helpers `CovCellOf`, `CovIdOfSource`.
+- **MakePracticeCopy refuses to run inside a copy (test B6).** A copy made from inside the SmokeTest copy carried SmokeTest's unsaved state (its test person's `Exempt - left` row on an open posting list), which read as a failed filtered cancel. Run in a file whose name says COPY, DRY RUN, FINAL or Backup (`IsDryRunName` / `IsBackupCopyName`) it stops and says to make copies from the real roster. SmokeTest's closing line says the same.
+- **SmokeTest** (still 14 steps): step 9 also changes the words on its posting's calendar line, asserts a leave word is refused and nothing written, then that the line and the open posting's Reason both carry the new text, before it cancels the posting.
+- SystemCheck: 23 modules on v24.3.2; ThisWorkbook and the forms stay v24.3.1 (unchanged). SelfTest 432 / 50, pytest 433, as before: no rule changed.
+- Docs: `docs/v24.3.1-install-and-test-guide.md` corrected (C3's expectation was wrong: cancelling does not take the word off the calendar; 2B's fresh copy comes from the real roster; new row C11), CLAUDE.md (modCalendar, modSystem, the Privacy paragraph, the roadmap).
+
 ## v24.3.1 - hotfix from the Oct 13 deep review (built Oct 2026)
 Brief: `briefs/v24.3.1.md`. Report-back and decisions: `docs/v24.3.1-report-back.md`; the review itself: `docs/deep-review-2026-10-13.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v24.3.1.zip` (full set). Needs v24.3; installed INSTEAD of re-installing v24.3. The members' template and the Roster Updater are not touched.
 

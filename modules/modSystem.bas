@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v24.3.1 (Oct 14)"
-Public Const EXPECTED_RELEASE As String = "v24.3.1"
+Public Const SYS_VERSION As String = "System v24.3.2 (Oct 15)"
+Public Const EXPECTED_RELEASE As String = "v24.3.2"
 Private Const N_MODULES As Long = 23
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24.3.1"
@@ -270,6 +270,16 @@ End Function
 Public Sub MakePracticeCopy()
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
+    ' v24.3.2 (Graeme's Oct 13 test): a copy made from inside a copy carries everything done in
+    ' it, saved or not - after SmokeTest, its test person and the rows it left. Copies come from the roster.
+    If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then
+        MsgBox "This file is itself a copy:" & vbNewLine & ThisWorkbook.Name & vbNewLine & vbNewLine & _
+               "A practice copy made from here would carry everything done in this one, saved or not " & _
+               "(after SmokeTest: its test person and the rows it left). " & vbNewLine & vbNewLine & _
+               "Close this copy without saving, go to the real roster and run MakePracticeCopy there.", _
+               vbExclamation, "Practice copy"
+        Exit Sub
+    End If
     If ThisWorkbook.Path = "" Or LCase$(Left$(ThisWorkbook.Path, 4)) = "http" Then
         MsgBox "Open the roster from an ordinary folder first (not SharePoint / OneDrive).", vbExclamation, "Practice copy"
         Exit Sub

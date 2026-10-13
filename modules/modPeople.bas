@@ -43,7 +43,7 @@ Option Explicit
 '  admin open on or after the date applies it through SaveUnitMove.
 ' ====================================================================
 
-Public Const PPL_VERSION As String = "People v24.3.1 (Oct 14)"
+Public Const PPL_VERSION As String = "People v24.3.2 (Oct 15)"
 Public Const CH_SHEET As String = "Crew History"
 Public Const CH_TABLE As String = "tblCrewHistory"
 Public Const CH_EMP As Long = 1

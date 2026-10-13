@@ -31,7 +31,7 @@ Option Explicit
 '  check. Queued for v25.
 ' ====================================================================
 
-Public Const SMK_VERSION As String = "Smoke test v24.3.1 (Oct 14)"
+Public Const SMK_VERSION As String = "Smoke test v24.3.2 (Oct 15)"
 
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
@@ -151,9 +151,10 @@ Public Sub SmokeTest()
         rep = repShort                             ' 14 plain lines fit in one box; the notes are on the Error Log line
     End If
     If Len(head) > 420 Then head = Left$(head, 400) & " ..." & vbNewLine
-    If Len(rep) > 880 - Len(head) Then rep = Left$(rep, 860 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters
+    If Len(rep) > 820 - Len(head) Then rep = Left$(rep, 800 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters
     MsgBox head & vbNewLine & vbNewLine & rep & vbNewLine & _
-           "Saving is blocked in this copy. Close it; nothing is kept.", _
+           "Saving is blocked in this copy. Close it WITHOUT saving; nothing is kept. " & _
+           "Make the next practice copy from the real roster, not from this one.", _
            IIf(failedAt = 0 And diff = "", vbInformation, vbCritical), TTL & "  (" & EXPECTED_RELEASE & ")"
     Exit Sub
 Crashed:
@@ -465,11 +466,24 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     If SmkPostingRows(st.PostId2) <> rowsWas Then why = st.PostId2 & " has " & SmkPostingRows(st.PostId2) & " list rows after the cancel, expected " & rowsWas: GoTo Fail
     If SmkTableRows(PT_TABLE) <> postWas Then why = "the postings table has " & SmkTableRows(PT_TABLE) & " rows after the cancel; it had " & postWas & " (a filtered delete took a posting's row)": GoTo Fail
     SmkFilterList False
-    ' the posting itself is cancelled (nobody is charged), so nothing of it stays open
+    ' v24.3.2: the words on the posting's calendar line can be changed (Change the text of this line):
+    ' a leave word is refused and nothing is written; otherwise the line and the OPEN posting's Reason
+    ' change together (SetLineText, the one write to a line's text after it is made)
+    Dim covId As String, txtRep As String
+    Const SMK_TXT As String = "Unit Operator Support (smoke)"
+    covId = CovIdOfSource(st.PostId2)
+    If covId = "" Then why = st.PostId2 & " has no calendar line to change the text of": Exit Function
+    If SetLineText(covId, "Unit Operator Support STD", txtRep) Then why = "a leave word in the line's new text was NOT refused": Exit Function
+    If CovCellOf(covId, CV_NEED) = "Unit Operator Support STD" Then why = "the refused text was written to line " & covId: Exit Function
+    If Not SetLineText(covId, SMK_TXT, txtRep) Then why = "the line's text couldn't be changed: " & txtRep: Exit Function
+    If CovCellOf(covId, CV_NEED) <> SMK_TXT Then why = "line " & covId & " reads '" & CovCellOf(covId, CV_NEED) & "' after the text change": Exit Function
     n = LoadPosting(st.PostId2, p, lst)
+    If p.Reason <> SMK_TXT Then why = st.PostId2 & "'s Reason is '" & p.Reason & "' after the text change": Exit Function
+    ' the posting itself is cancelled (nobody is charged), so nothing of it stays open
     If Not SubmitCancel(p, lst, n) Then why = st.PostId2 & " couldn't be cancelled": Exit Function
     If PostingStatus(st.PostId2) <> "Cancelled" Then why = st.PostId2 & " is " & PostingStatus(st.PostId2) & " after the cancel": Exit Function
-    st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & "; +1/-1 list row on " & st.PostId2 & " (filtered); cancelled"
+    st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & "; +1/-1 list row on " & st.PostId2 & _
+              " (filtered); line " & covId & " text changed with the Reason, leave word refused; cancelled"
     SmkPlanned = True
     Exit Function
 Fail:

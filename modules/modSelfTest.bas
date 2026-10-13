@@ -20,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v24.3.1 (Oct 14)"
+Public Const ST_VERSION As String = "Self test v24.3.2 (Oct 15)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#

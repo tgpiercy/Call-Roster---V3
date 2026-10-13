@@ -19,7 +19,7 @@ Option Explicit
 '  when it last published. The members' file never reads the master.
 ' ====================================================================
 
-Public Const PUB_VERSION As String = "Publish v24.3.1 (Oct 14)"
+Public Const PUB_VERSION As String = "Publish v24.3.2 (Oct 15)"
 
 Public Const DS_META As String = "dMeta"
 Public Const DS_ROSTER As String = "dRoster"
@@ -37,6 +37,7 @@ Private Const ROSTER_FIXED As Long = 10
 Private Const CAL_MONTHS_BACK As Long = 1
 Private Const CAL_MONTHS_AHEAD As Long = 3
 Private Const CAP_ROWS As Long = 60000      ' tables are sized once (ReDim Preserve cannot grow the first dimension)
+Private mCalKey() As String        ' v24.3.2: the calendar line (A:AB-n / C:CV-n) behind each dCal row, for the refusal's hint
 
 
 ' ---------------- when it was last published ----------------
@@ -547,6 +548,7 @@ Private Function BuildCal(ByRef nC As Long) As Variant
     out(1, 5) = "Right": out(1, 6) = "Type": out(1, 7) = "Open"
     Dim k As Long: k = 1
     Dim d As Date, u As Long, sh As Variant, slots() As CalSlot, n As Long, i As Long, hl As String
+    ReDim mCalKey(1 To cap)
     RefreshCalCache
     For d = d0 To d1
         hl = HolidayLabel(d)
@@ -565,6 +567,7 @@ Private Function BuildCal(ByRef nC As Long) As Variant
                     out(k, 1) = d: out(k, 2) = CStr(sh): out(k, 3) = depts(u)
                     out(k, 4) = PublicLeft(slots(i).LeftText, slots(i).TypeCode): out(k, 5) = slots(i).RightText
                     out(k, 6) = PublicType(slots(i).TypeCode): out(k, 7) = slots(i).IsOpen
+                    mCalKey(k) = slots(i).Key
                 Next i
             Next sh
         Next u
@@ -918,7 +921,7 @@ End Function
 ' emailed, drawn), and the log Note when PUBLISH_REASONS is on. Before this only the calendar's
 ' Left text was screened, and only for a bracketed code.
 Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef lg As Variant) As String
-    Dim i As Long, t As String, w As String
+    Dim i As Long, t As String, w As String, onRight As Boolean
     If IsArray(cal) Then
         For i = 2 To UBound(cal, 1)
             t = UCase$(SafeStr(cal(i, 6)))
@@ -926,11 +929,12 @@ Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef
                 LeaveCodesIn = DS_CAL & " row " & i & ": leave type " & t & " would be visible"
                 Exit Function
             End If
+            onRight = False
             w = LeaveWordsIn(SafeStr(cal(i, 4)))
-            If w = "" Then w = LeaveWordsIn(SafeStr(cal(i, 5)))
+            If w = "" Then w = LeaveWordsIn(SafeStr(cal(i, 5))): onRight = (w <> "")
             If w <> "" Then
                 LeaveCodesIn = DS_CAL & " row " & i & " (" & Format$(cal(i, 1), "mmm d") & " " & SafeStr(cal(i, 2)) & " " & _
-                               SafeStr(cal(i, 3)) & "): the text says '" & w & "'"
+                               SafeStr(cal(i, 3)) & "): the text says '" & w & "'" & CalFixHint(i, onRight)
                 Exit Function
             End If
         Next i
@@ -954,6 +958,29 @@ Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef
                 End If
             Next i
         End If
+    End If
+End Function
+
+' v24.3.2 (Graeme's Oct 13 test, C3): where the words on a refused calendar row live and the button
+' that changes them. A cancelled posting's line keeps its Reason as the need text (NCN is the
+' coverage), so cancelling the posting does not take a word off the calendar: the line is edited.
+Private Function CalFixHint(ByVal rowIx As Long, ByVal onRight As Boolean) As String
+    Dim key As String
+    On Error Resume Next
+    key = mCalKey(rowIx)
+    On Error GoTo 0
+    If key = "" Then Exit Function
+    Dim id As String: id = Mid$(key, 3)
+    If onRight Then
+        CalFixHint = vbNewLine & "That is the 'covered by' of calendar line " & id & _
+                     ": on the Calendar, double-click the line > Set coverage, and type it without that word."
+    ElseIf Left$(key, 2) = "C:" Then
+        Dim src As String: src = CovCellOf(id, CV_SOURCE)
+        CalFixHint = vbNewLine & "That is calendar line " & id & IIf(src <> "", " (from " & src & ")", "") & _
+                     ": on the Calendar, double-click the line > Change the text of this line."
+    ElseIf Left$(key, 2) = "A:" Then
+        CalFixHint = vbNewLine & "That is the times note of time off " & id & _
+                     ": void it in Book Time Off and book it again without that word."
     End If
 End Function
 

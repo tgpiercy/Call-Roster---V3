@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v24.3.1 (Oct 14)"
+Public Const CAL_VERSION As String = "Calendar v24.3.2 (Oct 15)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -2231,6 +2231,117 @@ Private Sub CalSetCoverageKey(ByVal keyTxt As String)
     DrawCalendar
 End Sub
 
+' v24.3.2 (Graeme's Oct 13 test, C3): change the words on a need line. Only a "C:" line has free
+' text of its own: a time-off line shows the name, the kind of time off and the times note from
+' the booking. The new text goes through the publish's own leave-word screen (LeaveWordsIn), so a
+' word that would stop Member View is refused here, with the word named. When the line came from
+' a posting that is still Open, the posting's Reason changes with it (the members' file carries
+' both); a closed posting's Reason is no longer published and is left alone.
+Private Sub CalEditTextKey(ByVal keyTxt As String)
+    Const TTL As String = "Change the text"
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If Left$(keyTxt, 2) <> "C:" Then
+        MsgBox "Only a need line has text of its own. A time-off line shows the name, the kind of time off and the " & _
+               "times note from the booking: void it in Book Time Off and book it again.", vbInformation, TTL
+        Exit Sub
+    End If
+    Dim parts As Variant: parts = Split(keyTxt, "|")
+    Dim covId As String: covId = Mid$(CStr(parts(0)), 3)
+    Dim d As Date: d = KeyDate(keyTxt)
+    Dim leftTxt As String, rightTxt As String
+    If Not SlotTexts(keyTxt, leftTxt, rightTxt) Then MsgBox "That line has changed - the calendar will redraw.", vbExclamation, TTL: DrawCalendar: Exit Sub
+    Dim src As String: src = CovCellOf(covId, CV_SOURCE)
+    Dim prompt As String
+    prompt = "New text for the line  " & Clip(leftTxt, 40) & "  on " & Format$(d, "ddd mmm d") & " " & KeyShift(keyTxt) & "." & vbNewLine & vbNewLine & _
+             "Members see this text on their calendar: never the kind of anyone's leave."
+    If UCase$(Left$(src, 2)) = "P-" Then
+        If PostingStatus(src) = "Open" Then
+            prompt = prompt & vbNewLine & vbNewLine & "Posting " & src & " is open: its Reason changes with it."
+        Else
+            prompt = prompt & vbNewLine & vbNewLine & "Posting " & src & " is closed: its own Reason stays as it was."
+        End If
+    End If
+    Dim ans As String
+    ans = Trim$(VBA.InputBox(prompt, TTL, leftTxt))
+    If ans = "" Then Exit Sub
+    If StrComp(ans, Trim$(leftTxt), vbBinaryCompare) = 0 Then Exit Sub
+    Dim rep As String
+    If Not SetLineText(covId, ans, rep) Then
+        MsgBox rep, vbExclamation, TTL
+        Exit Sub
+    End If
+    SaveIfWritable
+    DrawCalendar
+    MsgBox rep, vbInformation, TTL
+End Sub
+
+' v24.3.2: the work behind "Change the text of this line" (and SmokeTest step 9). Writes the need
+' text of coverage line covId and, when its source is a posting that is still Open, that posting's
+' Reason. Refused, writing nothing, when the text is blank, holds a leave word (LeaveWordsIn: the
+' publish would refuse it) or the line is gone. report says what was done, or why not.
+Public Function SetLineText(ByVal covId As String, ByVal newText As String, ByRef report As String) As Boolean
+    newText = Trim$(newText)
+    If newText = "" Then report = "The text can't be blank.": Exit Function
+    Dim w As String: w = LeaveWordsIn(newText)
+    If w <> "" Then
+        report = "Not changed: '" & w & "' would tell members the kind of someone's leave, and Member View would refuse to publish it. Use other words."
+        Exit Function
+    End If
+    Dim lo As ListObject: Set lo = CovTable()
+    If lo Is Nothing Then report = "There is no Coverage table.": Exit Function
+    Dim v As Variant: v = TableData(lo)
+    Dim cr As Long: cr = RowOf(v, covId)
+    If cr = 0 Then report = "Calendar line " & covId & " wasn't found - the calendar will redraw.": Exit Function
+    If UCase$(SafeStr(v(cr, CV_STATUS))) = "VOID" Then report = "Calendar line " & covId & " has been removed.": Exit Function
+    Dim src As String: src = Trim$(SafeStr(v(cr, CV_SOURCE)))
+    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    lo.DataBodyRange.Cells(cr, CV_NEED).Value = newText
+    ProtectSheet lo.Parent
+    MarkCalDirty
+    MarkMembersDirty
+    report = "The line now reads '" & newText & "'."
+    If UCase$(Left$(src, 2)) = "P-" Then
+        Dim stat As String: stat = PostingStatus(src)
+        If stat = "Open" Then
+            If SetPostingReason(src, newText) Then
+                report = report & " Posting " & src & "'s Reason too: print its sheet again if it is on the board."
+            Else
+                report = report & " Posting " & src & "'s Reason could NOT be changed: it isn't on the Postings sheet."
+            End If
+        ElseIf stat <> "" Then
+            report = report & " Posting " & src & " is " & LCase$(stat) & ": its own Reason was left as it was."
+        End If
+    End If
+    SetLineText = True
+End Function
+
+' v24.3.2: one cell of one coverage line, as text ("" when the line isn't there)
+Public Function CovCellOf(ByVal covId As String, ByVal col As Long) As String
+    Dim lo As ListObject: Set lo = CovTable()
+    If lo Is Nothing Then Exit Function
+    Dim v As Variant: v = TableData(lo)
+    Dim cr As Long: cr = RowOf(v, covId)
+    If cr > 0 Then CovCellOf = Trim$(SafeStr(v(cr, col)))
+End Function
+
+' v24.3.2: the first live coverage line that came from source (a P-#### posting, an SS-#### switch)
+Public Function CovIdOfSource(ByVal source As String) As String
+    Dim lo As ListObject: Set lo = CovTable()
+    If lo Is Nothing Then Exit Function
+    Dim v As Variant: v = TableData(lo)
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, CV_SOURCE))), Trim$(source), vbTextCompare) = 0 Then
+            If UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
+                CovIdOfSource = Trim$(SafeStr(v(i, CV_ID)))
+                Exit Function
+            End If
+        End If
+    Next i
+End Function
+
 ' Admin: click an open line, then Post Line -> New Posting, pre-filled
 Public Sub CalPostLine()
     On Error GoTo Oops
@@ -3713,6 +3824,7 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
             AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
             If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", True
             AddChoice caps, macs, grpBreak, n, "Set coverage...", "CalMenuSetCoverage", (UCase$(rt) Like "POSTED*")
+            If kind = "C:" Then AddChoice caps, macs, grpBreak, n, "Change the text of this line...", "CalMenuEditText", False
             If postId <> "" Then
                 If PostRow(postId) > 0 Then
                     If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then
@@ -3897,6 +4009,15 @@ End Sub
 
 Public Sub CalMenuSetCoverage()
     CalSetCoverageKey mMenuKey
+End Sub
+
+' v24.3.2: the words on a need line (the Reason a posting wrote, or a typed need)
+Public Sub CalMenuEditText()
+    On Error GoTo Oops
+    CalEditTextKey mMenuKey
+    Exit Sub
+Oops:
+    ReportError "CalMenuEditText"
 End Sub
 
 Public Sub CalMenuPostSupport()

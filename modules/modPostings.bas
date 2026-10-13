@@ -16,7 +16,7 @@ Option Explicit
 ' ====================================================================
 
 ' ---------------- configuration ----------------
-Public Const POST_VERSION As String = "Postings v24.3.1 (Oct 14)"
+Public Const POST_VERSION As String = "Postings v24.3.2 (Oct 15)"
 Public Const POSTINGS_SHEET As String = "Postings"
 Public Const PT_TABLE As String = "tblPostings"
 Public Const PL_TABLE As String = "tblPostingList"
@@ -1633,6 +1633,29 @@ Failed:
     MarkNoSave
     MsgBox "Closing " & p.ID & " stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving, reopen, and do " & p.ID & " again.", vbCritical
+End Function
+
+' v24.3.2: the Reason of one posting, changed from the Calendar ("Change the text of this
+' line" on the line the posting wrote). Words only: the Reason drives no rule once the posting
+' exists, and the list, hours, dates and status stay as they are. True when the row was found.
+Public Function SetPostingReason(ByVal id As String, ByVal reason As String) As Boolean
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If UCase$(Trim$(SafeStr(v(i, PS_ID)))) = UCase$(Trim$(id)) Then
+            ws.Unprotect Password:=SHEET_PASSWORD
+            lo.DataBodyRange.Cells(i, PS_REASON).Value = reason
+            ProtectSheet ws
+            MarkMembersDirty
+            MarkCalDirty
+            SetPostingReason = True
+            Exit Function
+        End If
+    Next i
 End Function
 
 ' ---------------- calendar links ----------------

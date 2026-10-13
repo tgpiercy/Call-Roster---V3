@@ -1335,10 +1335,10 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
 Failed:
     em = Err.Description
     LogError "SaveNewHire", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectSheet ws
-    MarkNoSave
     MsgBox "Adding " & nm & " stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving and reopen.", vbCritical, "Add employee"
 End Function
@@ -2725,10 +2725,10 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
 Failed:
     em = Err.Description
     LogError "RenameEverywhere", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
-    MarkNoSave
     MsgBox "The rename stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Rename"
 End Function
@@ -2836,10 +2836,10 @@ Public Function RemoveEmployee(ByVal emp As String, ByVal leftOn As Date, ByRef 
 Failed:
     em = Err.Description
     LogError "RemoveEmployee", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
-    MarkNoSave
     MsgBox "Removing " & emp & " stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Remove"
 End Function
@@ -2916,10 +2916,10 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
 Failed:
     em = Err.Description
     LogError "BringBack", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
-    MarkNoSave
     MsgBox "Bringing " & emp & " back stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Bring back"
 End Function
@@ -3009,9 +3009,9 @@ Public Sub SetupPeople()
 Failed:
     em = Err.Description
     LogError "SetupPeople", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
     On Error Resume Next
     mBusy = False
     Application.ScreenUpdating = scrWas
-    MarkNoSave
     MsgBox "The setup stopped part-way: " & em & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Setup People"
 End Sub

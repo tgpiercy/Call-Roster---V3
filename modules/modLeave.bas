@@ -565,12 +565,10 @@ Public Function SaveSickCall(ByVal emp As String, ByVal d As Date, ByVal shiftLb
     Dim id As String
     id = SaveAbsence(emp, unit, "SIC", d, d, hrs, "", note, HomeUnitOf(emp), "", shiftLbl, "SC", True)
     If id = "" Then Exit Function
-    ' the absence shows as an open line on the crew's scheduled shift; if the
-    ' sick shift isn't the scheduled one (e.g. an OT shift), add the line explicitly
+    ' v24.3.1 (review C1): the absence row carries the shift (AB_SHIFT) and SlotsFor draws a sick
+    ' call on that shift whether or not it is the scheduled one, so the extra coverage row this
+    ' used to add for an OT shift drew the same sick call twice ("Name (Sick)" twice, both open).
     RefreshCalCache
-    If EmpShiftOn(emp, d) <> shiftLbl Then
-        AddCoverage d, shiftLbl, unit, "NEW", "", hrs, id, "SIC", CalName(emp) & " (Sick)"
-    End If
     MarkCalDirty
     SaveIfWritable
     SaveSickCall = id

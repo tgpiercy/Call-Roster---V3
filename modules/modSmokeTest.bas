@@ -328,9 +328,24 @@ Private Function SmkTimeOff(ByRef st As SmkState, ByRef why As String) As Boolea
     st.AbsId = SaveAbsence(st.Emp, st.Unit, "Vacation", d, d + 1, Empty, "", SMK_WHY, "", "", "", "AB", True)
     If st.AbsId = "" Then why = "SaveAbsence returned no ID": Exit Function
     MarkCalDirty
-    st.SickId = SaveSickCall(st.Emp, SmkWeekday(Date + 20), "Days", st.Unit, Empty, SMK_WHY)
+    Dim sd As Date: sd = SmkWeekday(Date + 20)
+    st.SickId = SaveSickCall(st.Emp, sd, "Days", st.Unit, Empty, SMK_WHY)
     If st.SickId = "" Then why = "SaveSickCall returned no ID": Exit Function
-    st.Note = st.AbsId & ", " & st.SickId
+    ' v24.3.1: one calendar line per sick call - the absence - whether or not Days is the person's scheduled shift
+    Dim slots() As CalSlot, n As Long, i As Long, nAbs As Long, nMine As Long, who As String
+    who = CalName(st.Emp)
+    RefreshCalCache
+    n = SlotsFor(sd, "Days", GroupOfUnit(st.Unit), slots)
+    For i = 1 To n
+        If StrComp(slots(i).Key, "A:" & st.SickId, vbTextCompare) = 0 Then nAbs = nAbs + 1
+        If UCase$(slots(i).TypeCode) = "SIC" And Left$(slots(i).LeftText, Len(who)) = who Then nMine = nMine + 1
+    Next i
+    If nAbs <> 1 Or nMine <> 1 Then
+        why = "the sick call drew " & nMine & " calendar line(s) for " & st.Emp & " on " & Format$(sd, "mmm d") & _
+              " (" & nAbs & " from the absence); expected exactly 1"
+        Exit Function
+    End If
+    st.Note = st.AbsId & ", " & st.SickId & " (1 calendar line)"
     SmkTimeOff = True
 End Function
 

@@ -126,6 +126,7 @@ Private mTestMode As Boolean        ' SelfTest feeds mHist from memory
 Private mBusy As Boolean            ' our own writes to the roster fire change events
 Private mPlan As Variant            ' v24.3: the Planned rows of tblPlannedMoves (Empty = none)
 Private mPlanLoaded As Boolean
+Private Const ADDED_TAG As String = "[added to "     ' v24.3.1: in a planned row's Note, the postings its entry put them on
 
 
 ' ====================================================================
@@ -1560,6 +1561,7 @@ Failed:
     On Error Resume Next
     gSuppressGradeLog = suppressWas
     ProtectSheet ws
+    ProtectAll
     MarkNoSave
     failTxt = em
     MsgBox "The move stopped part-way: " & em & vbNewLine & vbNewLine & _
@@ -1882,6 +1884,9 @@ Private Function MarkPlannedRow(ByVal id As String, ByVal newStatus As String, B
         lo.DataBodyRange.Cells(r, PM_STATUS).Value = newStatus
         lo.DataBodyRange.Cells(r, PM_CLOSED).Value = Date
     End If
+    ' the "[added to P-0012, P-0014]" tag (postings they were put on when the move was entered) outlives later notes
+    Dim tagTxt As String: tagTxt = AddedTag(SafeStr(v(r, PM_NOTE)))
+    If tagTxt <> "" And InStr(1, noteTxt, ADDED_TAG, vbTextCompare) = 0 Then noteTxt = Left$(noteTxt, 249 - Len(tagTxt)) & " " & tagTxt
     lo.DataBodyRange.Cells(r, PM_NOTE).Value = Left$(noteTxt, 250)
     ProtectSheet ws
     Application.EnableEvents = evWas
@@ -1895,6 +1900,27 @@ Fail:
     ProtectSheet ws
     Application.EnableEvents = evWas
     ResetPlanCache
+End Function
+
+' "... [added to P-0012, P-0014]" -> "[added to P-0012, P-0014]" ("" = no tag)
+Private Function AddedTag(ByVal noteTxt As String) As String
+    Dim a As Long, b As Long
+    a = InStr(1, noteTxt, ADDED_TAG, vbTextCompare)
+    If a = 0 Then Exit Function
+    b = InStr(a, noteTxt, "]")
+    If b > a Then AddedTag = Mid$(noteTxt, a, b - a + 1)
+End Function
+
+' The posting IDs in a note's tag as "|P-0012|P-0014|" ("" = none)
+Private Function AddedIds(ByVal noteTxt As String) As String
+    Dim tagTxt As String: tagTxt = AddedTag(noteTxt)
+    If tagTxt = "" Then Exit Function
+    Dim part As Variant, s As String
+    tagTxt = Mid$(tagTxt, Len(ADDED_TAG) + 1, Len(tagTxt) - Len(ADDED_TAG) - 1)
+    For Each part In Split(tagTxt, ",")
+        If Trim$(CStr(part)) <> "" Then s = s & "|" & Trim$(CStr(part))
+    Next part
+    If s <> "" Then AddedIds = s & "|"
 End Function
 
 ' PM-0001, PM-0002 ... (rows are never removed, so the highest + 1 is free)
@@ -2010,6 +2036,9 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
     ' v24.3.1: postings already open in the new unit for shifts on or after the date get them on the list
     Dim addTxt As String, dropTxt As String
     SyncPersonOnPostings emp, newUnit, eff, 0, True, False, False, addTxt, dropTxt
+    If addTxt <> "" Then                        ' remembered on the row: a cancel takes them off exactly these
+        If Not MarkPlannedRow(id, "", ADDED_TAG & addTxt & "]") Then Err.Raise vbObjectError + 753, , "the Planned Moves row couldn't be updated"
+    End If
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap())
     If Abs(LogChargedTotal() - logBefore) > 0.0001 Then diff = diff & "  OT Log total Hours Charged changed" & vbNewLine
@@ -2072,6 +2101,7 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
     Dim clearTxt As String: clearTxt = TrimBarList(SafeStr(v(i, PM_CLEAR)))
     Dim stuckTxt As String, entered As Date
     If IsDate(v(i, PM_STAMP)) Then entered = Int(CDate(v(i, PM_STAMP)))
+    Dim addedIds0 As String: addedIds0 = AddedIds(SafeStr(v(i, PM_NOTE)))      ' the postings the entry put them on
     r = RosterRowOf(emp)
     If crewTo <> "" And eff > 0 Then
         newest = NewestCrew(emp, found, since)
@@ -2097,15 +2127,20 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
     If Not MarkPlannedRow(id, "Cancelled", reason) Then Err.Raise vbObjectError + 762, , "the Planned Moves row couldn't be updated"
     ' From here the move no longer counts on any list (MarkPlannedRow cleared the cache).
     ' Postings made or changed while it was waiting carry it on their frozen lists: put those right.
-    Dim offTxt As String, reTxt As String, backTxt As String, skipTxt As String, u As Variant
+    Dim offTxt As String, reTxt As String, backTxt As String, skipTxt As String, skipTxt2 As String, keptTxt As String, u As Variant
+    Dim listsFrom As Date
     If syncPostings And eff > 0 And r > 0 Then
-        ' new unit: no code there -> off the list; holds a code -> back to today's code and hours on lists made since
-        SyncPersonOnPostings emp, newUnit, eff, 0, False, True, False, skipTxt, offTxt
-        If entered > 0 Then                             ' (only lists made since the move was entered; no date = leave them)
-            SyncPersonOnPostings emp, newUnit, eff, entered, False, False, True, reTxt, offTxt
-            ' old unit(s): back on the lists made without them
+        ' new unit, no code there on the shift date -> off the list (whenever the posting was made)
+        SyncPersonOnPostings emp, newUnit, eff, 0, False, True, False, skipTxt, offTxt, skipTxt2
+        ' new unit, holds a code -> back to today's code and hours on the lists that carry the plan:
+        ' the ones made since it was entered, and the ones its entry put them on
+        listsFrom = entered
+        If listsFrom = 0 Then listsFrom = DateSerial(9999, 12, 31)
+        SyncPersonOnPostings emp, newUnit, eff, listsFrom, False, False, True, reTxt, offTxt, keptTxt, addedIds0
+        ' old unit(s): back on the lists made without them
+        If entered > 0 Then
             For Each u In Split(clearTxt, "|")
-                If CStr(u) <> "" Then SyncPersonOnPostings emp, CStr(u), eff, entered, True, False, False, backTxt, skipTxt
+                If CStr(u) <> "" Then SyncPersonOnPostings emp, CStr(u), eff, entered, True, False, False, backTxt, skipTxt2
             Next u
         End If
     End If
@@ -2122,6 +2157,13 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
     If backTxt <> "" Then didTxt = didTxt & vbNewLine & "Put back on the list of posting(s): " & backTxt & "."
     If stuckTxt <> "" Then
         didTxt = didTxt & vbNewLine & "Still on the list of " & newUnit & " posting(s) " & stuckTxt & ", marked not chargeable."
+    End If
+    If keptTxt <> "" Then
+        didTxt = didTxt & vbNewLine & newUnit & " posting(s) " & keptTxt & " still list them at the planned code and hours " & _
+                 "(a sign-up or a result is on the row, or theirs is the only name): check those lists."
+    End If
+    If syncPostings And eff > 0 And entered = 0 Then
+        didTxt = didTxt & vbNewLine & "The day this move was entered can't be read, so posting lists made since then were left as they are: check the open postings."
     End If
     If offTxt <> "" Or reTxt <> "" Or backTxt <> "" Then didTxt = didTxt & vbNewLine & "Print those posting sheets again."
     CancelPlannedCore = True
@@ -2231,7 +2273,7 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
     Dim bk As String, backedUp As Boolean
     Dim pc As PeopleCalc, rep As String, why As String, ok As Boolean, nRows As Long
     Dim id As String, emp As String, unit As String, code As String, eff As Date
-    Dim okTxt As String, failTxt As String, nOk As Long, nFail As Long, noteTxt As String, clearList As String
+    Dim okTxt As String, failTxt As String, nOk As Long, nFail As Long, noteTxt As String, clearList As String, repLine As Variant
     For i = 1 To nDue
         id = Trim$(SafeStr(v(due(i), PM_ID)))
         emp = Trim$(SafeStr(v(due(i), PM_EMP)))
@@ -2264,6 +2306,9 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
             nOk = nOk + 1
             noteTxt = IIf(pc.AddHours > 0, Format$(pc.AddHours, "0.0#") & " h added", "no hours added")
             okTxt = okTxt & "  " & emp & " -> " & unit & " (" & code & "), " & noteTxt & vbNewLine
+            For Each repLine In Split(rep, vbNewLine)   ' (v24.3.1) postings they were added to on the day
+                If InStr(1, CStr(repLine), "Added to the list", vbTextCompare) > 0 Then okTxt = okTxt & "    " & CStr(repLine) & vbNewLine
+            Next repLine
             If Not MarkPlannedRow(id, "Applied", "applied by " & CurrentUser() & ": " & noteTxt) Then
                 ' the roster has moved but the row still says Planned: saving that would apply it again at the next open
                 MarkNoSave
@@ -2282,7 +2327,7 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
     AfterPeopleChange
     SaveIfWritable
     Dim msg As String
-    If nOk > 0 Then msg = nOk & " planned unit move(s) applied:" & vbNewLine & Left$(okTxt, 400) & vbNewLine
+    If nOk > 0 Then msg = nOk & " planned unit move(s) applied:" & vbNewLine & Left$(okTxt, 500) & vbNewLine
     If nFail > 0 Then
         msg = msg & nFail & " could NOT be applied and still wait(s):" & vbNewLine & Left$(failTxt, 400) & vbNewLine & _
               "Fix what the line says, then Alt+F8 > ApplyPlannedMoves. Or cancel it: Needs Attention > Planned unit moves." & vbNewLine & vbNewLine

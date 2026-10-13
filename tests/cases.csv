@@ -99,6 +99,8 @@ listinsert,grade-before-hours,Ann:1:500:2010-01-01;Bob:2:0:2010-01-01,New:1.5:99
 listinsert,tie-earlier-seniority-first,Ann:1:50:2010-01-01,New:1:50:2005-01-01,,,,1
 listinsert,tie-later-seniority-after,Ann:1:50:2010-01-01,New:1:50:2015-01-01,,,,2
 listinsert,tie-blank-seniority-after,Ann:1:50:2010-01-01,New:1:50:,,,,2
+listinsert,full-tie-name-decides-before,Bea:1:50:2010-01-01,Abe:1:50:2010-01-01,,,,1
+listinsert,full-tie-name-decides-after,Abe:1:50:2010-01-01,Bea:1:50:2010-01-01,,,,2
 listinsert,frozen-order-is-kept,Bob:1:80:2010-01-01;Ann:1:50:2010-01-01,New:1:60:2015-01-01,,,,1
 callout,refused-g1,Refused,1,12,,,21
 callout,leftmsg-g2,Left Message,2,12,,,21

@@ -233,7 +233,6 @@ Private Function CaseHolOff(ByVal dTxt As String, ByVal fixture As String) As St
     ClearTestHolidays
 End Function
 
-' "Name:grade:hours:seniority;..." -> names in call order
 ' "name:grade:hours:seniority;..." -> recs(1..n) in the order given. Returns n.
 Private Function CasePeople(ByVal spec As String, ByRef recs() As EmpRec) As Long
     Dim recsTxt As Variant: recsTxt = Split(spec, ";")
@@ -262,6 +261,7 @@ Private Function CaseListInsert(ByVal frozenSpec As String, ByVal newSpec As Str
     CaseListInsert = CStr(ListInsertIndex(frozen, n, one(1)))
 End Function
 
+' "Name:grade:hours:seniority;..." -> names in call order
 Private Function CaseCallOrder(ByVal spec As String) As String
     Dim recsTxt As Variant: recsTxt = Split(spec, ";")
     Dim n As Long: n = UBound(recsTxt) + 1
@@ -835,6 +835,8 @@ Private Sub LoadCases()
     AddCase "listinsert,tie-earlier-seniority-first,Ann:1:50:2010-01-01,New:1:50:2005-01-01,,,,1"
     AddCase "listinsert,tie-later-seniority-after,Ann:1:50:2010-01-01,New:1:50:2015-01-01,,,,2"
     AddCase "listinsert,tie-blank-seniority-after,Ann:1:50:2010-01-01,New:1:50:,,,,2"
+    AddCase "listinsert,full-tie-name-decides-before,Bea:1:50:2010-01-01,Abe:1:50:2010-01-01,,,,1"
+    AddCase "listinsert,full-tie-name-decides-after,Abe:1:50:2010-01-01,Bea:1:50:2010-01-01,,,,2"
     AddCase "listinsert,frozen-order-is-kept,Bob:1:80:2010-01-01;Ann:1:50:2010-01-01,New:1:60:2015-01-01,,,,1"
     AddCase "callout,refused-g1,Refused,1,12,,,21"
     AddCase "callout,leftmsg-g2,Left Message,2,12,,,21"

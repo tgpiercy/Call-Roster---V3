@@ -1793,33 +1793,41 @@ End Function
 '  A posting's list is frozen when it is created. Two things may change
 '  it afterwards, both for a unit move:
 '   - someone who moves INTO the unit (planned or today) is added to the
-'     open postings for shifts on or after the move, in the place call
-'     order gives them among the frozen rows;
+'     open postings for shifts on or after the move that can still be
+'     signed up for, in the place call order gives them among the frozen
+'     rows;
 '   - a planned move that is cancelled takes them off again (and puts
 '     them back on the old unit's postings made while it was waiting).
 '  Nobody else's row, code or posted hours change; only Rank numbers
-'  move to make room. A row is deleted only while the posting is Open.
+'  move to make room. A row is deleted only while the posting is Open
+'  and only when it carries no sign-up, outcome, charge or Exempt note.
 ' ====================================================================
 ' Brings emp into line on the OPEN postings of unit for shifts on or after
-' fromDate that were created on or after postedFrom (0 = any).
+' fromDate that were created on or after postedFrom (0 = any) or are named
+' in alsoIds ("|P-0012|P-0014|").
 '   addMissing  not on the list, holds a code in the unit on the shift date,
-'             passes the posting's crew and grade filters and is free that
-'             shift -> added
-'   dropGone  on the list but holds no code in the unit on the shift date
-'             -> taken off (never the only row of a list)
-'   refresh   on the list and holds a code -> taken off and put back at
-'             today's code and hours (a cancelled move left the planned ones)
-' addedTxt / removedTxt get the posting IDs. An error raises to the caller,
-' whose handler blocks the save.
+'               passes the posting's crew and grade filters, is free that
+'               shift, and the posting can still be signed up for -> added
+'   dropGone    on the list but holds no code in the unit on the shift date
+'               -> taken off
+'   refresh     on the list, holds a code, and the row's code or hours are
+'               not today's (a cancelled move left the planned ones)
+'               -> taken off and put back at today's code and hours
+' addedTxt / removedTxt get the posting IDs; blockedTxt the postings where a
+' row should have come off but was left (the only name on the list, or it
+' carries a sign-up or an outcome). An error raises to the caller, whose
+' handler blocks the save.
 Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal fromDate As Date, ByVal postedFrom As Date, _
                                 ByVal addMissing As Boolean, ByVal dropGone As Boolean, ByVal refresh As Boolean, _
-                                ByRef addedTxt As String, ByRef removedTxt As String)
+                                ByRef addedTxt As String, ByRef removedTxt As String, _
+                                Optional ByRef blockedTxt As String, Optional ByVal alsoIds As String = "")
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
     Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
     If lo Is Nothing Or lr Is Nothing Then Exit Sub
     If lo.DataBodyRange Is Nothing Or lr.DataBodyRange Is Nothing Then Exit Sub
     emp = Trim$(emp)
-    If emp = "" Or DeptCol(unit) = 0 Then Exit Sub
+    Dim dc As Long: dc = DeptCol(unit)
+    If emp = "" Or dc = 0 Then Exit Sub
     Dim rosterRow As Long: rosterRow = RosterRowOf(emp)
     If rosterRow = 0 Then Exit Sub                      ' not on the roster: the "left" marks cover them
 
@@ -1831,18 +1839,23 @@ Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal
         id = Trim$(SafeStr(pv(i, PS_ID)))
         If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then
             If StrComp(Trim$(SafeStr(pv(i, PS_UNIT))), Trim$(unit), vbTextCompare) = 0 Then
-                If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) And Int(ToDate(pv(i, PS_POSTED))) >= Int(postedFrom) Then
-                    nIds = nIds + 1
-                    ids(nIds) = id
+                If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) Then
+                    If Int(ToDate(pv(i, PS_POSTED))) >= Int(postedFrom) Or InStr(1, alsoIds, "|" & id & "|", vbTextCompare) > 0 Then
+                        nIds = nIds + 1
+                        ids(nIds) = id
+                    End If
                 End If
             End If
         End If
     Next i
     If nIds = 0 Then Exit Sub
+    RefreshCalCache                                     ' "free that shift" must see time off booked earlier in this session
 
-    Dim p As PostRec, lst() As PListRec, n As Long, j As Long, idx As Long, wasOn As Boolean
-    Dim recs() As EmpRec, k As Long, hit As Long, codeNow As String, holds As Boolean, changed As Boolean
+    Dim p As PostRec, lst() As PListRec, n As Long, j As Long, idx As Long, wasOn As Boolean, wantOff As Boolean
+    Dim recs() As EmpRec, k As Long, hit As Long, codeNow As String, hrsNow As Double, holds As Boolean, changed As Boolean
     Dim blankP As PostRec
+    codeNow = Trim$(SafeStr(RosterSheet().Cells(rosterRow, dc).Value))
+    hrsNow = NumOr0(RosterSheet().Cells(rosterRow, C_TOTAL).Value2)
     For i = 1 To nIds
         p = blankP
         n = LoadPosting(ids(i), p, lst)
@@ -1856,24 +1869,35 @@ Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal
             Next j
             wasOn = False
             ' do they hold a code in this unit on the shift date (a waiting move counts from its date)?
-            codeNow = Trim$(SafeStr(RosterSheet().Cells(rosterRow, DeptCol(p.Unit)).Value))
-            holds = (UnitCodeOn(emp, p.Unit, p.ShiftDate, codeNow) <> "")
+            holds = (UnitCodeOn(emp, unit, p.ShiftDate, codeNow) <> "")
 
-            If idx > 0 And ((dropGone And Not holds) Or (refresh And holds)) Then
-                ' never the only row of a list, and never a row that already carries a sign-up or an outcome
-                If n > 1 And lst(idx).Result = "" And Not lst(idx).SignedUp And lst(idx).Charged = 0 Then
+            wantOff = False
+            If idx > 0 Then
+                If dropGone And Not holds Then wantOff = True
+                If refresh And holds Then
+                    ' only a row that isn't today's: the planned code, or hours that aren't their total
+                    If StrComp(Trim$(lst(idx).DeptCode), codeNow, vbTextCompare) <> 0 Or Abs(lst(idx).TotalHrs - hrsNow) > 0.01 Then wantOff = True
+                End If
+            End If
+            If wantOff Then
+                If lst(idx).ExemptNote <> "" Then
+                    ' already marked never-charged for another reason (moved, left): leave the row and its note
+                ElseIf n > 1 And lst(idx).Result = "" And Not lst(idx).SignedUp And lst(idx).Charged = 0 Then
                     DeleteListRow p.ID, emp, n
                     wasOn = True
                     changed = True
                     idx = 0
                     n = LoadPosting(ids(i), p, lst)         ' the list without them
+                Else
+                    blockedTxt = blockedTxt & IIf(blockedTxt = "", "", ", ") & p.ID
                 End If
             End If
 
-            ' (a refresh puts back the row it has just taken off, whatever addMissing says)
-            If idx = 0 And holds And n > 0 And (addMissing Or wasOn) Then
+            ' (a refresh puts back the row it has just taken off, whatever addMissing says;
+            '  a new name only goes on a posting that can still be signed up for)
+            If idx = 0 And holds And n > 0 And (wasOn Or (addMissing And StillOpenForSignup(p))) Then
                 ' the same list CreatePostingFrom would build today for this posting: are they on it?
-                k = LoadEligible(p.Unit, CrewFilter(p.Crew), recs, DeptPostingMaxGrade(p.Unit), True, p.ShiftDate)
+                k = LoadEligible(unit, CrewFilter(p.Crew), recs, DeptPostingMaxGrade(unit), True, p.ShiftDate)
                 hit = 0
                 For j = 1 To k
                     If StrComp(recs(j).EmpName, emp, vbTextCompare) = 0 Then
@@ -1898,6 +1922,16 @@ Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal
         MarkCalDirty
     End If
 End Sub
+
+' Can someone still sign up for this posting? Not once its closing day has passed
+' or the shift itself is in the past. (A name added after that could only be charged.)
+Private Function StillOpenForSignup(ByRef p As PostRec) As Boolean
+    If Int(p.ShiftDate) < Date Then Exit Function
+    If p.ClosesOn > 0 Then
+        If Date > Int(p.ClosesOn) Then Exit Function
+    End If
+    StillOpenForSignup = True
+End Function
 
 ' Adds one row to posting p's frozen list (lst, n: in rank order, as LoadPosting
 ' returns it) for the person in rec. Their place is before the first frozen row
@@ -1953,11 +1987,21 @@ End Function
 
 ' Takes one person's row off an OPEN posting's frozen list (nWas = how many rows the
 ' posting had). The rows below move up one rank, so the numbers stay 1, 2, 3 ...
+' The Postings sheet holds two tables side by side (postings in A:O, lists in Q:Z).
+' Any filter is cleared first: in a filtered list Excel would take the whole sheet
+' row, and a posting's header with it. The check afterwards counts BOTH tables.
 Private Sub DeleteListRow(ByVal id As String, ByVal emp As String, ByVal nWas As Long)
     Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
     Dim ws As Worksheet: Set ws = lr.Parent
-    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
-    Dim i As Long, rowAt As Long, cntWas As Long, rankWas As Long
+    Dim lv As Variant, i As Long, rowAt As Long, cntWas As Long, rankWas As Long, postWas As Long
+    ws.Unprotect Password:=SHEET_PASSWORD
+    On Error Resume Next                                ' (each of these raises when there is nothing to clear)
+    lr.AutoFilter.ShowAllData
+    lo.AutoFilter.ShowAllData
+    ws.ShowAllData
+    On Error GoTo 0
+    lv = RangeTo2D(lr.DataBodyRange)
     For i = 1 To UBound(lv, 1)
         If UCase$(Trim$(SafeStr(lv(i, PL_ID)))) = UCase$(id) Then
             If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then
@@ -1966,10 +2010,13 @@ Private Sub DeleteListRow(ByVal id As String, ByVal emp As String, ByVal nWas As
             End If
         End If
     Next i
-    If rowAt = 0 Then Exit Sub
+    If rowAt = 0 Then
+        ProtectSheet ws
+        Exit Sub
+    End If
     rankWas = CLng(NumOr0(lv(rowAt, PL_RANK)))
     cntWas = lr.ListRows.Count
-    ws.Unprotect Password:=SHEET_PASSWORD
+    postWas = lo.ListRows.Count
     lr.ListRows(rowAt).Delete
     If Not lr.DataBodyRange Is Nothing And rankWas > 0 Then
         lv = RangeTo2D(lr.DataBodyRange)                ' the table as it is now
@@ -1982,6 +2029,9 @@ Private Sub DeleteListRow(ByVal id As String, ByVal emp As String, ByVal nWas As
     ProtectSheet ws
     If lr.ListRows.Count <> cntWas - 1 Or ListRowCount(id) <> nWas - 1 Then
         Err.Raise vbObjectError + 772, , id & " has " & ListRowCount(id) & " list rows after taking one off (expected " & (nWas - 1) & ")"
+    End If
+    If lo.ListRows.Count <> postWas Then
+        Err.Raise vbObjectError + 774, , "the postings table has " & lo.ListRows.Count & " rows after a list row was taken off (it had " & postWas & ")"
     End If
 End Sub
 

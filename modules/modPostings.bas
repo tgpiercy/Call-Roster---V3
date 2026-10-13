@@ -1498,23 +1498,31 @@ End Function
 ' ---------------- CANCEL ----------------
 Public Function SubmitCancel(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long) As Boolean
     If Not CanFinalize(p) Then Exit Function
-    If MsgBox("Cancel " & p.ID & " (" & p.Unit & ", " & Format$(p.ShiftDate, "ddd mmm d") & ")?" & vbNewLine & vbNewLine & _
-              "The overtime is no longer needed. Nobody is awarded and NOBODY is charged.", _
-              vbYesNo + vbQuestion, "Cancel request") = vbNo Then Exit Function
+    ' v24.3.1: Ask / Tell so SmokeTest can cancel a posting (step 9)
+    If Ask("Cancel " & p.ID & " (" & p.Unit & ", " & Format$(p.ShiftDate, "ddd mmm d") & ")?" & vbNewLine & vbNewLine & _
+           "The overtime is no longer needed. Nobody is awarded and NOBODY is charged.", _
+           vbYesNo + vbQuestion, "Cancel request", vbYes) = vbNo Then Exit Function
     ComputeCancel lst, n
     On Error GoTo Failed
     UpdatePostingRecords p, lst, n, "Cancelled", ""
     If UpdateCoverageBySource(p.ID, "NCN") = 0 Then
-        MsgBox p.ID & " cancelled. It wasn't on the calendar, so there was nothing to change there.", vbInformation
+        Tell p.ID & " cancelled. It wasn't on the calendar, so there was nothing to change there.", vbInformation, "Cancel request"
     End If
     RefreshCalendar
     MarkMembersDirty
-    ArchiveSignups p.ID
+    If Not gSmokeRun Then ArchiveSignups p.ID      ' as WriteOutcome: SmokeTest never touches the inbox
     SaveIfWritable
     SubmitCancel = True
     Exit Function
 Failed:
-    MsgBox "Couldn't cancel " & p.ID & ": " & Err.Description, vbCritical
+    ' v24.3.1: the same handler as WriteOutcome. A cancel that wrote Status "Cancelled" and then
+    ' failed must not be saved as if it finished (P7).
+    Dim em As String: em = Err.Description
+    LogError "SubmitCancel", Err.Number, em
+    On Error Resume Next
+    MarkNoSave
+    MsgBox "Cancelling " & p.ID & " stopped part-way: " & em & vbNewLine & vbNewLine & _
+           "Saving is blocked. Close WITHOUT saving, reopen, and cancel " & p.ID & " again.", vbCritical
 End Function
 
 ' OT Log rows (awarded, signed up, charged) + posting / list records.

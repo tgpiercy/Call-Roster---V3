@@ -459,8 +459,11 @@ Private Sub mCreate_Click()
     If Trim$(C("cboReason").Text) = "" Then
         Flag problems, firstBad, "Reason", C("cboReason")
     ElseIf LeaveWordsIn(Trim$(C("cboReason").Text)) <> "" Then
-        ' v24.3.2: members see the Reason (the posting, their calendar): never the kind of anyone's leave
+        ' v24.3.2: members see the Reason (the posting, their calendar): never the kind of anyone's leave,
+        ' never an email or a phone number (the publish's two screens, so what is created publishes)
         Flag problems, firstBad, "Reason without '" & LeaveWordsIn(Trim$(C("cboReason").Text)) & "' (members see it; Member View would refuse it)", C("cboReason")
+    ElseIf PrivateValueKind(Trim$(C("cboReason").Text)) <> "" Then
+        Flag problems, firstBad, "Reason without an email address or a run of digits (members see it; Member View would refuse it)", C("cboReason")
     End If
     If Not IsNumeric(hrs) Then
         Flag problems, firstBad, "Hours (a number)", C("txtHours")

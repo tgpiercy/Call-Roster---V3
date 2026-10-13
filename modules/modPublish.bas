@@ -945,8 +945,8 @@ Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef
             w = LeaveWordsIn(SafeStr(post(i, 7)))
             If w <> "" Then
                 LeaveCodesIn = DS_POST & " row " & i & " (" & SafeStr(post(i, 1)) & ", Reason): the text says '" & w & "'" & vbNewLine & _
-                               "That is posting " & SafeStr(post(i, 1)) & "'s Reason: on Needs Attention (or its calendar line), double-click " & _
-                               "the posting > Change the Reason of posting " & SafeStr(post(i, 1)) & "."
+                               "That is posting " & SafeStr(post(i, 1)) & "'s Reason: on Needs Attention (its unit's group picked) or its calendar line, " & _
+                               "double-click the posting > Change the Reason of posting " & SafeStr(post(i, 1)) & "."
                 Exit Function
             End If
         Next i

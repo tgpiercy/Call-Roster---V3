@@ -2352,6 +2352,7 @@ Failed:
     en = Err.Number: em = Err.Description
     On Error Resume Next
     ProtectSheet lo.Parent
+    On Error GoTo 0                                     ' (re-review) or the raise below would be swallowed by Resume Next
     Err.Raise en, , em
 End Sub
 
@@ -2387,7 +2388,8 @@ End Sub
 
 ' v24.3.2: the work behind "Change the Reason of posting" (and SmokeTest step 9). Screened as
 ' SetLineText; only an Open posting. Every live calendar line the posting wrote whose text IS the
-' old Reason changes with it; a line with other words is left.
+' old Reason changes with it; a line with other words is left. (A write that fails part-way
+' raises to the caller's handler with the Reason changed and that line not: the box says so.)
 Public Function SetReasonText(ByVal id As String, ByVal newText As String, ByRef report As String) As Boolean
     newText = Trim$(newText)
     report = TextRefusal(newText)

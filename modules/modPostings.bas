@@ -369,7 +369,7 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     pr(1, PS_CREW) = p.Crew
     pr(1, PS_HOURS) = p.Hours
     pr(1, PS_POS) = p.Positions
-    pr(1, PS_REASON) = p.Reason
+    pr(1, PS_REASON) = "'" & p.Reason                    ' v24.3.2: as text, whatever it starts with (reads back without the ')
     pr(1, PS_POSTEDBY) = CurrentUser()
 
     Dim lr() As Variant: ReDim lr(1 To n, 1 To PL_N)
@@ -1663,6 +1663,7 @@ Failed:
     en = Err.Number: em = Err.Description
     On Error Resume Next
     ProtectSheet ws
+    On Error GoTo 0                                     ' (re-review) or the raise below would be swallowed by Resume Next
     Err.Raise en, , em
 End Function
 

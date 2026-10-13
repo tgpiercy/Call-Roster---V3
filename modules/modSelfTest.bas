@@ -154,6 +154,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(GoesToArchive(CaseValue(i1), ParseD(i2)), "archive", "keep")
         Case "dryname"
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
+        Case "backupname"                          ' v24.3.1: a backup, FINAL or pre-change copy by its name
+            RunCase = IIf(IsBackupCopyName(i1), "yes", "no")
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
         Case "signups"
@@ -988,6 +990,12 @@ Private Sub LoadCases()
     AddCase "dryname,dry-run,Call Out Roster DRY RUN.xlsm,,,,,yes"
     AddCase "dryname,lower-case,roster dry-run dec.xlsm,,,,,yes"
     AddCase "dryname,final,Call Out Roster 2026 FINAL.xlsm,,,,,no"
+    AddCase "backupname,live-master,V2 - Call Out Roster.xlsm,,,,,no"
+    AddCase "backupname,daily-backup,Call Out Roster 2026-10-12.xlsm,,,,,yes"
+    AddCase "backupname,final,Call Out Roster 2026 FINAL.xlsm,,,,,yes"
+    AddCase "backupname,pre-change,Backup before planned moves 2026-10-13 091500 - V2 - Call Out Roster.xlsm,,,,,yes"
+    AddCase "backupname,practice-copy-is-not-one,V2 - Call Out Roster COPY 2026-10-13 0915.xlsm,,,,,no"
+    AddCase "backupname,lower-case-final,roster 2026 final.xlsm,,,,,yes"
     AddCase "snapyear,no-stamp-judged-by-date,2026-12-28,0,2027,2026-12-27,,2026-12-28"
     AddCase "snapyear,last-year-stamp-inside-new-year,2026-12-28,2026,2027,2026-12-27,,2026-12-26"
     AddCase "snapyear,last-year-stamp-before-new-year,2026-12-20,2026,2027,2026-12-27,,2026-12-20"

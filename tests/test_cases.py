@@ -210,6 +210,8 @@ def evaluate(row: dict) -> str:
         return rules.payroll_decision(i1, i2 == "Y", i3 == "Y")
     if suite == "dryname":                       # file name -> yes / no
         return "yes" if rules.is_dry_run_name(i1) else "no"
+    if suite == "backupname":                    # v24.3.1: file name -> yes / no (a backup, FINAL or pre-change copy)
+        return "yes" if rules.is_backup_copy_name(i1) else "no"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
     if suite == "signups":                       # 'name:S|W:hours:yyyy-mm-dd-hh;...', closing 'yyyy-mm-dd-hh' -> name=F|hours[L];...

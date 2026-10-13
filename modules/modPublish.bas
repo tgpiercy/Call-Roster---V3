@@ -92,11 +92,8 @@ End Function
 ' whether to publish. Never blocks the close; a failed publish reports itself.
 Public Sub PublishReminderOnClose()
     On Error GoTo Quit
-    If ThisWorkbook.ReadOnly Or Not IsAdmin() Then Exit Sub
+    If Not IsLiveRoster() Then Exit Sub         ' v24.3.1: read-only, non-admin, a practice copy, a backup or frozen copy
     If NoSave() Then Exit Sub
-    If IsDryRunName(ThisWorkbook.Name) Then Exit Sub
-    If BackupFileDate(ThisWorkbook.Name) > 0 Then Exit Sub             ' a daily backup opened to look at
-    If InStr(1, ThisWorkbook.Name, "FINAL", vbTextCompare) > 0 Or InStr(1, ThisWorkbook.Name, "Backup", vbTextCompare) > 0 Then Exit Sub
     If Not MembersDirty() Then Exit Sub
     If Not MemberTemplateExists() Then Exit Sub
     If MsgBox("Postings or people changed since the members' file was last published" & _
@@ -148,6 +145,15 @@ End Function
 ' ====================================================================
 Public Sub PublishMembers()
     If Not RequireAdmin() Then Exit Sub
+    ' v24.3.1 (review M2): yesterday's backup sits beside the template; opened to look something up,
+    ' Member View from it would overwrite the live members' file with old hours stamped today.
+    ' A practice copy is NOT refused: it publishes "PRACTICE - ..." beside itself (PublishFolderPath).
+    If IsBackupCopyName(ThisWorkbook.Name) Then
+        MsgBox "This file is a backup or frozen copy of the roster, not the live roster:" & vbNewLine & _
+               ThisWorkbook.Name & vbNewLine & vbNewLine & _
+               "Member View won't publish from it. Open the live roster and publish there.", vbExclamation, "Member View"
+        Exit Sub
+    End If
     If LogTable() Is Nothing Then Exit Sub
     If Not MemberTemplateExists() Then
         MsgBox "The members' template wasn't found:" & vbNewLine & MemberTemplatePath() & vbNewLine & vbNewLine & _

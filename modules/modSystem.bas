@@ -376,10 +376,29 @@ Public Function BackupFileDate(ByVal fileName As String) As Date
     BackupFileDate = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
 End Function
 
+' v24.3.1: a file that is itself a copy of the roster - a daily backup, the year-end
+' FINAL, a "Backup before ..." pre-change copy. Opened "to check the backup" it must
+' not take today's backup slot or publish the members' file. Pure; mirrored and cased.
+Public Function IsBackupCopyName(ByVal fileName As String) As Boolean
+    If BackupFileDate(fileName) > 0 Then IsBackupCopyName = True: Exit Function
+    IsBackupCopyName = (InStr(1, fileName, "FINAL", vbTextCompare) > 0 Or InStr(1, fileName, "Backup", vbTextCompare) > 0)
+End Function
+
+' v24.3.1: the live roster, open for editing by an admin - not a practice copy, not a
+' backup. The one test for "may this file change anything beside itself".
+Public Function IsLiveRoster() As Boolean
+    If ThisWorkbook.ReadOnly Then Exit Function
+    If Not IsAdmin() Then Exit Function
+    If IsDryRunName(ThisWorkbook.Name) Then Exit Function
+    If IsBackupCopyName(ThisWorkbook.Name) Then Exit Function
+    IsLiveRoster = True
+End Function
+
 ' True when the backup should be skipped without a word
 Private Function BackupOff() As Boolean
-    ' a practice copy (COPY / DRY RUN in its name) never takes the day's backup slot from the real roster
-    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or Not IsAdmin() Or IsDryRunName(ThisWorkbook.Name))
+    ' a practice copy (COPY / DRY RUN in its name) never takes the day's backup slot from the real roster;
+    ' nor does a backup, FINAL or pre-change copy opened to look at (v24.3.1, review I1)
+    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or Not IsLiveRoster())
 End Function
 
 ' BACKUP_FOLDER with "." / ".\sub" resolved against the roster's own folder
@@ -450,6 +469,10 @@ Private Sub BackupStatus(ByRef warn As String, ByRef info As String)
     End If
     If IsDryRunName(ThisWorkbook.Name) Then
         info = info & "Backup: off for a practice copy (COPY / DRY RUN in the file name)" & vbNewLine
+        Exit Sub
+    End If
+    If IsBackupCopyName(ThisWorkbook.Name) Then
+        info = info & "Backup: off - this file is itself a backup or frozen copy (" & ThisWorkbook.Name & ")" & vbNewLine
         Exit Sub
     End If
     Dim folder As String: folder = BackupFolderPath()

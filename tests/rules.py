@@ -729,6 +729,31 @@ def is_dry_run_name(file_name: str) -> bool:
     return any(t in u for t in ("COPY", "DRY RUN", "DRYRUN", "DRY-RUN"))
 
 
+BACKUP_BASENAME = "Call Out Roster"
+
+
+def backup_file_date(file_name: str) -> date | None:
+    """modSystem.BackupFileDate: the date in 'Call Out Roster yyyy-mm-dd.xlsm', else None."""
+    pat_len = len(BACKUP_BASENAME) + 1 + 10 + 5
+    if len(file_name) != pat_len or not file_name.startswith(BACKUP_BASENAME + " ") or not file_name.endswith(".xlsm"):
+        return None
+    s = file_name[len(BACKUP_BASENAME) + 1:len(BACKUP_BASENAME) + 11]
+    if not (s[0:4].isdigit() and s[4] == "-" and s[5:7].isdigit() and s[7] == "-" and s[8:10].isdigit()):
+        return None
+    try:
+        return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+    except ValueError:
+        return None
+
+
+def is_backup_copy_name(file_name: str) -> bool:
+    """modSystem.IsBackupCopyName (v24.3.1): a daily backup, the FINAL, a 'Backup before ...' copy."""
+    if backup_file_date(file_name) is not None:
+        return True
+    u = file_name.upper()
+    return "FINAL" in u or "BACKUP" in u
+
+
 def snapshot_through_for_year(through: date, snap_yr: int, cur_yr: int, yr_from: date) -> date:
     """modLeave.SnapshotThroughForYear."""
     if snap_yr <= 0 or snap_yr >= cur_yr:

@@ -249,6 +249,12 @@ dryname,copy-of,Copy of Call Out Roster.xlsm,,,,,yes
 dryname,dry-run,Call Out Roster DRY RUN.xlsm,,,,,yes
 dryname,lower-case,roster dry-run dec.xlsm,,,,,yes
 dryname,final,Call Out Roster 2026 FINAL.xlsm,,,,,no
+backupname,live-master,V2 - Call Out Roster.xlsm,,,,,no
+backupname,daily-backup,Call Out Roster 2026-10-12.xlsm,,,,,yes
+backupname,final,Call Out Roster 2026 FINAL.xlsm,,,,,yes
+backupname,pre-change,Backup before planned moves 2026-10-13 091500 - V2 - Call Out Roster.xlsm,,,,,yes
+backupname,practice-copy-is-not-one,V2 - Call Out Roster COPY 2026-10-13 0915.xlsm,,,,,no
+backupname,lower-case-final,roster 2026 final.xlsm,,,,,yes
 snapyear,no-stamp-judged-by-date,2026-12-28,0,2027,2026-12-27,,2026-12-28
 snapyear,last-year-stamp-inside-new-year,2026-12-28,2026,2027,2026-12-27,,2026-12-26
 snapyear,last-year-stamp-before-new-year,2026-12-20,2026,2027,2026-12-27,,2026-12-20

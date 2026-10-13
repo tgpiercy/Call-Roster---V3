@@ -92,7 +92,7 @@ Public Sub SmokeTest()
               vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
 
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
-    Dim repShort As String                         ' v24.3.1: the step lines without their notes - what the PASSED box shows (the notes go to the Error Log line)
+    Dim repShort As String, repNotes As String     ' v24.3.1: the step lines without their notes (the PASSED box), and the notes alone (the Error Log line)
     Dim before As Object, logBefore As Double, nErr0 As Long, nWarn0 As Long, diff As String
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -112,6 +112,7 @@ Public Sub SmokeTest()
         ok = SmkStep(k, st, nErr0, why)
         If ok Then
             repShort = repShort & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & vbNewLine
+            If st.Note <> "" Then repNotes = repNotes & k & ": " & st.Note & "; "
             rep = rep & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & _
                   IIf(st.Note <> "", "  (" & st.Note & ")", "") & vbNewLine
         Else
@@ -136,7 +137,7 @@ Public Sub SmokeTest()
     On Error Resume Next
     LogError "SmokeTest", 0, IIf(failedAt = 0 And diff = "", "all steps OK, totals unchanged", _
                                  IIf(failedAt > 0, "FAILED at step " & failedAt & " (" & SmkName(failedAt) & ")", "totals changed")), _
-             IIf(failedAt = 0 And diff = "", Left$(rep, 400), Left$(why & diff, 400))
+             IIf(failedAt = 0 And diff = "", Left$(repNotes, 500), Left$(why & diff, 400))
     On Error GoTo 0
 
     Dim head As String

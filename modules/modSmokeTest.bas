@@ -31,7 +31,7 @@ Option Explicit
 '  check. Queued for v25.
 ' ====================================================================
 
-Public Const SMK_VERSION As String = "Smoke test v24.3 (Jan 5)"
+Public Const SMK_VERSION As String = "Smoke test v24.3.1 (Oct 14)"
 
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"

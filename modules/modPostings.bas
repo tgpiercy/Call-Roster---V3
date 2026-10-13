@@ -1815,8 +1815,9 @@ End Function
 '               -> taken off and put back at today's code and hours
 ' addedTxt / removedTxt get the posting IDs; blockedTxt the postings where a
 ' row should have come off but was left (the only name on the list, or it
-' carries a sign-up or an outcome). An error raises to the caller, whose
-' handler blocks the save.
+' carries a sign-up or an outcome), or where a name was not added because the
+' posting can no longer be signed up for. An error raises to the caller,
+' whose handler blocks the save.
 Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal fromDate As Date, ByVal postedFrom As Date, _
                                 ByVal addMissing As Boolean, ByVal dropGone As Boolean, ByVal refresh As Boolean, _
                                 ByRef addedTxt As String, ByRef removedTxt As String, _
@@ -1915,6 +1916,10 @@ Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal
                 End If
             End If
             If wasOn Then removedTxt = removedTxt & IIf(removedTxt = "", "", ", ") & p.ID      ' taken off and not put back
+            ' not added only because the posting can no longer be signed up for: say so
+            If idx = 0 And holds And n > 0 And addMissing And Not wasOn Then
+                If Not StillOpenForSignup(p) Then blockedTxt = blockedTxt & IIf(blockedTxt = "", "", ", ") & p.ID
+            End If
         End If
     Next i
     If changed Then
@@ -2012,7 +2017,7 @@ Private Sub DeleteListRow(ByVal id As String, ByVal emp As String, ByVal nWas As
     Next i
     If rowAt = 0 Then
         ProtectSheet ws
-        Exit Sub
+        Err.Raise vbObjectError + 775, , "the list row for " & emp & " on " & id & " wasn't found"
     End If
     rankWas = CLng(NumOr0(lv(rowAt, PL_RANK)))
     cntWas = lr.ListRows.Count

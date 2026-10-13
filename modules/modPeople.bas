@@ -1557,13 +1557,13 @@ Public Function SaveUnitMove(ByVal emp As String, ByVal newUnit As String, ByVal
 Failed:
     em = Err.Description
     LogError "SaveUnitMove", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
+    failTxt = em
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     gSuppressGradeLog = suppressWas
     ProtectSheet ws
     ProtectAll
-    MarkNoSave
-    failTxt = em
     MsgBox "The move stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving and reopen.", vbCritical, "Move to unit"
 End Function
@@ -1886,7 +1886,13 @@ Private Function MarkPlannedRow(ByVal id As String, ByVal newStatus As String, B
     End If
     ' the "[added to P-0012, P-0014]" tag (postings they were put on when the move was entered) outlives later notes
     Dim tagTxt As String: tagTxt = AddedTag(SafeStr(v(r, PM_NOTE)))
-    If tagTxt <> "" And InStr(1, noteTxt, ADDED_TAG, vbTextCompare) = 0 Then noteTxt = Left$(noteTxt, 249 - Len(tagTxt)) & " " & tagTxt
+    If tagTxt <> "" And InStr(1, noteTxt, ADDED_TAG, vbTextCompare) = 0 Then
+        If Len(tagTxt) >= 240 Then
+            noteTxt = tagTxt                    ' (never in practice: SavePlannedMove keeps the tag under 200)
+        Else
+            noteTxt = Left$(noteTxt, 249 - Len(tagTxt)) & " " & tagTxt
+        End If
+    End If
     lo.DataBodyRange.Cells(r, PM_NOTE).Value = Left$(noteTxt, 250)
     ProtectSheet ws
     Application.EnableEvents = evWas
@@ -2035,9 +2041,16 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
     End If
     ' v24.3.1: postings already open in the new unit for shifts on or after the date get them on the list
     Dim addTxt As String, dropTxt As String
-    SyncPersonOnPostings emp, newUnit, eff, 0, True, False, False, addTxt, dropTxt
-    If addTxt <> "" Then                        ' remembered on the row: a cancel takes them off exactly these
-        If Not MarkPlannedRow(id, "", ADDED_TAG & addTxt & "]") Then Err.Raise vbObjectError + 753, , "the Planned Moves row couldn't be updated"
+    Dim lateTxt As String, tagIds As String, cutAt As Long
+    SyncPersonOnPostings emp, newUnit, eff, 0, True, False, False, addTxt, dropTxt, lateTxt
+    If addTxt <> "" Then                        ' remembered on the row: a cancel puts exactly these right
+        tagIds = addTxt
+        Do While Len(tagIds) > 180              ' whole IDs only, so the tag always fits the Note
+            cutAt = InStrRev(tagIds, ", ")
+            If cutAt = 0 Then Exit Do
+            tagIds = Left$(tagIds, cutAt - 1)
+        Loop
+        If Not MarkPlannedRow(id, "", ADDED_TAG & tagIds & "]") Then Err.Raise vbObjectError + 753, , "the Planned Moves row couldn't be updated"
     End If
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap())
@@ -2059,6 +2072,7 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
     End If
     If postTxt <> "" Then report = report & "Not chargeable on open posting(s): " & postTxt & vbNewLine
     If addTxt <> "" Then report = report & "Added to the list of open " & newUnit & " posting(s): " & addTxt & ". Print those sheets again." & vbNewLine
+    If lateTxt <> "" Then report = report & "NOT added to " & newUnit & " posting(s) " & lateTxt & ": their closing day has passed." & vbNewLine
     report = report & "It is applied the first time an admin opens the file on or after that date." & vbNewLine & _
              "To cancel it: Needs Attention > Planned unit moves, double-click the line." & vbNewLine & "Backup: " & bk
     SavePlannedMove = True
@@ -2128,6 +2142,7 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
     ' From here the move no longer counts on any list (MarkPlannedRow cleared the cache).
     ' Postings made or changed while it was waiting carry it on their frozen lists: put those right.
     Dim offTxt As String, reTxt As String, backTxt As String, skipTxt As String, skipTxt2 As String, keptTxt As String, u As Variant
+    Dim lateBack As String
     Dim listsFrom As Date
     If syncPostings And eff > 0 And r > 0 Then
         ' new unit, no code there on the shift date -> off the list (whenever the posting was made)
@@ -2140,7 +2155,7 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
         ' old unit(s): back on the lists made without them
         If entered > 0 Then
             For Each u In Split(clearTxt, "|")
-                If CStr(u) <> "" Then SyncPersonOnPostings emp, CStr(u), eff, entered, True, False, False, backTxt, skipTxt2
+                If CStr(u) <> "" Then SyncPersonOnPostings emp, CStr(u), eff, entered, True, False, False, backTxt, skipTxt2, lateBack
             Next u
         End If
     End If
@@ -2159,10 +2174,13 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
         didTxt = didTxt & vbNewLine & "Still on the list of " & newUnit & " posting(s) " & stuckTxt & ", marked not chargeable."
     End If
     If keptTxt <> "" Then
-        didTxt = didTxt & vbNewLine & newUnit & " posting(s) " & keptTxt & " still list them at the planned code and hours " & _
+        didTxt = didTxt & vbNewLine & newUnit & " posting(s) " & keptTxt & " may still list them at the planned code and hours " & _
                  "(a sign-up or a result is on the row, or theirs is the only name): check those lists."
     End If
-    If syncPostings And eff > 0 And entered = 0 Then
+    If lateBack <> "" Then
+        didTxt = didTxt & vbNewLine & "NOT put back on posting(s) " & lateBack & ": their closing day has passed."
+    End If
+    If syncPostings And eff > 0 And r > 0 And entered = 0 Then
         didTxt = didTxt & vbNewLine & "The day this move was entered can't be read, so posting lists made since then were left as they are: check the open postings."
     End If
     If offTxt <> "" Or reTxt <> "" Or backTxt <> "" Then didTxt = didTxt & vbNewLine & "Print those posting sheets again."
@@ -2327,7 +2345,7 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False)
     AfterPeopleChange
     SaveIfWritable
     Dim msg As String
-    If nOk > 0 Then msg = nOk & " planned unit move(s) applied:" & vbNewLine & Left$(okTxt, 500) & vbNewLine
+    If nOk > 0 Then msg = nOk & " planned unit move(s) applied:" & vbNewLine & Left$(okTxt, IIf(nFail > 0, 300, 500)) & vbNewLine
     If nFail > 0 Then
         msg = msg & nFail & " could NOT be applied and still wait(s):" & vbNewLine & Left$(failTxt, 400) & vbNewLine & _
               "Fix what the line says, then Alt+F8 > ApplyPlannedMoves. Or cancel it: Needs Attention > Planned unit moves." & vbNewLine & vbNewLine

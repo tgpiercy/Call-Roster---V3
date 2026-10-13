@@ -731,6 +731,7 @@ End Sub
 
 ' Alt+F8 > IntegrityCheck: the full report
 Public Sub IntegrityCheck()
+    On Error GoTo Oops                         ' v24.3.1
     If Not RequireAdmin() Then Exit Sub
     Dim nErr As Long, nWarn As Long, n As Long
     Application.Calculate
@@ -738,7 +739,7 @@ Public Sub IntegrityCheck()
     DrawIntegritySheet
     On Error Resume Next
     SetRosterStatus
-    On Error GoTo 0
+    On Error GoTo Oops
     If nErr = 0 And nWarn = 0 Then
         MsgBox "Integrity check: everything adds up." & IIf(n > 0, vbNewLine & n & " note(s) on the Integrity sheet.", ""), vbInformation, "Integrity"
     ElseIf nErr = 0 Then
@@ -747,6 +748,9 @@ Public Sub IntegrityCheck()
         MsgBox "Integrity check found " & nErr & " PROBLEM(S). They are listed on the Integrity sheet with what to do." & vbNewLine & vbNewLine & _
                "Roster totals may be wrong until they are fixed.", vbExclamation, "Integrity"
     End If
+    Exit Sub
+Oops:
+    ReportError "IntegrityCheck"
 End Sub
 
 ' Writes the last run to the Integrity sheet (admin, hidden in saved copies). Used by IntegrityCheck and RolloverYear.

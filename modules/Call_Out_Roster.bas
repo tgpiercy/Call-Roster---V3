@@ -58,6 +58,7 @@ Sub Call_Out()
 
 Failed:
     Dim msg As String: msg = Err.Description
+    LogError "Call_Out", Err.Number, msg      ' v24.3.1
     On Error Resume Next
     ProtectSheet ws
     Application.ScreenUpdating = True

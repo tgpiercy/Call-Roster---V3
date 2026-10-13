@@ -1906,10 +1906,12 @@ Public Sub DrawCalendar()
     GoTo Done
 
 Failed:
+    Dim en As Long: en = Err.Number
     Dim em As String: em = Err.Description & " (error " & Err.Number & ")"
     Resume AfterFail                      ' leave the handler so the clean-up below can't be stopped by a 2nd error
 AfterFail:
     On Error Resume Next
+    LogError "DrawCalendar", en, em       ' v24.3.1: the box below was the only record
     ws.Unprotect Password:=SHEET_PASSWORD
     ws.Cells(3, 6).Value = "Calendar couldn't finish drawing: " & em & "  - click This month to retry."
     ws.Cells(3, 6).Font.Color = thOpen()
@@ -3359,10 +3361,12 @@ Public Sub DrawNeeds()
     GoTo Done
 
 Failed:
+    Dim en As Long: en = Err.Number
     Dim em As String: em = Err.Description & " (error " & Err.Number & ")"
     Resume AfterFail
 AfterFail:
     On Error Resume Next
+    LogError "DrawNeeds", en, em          ' v24.3.1
     ws.Unprotect Password:=SHEET_PASSWORD
     ws.Cells(3, 2).Value = "Couldn't finish: " & em
     ws.Cells(3, 2).Font.Color = thOpen()
@@ -4054,6 +4058,7 @@ Private Function MenuAbsIsLeave() As Boolean
 End Function
 
 Public Sub CalMenuLeaveReturn()
+    On Error GoTo Oops                         ' v24.3.1: the second door into the Leave pop-up (ShowLeaveForm has one)
     Dim id As String: id = MenuAbsId()
     If id = "" Then Exit Sub
     If Not RequireAdmin() Then Exit Sub
@@ -4066,6 +4071,9 @@ Public Sub CalMenuLeaveReturn()
     frmLeave.StartReturn id
     frmLeave.Show
     RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMenuLeaveReturn"
 End Sub
 
 Public Sub CalMenuVoid()

@@ -223,6 +223,7 @@ End Function
 '  "Manual Entry") before the formulas are restored.
 ' --------------------------------------------------------------------
 Public Sub RefreshRosterFormulas()
+    On Error GoTo Oops                         ' v24.3.1 (ReportError puts calculation back to automatic if the convert raised while manual)
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     Dim s As String
@@ -230,6 +231,9 @@ Public Sub RefreshRosterFormulas()
         SaveIfWritable
         MsgBox s, vbInformation, "Roster refreshed"
     End If
+    Exit Sub
+Oops:
+    ReportError "RefreshRosterFormulas"
 End Sub
 
 

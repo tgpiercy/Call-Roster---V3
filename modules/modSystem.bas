@@ -37,6 +37,7 @@ Private mBackupWarned As Boolean
 ' ---------------- SystemCheck ----------------
 ' Problems come first; the message stays short enough for one MsgBox.
 Public Sub SystemCheck()
+    On Error GoTo Oops                         ' v24.3.1: the first macro run after every install had no handler at all
     Dim warn As String, info As String, nOk As Long
 
     ' ---- modules: each one's version constant (a missing module won't compile) ----
@@ -77,7 +78,7 @@ Public Sub SystemCheck()
         cnt = proj.VBComponents.Count
         If Err.Number <> 0 Then trusted = False
     End If
-    On Error GoTo 0
+    On Error GoTo Oops
     If Not trusted Then
         info = info & "Forms / leftovers: not checked (VBA project access is off)" & vbNewLine
     Else
@@ -115,7 +116,7 @@ Public Sub SystemCheck()
     Dim lo As ListObject
     On Error Resume Next
     Set lo = ThisWorkbook.Worksheets(LOG_SHEET).ListObjects(LOG_TABLE)
-    On Error GoTo 0
+    On Error GoTo Oops
     If lo Is Nothing Then
         warn = warn & "- OT Log table not found" & vbNewLine
     ElseIf Not LogLayoutCurrent(lo) Then
@@ -127,7 +128,7 @@ Public Sub SystemCheck()
     On Error Resume Next
     info = info & "Roster year: " & RosterYear() & " (" & (PeriodLastCol() - C_PERIOD1 + 1) & " pay periods from " & _
            Format$(RosterYearFrom(), "mmm d, yyyy") & ")" & vbNewLine
-    On Error GoTo 0
+    On Error GoTo Oops
     If Not FolderExists(ResolveFolder(ARCHIVE_FOLDER)) Then
         warn = warn & "- archive folder for the year-end frozen copy can't be reached: " & ResolveFolder(ARCHIVE_FOLDER) & vbNewLine
     End If
@@ -161,7 +162,7 @@ Public Sub SystemCheck()
     Dim hu As Variant, nHU As Long, huTxt As String
     On Error Resume Next
     hu = BlankHomeUnits()
-    On Error GoTo 0
+    On Error GoTo Oops
     If UCase$(Trim$(SafeStr(RosterSheet().Cells(2, C_HOME).Value))) <> "HOME UNIT" Then
         warn = warn & "- Home Unit column not set up: run SetupHomeUnit" & vbNewLine
     ElseIf IsArray(hu) Then
@@ -178,7 +179,7 @@ Public Sub SystemCheck()
     Dim nImp As Long
     On Error Resume Next
     nImp = ImportedNotBookedCount()
-    On Error GoTo 0
+    On Error GoTo Oops
     If nImp > 0 Then warn = warn & "- " & nImp & " imported vacation line(s) in the next " & IMPORT_WATCH_DAYS & " days not booked yet: Convert imports" & vbNewLine
     ' v24: crew history and the Former sheet
     If CrewTable(False) Is Nothing Or FormerTable(False) Is Nothing Then
@@ -190,7 +191,7 @@ Public Sub SystemCheck()
     Dim pmRows As Variant, nPm As Long
     On Error Resume Next
     pmRows = PlannedRows()
-    On Error GoTo 0
+    On Error GoTo Oops
     If IsArray(pmRows) Then nPm = UBound(pmRows, 1)
     info = info & "Planned unit moves waiting: " & nPm & vbNewLine
     If Not PostingListCurrent() Then warn = warn & "- posting lists need their Signup Hours column: run SetupPeople" & vbNewLine
@@ -225,6 +226,9 @@ Public Sub SystemCheck()
         msg = "CHECK:" & vbNewLine & warn & vbNewLine & info
     End If
     MsgBox msg, IIf(warn = "", vbInformation, vbExclamation), "System check  (" & EXPECTED_RELEASE & ")"
+    Exit Sub
+Oops:
+    ReportError "SystemCheck"
 End Sub
 
 Private Sub VerCheck(ByVal modName As String, ByVal ver As String, ByRef warn As String, ByRef nOk As Long)

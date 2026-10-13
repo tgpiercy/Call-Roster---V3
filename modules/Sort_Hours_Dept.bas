@@ -19,10 +19,12 @@ Sub SBP(): Call SortForDept("SBP"): End Sub
 
 
 Public Sub SortForDept(ByVal dept As String)
+    On Error GoTo Oops                         ' v24.3.1: the eight sort buttons are everyone's; a sort that raised left the roster unprotected
+    Dim ws As Worksheet
     Dim dc As Long: dc = DeptCol(dept)
     If dc = 0 Then MsgBox "Department not mapped: " & dept, vbExclamation: Exit Sub
 
-    Dim ws As Worksheet: Set ws = RosterSheet()
+    Set ws = RosterSheet()
     Application.ScreenUpdating = False
     ws.Unprotect Password:=SHEET_PASSWORD
     EnsureRosterFilter ws                      ' keep the filter; just show everyone for the sort
@@ -38,6 +40,12 @@ Public Sub SortForDept(ByVal dept As String)
     ws.Activate
     ActiveWindow.ScrollRow = 1
     Application.ScreenUpdating = True
+    Exit Sub
+Oops:
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.ScreenUpdating = True
+    ReportError "SortForDept"
 End Sub
 
 ' Show All: everyone, A - Z

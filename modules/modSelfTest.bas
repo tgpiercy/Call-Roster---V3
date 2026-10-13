@@ -34,14 +34,14 @@ Private mHits As Long               ' the rename helpers count their replacement
 
 ' ---------------- entry ----------------
 Public Sub SelfTest()
+    Dim i As Long, f() As String, actual As String, expected As String
+    Dim nPass As Long, nFail As Long, fails As String, suite As String
+    Dim bySuite As Object: Set bySuite = CreateObject("Scripting.Dictionary")
+    On Error GoTo Finally                      ' v24.3.1: from the first line (LoadCases was outside it)
     mN = 0
     LoadCases
     If mN = 0 Then MsgBox "No test cases found in modSelfTest.", vbExclamation: Exit Sub
 
-    Dim i As Long, f() As String, actual As String, expected As String
-    Dim nPass As Long, nFail As Long, fails As String, suite As String
-    Dim bySuite As Object: Set bySuite = CreateObject("Scripting.Dictionary")
-    On Error GoTo Finally
     SetTestCrewHistory Empty                ' v24: no case reads the Crew History sheet
     For i = 1 To mN
         f = Split(mCases(i), ",")
@@ -68,7 +68,10 @@ Public Sub SelfTest()
 
 Finally:
     Dim em As String
-    If Err.Number <> 0 Then em = "Stopped by an error: " & Err.Description & vbNewLine
+    If Err.Number <> 0 Then
+        em = "Stopped by an error: " & Err.Description & vbNewLine
+        LogError "SelfTest", Err.Number, Err.Description     ' v24.3.1 (LogError clears Err: em is read first)
+    End If
     On Error Resume Next
     ClearTestFixtures
     ClearTestSwitches

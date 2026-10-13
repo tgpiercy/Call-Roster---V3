@@ -16,3 +16,5 @@ __pycache__/
 .vscode/
 Thumbs.db
 desktop.ini
+# Agent review worktrees (review T11)
+.claude/worktrees/

@@ -652,6 +652,13 @@ def attendance(crew: str, sick: list[tuple[date, bool]], per: list[date], as_of:
                 start_wait(d)
     advance_to(as_of)
     paid_left = max(0, PAID_SICK_DAYS - s["used"])      # days still payable inside the current occurrences
+    # v24.3.1: 0 once a 4th occurrence has started, or once the 3rd has ended (a scheduled shift
+    # after its last sick shift, on or before as_of)
+    if s["occ"] > PAID_SICK_OCC:
+        paid_left = 0
+    elif s["occ"] == PAID_SICK_OCC and s["have_last"] and \
+            sched_between(crew, s["last_d"], s["last_n"], as_of + timedelta(days=1), False, observed):
+        paid_left = 0
     if s["waiting"]:
         paid_left = 0
     out.update(window_start=s["window"], sick_used=s["used"], paid_used=s["paid"], paid_left=paid_left,

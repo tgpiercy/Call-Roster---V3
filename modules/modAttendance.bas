@@ -203,6 +203,16 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
     st.PaidUsed = mS.Paid
     st.PaidLeft = PAID_SICK_DAYS - mS.Used              ' days still payable inside the current occurrences
     If st.PaidLeft < 0 Then st.PaidLeft = 0
+    ' v24.3.1 (review L1, decided D-L4): nothing is payable once a 4th occurrence has started, or once
+    ' the 3rd has ENDED - a scheduled shift of theirs after its last sick shift, on or before the as-of
+    ' date (the day after as-of is the far end of the strictly-between test). The status phrase
+    ' "Paid sick days used up" follows from PaidLeft = 0; "only while the current occurrence
+    ' continues" is now said only while it really does.
+    If mS.Occ > PAID_SICK_OCC Then
+        st.PaidLeft = 0
+    ElseIf mS.Occ = PAID_SICK_OCC And mS.HaveLast Then
+        If SchedBetween(crewCode, mS.LastD, mS.LastN, Int(asOf) + 1, False, whoName) Then st.PaidLeft = 0
+    End If
     st.Occurrences = mS.Occ
     st.OccDates = mS.OccTxt
     st.PersonalUsed = mS.Per

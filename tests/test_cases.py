@@ -175,13 +175,13 @@ def evaluate(row: dict) -> str:
             if rules.peer_eligible(float(g), r == "Y", o == "Y", h == "Y"):
                 deltas.append(float(delta))
         return fmt_num(rules.leave_average(deltas))
-    if suite == "attend":                        # crew, sick 'date:D|N;...', personal 'date;...', as-of -> used/paid/occ/per/ENT|WAIT date/PAID|UNPAID|-
+    if suite == "attend":                        # crew, sick 'date:D|N;...', personal 'date;...', as-of -> used/paid/LEFT/occ/per/ENT|WAIT date/PAID|UNPAID|-
         sick = [(d(p.split(":")[0]), p.split(":")[1] == "N") for p in i2.split(";") if p]
         per = [d(p) for p in i3.split(";") if p]
         a = rules.attendance(i1, sick, per, d(i4))
         ent = "ENT" if a["entitled"] else "WAIT " + iso(a["wait_until"])
         last = "-" if a["last_sick"] is None else ("PAID" if a["last_paid"] else "UNPAID")
-        return f"{a['sick_used']}/{a['paid_used']}/{a['occurrences']}/{a['personal_used']}/{ent}/{last}"
+        return f"{a['sick_used']}/{a['paid_used']}/{a['paid_left']}/{a['occurrences']}/{a['personal_used']}/{ent}/{last}"
     if suite == "year":                          # anchor, year -> first period start|periods|roster year
         st = rules.first_period_start(d(i1), int(i2))
         return f"{iso(st)}|{rules.periods_in_year(d(i1), int(i2))}|{rules.roster_year_of(st)}"

@@ -8,6 +8,8 @@ part of eligibility and the provisional-OT date logic are all arithmetic.
 """
 from __future__ import annotations
 
+import re
+
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -1001,9 +1003,19 @@ def attend_status_ok(s: str) -> bool:
     return rest[-6:-4] == ", " and rest[-4:].isdigit()
 
 
-def leave_text_shows(t: str) -> bool:
-    u = t.upper()
-    return any(k in u for k in ("(STD", "(PAR", "(LOA", "(WSIB", "(LTD", "(OLV"))
+LEAVE_WORDS = ("STD", "LOA", "WSIB", "LTD", "OLV", "PAR", "PARENTAL", "DISABILITY", "SICK", "PERSONAL")
+
+
+def leave_words_in(text: str) -> str:
+    """modPublish.LeaveWordsIn (v24.3.1): the first whole word (letters only, upper-cased) that
+    would tell members the kind of leave, or 'LEAVE OF ABSENCE'; '' when clean."""
+    toks = [t.upper() for t in re.findall(r"[A-Za-z]+", text)]
+    for i, t in enumerate(toks):
+        if t in LEAVE_WORDS:
+            return t
+        if t == "LEAVE" and toks[i + 1:i + 3] == ["OF", "ABSENCE"]:
+            return "LEAVE OF ABSENCE"
+    return ""
 
 
 def payroll_text(x) -> str:

@@ -203,7 +203,7 @@ Public Sub PublishMembers()
     If why = "" Then why = PrivateDataIn(post, DS_POST)
     If why = "" Then why = PrivateDataIn(plist, DS_PLIST)
     If why = "" Then why = PrivateDataIn(lg, DS_LOG)
-    If why = "" Then why = LeaveCodesIn(cal)
+    If why = "" Then why = LeaveCodesIn(cal, post, lg)
     If why = "" Then why = PrivateDataIn(att, DS_ATT)
     If why = "" Then why = AttendPrivacy(att)
     If why <> "" Then
@@ -562,7 +562,7 @@ Private Function BuildCal(ByRef nC As Long) As Variant
                 For i = 1 To n
                     k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                     out(k, 1) = d: out(k, 2) = CStr(sh): out(k, 3) = depts(u)
-                    out(k, 4) = slots(i).LeftText: out(k, 5) = slots(i).RightText
+                    out(k, 4) = PublicLeft(slots(i).LeftText, slots(i).TypeCode): out(k, 5) = slots(i).RightText
                     out(k, 6) = PublicType(slots(i).TypeCode): out(k, 7) = slots(i).IsOpen
                 Next i
             Next sh
@@ -572,11 +572,26 @@ Private Function BuildCal(ByRef nC As Long) As Variant
     BuildCal = Trimmed(out, k, 7)
 End Function
 
-' leave of any kind is one public code; the members' calendar colours it "Leave"
+' leave of any kind is one public code; the members' calendar colours it "Leave".
+' v24.3.1 (decided D-M1, Oct 13, 2026): a sick call or a personal day goes out as OFF - the kind
+' of absence never leaves the master; the five sick-time COUNTS on the card stay (BuildAttend).
+' (This reverses the same-day decision to show "Sick".) The members' file has no OFF colour
+' and draws it as any other line.
 Private Function PublicType(ByVal code As String) As String
     Select Case UCase$(Trim$(code))
         Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": PublicType = "LV"
-        Case Else: PublicType = UCase$(Trim$(code))            ' SIC stays: "Sick" is shown by decision (Oct 13)
+        Case "SIC", "PER": PublicType = "OFF"
+        Case Else: PublicType = UCase$(Trim$(code))
+    End Select
+End Function
+
+' v24.3.1: the calendar line's text as members may see it - "Smith P (Sick 8h)" becomes
+' "Smith P (Off 8h)", a personal day the same; everything else as drawn
+Private Function PublicLeft(ByVal lt As String, ByVal code As String) As String
+    Select Case UCase$(Trim$(code))
+        Case "SIC": PublicLeft = Replace(lt, "(Sick", "(Off", 1, -1, vbTextCompare)
+        Case "PER": PublicLeft = Replace(lt, "(Personal", "(Off", 1, -1, vbTextCompare)
+        Case Else: PublicLeft = lt
     End Select
 End Function
 
@@ -896,27 +911,86 @@ Private Function JoinedDigits(ByVal s As String) As Long
     JoinedDigits = best
 End Function
 
-Private Function LeaveCodesIn(ByRef cal As Variant) As String
-    If Not IsArray(cal) Then Exit Function
-    Dim i As Long, t As String
-    For i = 2 To UBound(cal, 1)
-        t = UCase$(SafeStr(cal(i, 6)))
-        If IsLeaveCode(t) Then
-            LeaveCodesIn = DS_CAL & " row " & i & ": leave type " & t & " would be visible"
-            Exit Function
+' v24.3.1 (review M1): every piece of FREE TEXT the members' file carries is screened for a leave
+' word - the calendar's Left and Right text (imported old-calendar lines are kept as written, a
+' Need line's note and a "set by hand" covered-by are typed), a posting's Reason (printed,
+' emailed, drawn), and the log Note when PUBLISH_REASONS is on. Before this only the calendar's
+' Left text was screened, and only for a bracketed code.
+Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef lg As Variant) As String
+    Dim i As Long, t As String, w As String
+    If IsArray(cal) Then
+        For i = 2 To UBound(cal, 1)
+            t = UCase$(SafeStr(cal(i, 6)))
+            If IsLeaveCode(t) Then
+                LeaveCodesIn = DS_CAL & " row " & i & ": leave type " & t & " would be visible"
+                Exit Function
+            End If
+            w = LeaveWordsIn(SafeStr(cal(i, 4)))
+            If w = "" Then w = LeaveWordsIn(SafeStr(cal(i, 5)))
+            If w <> "" Then
+                LeaveCodesIn = DS_CAL & " row " & i & " (" & Format$(cal(i, 1), "mmm d") & " " & SafeStr(cal(i, 2)) & " " & _
+                               SafeStr(cal(i, 3)) & "): the text says '" & w & "'"
+                Exit Function
+            End If
+        Next i
+    End If
+    If IsArray(post) Then
+        For i = 2 To UBound(post, 1)
+            w = LeaveWordsIn(SafeStr(post(i, 7)))
+            If w <> "" Then
+                LeaveCodesIn = DS_POST & " row " & i & " (" & SafeStr(post(i, 1)) & ", Reason): the text says '" & w & "'"
+                Exit Function
+            End If
+        Next i
+    End If
+    If IsArray(lg) Then
+        If UBound(lg, 2) >= 11 Then                  ' the Note column is published only with PUBLISH_REASONS
+            For i = 2 To UBound(lg, 1)
+                w = LeaveWordsIn(SafeStr(lg(i, 11)))
+                If w <> "" Then
+                    LeaveCodesIn = DS_LOG & " row " & i & " (" & SafeStr(lg(i, 2)) & ", Note): the text says '" & w & "'"
+                    Exit Function
+                End If
+            Next i
         End If
-        If LeaveTextShows(SafeStr(cal(i, 4))) Then
-            LeaveCodesIn = DS_CAL & " row " & i & ": leave type in the text"
-            Exit Function
-        End If
+    End If
+End Function
+
+' v24.3.1: the first word or phrase in free text that would tell members the kind of leave, or that
+' someone is sick or on a personal day ("" = clean). Whole words only, letters only: "Standard" is
+' clean, "Acme Ltd" is not (the admin rewords it); "Leave", "Vac", "Trn", "Off" alone are clean.
+' Pure; mirrored (leavewords cases).
+Public Function LeaveWordsIn(ByVal txt As String) As String
+    Dim toks() As String, n As Long, i As Long
+    n = WordTokens(txt, toks)
+    For i = 1 To n
+        Select Case toks(i)
+            Case "STD", "LOA", "WSIB", "LTD", "OLV", "PAR", "PARENTAL", "DISABILITY", "SICK", "PERSONAL"
+                LeaveWordsIn = toks(i)
+                Exit Function
+            Case "LEAVE"
+                If i + 2 <= n Then
+                    If toks(i + 1) = "OF" And toks(i + 2) = "ABSENCE" Then LeaveWordsIn = "LEAVE OF ABSENCE": Exit Function
+                End If
+        End Select
     Next i
 End Function
 
-' True when a calendar line's text would show which kind of leave it is
-Public Function LeaveTextShows(ByVal lineTxt As String) As Boolean
-    Dim t As String: t = UCase$(lineTxt)
-    LeaveTextShows = (InStr(t, "(STD") > 0 Or InStr(t, "(PAR") > 0 Or InStr(t, "(LOA") > 0 Or InStr(t, "(WSIB") > 0 Or _
-                      InStr(t, "(LTD") > 0 Or InStr(t, "(OLV") > 0)
+' the maximal runs of letters in s, upper-cased, in toks(1..n); returns n
+Private Function WordTokens(ByVal s As String, ByRef toks() As String) As Long
+    Dim i As Long, ch As String, cur As String, n As Long
+    ReDim toks(1 To Len(s) + 1)
+    For i = 1 To Len(s) + 1
+        If i <= Len(s) Then ch = UCase$(Mid$(s, i, 1)) Else ch = " "
+        If ch Like "[A-Z]" Then
+            cur = cur & ch
+        ElseIf cur <> "" Then
+            n = n + 1
+            toks(n) = cur
+            cur = ""
+        End If
+    Next i
+    WordTokens = n
 End Function
 
 

@@ -360,11 +360,19 @@ attendpriv,status-available,status,s:Paid sick available,,,,ok
 attendpriv,status-until,status,s:No paid sick until Mar 4. 2028,,,,stop
 attendpriv,status-reason-leaks,status,s:Off sick Feb 3 with flu,,,,stop
 attendpriv,status-blank,status,s:,,,,stop
-leavetext,plain-leave,Smith P Leave,,,,,ok
-leavetext,planted-std,Smith P (STD),,,,,shows
-leavetext,planted-parental-lowercase,Smith P (par leave),,,,,shows
-leavetext,planted-wsib,Jones A (WSIB) days,,,,,shows
-leavetext,vacation-is-fine,Smith P (VAC),,,,,ok
+leavewords,plain-leave,Smith P (Leave 8h),,,,,ok
+leavewords,planted-std,Smith P (STD),,,,,STD
+leavewords,planted-parental-lowercase,Smith P (par leave),,,,,PAR
+leavewords,planted-wsib,Jones A (WSIB) days,,,,,WSIB
+leavewords,vacation-is-fine,Smith P (VAC),,,,,ok
+leavewords,std-inside-a-word,Standard shift cover,,,,,ok
+leavewords,ltd-company-name,Acme Ltd contractor,,,,,LTD
+leavewords,parental-word,covering parental,,,,,PARENTAL
+leavewords,leave-of-absence,on leave of absence until June,,,,,LEAVE OF ABSENCE
+leavewords,sick-tag,Smith P (Sick),,,,,SICK
+leavewords,personal-tag,Smith P (Personal 8h),,,,,PERSONAL
+leavewords,off-is-fine,Smith P (Off 8h),,,,,ok
+leavewords,empty,,,,,,ok
 paytext,number,n:10045678,,,,,10045678
 paytext,number-with-decimals,n:10045678.0,,,,,10045678
 paytext,text-keeps-leading-zero,s:00456789,,,,,00456789

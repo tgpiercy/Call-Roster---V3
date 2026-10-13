@@ -200,8 +200,8 @@ def evaluate(row: dict) -> str:
         if i1 == "count":
             return "ok" if rules.attend_count_ok(case_value(i2)) else "stop"
         return "ok" if rules.attend_status_ok(i2[2:]) else "stop"
-    if suite == "leavetext":                     # calendar line text -> shows / ok
-        return "shows" if rules.leave_text_shows(i1) else "ok"
+    if suite == "leavewords":                    # v24.3.1: published free text -> the offending word / ok
+        return rules.leave_words_in(i1) or "ok"
     if suite == "paytext":                       # a cell value -> the Payroll # as text / blank
         return rules.payroll_text(case_value(i1)) or "blank"
     if suite == "payhdr":                        # header text -> yes / no

@@ -200,8 +200,9 @@ Private Function RunCase(f() As String) As String
             Else
                 RunCase = IIf(AttendStatusOk(Mid$(i2, 3)), "ok", "stop")
             End If
-        Case "leavetext"                           ' calendar line text -> shows / ok
-            RunCase = IIf(LeaveTextShows(i1), "shows", "ok")
+        Case "leavewords"                          ' v24.3.1: published free text -> the offending word / ok
+            RunCase = LeaveWordsIn(i1)
+            If RunCase = "" Then RunCase = "ok"
         Case "paytext"                             ' a cell value -> the Payroll # as text / blank
             RunCase = PayrollText(CaseValue(i1))
             If RunCase = "" Then RunCase = "blank"
@@ -1103,11 +1104,19 @@ Private Sub LoadCases()
     AddCase "attendpriv,status-until,status,s:No paid sick until Mar 4. 2028,,,,stop"
     AddCase "attendpriv,status-reason-leaks,status,s:Off sick Feb 3 with flu,,,,stop"
     AddCase "attendpriv,status-blank,status,s:,,,,stop"
-    AddCase "leavetext,plain-leave,Smith P Leave,,,,,ok"
-    AddCase "leavetext,planted-std,Smith P (STD),,,,,shows"
-    AddCase "leavetext,planted-parental-lowercase,Smith P (par leave),,,,,shows"
-    AddCase "leavetext,planted-wsib,Jones A (WSIB) days,,,,,shows"
-    AddCase "leavetext,vacation-is-fine,Smith P (VAC),,,,,ok"
+    AddCase "leavewords,plain-leave,Smith P (Leave 8h),,,,,ok"
+    AddCase "leavewords,planted-std,Smith P (STD),,,,,STD"
+    AddCase "leavewords,planted-parental-lowercase,Smith P (par leave),,,,,PAR"
+    AddCase "leavewords,planted-wsib,Jones A (WSIB) days,,,,,WSIB"
+    AddCase "leavewords,vacation-is-fine,Smith P (VAC),,,,,ok"
+    AddCase "leavewords,std-inside-a-word,Standard shift cover,,,,,ok"
+    AddCase "leavewords,ltd-company-name,Acme Ltd contractor,,,,,LTD"
+    AddCase "leavewords,parental-word,covering parental,,,,,PARENTAL"
+    AddCase "leavewords,leave-of-absence,on leave of absence until June,,,,,LEAVE OF ABSENCE"
+    AddCase "leavewords,sick-tag,Smith P (Sick),,,,,SICK"
+    AddCase "leavewords,personal-tag,Smith P (Personal 8h),,,,,PERSONAL"
+    AddCase "leavewords,off-is-fine,Smith P (Off 8h),,,,,ok"
+    AddCase "leavewords,empty,,,,,,ok"
     AddCase "paytext,number,n:10045678,,,,,10045678"
     AddCase "paytext,number-with-decimals,n:10045678.0,,,,,10045678"
     AddCase "paytext,text-keeps-leading-zero,s:00456789,,,,,00456789"

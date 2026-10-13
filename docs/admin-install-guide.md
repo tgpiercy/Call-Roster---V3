@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v23 (Dec 2026).
+Current as of v24.3.1 (Oct 2026).
 
 ## 1. Before you start
 
@@ -12,22 +12,43 @@ Current as of v23 (Dec 2026).
 | Install freeze | No installs in the week before Jan 23, 2027. |
 | Who is in the file | Everyone else must be out. You need the writable copy. |
 | Your login | Your Windows login must be on the admin list (section 7). |
-| What you need | The release zip and its INSTALL note. |
-| Time | About 15 to 20 minutes. |
+| What you need | The release zip and its INSTALL note, and `Roster Updater.xlsm` (section 3A). |
+| Time | About 5 minutes with the Roster Updater, about 40 by hand. |
+| The VBA editor | Close it (Alt+F11 window) before running the updater. |
 
 ## 2. Where the releases are
 
 | Item | Where |
 |---|---|
 | Release zips | `dist/Callout_Roster_vNN.zip` in the code repository |
-| What a zip holds | `modules/` (the .bas files), `paste-in/` (code for ThisWorkbook and each form), `member/` (the members' file code) and `INSTALL.md` |
+| What a zip holds | `modules/` (the .bas files), `paste-in/` (code for ThisWorkbook and each form), `member/` (the members' file code), `updater/` (the Roster Updater's own module) and `INSTALL.md` |
 | Full set | From v22 on, every zip holds the full set of code. It can serve as the master copy. |
 | INSTALL notes | `INSTALL.md` inside each zip. The same note is `docs/INSTALL-vNN.md` in the repository. |
 | What each release does | `CHANGELOG.md` |
 
 The INSTALL note lists only what changed. Follow it exactly. This guide gives the pattern behind every note.
 
-## 3. The install pattern
+## 3A. With the Roster Updater (since v24.2)
+
+`Roster Updater.xlsm` is a separate workbook that holds one module, `updater/modUpdater.bas`. It is never imported into the roster (the first version ran inside it and crashed Excel). It replaces the roster's code from a release folder, module by module, with a backup first and saving blocked until you say the compile passed.
+
+| Need | Detail |
+|---|---|
+| Trust access | File > Options > Trust Center > Trust Center Settings > Macro Settings > tick "Trust access to the VBA project object model" (section 9). Without it the updater cannot see the roster's code. |
+| Both files open | The roster (a copy first) and Roster Updater.xlsm in the SAME Excel window. A roster opened from Explorer or an email can land in a second Excel; then the updater says "No roster is open" and lists what it can see. |
+| The VBA editor closed | Close Alt+F11 before `UpdateFromFolder`. |
+| The roster's own password | None. The updater refuses a password-locked project. The roster has no VBA password (decided Oct 13, 2026). |
+| Its admin gate | Advisory when the roster's code cannot run (it asks "Continue?"). Only an admin should answer Yes. |
+
+1. Unzip the release. Open the roster copy, press Ctrl+S in it, open Roster Updater.xlsm, click the roster so it is in front.
+2. Alt+F8 > `'Roster Updater.xlsm'!CheckUpdateFolder` > pick the unzipped folder. Nothing changes; it lists what it would replace.
+3. Alt+F8 > `'Roster Updater.xlsm'!UpdateFromFolder` > same folder > OK. It saves a backup copy, swaps the code and stops. Nothing is saved yet.
+4. Alt+F11, click the ROSTER's project, Debug > Compile VBAProject. No message: Alt+F8 > `UpdateFinished` > Yes (it saves). A message: note the line, Alt+F8 > `UpdateDrop` (it puts the old code back), send the line.
+5. Close the roster and reopen it. Carry on at section 4.
+
+When the updater's own code changes, the INSTALL note says so: open Roster Updater.xlsm, remove `modUpdater`, import `updater/modUpdater.bas`, save. `UpdateMemberTemplate` rebuilds the members' template from `member/` the same way.
+
+## 3. The install pattern (by hand)
 
 Do the steps in this order. Skip a step only when the INSTALL note has nothing for it.
 
@@ -44,7 +65,7 @@ Do the steps in this order. Skip a step only when the INSTALL note has nothing f
 11. **Run SystemCheck** (Alt+F8). See section 4.
 12. **Run SelfTest** (Alt+F8). See section 5.
 13. **Update the members' template** if the note says so. See section 10.
-14. **Do the smoke test** in the note, on a copy of the file.
+14. **Make a practice copy and run the smoke test.** Alt+F8 > `MakePracticeCopy` (it saves a `... COPY <date>.xlsm` in a `Practice` folder with the members' template beside it and opens it). In the copy: Alt+F8 > `SmokeTest` > OK. It must end "SMOKE TEST PASSED". Then do whatever the INSTALL note asks you to try by hand in the same copy. A practice copy can never reach the real roster or the real members' file, and it cannot be saved after SmokeTest.
 
 | If this happens | Do this |
 |---|---|
@@ -65,6 +86,8 @@ The ones that change data check the roster totals before and after. They block s
 | `UpgradeOTLogLayout` | Moves an old OT Log to the current column layout. |
 | `SetupPeople` | v24: adds the Crew History sheet (one row per person), the Former sheet and the Signup Hours column on the posted lists. Saves a backup first. |
 
+No release since v24 has needed a one-time macro: the Planned Moves, Error Log and Refusal Report sheets are made on first use.
+
 ### Macros you run when needed
 
 | Macro | What it does |
@@ -72,6 +95,11 @@ The ones that change data check the roster totals before and after. They block s
 | `SystemCheck` | Section 4 |
 | `SelfTest` | Section 5 |
 | `IntegrityCheck` | Section 13. Reads only. |
+| `MakePracticeCopy` | Saves and opens a practice copy (COPY in its name) in a `Practice` folder, with the members' template beside it. |
+| `SmokeTest` | In a practice copy only: 14 steps through the roster's own functions; every total must come back. Never saves. |
+| `ShowErrorLog` | Opens the Error Log sheet and marks every line seen. `ErrorLogTest` writes one test line so you can see the box a supervisor gets. |
+| `ApplyPlannedMoves` | Applies the planned unit moves that are due (the open asks the same question). |
+| `ApplyPlannedMoves` / Needs Attention > Planned unit moves | Cancel a planned move, or apply one that is due. |
 | `RolloverYear` | Once a year, with a second person. See docs/rollover-one-pager.md. Never part of an install. |
 
 ## 4. SystemCheck
@@ -80,7 +108,7 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 
 | Line | Meaning | What to do |
 |---|---|---|
-| Modules: N of N on vNN | Every checked module carries this release's stamp. | Nothing. Both numbers must match the INSTALL note. |
+| Modules: N of N on vNN | Every checked module carries this release's stamp (23 since v24.3.1). | Nothing. Both numbers must match the INSTALL note. |
 | [module] is ...: remove it and import the vNN file | That module is from an older release. | Remove it and import the new file. |
 | ThisWorkbook code is older than vNN | ThisWorkbook was not re-pasted. | Re-paste `ThisWorkbook.txt`. |
 | [form] code is older than vNN | That form was not re-pasted. | Re-paste its `.txt` file. |
@@ -98,6 +126,9 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 | Crew History / Former sheets not set up | v24's one-time setup has not been run. | Run `SetupPeople`. |
 | posting lists need their Signup Hours column | The same. | Run `SetupPeople`. |
 | sign-up inbox folder not found | `SIGNUPS_ON` is True and the folder isn't there yet. | Click Member View (it makes the folder), then give members write access to it. |
+| N new line(s) in the Error Log | A button or pop-up failed part-way since you last looked. | Run `ShowErrorLog`, read the lines, send them on. |
+| Planned unit moves waiting: N | Information: moves entered for a later date. | Nothing. Needs Attention lists them; a due one is offered on open. |
+| Backup: off - this file is itself a backup or frozen copy | You opened a dated backup, the FINAL or a "Backup before" copy. | Nothing is wrong. Close it and open the live roster to log anything. |
 | N imported vacation line(s) ... not booked yet | Old-calendar lines are display only. | Click Convert imports. |
 | members' template not found | The template is not next to the roster. | See section 10. |
 | BACKUP_FOLDER isn't set | Daily backups are off. | Set it (section 6). |
@@ -109,7 +140,7 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 | this year's reports folder doesn't exist yet | The roster year changed and the new year's folder is not there. | Create the folder named in the line. PDFs go next to the workbook until then. |
 | the integrity check found problems | IntegrityCheck found a PROBLEM this session. | Run `IntegrityCheck` and read the Integrity sheet (section 13). |
 
-The lines under the list are for information: roster year and number of pay periods, integrity result, OT Log row count, Kronos date, data-through date, Holidays sheet, grade change log, members' file and backup.
+The lines under the list are for information: roster year and number of pay periods, integrity result, OT Log row count, Kronos date, data-through date, Holidays sheet, grade change log, planned moves waiting, sign-ups (on or off), members' file and backup.
 
 After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)" until the first export of the new year is imported.
 
@@ -141,8 +172,9 @@ If any case fails, do not log on that file. Go back to your backup and report th
 | A full path | That folder, for example a network folder |
 | How many are kept | 30 days (`BACKUP_KEEP_DAYS`). Older copies in that folder are deleted. |
 | If the folder cannot be reached | You get one warning. The roster opens as usual. |
+| Opening a backup to look at it | Fine. Since v24.3.1 a dated backup, the FINAL or a "Backup before" copy never takes that day's backup slot and Member View refuses to publish from it. Nothing you log in it reaches the roster. |
 
-The dated copies sit next to the roster when the setting is ".". Always open the roster itself, not a dated copy.
+The dated copies sit next to the roster when the setting is ".". Always open the roster itself to log anything. At go-live the master moves to a supervisor-only folder, with the backups, the FINAL and the error log beside it, and the members' file to a separate members' folder (decided Oct 13, 2026).
 
 ## 7. ADMIN_USERS
 
@@ -186,14 +218,18 @@ The settings are constants at the top of `modOvertimeEntry`. Change them there a
 | `REPORT_FOLDER` | A network folder ending in `{YEAR}` | Where posting PDFs and calendar PDFs go. `{YEAR}` is replaced by the roster year. If the folder cannot be reached, PDFs go next to the roster. |
 | `PUBLISH_FOLDER` | . | Where the members' file is published. "." is the roster's own folder (the setting for now). At the network roll-out it becomes the members' network folder. |
 | `PUBLISH_FILE` | (old file name) | The old Member View file. No longer written. |
-| `PUBLISH_REASONS` | False | False keeps log notes out of the members' file |
+| `PUBLISH_REASONS` | False | False keeps log notes out of the members' file (True sends them, screened for leave words) |
+| `REFUSAL_SHEET` | Refusal Report | The tab the Refusals Report is drawn on |
+| `SIGNUPS_ON` | False | True switches on electronic sign-ups from the members' file |
+| `SIGNUP_FOLDER` | Signups | The inbox folder for sign-up request files, inside the members' folder |
+| `SIGNUP_STALE_DAYS` | (in the module) | A request file older than this is ignored |
 | `MEMBER_TEMPLATE_NAME` | Call Out Roster - Members TEMPLATE.xlsm | The template. It must sit next to the roster. |
 | `MEMBER_FILE_NAME` | Call Out Roster - Members.xlsm | The published members' file |
 | `MEMBER_PASSWORD` | (in the module) | Sheet protection in the members' file. The members' code uses the same one. |
 | `MEMBERS_STALE_DAYS` | 1 | Needs Attention reminds you after this many days without a publish |
 | `MEMBER_NEXT_DAYS` | 14 | How many days ahead "Who's next" covers |
 | `KRONOS_PATH` | A network file | The Kronos workbook that Import Kronos reads |
-| `KRONOS_SHEET` | Sorted Data Here | The sheet in that workbook |
+| `KRONOS_SHEET` | Sorted Data Here | The sheet in that workbook. The import finds the `Employee Name`, `Grand Total` and `Payroll #` columns by their headings (first 10 rows) and refuses, changing nothing, when a heading is missing. |
 | `KRONOS_STALE_DAYS` | 7 | Kronos data older than this gives a warning |
 | `BACKUP_FOLDER` | . | See section 6 |
 | `BACKUP_KEEP_DAYS` | 30 | Days of backups kept |
@@ -215,7 +251,8 @@ Importing a new copy of a module replaces its settings with the shipped ones. Ke
 
 | Topic | What to do |
 |---|---|
-| Where the master lives | Keep it in one fixed supervisor folder. Open it from there. |
+| Where the master lives | Keep it in one fixed supervisor-only folder. Open it from there. The members' file goes to a separate members' folder (decided Oct 13, 2026). |
+| VBA password | None, now and at go-live. The sheets and the workbook structure are protected instead (v25). A password would stop the Roster Updater. |
 | Never | Open the master from an email attachment or a browser download. Macros may be turned off. |
 | Trusted location | Ask IT to make the roster's folder a Trusted Location. The setting is under File > Options > Trust Center > Trust Center Settings > Trusted Locations. |
 | Enable Content | If Excel shows the yellow bar, click Enable Content. Without macros, nothing in the roster works. |
@@ -259,7 +296,8 @@ Without it, SystemCheck still checks the module versions. It says "Forms / lefto
 |---|---|---|
 | The members' template wasn't found | The template is missing or has the wrong name. | Put it next to the roster with the exact name. |
 | The members' folder can't be reached | `PUBLISH_FOLDER` is offline or wrong. | Check the drive and the setting. |
-| NOT published. Something private would have gone in | An email, phone number or leave code is in a published field. | The message names the table and row. Fix that entry and publish again. |
+| NOT published. Something private would have gone in | An email, phone number, employee number or leave code is in a published field, or a calendar line or posting reason contains a leave word (STD, WSIB, parental ...) or the word sick or personal. | The message names the table, the row and the word. Reword that entry and publish again. |
+| This file is a backup or frozen copy of the roster | You clicked Member View in a dated backup, the FINAL or a "Backup before" copy. | Open the live roster and publish there. |
 | NOT published. The call positions ... don't match | The publish check failed. Nothing was written. | Run SystemCheck and SelfTest, and report the message. |
 | NOTE: ... is open somewhere | The members' file was in use, so a dated copy was saved. | Have the file closed there. Publish again. |
 
@@ -287,7 +325,8 @@ Restore the backup only if the reopened file is wrong.
 | Backup | Where |
 |---|---|
 | Daily backup | `Call Out Roster yyyy-mm-dd.xlsm` in the backup folder |
-| Backup taken by a one-time macro | Next to the roster. The name starts with "Backup before". The macro's message gives the full name. |
+| Backup taken by a one-time macro or an Employee change | Next to the roster. The name starts with "Backup before". The macro's message gives the full name. |
+| Backup taken by the Roster Updater | Next to the roster, named in its report. |
 
 ## 12. Admin tools
 
@@ -303,6 +342,9 @@ Restore the backup only if the reopened file is wrong.
 | **Refusals Report** (PRINT / PUBLISH) | Refused hours split into call-out and posting refusals, per person and per unit; printable, PDF |
 | Status bar (bottom left) | Click a roster row to see that person's Refused hours by kind |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |
+| Employee > Move to unit with a later date | Plans the move. Nothing changes until the date; the first admin open on or after it asks "apply now?". Needs Attention > Planned unit moves cancels or applies one. |
+| `MakePracticeCopy`, `SmokeTest` (Alt+F8) | Section 3, step 14 |
+| `ShowErrorLog`, `ErrorLogTest` (Alt+F8) | The Error Log sheet (admin only, never published) |
 | `ReopenPosting` (Alt+F8) | Reopens a closed posting after its log rows are voided |
 | `ShowGradeLog` (Alt+F8) | Shows the log of grade code changes |
 | `SystemCheck`, `SelfTest` (Alt+F8) | See sections 4 and 5 |
@@ -330,7 +372,9 @@ IntegrityCheck reads the roster, the OT Log and the other tables. It reports any
 | IDs | PROBLEM | An Entry ID used twice, the same posting, switch, absence or calendar-line ID on two rows, or a leave return logged twice |
 | IDs | Check | One call-out or posting number covering rows with different dates, units or shifts |
 | Not on roster | Check | A name in this year's OT Log, an active booking or a coming switch that is not on the roster |
-| Postings | Check | An Open posting that already has log rows, or a posting whose own list and the log disagree on hours charged |
+| Postings | Check | An Open posting that already has log rows, a posting whose own list and the log disagree on hours charged, or list rows whose posting row is gone (a header deleted by hand) |
+| Payroll # | Check | One Payroll # on two roster rows |
+| Planned moves | Check | A waiting move for someone not on the roster, to an unknown unit, with no readable date, or more than 3 days overdue |
 | Calendar | Check | A calendar line that points at a posting or switch that does not exist, or a void switch |
 | Paybacks | Check | A shift-switch payback owed for more than `PAYBACK_WARN_DAYS` days |
 | Kronos | Check | Kronos data older than `KRONOS_STALE_DAYS` |
@@ -347,6 +391,8 @@ The year-end rollover is described in docs/rollover-one-pager.md. It is run once
 |---|---|
 | Year End | Each person's final totals for each closed year. Admin only. |
 | OT Log 2026 (one per year) | The closed year's OT Log rows. Locked, even for admins. |
+
+Other admin-only sheets made on first use: Error Log (v24.2), Planned Moves (v24.3), Refusal Report (v24.1), Former and Crew History (v24, by `SetupPeople`).
 
 | Setting | Use |
 |---|---|

@@ -1,6 +1,6 @@
 # Year-end rollover: one page
 
-The steps for rolling the Call Out Roster from one year to the next. Current as of v23 (Dec 2026).
+The steps for rolling the Call Out Roster from one year to the next. Current as of v24.3.1 (Oct 2026).
 
 **Two people.** The admin drives. The second person reads each check aloud and ticks it off. Allow 30 minutes. Do it with nobody else in the file.
 
@@ -26,8 +26,10 @@ Nothing is saved unless step 7 passes.
 | 2 | Run **Import Kronos** one last time for the old year, so the final Worked hours are current. | |
 | 3 | Finish or cancel any posting for an old-year shift that is still Open. | |
 | 4 | Alt+F8 > **IntegrityCheck**. The message must not say PROBLEM. Fix anything it lists, then run it again. | |
-| 5 | Today's backup exists next to the roster: `Call Out Roster yyyy-mm-dd.xlsm` with today's date. | |
+| 5 | Today's backup exists next to the roster: `Call Out Roster yyyy-mm-dd.xlsm` with today's date. It was taken when you opened the file this morning, BEFORE step 2's import: if you need to restore it, that import is redone. | |
 | 6 | No file called `Call Out Roster 2026 FINAL.xlsm` exists next to the roster yet. | |
+| 7 | Needs Attention > PLANNED UNIT MOVES shows nothing "DUE - not applied". Apply it (Alt+F8 > ApplyPlannedMoves) or cancel it first. A move dated in the new year can wait. | |
+| 8 | No leave return is waiting with a return date in the new year: it is refused until the roll is done, then logged on the new roster. | |
 
 ## Run it
 1. Alt+F8 > **RolloverYear** > Run.
@@ -46,7 +48,7 @@ Nothing is saved unless step 7 passes.
 | 3 | Worked (H) is 0 for everyone. The status line says "Kronos: awaiting 2027 data". | |
 | 4 | The **OT Log 2026** sheet exists and holds last year's rows. | |
 | 5 | The **Year End** sheet lists every person with their 2026 finals. | |
-| 6 | `Call Out Roster 2026 FINAL.xlsm` is next to the roster. Open it: it is read-only and shows the 2026 totals. Close it. | |
+| 6 | `Call Out Roster 2026 FINAL.xlsm` is next to the roster. Open it: it says "Someone else has the roster open for editing, so this copy is read-only" (that box is what a read-only file gets; it is right), shows the 2026 totals, takes no backup and refuses Member View. Close it. | |
 | 7 | Alt+F8 > **SystemCheck**: "Roster year: 2027". Alt+F8 > **IntegrityCheck**: no PROBLEM. | |
 | 8 | Click **Member View** to publish the new year to the members. | |
 | 9 | Create the new year's reports folder (SystemCheck names it if it is missing). | |
@@ -60,7 +62,11 @@ Nothing is saved unless step 7 passes.
 3. Reopen it. It is exactly as it was before you started. The frozen copy from the failed try was removed.
 4. Send the message to the admin who maintains the code before trying again.
 
-**If the file was saved in a bad state somehow:** close it, rename it, and copy today's backup (`Call Out Roster yyyy-mm-dd.xlsm`) back to the roster's name.
+**If the file was saved in a bad state somehow:** close it, rename it, and copy today's backup (`Call Out Roster yyyy-mm-dd.xlsm`) back to the roster's name. Redo the final Kronos import (the backup was taken before it).
+
+**If Excel crashes mid-run:** the file on disk is untouched (nothing is saved until step 7 passes). The read-only frozen file from the failed try may be left behind: delete it, or the next run refuses "already exists". If Excel's Document Recovery offers a recovered roster, do not keep it: open the real file.
+
+**A second run on a practice copy** that is already rolled to 2027 would roll it on to 2028 after a prompt. Answer No.
 
 ## After the rollover
 | When | What |
@@ -78,8 +84,8 @@ Nothing is saved unless step 7 passes.
 - **A leave that spans the rollover** is topped up from the new year's start only.
 
 ## Practice run (first week of December)
-1. Save a copy of the roster with `DRY RUN` in the file name, in a separate folder.
-2. Open the copy. Log a test posting for a January shift and award it.
+1. Alt+F8 > **MakePracticeCopy** in the roster. It saves a copy with COPY in its name in a `Practice` folder and opens it (a file with DRY RUN in its name works the same way).
+2. In the copy, log a test posting for a January shift and award it.
 3. Run **RolloverYear** in the copy. It says "PRACTICE RUN" and names its frozen file "(dry run)".
 4. Go through "Check the result" above. The January posting's charges must show on the new roster.
 5. Delete the copy and its frozen file when done.

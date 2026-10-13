@@ -2,7 +2,7 @@
 
 This manual states the current rules of the overtime call-out system, for supervisors and the union committee.
 
-Current as of v23 (Dec 2026). It replaces the rules in all older guides.
+Current as of v24.3.1 (Oct 2026). It replaces the rules in all older guides.
 
 ## 1. What the system is
 
@@ -19,6 +19,7 @@ Current as of v23 (Dec 2026). It replaces the rules in all older guides.
 | Unit | Phosphine, Derivatives, Cypure, Material Handler (Fumigation), QC Derivatives (QC Lab), QC Gases, Utilities, SBP |
 | Code | The grade code in a person's unit column, for example D1.5 or P2. The number is the grade. |
 | Home Unit | The one unit a person belongs to (roster column B). Used for sick calls and the leave top-up. |
+| `~` | On the call-out pop-up and the printed call-out roster: the hours shown are an estimate, because the person has a unit move planned for a later date (section 15). |
 | S/S | Shift switch |
 | NCN | No Coverage Needed |
 | PHA | Hazard-analysis coverage |
@@ -150,6 +151,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | Hours nobody covers | They drop off. Nobody is charged for them. |
 | Charging with a partial award | The same people as any award: ahead of the last awarded person and did not sign up at all. They are charged the posting's full hours x 1.75. A partial sign-up that is not awarded is not charged. |
 | Moved unit or left | Someone who moved out of the unit, or left, before the shift is never charged on that posting, even though the frozen list still shows them. |
+| Moved into the unit | Someone who moves into a unit, today or on a planned date, is added to that unit's open postings for shifts on or after the move that can still be signed up for, placed among the frozen names by call order. Nobody else's place or posted hours change. If a planned move is cancelled before the day, they come off those lists again. This is the only way a posted list changes after it is made. |
 | Award email | A draft opens to the awarded person, with the unit's CC list. The supervisor checks it and sends it. |
 | Reopen | A closed posting can be reopened only after its log rows are voided. Nothing is charged twice. |
 
@@ -172,14 +174,16 @@ Needs Attention lists every payback still owed.
 
 ## 10. Time off and privacy
 
-| Type | Shows on the calendar and to members as |
-|---|---|
-| Vacation | Vac |
-| Personal day (unpaid) | Personal |
-| Training | Trn |
-| Leave of absence, short-term disability, parental leave, WSIB, long-term disability, other leave | Leave |
-| Sick | Sick |
-| Other | Off |
+| Type | Shows on the roster's calendar as | Shows to members as |
+|---|---|---|
+| Vacation | Vac | Vac |
+| Personal day (unpaid) | Personal | Off |
+| Training | Trn | Trn |
+| Leave of absence, short-term disability, parental leave, WSIB, long-term disability, other leave | Leave | Leave |
+| Sick | Sick | Off |
+| Other | Off | Off |
+
+Members see that a person is off on a day. They never see whether it was sick, personal or which kind of leave.
 
 | Rule | Detail |
 |---|---|
@@ -194,22 +198,29 @@ Needs Attention lists every payback still owed.
 
 - Every kind of leave shows only as "Leave" outside the Absences sheet.
 - The Absences sheet is for the admin only. It is hidden in every saved copy.
+- Before the members' file is published, every piece of free text going into it (calendar lines, posting reasons) is checked for a leave word or the words sick and personal. If one is found, nothing is published and the admin is told which line to reword.
 
 ### What members never see
 
 - Phone numbers and email addresses
 - The type of a leave, and leave notes
+- Whether a day off was sick or personal (members see "Off")
+- The date of any sick or personal day beyond that "Off" line
 - Void notes
 - Who logged an entry, and when
 - Notes on log entries
-- Sick and personal day counts, and the Attendance sheet
+- The Attendance sheet
+
+### What members do see about sick time (since Oct 12, 2026)
+
+Each member can look up a name on the Where I stand card and see that person's five sick-time COUNTS for the calendar year: sick days used, paid sick days left, occurrences used, personal days used, and one of four status phrases ("Paid sick available", "Paid sick only while the current occurrence continues", "Paid sick days used up", "No paid sick until <date>"). No dates of sick days, no reasons. This is the one deliberate exception to the rule above, and the publish refuses anything beyond those five figures.
 
 ## 11. Sick calls
 
 1. The supervisor logs the sick shift with the Sick Call button.
 2. The system books that shift as sick for that person.
 3. The person is off call lists for that shift and any shift starting within 24 hours after it ends.
-4. The calendar shows the line as "Sick" and OPEN.
+4. The roster's calendar shows the line as "Sick" and OPEN (members see "Off"). One line per sick call, on the shift that was called in, whether or not it was the person's scheduled shift.
 5. With Save + Start Call-Out, Log Call-Out opens filled in, so the supervisor can fill the shift.
 
 | Sick shift | Also off | Free again for |
@@ -239,6 +250,7 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | Peers | People with a code in the returner's Home Unit, at grade 2 and below |
 | Not counted as peers | The returner, anyone on leave during that time, anyone with no hours history before it |
 | Leave across the yearly reset | The top-up counts only from the reset. |
+| Return dated after the roster's last pay period | Refused until the year-end rollover has been run; then it is logged on the new year's roster. |
 | Rounding | To 0.1 hour |
 | Before saving | The system shows the peers, the dates, the average, and the returner's hours before and after. |
 | How it is recorded | One Adjustment row in the OT Log, numbered LV-####, with the calculation in its Note |
@@ -273,8 +285,9 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | Start of counting | Counting started when v22.1 was installed, in October 2026. Earlier days were not entered. |
 | 2026 figures | They cover only what was logged from then on. |
 | First complete year | 2027 |
-| Who sees the counts | The admin only, on the Attendance sheet and in Needs Attention. Never published. |
-| What members see | "Sick" or "Personal" on a calendar line. No counts and no reasons. |
+| Paid sick days left | 5 minus the sick days used, and 0 once the person is waiting (over 5 combined), once a 4th occurrence has started, or once the 3rd occurrence has ended (they have worked a scheduled shift after its last sick day). |
+| Who sees the counts | The admin, on the Attendance sheet and in Needs Attention; and each member, as five counts on the Where I stand card for the name they pick (section 10). |
+| What members see on the calendar | "Off" on the day. Never "Sick" or "Personal", no reasons. |
 | Known limit | Occurrences are grouped by the crew rotation. Shift switches are not taken into account. |
 
 ## 14. The OT Log
@@ -300,7 +313,8 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | LV- | A leave return top-up |
 | NH- | A new hire's starting hours |
 | UM- | A unit move top-up |
-| SC- | A sick call (in the time-off records) |
+| SC- | A sick call (in the time-off records, never in the OT Log) |
+| PM- | A planned unit move (on the Planned Moves sheet, never in the OT Log) |
 | SS- | A shift switch (in the switch records) |
 | OB- | An opening balance |
 | MAN- | Values moved in from typed roster cells |
@@ -321,6 +335,17 @@ An adjustment adds or removes charged hours for one person. Only the admin can m
 | New hire (NH-) | Starting hours = the home unit's average Total Hours on the start date, among grade 2 and below who are not on leave. The peers and their figures are in the Note. |
 | Unit move (UM-) | For a full move only. Hours are raised to the highest Total Hours among grade 2 and below in the new unit on the move date. They are never lowered. An extra sign-off changes no hours. |
 | Leaving | Employee > Remove moves the roster row to the Former sheet with the person's final figures. Their log rows stay. Bring back returns them to the roster. |
+
+### Unit moves entered ahead of time (planned moves)
+
+| Rule | Detail |
+|---|---|
+| Entering | Employee > Move to unit with a date after today. Nothing on the roster changes that day. One row goes on the Planned Moves sheet. |
+| Lists before the day | For any shift on or after the date, the person is off the old unit's call-out and posting lists and on the new unit's, at the hours they would have after the top-up (an estimate, marked `~` on the call-out pop-up and the printed roster). The estimate is for call order only; a call-out's log row records their real total. A posting made in that window freezes the estimate on its list, as it freezes everyone's hours. |
+| Open postings | Old-unit postings for shifts on or after the date mark the person "Exempt": never charged. New-unit postings for such shifts that can still be signed up for get the person added to their list (section 8). |
+| On the day | The first admin to open the file on or after the date is asked whether to apply the due moves. Yes applies them (codes, Home Unit, grade log, the UM- top-up with hours as of the move date), with a backup first and one summary. No leaves them waiting; the question comes back at the next open, and ApplyPlannedMoves (Alt+F8) does it at any time. |
+| Changing | Cancel and enter again. A cancel puts the lists back, removes only that move's Exempt marks, takes them off the new unit's lists it had added them to, and puts back a crew change entered with it. |
+| One at a time | A second move for the same person is refused until the first is cancelled or applied. Rename carries a planned move; Remove cancels it. |
 
 ## 16. The yearly reset
 
@@ -356,16 +381,18 @@ The steps are in docs/rollover-one-pager.md.
 | What it is | A separate workbook for members, opened on plant PCs |
 | Values only | The master works everything out and pushes values in. The members' file holds no rules and never reads the master. |
 | When it updates | When the admin clicks Member View. Needs Attention reminds the admin when it is more than a day old. |
-| Privacy check | Before publishing, the master checks for emails, phone numbers and leave codes. If it finds one, nothing is published. |
+| Privacy check | Before publishing, the master checks every published value for emails, phone numbers, employee numbers and leave codes, and every free-text line for a leave word or the words sick and personal. If it finds one, nothing is published and the message names the line. |
+| From a copy | Member View refuses to run from a daily backup, the frozen year-end file or a "Backup before" copy. A practice copy publishes a file named PRACTICE beside itself, never the real members' file. |
 
 | Sheet | What it shows |
 |---|---|
 | Home | When the file was updated and the Kronos data date |
 | Roster | Everyone's hours and each unit's call order. A member can find their own name. |
 | Who's next | For a unit, date and shift in the next 14 days: who is free, in call order |
-| Calendar | Who is off and what needs cover, by month and unit. Leave shows as "Leave". |
-| Postings | Open postings with their closing dates and lists |
-| My history | For any name: this year's entries, outcomes and charges, by pay period |
+| Calendar | Who is off and what needs cover, by month and unit. Leave shows as "Leave"; sick and personal days as "Off". |
+| Postings | Open postings with their closing dates and lists. With electronic sign-ups switched on, a Sign me up button. |
+| My history | For any name: this year's entries, outcomes and charges, by pay period, with Refused split into call-out, posting and other |
+| Where I stand | For the name picked with Find me: their call position in each unit, their open postings, and their five sick-time counts (section 10) |
 
 ## 18. Who can do what
 
@@ -382,7 +409,9 @@ The steps are in docs/rollover-one-pager.md.
 | Safeguard | What it does |
 |---|---|
 | Automatic save | The file saves after each entry, and again when it is closed. |
-| Daily backup | A dated copy is saved the first time an admin opens the file each day. 30 days are kept. |
+| Daily backup | A dated copy is saved the first time an admin opens the live file each day. 30 days are kept. A backup, the frozen year-end file or a practice copy never takes that day's slot. |
+| Error log | A button or pop-up that fails part-way writes a line to the admin-only Error Log sheet (and a text file beside the roster) and shows "This didn't finish ... Error Log line N" instead of a code error. |
+| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 14 steps through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, rename, publish, void, remove, integrity) and checks every total comes back. It never saves. |
 | Checked changes | A change to the roster's layout is compared before and after. If the totals differ, saving is blocked. |
 | SystemCheck | Confirms the installed code is the right release and the data is in order. |
 | IntegrityCheck | Compares every roster total with the OT Log, and looks for typed numbers, missing formulas and duplicate IDs. It only reads. It runs each time an admin opens the file, and the result is on the roster's status line. |

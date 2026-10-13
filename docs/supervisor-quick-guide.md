@@ -1,13 +1,17 @@
 # Call Out Roster: Supervisor Quick Guide
 
-How to do each everyday job in the roster. Current as of v23 (Dec 2026).
+How to do each everyday job in the roster. Current as of v24.3.1 (Oct 2026).
 
 The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out** and **Calendar** show for everyone. The other buttons show only for logins on the admin list. If a button is missing, ask the admin.
 
 ## Open the file
 1. Open the roster from its usual folder. Click **Enable Content** if Excel asks.
 2. A notice that someone "has the roster open for editing, so this copy is read-only" means you can look but not log. Close it. Open it again when they are out.
-3. Close the file as soon as you are done, so the next supervisor can get in.
+3. An admin may see "N planned unit move(s) are due: apply them now?" Yes applies them (a backup is saved first). No leaves them waiting; the question comes back at the next open.
+4. Close the file as soon as you are done, so the next supervisor can get in.
+
+## If a red "This didn't finish" box appears
+Something stopped part-way. The box says "Error Log line N" and the name of what you were doing. Nothing you did before the error is lost; it is saved when you close (unless the box says this copy can't be saved). Check what you were doing (run it again if it was an import), and tell the admin the line number. If the same thing fails twice, stop and ask.
 
 ## Log a call-out
 1. Click **Log Call-Out**. Pick Department, Shift and Date. Type the Hours. Leave Crew on "All not scheduled".
@@ -16,7 +20,7 @@ The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out**
 4. When the shift is filled, click **SUBMIT ALL ENTRIES**. Note the session number (S-0012) in the message.
 5. If asked which calendar line the person covers, type its number.
 
-Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. If warned that Kronos data is old, No stops so the admin can import first.
+Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. `~` means the hours are an estimate because the person has a unit move planned for a later date (the admin entered it ahead of time). If warned that Kronos data is old, No stops so the admin can import first.
 
 ## Part of a call-out
 If someone takes only part of the hours, select them and click **ACCEPTED PART OF THE HOURS**, then enter the hours. Keep calling down the list for the rest: the pop-up shows how many hours are on offer to each person, and anyone who refuses is charged on those hours.
@@ -70,12 +74,13 @@ If someone takes only part of the hours, select them and click **ACCEPTED PART O
 3. Click **SAVE + START CALL-OUT**. Log Call-Out opens filled in. Type the hours, click **LOAD LIST** and call as usual.
 4. **Save only** books the sick shift without starting a call-out.
 
-The person is off call lists for that shift and any shift starting within 24 hours after it ends. Log each sick shift as its own sick call.
+The person is off call lists for that shift and any shift starting within 24 hours after it ends. Log each sick shift as its own sick call. The calendar shows one "Sick" line on the shift called in; members see it as "Off".
 
 ## Leave: going and returning
 - **Going:** click **Leave**, choose "Going on leave". Pick Employee and Type. Type the first day off. Type the expected return, or leave it blank. Click **SAVE LEAVE**.
 - **Returning:** click **Leave**, choose "Returning from leave (top-up)". Pick who is back and type the return date (first day back). Click **Work out the top-up**. Read the result: the peers, the average, and hours before and after. Click **SAVE TOP-UP**, then OK.
 - Use "Override hours" only if the average is wrong. A reason is required.
+- A return dated after the roster's last pay period is refused until the year-end rollover has been run.
 
 ## Needs Attention
 Open it from the Calendar with the **Needs attention >** button (it reads "N need cover >" when lines are open), or click the Needs Attention tab. It lists open lines, postings ready to award, paybacks owed, leaves to watch and other items. Double-click any row for its options.
@@ -87,7 +92,10 @@ Click **Calendar**. Pick the month and the unit at the top. OPEN means the line 
 Click **Call Out Roster**. It is redrawn in call order. Answer Yes to print.
 
 ## Publish Member View
-Click **Member View**. Wait for "Members' file published". If the message says the file is open somewhere, have it closed and publish again.
+Click **Member View**. Wait for "Members' file published". If the message says the file is open somewhere, have it closed and publish again. "NOT published. Something private would have gone into the members' file" names a calendar line or posting reason that mentions a kind of leave, sick or personal: reword it and publish again. Member View refuses to run from a dated backup or the frozen year-end file: open the live roster.
+
+## Postings when someone moves unit
+A person who moves into a unit (today, or on a date the admin entered ahead of time) is added to that unit's open postings for shifts from the move that can still be signed up for, in call order. Print those sheets again; the box after the move names them. If a planned move is cancelled before the day, they come off again.
 
 ## Asking for a void
 **Void Entry** is an admin button. To correct a logged call-out or award:

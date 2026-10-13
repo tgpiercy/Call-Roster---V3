@@ -3197,13 +3197,13 @@ Public Sub DrawNeeds()
     If IsArray(pmv) Then
         For i = 1 To UBound(pmv, 1)
             pmD = Dt2(pmv(i, PM_FROM))
-            pmDue = (Int(pmD) <= Date)
+            pmDue = (Int(pmD) <= Date)                  ' a date that can't be read (0) shows as a problem too
             pmWho = SafeStr(pmv(i, PM_EMP))
-            NAAdd vr, nV, Format$(pmD, "ddd mmm d"), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
+            NAAdd vr, nV, IIf(pmD = 0, "?", Format$(pmD, "ddd mmm d")), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
                   CalName(pmWho) & "   " & HomeUnitOf(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
-                  SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmDue, "DUE - not applied", "Planned"), WhenText(pmD), _
-                  "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), IIf(pmDue, thOpen(), thMuted()), _
-                  IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
+                  SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmD = 0, "Date can't be read", IIf(pmDue, "DUE - not applied", "Planned")), _
+                  IIf(pmD = 0, "", WhenText(pmD)), "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), _
+                  IIf(pmDue, thOpen(), thMuted()), IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
         Next i
         NASort vr, nV
     End If

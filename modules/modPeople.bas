@@ -2003,10 +2003,10 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
 Failed:
     em = Err.Description
     LogError "SavePlannedMove", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
-    MarkNoSave
     MsgBox "The planned move stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, TTL
 End Function
@@ -2127,10 +2127,10 @@ Public Function CancelPlannedMove(ByVal id As String, ByVal reason As String, By
 Failed:
     em = Err.Description
     LogError "CancelPlannedMove", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
     QuietOff evWas, scrWas, calcWas
     On Error Resume Next
     ProtectAll
-    MarkNoSave
     MsgBox "Cancelling " & id & " stopped part-way: " & em & vbNewLine & vbNewLine & _
            "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, TTL
 End Function
@@ -2294,8 +2294,11 @@ Oops:
 End Sub
 
 Private Sub RedrawNeedsIfShown()
+    Dim nm As String
     On Error Resume Next
-    If ActiveSheet.Name = NA_SHEET Then NARefresh
+    nm = ActiveSheet.Name
+    On Error GoTo 0
+    If nm = NA_SHEET Then NARefresh
 End Sub
 
 

@@ -571,7 +571,6 @@ End Sub
 ' ---- 5. postings: the posting's own list against the log ----
 Private Sub CheckPostings()
     Dim pv As Variant: pv = TableValues(PT_TABLE)
-    If Not IsArray(pv) Then Exit Sub
     Dim lv As Variant: lv = TableValues(PL_TABLE)
     Dim listSum As Object: Set listSum = CreateObject("Scripting.Dictionary")
     listSum.CompareMode = 1
@@ -580,12 +579,33 @@ Private Sub CheckPostings()
     Dim logAny As Object: Set logAny = CreateObject("Scripting.Dictionary")
     logAny.CompareMode = 1
     Dim i As Long, id As String, st As String
+    ' v24.3.1 (review P1): list rows whose posting row is gone (a header deleted by hand, or a
+    ' creation that failed between the list and the header). NextPostingID skips their ID now.
+    Dim hdr As Object: Set hdr = CreateObject("Scripting.Dictionary")
+    hdr.CompareMode = 1
+    Dim orphan As Object: Set orphan = CreateObject("Scripting.Dictionary")
+    orphan.CompareMode = 1
+    If IsArray(pv) Then
+        For i = 1 To UBound(pv, 1)
+            id = Trim$(SafeStr(pv(i, PS_ID)))
+            If id <> "" Then hdr(id) = True
+        Next i
+    End If
     If IsArray(lv) Then
         For i = 1 To UBound(lv, 1)
             id = Trim$(SafeStr(lv(i, PL_ID)))
-            If id <> "" Then listSum(id) = NumOr0(listSum(id)) + NumOr0(lv(i, PL_CHARGED))
+            If id <> "" Then
+                listSum(id) = NumOr0(listSum(id)) + NumOr0(lv(i, PL_CHARGED))
+                If Not hdr.Exists(id) Then orphan(id) = NumOr0(orphan(id)) + 1
+            End If
         Next i
     End If
+    Dim kk As Variant
+    For Each kk In orphan.Keys
+        AddIssue SEV_WARN, "Postings", CStr(kk) & ": " & orphan(kk) & " list row(s) but no posting row", _
+                 "Its header was deleted by hand or its creation stopped part-way. Nothing reuses the ID; send me this line"
+    Next kk
+    If Not IsArray(pv) Then Exit Sub
     For i = 1 To LogRows()
         id = Trim$(SafeStr(mLog(i, L_REF)))
         If Left$(UCase$(id), 2) = "P-" And Not IsVoidRow(i) Then

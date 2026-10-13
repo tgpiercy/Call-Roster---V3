@@ -1010,26 +1010,32 @@ Public Function PostingStatus(ByVal id As String) As String
     Next i
 End Function
 
-' Next P- number across both the Postings table and the OT Log
+' Next P- number across the Postings table, its list table and the OT Log.
+' v24.3.1 (review P1): list rows are written before the header, so a header deleted by hand
+' or a creation that failed between the two leaves list rows whose ID must never be reused
+' (LoadPosting would collect both lists and the award would charge across them).
 Private Function NextPostingID() As String
     Dim s As String: s = NextRefID("P")
     Dim mx As Long: mx = CLng(Val(Mid$(s, 3))) - 1
-    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
-    Dim v As Variant, i As Long, k As Long
-    If Not lo Is Nothing Then
-        If Not lo.DataBodyRange Is Nothing Then
-            v = RangeTo2D(lo.ListColumns(PS_ID).DataBodyRange)
-            For i = 1 To UBound(v, 1)
-                s = UCase$(Trim$(SafeStr(v(i, 1))))
-                If Left$(s, 2) = "P-" Then
-                    k = CLng(Val(Mid$(s, 3)))
-                    If k > mx Then mx = k
-                End If
-            Next i
-        End If
-    End If
+    RaiseToMaxPostingNumber GetTable(PT_TABLE), PS_ID, mx
+    RaiseToMaxPostingNumber GetTable(PL_TABLE), PL_ID, mx
     NextPostingID = "P-" & Format$(mx + 1, "0000")
 End Function
+
+' mx = the highest P-#### number in that table's ID column, if higher than mx already is
+Private Sub RaiseToMaxPostingNumber(ByVal lo As ListObject, ByVal idCol As Long, ByRef mx As Long)
+    If lo Is Nothing Then Exit Sub
+    If lo.DataBodyRange Is Nothing Then Exit Sub
+    Dim v As Variant, i As Long, k As Long, s As String
+    v = RangeTo2D(lo.ListColumns(idCol).DataBodyRange)
+    For i = 1 To UBound(v, 1)
+        s = UCase$(Trim$(SafeStr(v(i, 1))))
+        If Left$(s, 2) = "P-" Then
+            k = CLng(Val(Mid$(s, 3)))
+            If k > mx Then mx = k
+        End If
+    Next i
+End Sub
 
 
 ' ====================================================================

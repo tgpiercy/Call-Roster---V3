@@ -154,6 +154,13 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
     Application.ScreenUpdating = True
     Application.EnableEvents = True
     Application.Cursor = xlDefault
+    ' v24.3.1: everything a bulk routine turns off (convention 6). Automatic is the roster's only
+    ' normal state; a routine that captured and restores its own mode never reaches this line.
+    Application.Calculation = xlCalculationAutomatic
+    Application.StatusBar = False
+    Application.DisplayAlerts = True
+    ProtectSheet RosterSheet()                     ' a sort or draw that raised between Unprotect and ProtectSheet
+                                                   ' (ProtectSheet keeps an admin's unlocked view)
     Dim k As Long                                  ' a pop-up the error happened in is still loaded: close it
     gErrorClosing = True                           ' ...without its "close without saving?" question
     For k = VBA.UserForms.Count - 1 To 0 Step -1

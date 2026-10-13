@@ -147,8 +147,9 @@ Public Sub PublishMembers()
     If Not RequireAdmin() Then Exit Sub
     ' v24.3.1 (review M2): yesterday's backup sits beside the template; opened to look something up,
     ' Member View from it would overwrite the live members' file with old hours stamped today.
-    ' A practice copy is NOT refused: it publishes "PRACTICE - ..." beside itself (PublishFolderPath).
-    If IsBackupCopyName(ThisWorkbook.Name) Then
+    ' A practice copy is NOT refused, even one made from a FINAL or "Backup before" file (its name then
+    ' carries both words): it publishes "PRACTICE - ..." beside itself (PublishFolderPath).
+    If IsBackupCopyName(ThisWorkbook.Name) And Not IsDryRunName(ThisWorkbook.Name) Then
         MsgBox "This file is a backup or frozen copy of the roster, not the live roster:" & vbNewLine & _
                ThisWorkbook.Name & vbNewLine & vbNewLine & _
                "Member View won't publish from it. Open the live roster and publish there.", vbExclamation, "Member View"

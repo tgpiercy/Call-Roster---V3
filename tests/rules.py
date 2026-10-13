@@ -748,7 +748,8 @@ def backup_file_date(file_name: str) -> date | None:
     if len(file_name) != pat_len or not file_name.startswith(BACKUP_BASENAME + " ") or not file_name.endswith(".xlsm"):
         return None
     s = file_name[len(BACKUP_BASENAME) + 1:len(BACKUP_BASENAME) + 11]
-    if not (s[0:4].isdigit() and s[4] == "-" and s[5:7].isdigit() and s[7] == "-" and s[8:10].isdigit()):
+    digits = "0123456789"                                   # VBA's "#" matches 0-9 only, not every Unicode digit
+    if not (all(c in digits for c in s[0:4] + s[5:7] + s[8:10]) and s[4] == "-" and s[7] == "-"):
         return None
     try:
         return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))

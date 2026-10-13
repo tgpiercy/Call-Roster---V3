@@ -204,14 +204,15 @@ Public Sub AttendanceCore(ByVal crewCode As String, ByRef sickD() As Date, ByRef
     st.PaidLeft = PAID_SICK_DAYS - mS.Used              ' days still payable inside the current occurrences
     If st.PaidLeft < 0 Then st.PaidLeft = 0
     ' v24.3.1 (review L1, decided D-L4): nothing is payable once a 4th occurrence has started, or once
-    ' the 3rd has ENDED - a scheduled shift of theirs after its last sick shift, on or before the as-of
-    ' date (the day after as-of is the far end of the strictly-between test). The status phrase
-    ' "Paid sick days used up" follows from PaidLeft = 0; "only while the current occurrence
-    ' continues" is now said only while it really does.
+    ' the 3rd has ENDED - a scheduled shift of theirs after its last sick shift and before the as-of
+    ' date's NIGHT (the far end of the strictly-between test is the night of as-of: a day shift on
+    ' as-of counts as worked, the night on as-of does not, since it starts at 7 pm and a sick call
+    ' for it may still come). The status phrase "Paid sick days used up" follows from PaidLeft = 0;
+    ' "only while the current occurrence continues" is now said only while it really does.
     If mS.Occ > PAID_SICK_OCC Then
         st.PaidLeft = 0
     ElseIf mS.Occ = PAID_SICK_OCC And mS.HaveLast Then
-        If SchedBetween(crewCode, mS.LastD, mS.LastN, Int(asOf) + 1, False, whoName) Then st.PaidLeft = 0
+        If SchedBetween(crewCode, mS.LastD, mS.LastN, Int(asOf), True, whoName) Then st.PaidLeft = 0
     End If
     st.Occurrences = mS.Occ
     st.OccDates = mS.OccTxt

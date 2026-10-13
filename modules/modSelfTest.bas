@@ -957,6 +957,8 @@ Private Sub LoadCases()
     AddCase "attend,third-occurrence-ended,A,2026-01-05:N;2026-01-10:D;2026-01-15:N,,2026-01-25,,3/3/0/3/0/ENT/PAID"
     AddCase "attend,third-occurrence-run-still-open,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-16:N,,2026-01-16,,4/4/1/3/0/ENT/PAID"
     AddCase "attend,fourth-occurrence-nothing-left,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-20:D,,2026-01-21,,4/3/0/4/0/ENT/UNPAID"
+    AddCase "attend,third-occurrence-night-on-asof-still-open,A,2026-01-05:N;2026-01-10:D;2026-01-14:N,,2026-01-15,,3/3/2/3/0/ENT/PAID"
+    AddCase "attend,third-occurrence-ended-the-day-after,A,2026-01-05:N;2026-01-10:D;2026-01-14:N,,2026-01-16,,3/3/0/3/0/ENT/PAID"
     AddCase "year,2026-from-its-own-start,2025-12-28,2026,,,,2025-12-28|26|2026"
     AddCase "year,2027-starts-dec-27,2025-12-28,2027,,,,2026-12-27|26|2027"
     AddCase "year,2028-starts-dec-26,2025-12-28,2028,,,,2027-12-26|26|2028"

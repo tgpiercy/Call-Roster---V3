@@ -75,11 +75,13 @@ Sub SyncKronosData()
     ' found by their headings, never by position. Before this, column 2 and column 13 were read for
     ' every row: a report with one pay-code column more or fewer would have put a pay-code column
     ' into everyone's Worked hours (or read no Grand Total at all) and still said "complete".
-    Dim lastSrc As Long, lastCol As Long
-    With wsSource.UsedRange
-        lastSrc = .Row + .Rows.Count - 1
-        lastCol = .Column + .Columns.Count - 1
-    End With
+    Dim lastSrc As Long, lastCol As Long, lastCell As Range
+    ' the last cell that holds anything, by rows and by columns (UsedRange can run to the sheet's end
+    ' when a column carries a whole-column format); nothing found = an empty sheet, read 2 x 2
+    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlValues, SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
+    If lastCell Is Nothing Then lastSrc = 2 Else lastSrc = lastCell.Row
+    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlValues, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious)
+    If lastCell Is Nothing Then lastCol = 2 Else lastCol = lastCell.Column
     If lastSrc < 2 Then lastSrc = 2                   ' always a 2-D array below
     If lastCol < 2 Then lastCol = 2
     Dim src As Variant: src = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(lastSrc, lastCol)).Value
@@ -103,14 +105,13 @@ Sub SyncKronosData()
     Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary")        ' name key -> Payroll #
     Dim keyOfNum As Object: Set keyOfNum = CreateObject("Scripting.Dictionary")  ' Payroll # -> name key ("" = two people share it)
     Dim pCol As Long, hdrRow As Long, pn As String
-    pCol = PayrollColumn(src, hdrRow)
-    If pCol > 0 And hdrRow <> hdrName Then pCol = 0   ' a "Payroll #" cell off the heading row isn't the column
     hdrRow = hdrName
+    pCol = PayrollColumn(src, hdrRow)                 ' v24.3.1: on the heading row only (a title cell above it isn't the column)
     For i = hdrRow + 1 To UBound(src, 1)
         raw = Trim$(SafeStr(src(i, nameCol)))
         k = NameKey(raw)
         If k <> "" Then
-            If pCol > 0 And i > hdrRow And Not dict.Exists(k) Then
+            If pCol > 0 And Not dict.Exists(k) Then
                 pn = PayrollText(src(i, pCol))
                 If pn <> "" Then
                     payOf(k) = pn
@@ -620,23 +621,19 @@ Private Function HeaderColumn(ByRef src As Variant, ByRef hdrRow As Long, ByVal 
     Next r
 End Function
 
-' The column of the Kronos sheet whose header says Payroll # (0 = none). Looks in the first 10 rows.
-Private Function PayrollColumn(ByRef src As Variant, ByRef hdrRow As Long) As Long
-    Dim r As Long, c As Long, rMax As Long
-    hdrRow = 0
-    rMax = UBound(src, 1)
-    If rMax > 10 Then rMax = 10
-    For r = 1 To rMax
-        For c = 1 To UBound(src, 2)
-            If VarType(src(r, c)) = vbString Then
-                If IsPayrollHeader(CStr(src(r, c))) Then
-                    PayrollColumn = c
-                    hdrRow = r
-                    Exit Function
-                End If
+' The column of the Kronos sheet whose heading says Payroll # (0 = none), on the heading row hdrRow
+' (v24.3.1: that row only - before, the first match in the first 10 rows).
+Private Function PayrollColumn(ByRef src As Variant, ByVal hdrRow As Long) As Long
+    Dim c As Long
+    If hdrRow < 1 Or hdrRow > UBound(src, 1) Then Exit Function
+    For c = 1 To UBound(src, 2)
+        If VarType(src(hdrRow, c)) = vbString Then
+            If IsPayrollHeader(CStr(src(hdrRow, c))) Then
+                PayrollColumn = c
+                Exit Function
             End If
-        Next c
-    Next r
+        End If
+    Next c
 End Function
 
 Private Function NameKey(ByVal s As String) As String

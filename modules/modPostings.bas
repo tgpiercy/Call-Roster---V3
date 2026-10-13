@@ -1788,39 +1788,85 @@ Private Function PlanIdIn(ByVal note As String) As String
 End Function
 
 ' v24.3: the OPEN postings in the given units ("|A|B|"), for shifts on or after
-' fromDate, whose frozen list does NOT hold emp. A cancelled planned move uses it
-' to say which lists were made without the person. "" = none.
-Public Function OpenPostingsWithout(ByVal emp As String, ByVal fromDate As Date, ByVal units As String) As String
+' fromDate, CREATED on or after postedFrom, whose frozen list holds emp
+' (wantListed) or does not. A cancelled planned move uses it to name the lists
+' that were made while it was waiting. "" = none.
+Public Function OpenPostingsSince(ByVal emp As String, ByVal fromDate As Date, ByVal units As String, _
+                                  ByVal postedFrom As Date, ByVal wantListed As Boolean) As String
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
     Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
     If lo Is Nothing Or lr Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function
     Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
-    Dim want As Object: Set want = CreateObject("Scripting.Dictionary")
-    want.CompareMode = 1
-    Dim i As Long, id As String, k As Variant, outS As String
+    Dim seen As Object: Set seen = CreateObject("Scripting.Dictionary")     ' posting ID -> is emp on its list
+    seen.CompareMode = 1
+    Dim i As Long, id As String, k As Variant, outS As String, lv As Variant
+    For i = 1 To UBound(pv, 1)
+        id = Trim$(SafeStr(pv(i, PS_ID)))
+        If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then
+            If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) And Int(ToDate(pv(i, PS_POSTED))) >= Int(postedFrom) Then
+                If InStr(1, units, "|" & Trim$(SafeStr(pv(i, PS_UNIT))) & "|", vbTextCompare) > 0 Then seen(id) = False
+            End If
+        End If
+    Next i
+    If seen.Count = 0 Then Exit Function
+    If Not lr.DataBodyRange Is Nothing Then
+        lv = RangeTo2D(lr.DataBodyRange)
+        For i = 1 To UBound(lv, 1)
+            id = Trim$(SafeStr(lv(i, PL_ID)))
+            If seen.Exists(id) Then
+                If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then seen(id) = True
+            End If
+        Next i
+    End If
+    For Each k In seen.Keys
+        If CBool(seen(k)) = wantListed Then outS = outS & IIf(outS = "", "", ", ") & CStr(k)
+    Next k
+    OpenPostingsSince = outS
+End Function
+
+' v24.3: the person now moves (or has moved) into unit after all, so a
+' "Exempt - move cancelled (PM-n)" mark left by an earlier, cancelled move no
+' longer applies on that unit's OPEN postings for shifts on or after fromDate.
+' Returns the posting IDs ("" = none).
+Public Function ClearCancelledMoveMarks(ByVal emp As String, ByVal unit As String, ByVal fromDate As Date) As String
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lo Is Nothing Or lr Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Or lr.DataBodyRange Is Nothing Then Exit Function
+    Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
+    Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+    Dim openIds As Object: Set openIds = CreateObject("Scripting.Dictionary")
+    openIds.CompareMode = 1
+    Dim i As Long, id As String, hit As Boolean, outS As String, res As String, note As String
     For i = 1 To UBound(pv, 1)
         id = Trim$(SafeStr(pv(i, PS_ID)))
         If id <> "" And SafeStr(pv(i, PS_STATUS)) = "Open" Then
             If Int(ToDate(pv(i, PS_DATE))) >= Int(fromDate) Then
-                If InStr(1, units, "|" & SafeStr(pv(i, PS_UNIT)) & "|", vbTextCompare) > 0 Then want(id) = False
+                If StrComp(Trim$(SafeStr(pv(i, PS_UNIT))), Trim$(unit), vbTextCompare) = 0 Then openIds(id) = True
             End If
         End If
     Next i
-    If want.Count = 0 Then Exit Function
-    If Not lr.DataBodyRange Is Nothing Then
-        Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
-        For i = 1 To UBound(lv, 1)
-            id = Trim$(SafeStr(lv(i, PL_ID)))
-            If want.Exists(id) Then
-                If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then want(id) = True
+    If openIds.Count = 0 Then Exit Function
+    For i = 1 To UBound(lv, 1)
+        id = Trim$(SafeStr(lv(i, PL_ID)))
+        If openIds.Exists(id) Then
+            If StrComp(Trim$(SafeStr(lv(i, PL_EMP))), Trim$(emp), vbTextCompare) = 0 Then
+                res = SafeStr(lv(i, PL_RESULT))
+                SplitExempt res, note
+                If InStr(1, note, EXEMPT_TAG & "move cancelled (PM-", vbTextCompare) > 0 Then
+                    If Not hit Then
+                        lr.Parent.Unprotect Password:=SHEET_PASSWORD
+                        hit = True
+                    End If
+                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = res
+                    outS = outS & IIf(outS = "", "", ", ") & id
+                End If
             End If
-        Next i
-    End If
-    For Each k In want.Keys
-        If Not want(k) Then outS = outS & IIf(outS = "", "", ", ") & CStr(k)
-    Next k
-    OpenPostingsWithout = outS
+        End If
+    Next i
+    If hit Then ProtectSheet lr.Parent
+    ClearCancelledMoveMarks = outS
 End Function
 
 ' v24.3: a planned unit move was cancelled, so its "Exempt - moves ... (PM-0007)"
@@ -1970,7 +2016,8 @@ Public Sub ReopenPosting()
     Dim planId As String, planOn As Date, planUnit As String, codeNow As String
     For j = 1 To n
         ' v24.3: a mark left by a planned unit move that was cancelled since no longer applies
-        If InStr(1, lst(j).ExemptNote, "(PM-", vbTextCompare) > 0 Then
+        ' ("Exempt - move cancelled (PM-n)" is a different mark and stays: that person never held the code)
+        If InStr(1, lst(j).ExemptNote, EXEMPT_TAG & "moves ", vbTextCompare) > 0 Then
             If StrComp(PlannedStatusOf(PlanIdIn(lst(j).ExemptNote)), "Cancelled", vbTextCompare) = 0 Then lst(j).ExemptNote = ""
         End If
         If lst(j).ExemptNote = "" Then

@@ -123,7 +123,8 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
         .Merge
         .Value = "Listed in call order: grade code, then total hours, then plant seniority.  " & _
                  "* = total includes accepted overtime not yet in Kronos (data through " & _
-                 Format$(EnsureDataThrough(), "mmm d") & ").  >> = above grade " & CHARGE_MAX_GRADE & " (called, not charged)."
+                 Format$(EnsureDataThrough(), "mmm d") & ").  >> = above grade " & CHARGE_MAX_GRADE & " (called, not charged)." & _
+                 IIf(HasPlannedMoves(), "  ~ = hours after a planned unit move's top-up.", "")
         .Font.Size = 8: .Font.Italic = True: .Font.Color = greyTxt
         .HorizontalAlignment = xlLeft
     End With

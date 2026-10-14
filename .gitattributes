@@ -9,3 +9,4 @@ paste-in/*.txt text eol=crlf
 *.csv  text
 member/*.bas text eol=crlf
 member/*.txt text eol=crlf
+*.frx  binary

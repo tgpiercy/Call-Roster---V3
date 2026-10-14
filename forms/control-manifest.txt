@@ -1,0 +1,14 @@
+control-manifest - design-time controls of the two designer forms, read from forms/*.frx (exported by Graeme, Oct 14, 2026).
+Every other control of these forms is built in code (AddCtl / MakeBox in the paste-in). form | control | type
+frmOvertimeEntry | btnLoad | CommandButton
+frmOvertimeEntry | btnAccepted | CommandButton
+frmOvertimeEntry | btnRefused | CommandButton
+frmOvertimeEntry | btnLeftMsg | CommandButton
+frmOvertimeEntry | btnUnavailable | CommandButton
+frmOvertimeEntry | btnSubmit | CommandButton
+frmOvertimeEntry | lstEmployees | ListBox
+frmPostingEntry | btnLoad | CommandButton
+frmPostingEntry | btnPassed | CommandButton
+frmPostingEntry | btnSignedUp | CommandButton
+frmPostingEntry | btnSubmit | CommandButton
+frmPostingEntry | lstEmployees | ListBox

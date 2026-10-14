@@ -1,0 +1,590 @@
+VERSION 5.00
+Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} frmOvertimeEntry 
+   Caption         =   "frmOvertimeEntry"
+   ClientHeight    =   9945
+   ClientLeft      =   120
+   ClientTop       =   465
+   ClientWidth     =   10275
+   OleObjectBlob   =   "frmOvertimeEntry.frx":0000
+   StartUpPosition =   1  'CenterOwner
+End
+Attribute VB_Name = "frmOvertimeEntry"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = False
+Option Explicit
+' @version v24.3.1 (Oct 14)
+
+' ================================================================
+' CALLOUT SESSION FORM
+' List + call order come from LoadEligible (modOvertimeEntry), the
+' same order as the printed roster: grade > total hours > seniority.
+' Submitting writes one OT Log row per person. Charged hours reach
+' the roster through the log formulas - nothing is typed into it.
+' Picking the date + Days/Nights fills the Crew from the shift
+' rotation (modShiftCycle) - it can still be changed by hand.
+' ================================================================
+
+Private WithEvents mDN As MSForms.ComboBox
+Attribute mDN.VB_VarHelpID = -1
+Private WithEvents mDateBox As MSForms.TextBox
+Attribute mDateBox.VB_VarHelpID = -1
+Private WithEvents mPartAcc As MSForms.CommandButton     ' v24.1: accepted PART of the hours
+Attribute mPartAcc.VB_VarHelpID = -1
+
+Private mEntries() As EmpRec
+Private mSS() As String          ' SS ID if that person is working a shift switch that shift
+Private mTaken() As Double       ' v24.1: hours an Accepted person took (0 = everything on offer)
+Private mCount As Long
+Private mCurrent As Long
+' inputs captured at LOAD LIST - Submit always uses these
+Private mDept As String, mShift As String, mDate As Date, mHours As Double, mShiftLbl As String
+Private mKronosOk As Boolean     ' v20: stale-Kronos warning answered once per session
+Private mAutoHours As String     ' v21: hours we filled in for a DST night ("" = none / typed by hand)
+
+
+' ================================================================
+' CONTROL HELPERS
+' ================================================================
+Private Function C(nm As String) As Object
+    Set C = Me.Controls(nm)
+End Function
+
+Private Sub MakeLabel(nm As String, cap As String, L As Long, t As Long, W As Long)
+    Dim o As Object
+    Set o = Me.Controls.Add("Forms.Label.1", nm, True)
+    o.Caption = cap: o.Left = L: o.top = t
+    o.Width = W: o.Height = 15
+End Sub
+
+Private Sub MakeCombo(nm As String, L As Long, t As Long, W As Long)
+    Dim o As Object
+    Set o = Me.Controls.Add("Forms.ComboBox.1", nm, True)
+    o.Left = L: o.top = t: o.Width = W: o.Height = 20: o.Style = 2
+End Sub
+
+Private Sub MakeBox(nm As String, L As Long, t As Long, W As Long)
+    Dim o As Object
+    Set o = Me.Controls.Add("Forms.TextBox.1", nm, True)
+    o.Left = L: o.top = t: o.Width = W: o.Height = 20
+End Sub
+
+Private Sub FillCombo(nm As String, items As Variant)
+    Dim i As Long
+    For i = LBound(items) To UBound(items)
+        C(nm).AddItem items(i)
+    Next i
+End Sub
+
+
+' ================================================================
+' INITIALIZE
+' ================================================================
+Private Sub UserForm_Initialize()
+    Me.Width = 445: Me.Height = 538
+    Me.Caption = "Callout Session"
+
+    MakeLabel "lblDept", "Department:", 10, 13, 62
+    MakeCombo "cmbDept", 74, 10, 110
+    MakeLabel "lblDN", "Shift:", 192, 13, 32
+    MakeCombo "cmbDN", 224, 10, 68
+    MakeLabel "lblShift", "Crew:", 300, 13, 32
+    MakeCombo "cmbShift", 332, 10, 88                  ' wide enough for "All not scheduled"
+
+    MakeLabel "lblDate", "Date:", 10, 41, 30
+    MakeBox "txtDate", 44, 38, 90
+    MakeLabel "lblHrs", "Hours:", 142, 41, 36
+    MakeBox "txtHours", 180, 38, 50
+
+    ' rotation / DST line: two lines high so a long line wraps instead of clipping (v21)
+    MakeLabel "lblRot", "Pick the date and Days / Nights - the crew fills in from the rotation.", 10, 64, 410
+    C("lblRot").Height = 24
+    C("lblRot").WordWrap = True
+    C("lblRot").Font.Size = 8.5
+    C("lblRot").ForeColor = RGB(30, 56, 100)
+
+    With btnLoad
+        .Caption = "LOAD LIST"
+        .Left = 300: .top = 36: .Width = 115: .Height = 26
+        .Font.Bold = True
+    End With
+
+    MakeLabel "lblLegend", _
+        ">> = above Grade " & CHARGE_MAX_GRADE & " (called, not charged) | charged at " & _
+        CHARGE_MULTIPLIER & "x | * = total includes accepted OT not yet in Kronos", 10, 90, 410
+    C("lblLegend").Font.Italic = True
+    C("lblLegend").Font.Size = 8
+    C("lblLegend").ForeColor = RGB(100, 100, 100)
+
+    MakeLabel "lblH1", "Employee", 12, 106, 155
+    MakeLabel "lblH2", "Phone", 169, 106, 90
+    MakeLabel "lblH3", "Total", 261, 106, 35
+    MakeLabel "lblH4", "Outcome", 298, 106, 125
+    C("lblH1").Font.Bold = True
+    C("lblH2").Font.Bold = True
+    C("lblH3").Font.Bold = True
+    C("lblH4").Font.Bold = True
+
+    With lstEmployees
+        .Left = 10: .top = 120: .Width = 410: .Height = 146
+        .ColumnCount = 4
+        .ColumnWidths = "155;90;35;125"
+        .Font.Size = 10
+    End With
+
+    MakeLabel "lblNowHdr", "Now calling:", 10, 272, 75
+    C("lblNowHdr").Font.Bold = True
+    MakeLabel "lblCurrent", "Load a list to begin", 90, 272, 330
+    C("lblCurrent").Font.Bold = True
+    C("lblCurrent").Font.Size = 9
+
+    MakeLabel "lblPhone", "", 10, 289, 410
+    C("lblPhone").Font.Bold = True
+    C("lblPhone").Font.Size = 16
+    C("lblPhone").ForeColor = RGB(0, 70, 140)
+    C("lblPhone").Height = 22
+
+    MakeLabel "lblReason", "Unavailable reason:", 10, 317, 105
+    C("lblReason").Font.Size = 9
+    MakeCombo "cmbReason", 118, 314, 195
+    MakeLabel "lblReasonHint", "(pick first)", 320, 317, 95
+    C("lblReasonHint").Font.Italic = True
+    C("lblReasonHint").Font.Size = 8
+    C("lblReasonHint").ForeColor = RGB(100, 100, 100)
+
+    StyleOutcome btnAccepted, " ACCEPTED", 10, RGB(0, 140, 50)
+    StyleOutcome btnRefused, " REFUSED", 113, RGB(190, 30, 30)
+    StyleOutcome btnLeftMsg, " LEFT MSG", 216, RGB(180, 100, 0)
+    StyleOutcome btnUnavailable, " UNAVAIL.", 319, RGB(80, 90, 110)
+
+    ' v24.1: someone takes only part of the hours; calling goes on for the rest
+    Set mPartAcc = Me.Controls.Add("Forms.CommandButton.1", "cmdPartAcc", True)
+    With mPartAcc
+        .Caption = "ACCEPTED PART OF THE HOURS ..."
+        .Left = 10: .top = 390: .Width = 199: .Height = 22
+        .Font.Bold = True: .Font.Size = 8
+        .Enabled = False
+    End With
+    MakeLabel "lblOffer", "", 216, 394, 204
+    C("lblOffer").Font.Size = 8.5
+    C("lblOffer").ForeColor = RGB(0, 110, 90)
+
+    MakeLabel "lblProgress", "", 10, 420, 410
+    C("lblProgress").Font.Italic = True
+
+    With btnSubmit
+        .Caption = "SUBMIT ALL ENTRIES"
+        .Left = 10: .top = 437: .Width = 410: .Height = 38
+        .Font.Bold = True: .Font.Size = 11
+        .Enabled = False
+    End With
+
+    MakeLabel "lblStatus", "", 10, 482, 410
+    C("lblStatus").Height = 28
+    C("lblStatus").WordWrap = True
+    C("lblStatus").Font.Size = 8
+
+    FillCombo "cmbDept", DeptList()
+    FillCombo "cmbShift", CrewPickList()
+    C("cmbShift").ListIndex = 0                ' All not scheduled
+    FillCombo "cmbDN", Array("Days", "Nights")
+    Set mDN = C("cmbDN")
+    Set mDateBox = C("txtDate")
+    FillCombo "cmbReason", UnavailableReasons()
+
+    C("txtDate").Value = Format$(Date, "MM/DD/YYYY")
+    mCount = 0: mCurrent = 0
+    ApplyFormTheme Me
+    mPartAcc.BackColor = RGB(0, 110, 90): mPartAcc.ForeColor = vbWhite
+End Sub
+
+Private Sub StyleOutcome(b As Object, cap As String, L As Long, col As Long)
+    With b
+        .Caption = Chr(10) & cap
+        .Left = L: .top = 340: .Width = 96: .Height = 46
+        .Font.Bold = True: .Font.Size = 9
+        .BackColor = col: .ForeColor = RGB(255, 255, 255)
+        .Enabled = False
+    End With
+End Sub
+
+Private Sub SetOutcomeButtons(ByVal on_ As Boolean)
+    btnAccepted.Enabled = on_
+    btnRefused.Enabled = on_
+    btnLeftMsg.Enabled = on_
+    btnUnavailable.Enabled = on_
+    mPartAcc.Enabled = on_
+End Sub
+
+
+' v22: a sick call opens this form already filled in (unit, date, Days / Nights);
+' the crew fills from the rotation as usual, then the supervisor clicks LOAD LIST
+Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String)
+    On Error Resume Next
+    C("cmbDept").Value = unit
+    C("txtDate").Value = Format$(d, "MM/DD/YYYY")
+    C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
+    C("lblStatus").Caption = "Sick call: " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - enter the hours and click LOAD LIST."
+    On Error GoTo 0
+End Sub
+
+
+' ================================================================
+' SHIFT ROTATION -> CREW
+' ================================================================
+Private Sub mDN_Change()
+    AutoCrew
+End Sub
+
+Private Sub mDateBox_Change()
+    AutoCrew
+End Sub
+
+Private Sub AutoCrew()
+    C("lblRot").ForeColor = RGB(30, 56, 100)         ' back to normal until a DST note says otherwise
+    Dim t As String: t = Trim$(C("txtDate").Text)
+    If Not IsDate(t) Then
+        C("lblRot").Caption = "Pick the date and Days / Nights - the crew fills in from the rotation."
+        Exit Sub
+    End If
+    Dim d As Date: d = CDate(t)
+    If C("cmbDN").ListIndex < 0 Then
+        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "   - pick Days / Nights"
+        Exit Sub
+    End If
+    Dim note As String, crew As String, night As Boolean
+    night = IsNightShift(C("cmbDN").Text)
+    crew = AvailableCrew(d, night, note)
+    If C("cmbShift").Value = "" Then C("cmbShift").Value = CREW_ALL
+    ' v21: clock-change night -> default the hours (13 / 11) and say so
+    Dim dst As String
+    If night Then dst = DstNote(d)
+    Dim want As String
+    If night And IsDstNight(d) Then want = CStr(DefaultShiftHours(d, True, USUAL_SHIFT_HOURS))
+    If Trim$(C("txtHours").Value) = "" Or (mAutoHours <> "" And Trim$(C("txtHours").Value) = mAutoHours) Then
+        If want <> "" And want <> CStr(USUAL_SHIFT_HOURS) Then
+            C("txtHours").Value = want: mAutoHours = want
+        ElseIf mAutoHours <> "" Then
+            C("txtHours").Value = "": mAutoHours = ""           ' no longer a DST night - back to blank
+        End If
+    End If
+    ' two lines: rotation on the first, the DST warning (or the list note) on the second
+    If dst <> "" Then
+        C("lblRot").ForeColor = RGB(190, 30, 30)
+        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  crews off: " & crew & _
+                              IIf(note <> "", "  (" & note & ")", "") & vbLf & dst & " - check the Hours box"
+    Else
+        C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  crews off: " & crew & _
+                              IIf(note <> "", "  (" & note & ")", "") & vbLf & "The list is everyone with the code who is free that shift."
+    End If
+End Sub
+
+
+' ================================================================
+' LOAD LIST
+' ================================================================
+Private Sub btnLoad_Click()
+    If C("cmbDept").Value = "" Then MsgBox "Select a department.", vbExclamation: Exit Sub
+    If C("cmbDN").ListIndex < 0 Then MsgBox "Select Days or Nights.", vbExclamation: Exit Sub
+    If C("cmbShift").Value = "" Then MsgBox "Select a crew.", vbExclamation: Exit Sub
+    If Not IsDate(C("txtDate").Value) Then MsgBox "Enter a valid date.", vbExclamation: Exit Sub
+
+    Dim hoursStr As String: hoursStr = Trim$(C("txtHours").Value)
+    If hoursStr = "" Or Not IsNumeric(hoursStr) Then MsgBox "Enter valid hours.", vbExclamation: Exit Sub
+    If CDbl(hoursStr) <= 0 Then MsgBox "Hours must be greater than zero.", vbExclamation: Exit Sub
+
+    If Not mKronosOk Then                     ' v20: warn if worked hours are old
+        If Not KronosOkToContinue("call-out") Then Exit Sub
+        mKronosOk = True
+    End If
+
+    If mCount > 0 And LoggedCount() > 0 Then
+        If MsgBox("Reloading clears the " & LoggedCount() & " outcome(s) already recorded." & vbNewLine & _
+                  "Reload anyway?", vbYesNo + vbExclamation, "Reload list") = vbNo Then Exit Sub
+    End If
+
+    Application.Calculate
+    ' v24: each person's crew is the one they are on that date (crew history)
+    mCount = LoadEligible(C("cmbDept").Value, CrewFilter(C("cmbShift").Value), mEntries, 999, CALLOUT_INCLUDE_DAYS, _
+                          CDate(C("txtDate").Value))
+    ' only people free that shift: not scheduled, rest rule, not booked off, not on a switch
+    Dim offList As String
+    If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, CDate(C("txtDate").Value), C("cmbDN").Text, offList)
+    If mCount = 0 Then
+        lstEmployees.Clear
+        C("lblOffer").Caption = ""
+        SetOutcomeButtons False
+        btnSubmit.Enabled = False
+        MsgBox "No employees found for " & C("cmbDept").Value & _
+               " / " & C("cmbShift").Value & "." & IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbExclamation
+        Exit Sub
+    End If
+
+    mDept = C("cmbDept").Value: mShift = C("cmbShift").Value: mShiftLbl = C("cmbDN").Text
+    mDate = CDate(C("txtDate").Value): mHours = CDbl(hoursStr)
+    ' flag anyone already working a shift switch on this date / shift
+    Dim j As Long, nSS As Long
+    ReDim mSS(1 To mCount)
+    ReDim mTaken(1 To mCount)
+    For j = 1 To mCount
+        mSS(j) = SwitchWorkingOn(mEntries(j).empName, mDate, mShiftLbl)
+        If mSS(j) <> "" Then nSS = nSS + 1
+    Next j
+    mCurrent = 1
+    RefreshList
+    UpdateCurrentLabel
+    SetOutcomeButtons True
+    btnSubmit.Enabled = False
+
+    C("lblProgress").Caption = "0 of " & mCount & " logged - click an outcome to start" & _
+        IIf(nSS > 0, "   (" & nSS & " working a shift switch - marked S/S)", "")
+    C("lblStatus").Caption = C("cmbDept").Value & " | " & mShiftLbl & " | Crew " & C("cmbShift").Value & _
+                             " | " & C("txtDate").Value & " | " & hoursStr & " hrs" & _
+                             IIf(offList <> "", "   |   Not listed (booked off): " & offList, "")
+End Sub
+
+
+' ================================================================
+' LIST DISPLAY
+' ================================================================
+Private Sub RefreshList()
+    lstEmployees.Clear
+    Dim i As Long, displayName As String, outcomeText As String
+    ' v24.1: the hours each Accepted row will carry (they depend on partial acceptances above it)
+    Dim oc() As String, offers() As Double, accH As Double
+    If mCount > 0 Then
+        ReDim oc(1 To mCount)
+        For i = 1 To mCount
+            oc(i) = mEntries(i).outcome
+        Next i
+        CalloutOffers mHours, oc, mTaken, mCount, offers
+    End If
+    For i = 1 To mCount
+        If mEntries(i).Grade > CHARGE_MAX_GRADE Then
+            displayName = ">> " & mEntries(i).empName
+        Else
+            displayName = " " & mEntries(i).empName
+        End If
+
+        If mEntries(i).outcome = "" Then
+            outcomeText = "-"
+        ElseIf mEntries(i).outcome = "Unavailable" Then
+            outcomeText = "Unavail: " & mEntries(i).reason
+        ElseIf mEntries(i).outcome = "Accepted" Then
+            accH = AcceptedHours(offers(i), mTaken(i))
+            outcomeText = "Accepted" & IIf(accH <> mHours, " " & HoursText(accH) & " h", "")
+        Else
+            outcomeText = mEntries(i).outcome
+        End If
+
+        If mSS(i) <> "" Then displayName = displayName & "  [S/S]"
+        lstEmployees.AddItem displayName
+        lstEmployees.List(i - 1, 1) = IIf(mEntries(i).phone = "", "- no phone -", mEntries(i).phone)
+        lstEmployees.List(i - 1, 2) = Format$(mEntries(i).TotalHrs, "0") & IIf(mEntries(i).ProvHrs > 0, "*", "") & _
+                                      IIf(mEntries(i).EstHrs, "~", "")         ' v24.3: ~ = hours after a planned unit move's top-up
+        lstEmployees.List(i - 1, 3) = outcomeText
+    Next i
+    If mCurrent >= 1 And mCurrent <= mCount Then lstEmployees.ListIndex = mCurrent - 1
+End Sub
+
+Private Sub UpdateCurrentLabel()
+    C("lblOffer").Caption = ""
+    If mCurrent < 1 Or mCurrent > mCount Then
+        C("lblCurrent").Caption = "All employees logged - ready to submit"
+        C("lblPhone").Caption = ""
+        Exit Sub
+    End If
+    ' v24.1: after a partial acceptance above them, this person is offered what is left
+    Dim offerNow As Double: offerNow = OfferFor(mCurrent)
+    If offerNow < mHours Then C("lblOffer").Caption = "Offering " & HoursText(offerNow) & " of " & HoursText(mHours) & " h (part already taken)"
+
+    Dim gradeNote As String
+    If mEntries(mCurrent).Grade > CHARGE_MAX_GRADE Then gradeNote = " [above Grade " & CHARGE_MAX_GRADE & " - not charged]"
+
+    If mSS(mCurrent) <> "" Then gradeNote = gradeNote & "  ** working shift switch " & mSS(mCurrent) & " **"
+    Dim provNote As String
+    If mEntries(mCurrent).ProvHrs > 0 Then provNote = ", incl. " & Format$(mEntries(mCurrent).ProvHrs, "0.##") & " provisional"
+    If mEntries(mCurrent).EstHrs Then
+        provNote = provNote & ", after their planned unit move's top-up; " & Format$(mEntries(mCurrent).RosterHrs, "0") & " today"
+    End If
+    C("lblCurrent").Caption = mEntries(mCurrent).empName & _
+        " [" & mEntries(mCurrent).DeptCode & "] " & _
+        "(" & Format$(mEntries(mCurrent).TotalHrs, "0") & " hrs" & provNote & ")" & gradeNote
+
+    If mEntries(mCurrent).phone = "" Then
+        C("lblPhone").Caption = "no phone number on file"
+        C("lblPhone").ForeColor = RGB(160, 60, 60)
+    Else
+        C("lblPhone").Caption = mEntries(mCurrent).phone
+        C("lblPhone").ForeColor = RGB(0, 70, 140)
+    End If
+End Sub
+
+Private Sub lstEmployees_Click()
+    If lstEmployees.ListIndex >= 0 Then
+        mCurrent = lstEmployees.ListIndex + 1
+        UpdateCurrentLabel
+    End If
+End Sub
+
+' Hours on offer to person idx: the call-out's hours less what people above took in part
+Private Function OfferFor(ByVal idx As Long) As Double
+    Dim oc() As String, offers() As Double, i As Long
+    OfferFor = mHours
+    If mCount < 1 Or idx < 1 Or idx > mCount Then Exit Function
+    ReDim oc(1 To mCount)
+    For i = 1 To mCount
+        oc(i) = mEntries(i).outcome
+    Next i
+    CalloutOffers mHours, oc, mTaken, mCount, offers
+    OfferFor = offers(idx)
+End Function
+
+' ACCEPTED PART OF THE HOURS: asks how many, records Accepted with those hours
+Private Sub mPartAcc_Click()
+    If mCurrent < 1 Or mCurrent > mCount Then Exit Sub
+    Dim was As Double: was = mTaken(mCurrent)
+    mTaken(mCurrent) = 0
+    Dim offer As Double: offer = OfferFor(mCurrent)
+    Dim a As Variant, h As Double
+    a = Application.InputBox(prompt:="Hours " & mEntries(mCurrent).empName & " is taking." & vbNewLine & vbNewLine & _
+                             HoursText(offer) & " h are on offer. Enter fewer hours; calling continues for the rest.", _
+                             title:="Accepted part of the hours", Type:=1)
+    If VarType(a) = vbBoolean Then mTaken(mCurrent) = was: Exit Sub
+    h = CDbl(a)
+    If h <= 0 Then mTaken(mCurrent) = was: MsgBox "The hours must be more than 0.", vbExclamation: Exit Sub
+    If h >= offer Then h = 0                              ' the whole of what was on offer
+    mTaken(mCurrent) = h
+    RecordOutcome "Accepted", "", True
+End Sub
+
+Private Function LoggedCount() As Long
+    Dim i As Long
+    For i = 1 To mCount
+        If mEntries(i).outcome <> "" Then LoggedCount = LoggedCount + 1
+    Next i
+End Function
+
+
+' ================================================================
+' OUTCOME BUTTONS
+' ================================================================
+Private Sub btnAccepted_Click(): Call RecordOutcome("Accepted", ""): End Sub     ' the whole of what is on offer
+Private Sub btnRefused_Click(): Call RecordOutcome("Refused", ""): End Sub
+Private Sub btnLeftMsg_Click(): Call RecordOutcome("Left Message", ""): End Sub
+
+Private Sub btnUnavailable_Click()
+    If C("cmbReason").Value = "" Then
+        MsgBox "Select a reason from the dropdown before marking" & vbNewLine & _
+               "someone unavailable.", vbExclamation, "Reason Required"
+        C("cmbReason").SetFocus
+        Exit Sub
+    End If
+    RecordOutcome "Unavailable", C("cmbReason").Value
+End Sub
+
+Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String, Optional ByVal keepTaken As Boolean = False)
+    If mCurrent < 1 Or mCurrent > mCount Then Exit Sub
+    If Not keepTaken Then mTaken(mCurrent) = 0           ' only ACCEPTED PART sets partial hours
+
+    mEntries(mCurrent).outcome = outcome
+    mEntries(mCurrent).reason = reason
+    C("cmbReason").Value = ""      ' so it can't carry over to the next person
+
+    Dim i As Long, nextIdx As Long, logged As Long
+    logged = LoggedCount()
+    For i = mCurrent + 1 To mCount
+        If mEntries(i).outcome = "" Then nextIdx = i: Exit For
+    Next i
+    If nextIdx = 0 Then
+        For i = 1 To mCount
+            If mEntries(i).outcome = "" Then nextIdx = i: Exit For
+        Next i
+    End If
+
+    If nextIdx > 0 Then
+        mCurrent = nextIdx
+        C("lblProgress").Caption = logged & " of " & mCount & " logged"
+    Else
+        mCurrent = mCount + 1
+        C("lblProgress").Caption = "All " & mCount & " logged - click SUBMIT ALL ENTRIES"
+    End If
+
+    RefreshList
+    UpdateCurrentLabel
+    btnSubmit.Enabled = (logged > 0)
+End Sub
+
+
+' ================================================================
+' SUBMIT
+' Charged: Refused + Left Message, grade <= CHARGE_MAX_GRADE,
+'          at CHARGE_MULTIPLIER, to the pay period of the callout date.
+' Not charged: Accepted, Unavailable, anyone above the grade limit.
+' ================================================================
+Private Sub btnSubmit_Click()
+    Dim logged As Long: logged = LoggedCount()
+    If logged = 0 Then MsgBox "No outcomes recorded yet.", vbExclamation: Exit Sub
+
+    If mCount - logged > 0 Then
+        If MsgBox(mCount - logged & " employee(s) have no outcome." & vbNewLine & _
+                  "Submit the " & logged & " completed entries?", _
+                  vbYesNo + vbQuestion, "Incomplete Session") = vbNo Then Exit Sub
+    End If
+
+    If InputsChanged() Then
+        If MsgBox("The department, shift, crew, date or hours were changed after LOAD LIST." & vbNewLine & vbNewLine & _
+                  "Submit using the values the list was loaded with?" & vbNewLine & _
+                  "  " & mDept & " | " & mShiftLbl & " | " & mShift & " | " & Format$(mDate, "MM/DD/YYYY") & " | " & mHours & " hrs" & _
+                  vbNewLine & vbNewLine & "(No = cancel; click LOAD LIST again to use the new values.)", _
+                  vbYesNo + vbExclamation, "Inputs changed") = vbNo Then Exit Sub
+    End If
+    ' v24.2: the rows are built and written by ONE function in modOvertimeEntry (SmokeTest uses it too)
+    Dim sessionID As String, summary As String
+    If Not SubmitCalloutSession(mDept, mShiftLbl, mShift, mDate, mHours, mEntries, mTaken, mCount, sessionID, summary) Then Exit Sub   ' form keeps its entries so nothing is lost
+    MsgBox summary, vbInformation, "Session Complete"
+
+    ResetForm
+End Sub
+
+Private Function InputsChanged() As Boolean
+    Dim d As Variant, h As Variant
+    d = C("txtDate").Value: h = Trim$(C("txtHours").Value)
+    If C("cmbDept").Value <> mDept Or C("cmbShift").Value <> mShift Or C("cmbDN").Text <> mShiftLbl Then InputsChanged = True: Exit Function
+    If Not IsDate(d) Or Not IsNumeric(h) Or h = "" Then InputsChanged = True: Exit Function
+    If CDate(d) <> mDate Or CDbl(h) <> mHours Then InputsChanged = True
+End Function
+
+Private Sub ResetForm()
+    mCount = 0: mCurrent = 0
+    lstEmployees.Clear
+    C("cmbDept").Value = "": C("cmbShift").Value = CREW_ALL: C("cmbDN").Value = ""
+    C("cmbReason").Value = ""
+    C("txtHours").Value = "": mAutoHours = ""
+    C("txtDate").Value = Format$(Date, "MM/DD/YYYY")
+    C("lblCurrent").Caption = "Load a list to begin"
+    C("lblPhone").Caption = ""
+    C("lblProgress").Caption = "": C("lblStatus").Caption = ""
+    C("lblOffer").Caption = ""
+    SetOutcomeButtons False
+    btnSubmit.Enabled = False
+End Sub
+
+
+' ================================================================
+' WARN ON CLOSE (the old version unloaded even when you said No)
+' ================================================================
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If gErrorClosing Then Exit Sub                 ' v24.2: closed by the error handler, which says what happened
+    If mCount = 0 Then Exit Sub
+    Dim logged As Long: logged = LoggedCount()
+    If logged > 0 Then
+        If MsgBox(logged & " unsaved entries will be lost." & vbNewLine & _
+                  "Close anyway?", vbYesNo + vbExclamation, "Unsaved Data") = vbNo Then
+            Cancel = 1
+        End If
+    End If
+End Sub
+
+

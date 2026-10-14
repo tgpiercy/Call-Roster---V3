@@ -15,6 +15,16 @@ Checks, per project (master = modules/ + paste-in/, members = member/):
   BYREF     a plain variable passed to a ByRef parameter of a different
             type ("ByRef argument type mismatch")
   FIELD     a field that the user-defined Type doesn't have
+  NORET     a Function whose name is never assigned (it returns Empty /
+            0 / "" / False on every path - "free", "0 charged")      (v25)
+  RESTORE   Application.EnableEvents / ScreenUpdating set False, or
+            Calculation set manual, in a procedure that never sets it
+            back, itself or through a procedure it calls (ReportError
+            doesn't count: it runs only on an error). A deliberate
+            hand-off is marked on that line: ' restored by <who>       (v25)
+  SET       an object variable (Worksheet, ListObject, Range, Object,
+            Dictionary ...) assigned without Set ("Object variable not
+            set" / "Invalid use of property" at run time)             (v25)
 
 It is a text scan, not a compiler. Anything it can't parse with confidence
 it skips, so a clean run is good evidence, not proof.
@@ -30,6 +40,13 @@ from undeclcheck import KEYWORDS, TOKEN, Module, split_statements  # noqa: E402
 
 INTRINSIC = {"long", "integer", "string", "double", "single", "boolean", "date", "byte", "currency", "variant",
              "longlong", "longptr"}
+# an assignment to NAME at the start of a statement, or after Then / Else on a one-line If
+ASSIGN = r"(?:^\s*|\bThen\s+|\bElse\s+)(?:Set\s+)?{name}\s*=(?!=)"
+OFF_ON = [  # (what, the 'off' value pattern, the 'on' value pattern)
+    ("Application.EnableEvents", r"False", r"(?!False\b)\S"),
+    ("Application.ScreenUpdating", r"False", r"(?!False\b)\S"),
+    ("Application.Calculation", r"xlCalculationManual\b", r"(?!xlCalculationManual\b)\S"),
+]
 
 
 def split_args(s: str) -> list[str]:
@@ -130,6 +147,42 @@ def proc_statements(mod: Module, p: Proc) -> tuple[list[str], set[str]]:
     return stmts, labels
 
 
+_RAW: dict[str, list[str]] = {}
+
+
+def raw_proc_lines(mod: Module, name: str) -> list[str]:
+    """The procedure's lines as written (comments kept), for markers such as ' restored by <who>."""
+    key = str(mod.path)
+    if key not in _RAW:
+        _RAW[key] = mod.path.read_text(encoding="ascii", errors="replace").replace("\r\n", "\n").split("\n")
+    lines = _RAW[key]
+    head = re.compile(r"^\s*(?:(?:Public|Private|Friend)\s+)?(?:Static\s+)?(?:Sub|Function|Property\s+(?:Get|Let|Set))\s+" + re.escape(name) + r"\b", re.I)
+    out, inside = [], False
+    for ln in lines:
+        if not inside and head.match(ln):
+            inside = True
+        if inside:
+            out.append(ln)
+            if re.match(r"^\s*End\s+(Sub|Function|Property)\b", ln, re.I) or re.search(r":\s*End\s+(Sub|Function)\s*(?:'.*)?$", ln, re.I):
+                break
+    return out
+
+
+def collect_enums(mod: Module) -> set[str]:
+    return {m.group(1).lower() for line in mod.lines
+            for m in [re.match(r"^\s*(?:Public\s+|Private\s+)?Enum\s+([A-Za-z_]\w*)", line, re.I)] if m}
+
+
+def is_object_type(ty: str, types: dict, enums: set[str]) -> bool:
+    """A declared type that needs Set: not intrinsic, not a UDT, not an enum (project or Xl / Vb / Mso built-in)."""
+    t = ty.lower()
+    if t in INTRINSIC or t in types or t in enums or t == "variant":
+        return False
+    if re.match(r"^(xl|vb|mso|fm)[a-z]", t):            # XlCalculation, VbMsgBoxResult, MsoBarPosition, fmBorderStyle
+        return False
+    return True
+
+
 def collect_types(mod: Module) -> dict[str, set[str]]:
     types, cur = {}, None
     for line in mod.lines:
@@ -154,7 +207,9 @@ def check_project(files: list[Path], label: str) -> int:
     pub: dict[str, Proc] = {}
     modnames = {m.name.lower() for m in mods}
     types: dict[str, set[str]] = {}
+    enums: set[str] = set()
     mod_vars: dict[str, dict[str, tuple[bool, str]]] = {}
+    restore: dict[tuple[str, str], tuple[set, set, set]] = {}     # (module, proc) -> (turned off, turned on, procs called)
     n = 0
 
     def say(tag, m, where, msg):
@@ -164,6 +219,7 @@ def check_project(files: list[Path], label: str) -> int:
 
     for m in mods:
         types.update(collect_types(m))
+        enums |= collect_enums(m)
         procs = {}
         for name, a, b in m.procs:
             p = Proc(m, name, a, b)
@@ -222,6 +278,45 @@ def check_project(files: list[Path], label: str) -> int:
                 if low in mod_vars[m.name.lower()]:
                     return mod_vars[m.name.lower()][low]
                 return None
+
+            # ---- NORET: a Function that never assigns its own name (v25) ----
+            if p.kind == "function":
+                pat = re.compile(ASSIGN.format(name=re.escape(p.name)), re.I)
+                if not any(pat.search(st) for st in stmts):
+                    say("NORET", m, p.name, "Function never assigns its result (returns Empty / 0 / \"\" / False everywhere)")
+            # ---- RESTORE (v25): what this procedure turns off / on, and whom it calls; judged after every procedure is read ----
+            offs, ons = set(), set()
+            raw_lines = raw_proc_lines(m, p.name)
+            for what, off, on in OFF_ON:
+                w = re.escape(what)
+                off_pat = re.compile(ASSIGN.format(name=w) + r"\s*" + off, re.I)
+                on_pat = re.compile(ASSIGN.format(name=w) + r"\s*" + on, re.I)
+                handed_off = any(off_pat.search(ln) and re.search(r"'.*\brestored by\b", ln, re.I) for ln in raw_lines)
+                if any(off_pat.search(st) for st in stmts) and not handed_off:
+                    offs.add(what)
+                if any(on_pat.search(st) for st in stmts):
+                    ons.add(what)
+            called = set()
+            if offs:
+                for st in stmts:
+                    for mm in TOKEN.finditer(st):
+                        nm = mm.group(0).lower()
+                        if nm != p.name.lower() and nm not in ("reporterror", "logerror"):
+                            callee = procs.get(nm) or pub.get(nm)
+                            if callee is not None:
+                                called.add((callee.mod.name.lower(), callee.name.lower()))
+            restore[(m.name.lower(), p.name.lower())] = (offs, ons, called)
+            # ---- SET: an object variable assigned without Set (v25) ----
+            for st in stmts:
+                if re.match(r"^\s*(Public|Private|Global|Dim|Static|Const|ReDim)\b", st, re.I):
+                    continue
+                for mm in re.finditer(r"(?:^\s*|\bThen\s+|\bElse\s+)([A-Za-z_]\w*)\s*=(?!=)", st, re.I):
+                    nm = mm.group(1)
+                    if nm.lower() in KEYWORDS or nm.lower() == p.name.lower():
+                        continue
+                    vt = var_type(nm)
+                    if vt and not vt[0] and is_object_type(vt[1], types, enums):
+                        say("SET", m, p.name, f"'{nm}' (As {vt[1]}) is assigned without Set")
 
             def resolve(name: str, qualifier: str | None):
                 low = name.lower()
@@ -316,6 +411,24 @@ def check_project(files: list[Path], label: str) -> int:
                             continue
                         if v_ty != prm.type and (v_ty in INTRINSIC or prm.type in INTRINSIC or v_ty in types or prm.type in types):
                             say("BYREF", m, p.name, f"'{am.group(1)}' (As {v_ty}) passed to {callee.name}'s ByRef parameter '{prm.name}' (As {prm.type})")
+
+    # ---- RESTORE verdicts: a restore in a procedure this one calls (any depth) counts ----
+    def restores(key, what, seen):
+        if key in seen:
+            return False
+        seen.add(key)
+        offs, ons, called = restore.get(key, (set(), set(), set()))
+        if what in ons:
+            return True
+        return any(restores(c, what, seen) for c in called)
+
+    for m in mods:
+        for p in by_mod[m.name.lower()].values():
+            key = (m.name.lower(), p.name.lower())
+            offs = restore.get(key, (set(), set(), set()))[0]
+            for what in sorted(offs):
+                if not restores(key, what, set()):
+                    say("RESTORE", m, p.name, f"{what} is turned off here and never turned back on (by this procedure or one it calls)")
     return n
 
 

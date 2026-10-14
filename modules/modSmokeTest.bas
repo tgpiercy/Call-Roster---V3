@@ -694,7 +694,7 @@ Private Function SmkPublish(ByRef st As SmkState, ByRef why As String) As Boolea
     gSmokeFolder = folder
     gSmokeSaved = ""
     PublishMembers
-    Application.ScreenUpdating = False             ' the publish switches it back on
+    Application.ScreenUpdating = False             ' the publish switches it back on; restored by SmokeTest at its end
     If gSmokeSaved = "" Then why = "the publish didn't write its file (a message above says why)": Exit Function
 
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -840,13 +840,13 @@ Private Function SmkPlantedWords(ByRef st As SmkState, ByRef why As String) As B
     If Not SetPostingReason(st.PostId3, "Covering J. Smith STD") Then why = "the Reason couldn't be planted": Exit Function
     gSmokeFolder = folder: gSmokeSaved = ""
     PublishMembers
-    Application.ScreenUpdating = False             ' the publish switches it back on
+    Application.ScreenUpdating = False             ' the publish switches it back on; restored by SmokeTest at its end
     SetPostingReason st.PostId3, reasonWas
     If gSmokeSaved <> "" Then why = "the publish wrote its file although a posting Reason said STD": GoTo Fail
     If UpdateCoverageBySource(st.PostId3, "NCN STD") = 0 Then why = st.PostId3 & " has no calendar line to plant on": Exit Function
     gSmokeSaved = ""
     PublishMembers
-    Application.ScreenUpdating = False
+    Application.ScreenUpdating = False             ' restored by SmokeTest at its end
     UpdateCoverageBySource st.PostId3, "POSTED " & st.PostId3
     If gSmokeSaved <> "" Then why = "the publish wrote its file although a calendar line said STD": GoTo Fail
     n = LoadPosting(st.PostId3, p, lst)

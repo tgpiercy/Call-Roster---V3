@@ -399,11 +399,156 @@ def crew_on(hist: list[tuple[str, date]], d: date, fallback: str = "") -> str:
     return fallback
 
 
+LEAVE_CODES = ("LOA", "STD", "PAR", "WSIB", "LTD", "OLV")       # modCalendar.IsLeaveCode
+
+
 def type_tag(code: str) -> str:
-    """modCalendar.TypeTag (never STD / PAR outside the Absences sheet)."""
+    """modCalendar.TypeTag: what the calendar shows (never STD / PAR / WSIB / LTD outside the Absences sheet)."""
     c = code.upper()
-    return {"VAC": "Vac", "TRN": "Trn", "LOA": "Leave", "STD": "Leave", "PAR": "Leave",
+    if c in LEAVE_CODES:
+        return "Leave"
+    return {"VAC": "Vac", "TRN": "Trn", "SIC": "Sick", "PER": "Personal",
             "SS": "S/S", "PHA": "PHA", "SUP": "Support"}.get(c, "Off")
+
+
+def public_type(code: str) -> str:
+    """modPublish.PublicType: leave of any kind goes out as LV, a sick call or personal day as OFF (v24.3.1)."""
+    c = code.strip(" ").upper()
+    if c in LEAVE_CODES:
+        return "LV"
+    if c in ("SIC", "PER"):
+        return "OFF"
+    return c
+
+
+def hours_text(x: float) -> str:
+    """modPostings.HoursText: CStr(Round(x, 2)) - 8 -> '8', 22.75 -> '22.75', never a trailing point."""
+    s = "%.2f" % round(x, 2)
+    s = s.rstrip("0").rstrip(".")
+    return "0" if s in ("", "-0") else s
+
+
+def dept_code_value(code: str) -> float:
+    """modOvertimeEntry.DeptCodeValue: the numeric part of a grade code (D1 -> 1, P1.5 -> 1.5), 999 when none."""
+    num = ""
+    found = False
+    for ch in code:
+        if ch.isdigit() and ch in "0123456789" or ch == ".":
+            num += ch
+            found = True
+        elif found:
+            break
+    if num == "":
+        return 999
+    try:
+        return float(num)
+    except ValueError:                                      # '.' or '1.5.2': not numeric
+        return 999
+
+
+def totals_plain(packed: str) -> str:
+    """modPeople.TotalsPlain: '12|21|21' -> 'Total 12, Refused 21, periods 21'."""
+    p = packed.split("|")
+    if len(p) < 3:
+        return packed
+
+    def plain(s: str) -> str:
+        try:
+            out = hours_text(float(s))
+        except ValueError:
+            out = s
+        return out[:-1] if out.endswith(".") or out.endswith(",") else out
+
+    return f"Total {plain(p[0])}, Refused {plain(p[1])}, periods {plain(p[2])}"
+
+
+def totals_difference(before: dict[str, str], after: dict[str, str], skip_name: str = "") -> str:
+    """modPeople.TotalsDifference: every name whose packed totals differ, or that is in one map only; '' = nothing moved."""
+    s = ""
+    n = 0
+    skip = skip_name.lower()
+    for k, v in before.items():
+        if k.lower() == skip:
+            continue
+        if k not in after:
+            n += 1
+            if n <= 10:
+                s += f"  {k}: no longer on the roster\n"
+        elif v != after[k]:
+            n += 1
+            if n <= 10:
+                s += f"  {k}: was {totals_plain(v)}, now {totals_plain(after[k])}\n"
+    for k in after:
+        if k.lower() == skip:
+            continue
+        if k not in before:
+            n += 1
+            if n <= 10:
+                s += f"  {k}: appeared on the roster\n"
+    if n > 10:
+        s += f"  ...and {n - 10} more\n"
+    return s
+
+
+def in_bar_list(list_txt: str, item: str) -> bool:
+    """modPeople.InBarList: is item one of the '|'-separated entries (trimmed, any case; a blank item never is)."""
+    item = item.strip(" ")
+    if item == "":
+        return False
+    return any(part.strip(" ").lower() == item.lower() for part in list_txt.split("|"))
+
+
+def trim_bar_list(list_txt: str) -> str:
+    """modPeople.TrimBarList: 'Phosphine | Cypure |' -> 'Phosphine|Cypure'."""
+    return "|".join(p.strip(" ") for p in list_txt.split("|") if p.strip(" ") != "")
+
+
+def plan_id_in(note: str) -> str:
+    """modPostings.PlanIdIn: 'Exempt - moves Feb 1 (PM-0007)' -> 'PM-0007' ('' = no planned-move ID in the note)."""
+    a = note.upper().find("(PM-")
+    if a < 0:
+        return ""
+    b = note.find(")", a)
+    return note[a + 1:b] if b > a else ""
+
+
+def name_key(s: str) -> str:
+    """ImportKronosData.NameKey: the Kronos / roster name as a match key (no spaces or points, lower case)."""
+    return s.strip(" ").replace(" ", "").replace(".", "").lower()
+
+
+def match_import_name(txt: str, roster: list[str]) -> str:
+    """modLeave.MatchImportName: 'Paul M' against roster names -> the one match, '?' for several, '' for none."""
+    parts = txt.strip(" ").split(" ")
+    first = parts[0].strip(" ").upper()
+    ini = parts[1].strip(" ")[:1].upper() if len(parts) >= 2 else ""
+    if first == "":
+        return ""
+    hits, hit = 0, ""
+    for nm in roster:
+        p = nm.find(",")
+        if p >= 0:
+            r_last = nm[:p].strip(" ").upper()
+            r_first = nm[p + 1:].strip(" ").upper()
+        else:
+            p = nm.rfind(" ") + 1                                 # InStrRev: 0 when no space
+            r_first = nm[:p].strip(" ").upper() if p > 0 else ""
+            r_last = nm[p:].strip(" ").upper()
+        if r_first[:len(first)] == first and (ini == "" or r_last[:1] == ini):
+            hits += 1
+            hit = nm
+    return hit if hits == 1 else ("?" if hits > 1 else "")
+
+
+def attend_public_status(entitled: bool, paid_left: int, occurrences: int, wait_until: date | None) -> str:
+    """modPublish.AttendPublicStatus: the four things the members' file may say about paid sick time."""
+    if not entitled:
+        return "No paid sick until " + (wait_until.strftime("%b ") + str(wait_until.day) + wait_until.strftime(", %Y") if wait_until else "Dec 30, 1899")
+    if paid_left <= 0:
+        return "Paid sick days used up"
+    if occurrences >= PAID_SICK_OCC:
+        return "Paid sick only while the current occurrence continues"
+    return "Paid sick available"
 
 
 def not_free_reason(code: str, d: date, shift_lbl: str, *, booked_off: str = "",
@@ -488,7 +633,7 @@ def hours_as_of(hh: list[tuple[date, float]], lg: list[dict], d: date, year_from
 
 def peer_eligible(grade: float, is_returner: bool, leave_overlaps: bool, has_history_before: bool) -> bool:
     """modLeave.PeerEligible."""
-    return grade <= CHARGE_MAX_GRADE and not is_returner and not leave_overlaps and has_history_before
+    return grade <= PEER_MAX_GRADE and not is_returner and not leave_overlaps and has_history_before
 
 
 def leave_average(deltas: list[float]) -> float:
@@ -754,10 +899,13 @@ def backup_file_date(file_name: str) -> date | None:
     digits = "0123456789"                                   # VBA's "#" matches 0-9 only, not every Unicode digit
     if not (all(c in digits for c in s[0:4] + s[5:7] + s[8:10]) and s[4] == "-" and s[7] == "-"):
         return None
-    try:
-        return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
-    except ValueError:
-        return None
+    return date_serial(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+
+
+def date_serial(y: int, m: int, d: int) -> date:
+    """VBA DateSerial: a month or day out of range rolls over (month 13 = January next year, day 0 = the day before the 1st)."""
+    first = date(y + (m - 1) // 12, (m - 1) % 12 + 1, 1)
+    return first + timedelta(days=d - 1)
 
 
 def is_backup_copy_name(file_name: str) -> bool:

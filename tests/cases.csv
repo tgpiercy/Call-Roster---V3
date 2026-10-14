@@ -477,3 +477,77 @@ calloffer,refusals-before-the-partial-keep-their-charge,12,Refused:0;Left Messag
 postclosed,day-before,2026-10-20,2026-10-19,,,,open
 postclosed,closing-day-still-open,2026-10-20,2026-10-20,,,,open
 postclosed,day-after,2026-10-20,2026-10-21,,,,closed
+backupdate,daily-backup,Call Out Roster 2026-10-12.xlsm,,,,,2026-10-12
+backupdate,live-master,V2 - Call Out Roster.xlsm,,,,,none
+backupdate,final-is-not-dated,Call Out Roster 2026 FINAL.xlsm,,,,,none
+backupdate,wrong-extension,Call Out Roster 2026-10-12.xlsx,,,,,none
+backupdate,letters-in-the-date,Call Out Roster 2026-1O-12.xlsm,,,,,none
+backupdate,month-13-rolls-over-as-dateserial-does,Call Out Roster 2026-13-12.xlsm,,,,,2027-01-12
+deptcode,d1,D1,,,,,1
+deptcode,p1-5,P1.5,,,,,1.5
+deptcode,g3,G3,,,,,3
+deptcode,blank,,,,,,999
+deptcode,letter-only,D,,,,,999
+deptcode,bare-number,2,,,,,2
+deptcode,trailing-space,P2_,,,,,2
+deptcode,two-points-not-numeric,D1.5.2,,,,,999
+deptcode,stops-at-the-first-gap,D1-2,,,,,1
+hourstext,whole,8,,,,,8
+hourstext,quarter,22.75,,,,,22.75
+hourstext,zero,0,,,,,0
+hourstext,third-rounds-to-hundredths,21.333,,,,,21.33
+hourstext,negative-quarter,-0.25,,,,,-0.25
+hourstext,twelve-and-a-half,12.5,,,,,12.5
+typetag,vacation,VAC,,,,,Vac/VAC
+typetag,std-is-leave-and-lv,STD,,,,,Leave/LV
+typetag,wsib-is-leave-and-lv,WSIB,,,,,Leave/LV
+typetag,ltd,LTD,,,,,Leave/LV
+typetag,olv,OLV,,,,,Leave/LV
+typetag,par,PAR,,,,,Leave/LV
+typetag,loa,LOA,,,,,Leave/LV
+typetag,sick-call-members-see-off,SIC,,,,,Sick/OFF
+typetag,personal-day-members-see-off,PER,,,,,Personal/OFF
+typetag,shift-switch,SS,,,,,S/S/SS
+typetag,training,TRN,,,,,Trn/TRN
+typetag,support,SUP,,,,,Support/SUP
+typetag,lower-case-code,std,,,,,Leave/LV
+typetag,unknown-code-is-off,XYZ,,,,,Off/XYZ
+planid,moves-mark,Exempt - moves Feb 1 (PM-0007),,,,,PM-0007
+planid,cancelled-mark,Exempt - move cancelled (PM-0012),,,,,PM-0012
+planid,no-id,Exempt - left Feb 1,,,,,none
+planid,lower-case-tag,exempt - moves Feb 1 (pm-0003),,,,,pm-0003
+planid,unclosed-bracket,Exempt - moves Feb 1 (PM-0007,,,,,none
+namekey,kronos-form,Dobbin_Stephen,,,,,dobbinstephen
+namekey,roster-form,Dobbin_Stephen_A.,,,,,dobbinstephena
+namekey,trailing-space-and-case,_SMITH_Paul_,,,,,smithpaul
+barlist,in-plain,in,Phosphine|Cypure,Cypure,,,yes
+barlist,in-trimmed-any-case,in,Phosphine_|_Cypure_|,cypure,,,yes
+barlist,in-not-there,in,Phosphine|Cypure,Gases,,,no
+barlist,in-blank-item-never,in,Phosphine||Cypure,,,,no
+barlist,in-partial-is-not-a-match,in,Phosphine|Cypure,Cyp,,,no
+barlist,trim-spaces-and-blanks,trim,Phosphine_|_Cypure_|,,,,Phosphine|Cypure
+barlist,trim-already-clean,trim,Phosphine|Cypure,,,,Phosphine|Cypure
+barlist,trim-only-bars,trim,_|_|,,,,empty
+matchname,one-match,Paul_M,Mason/Paul|Jones/Peter,,,,Mason/Paul
+matchname,first-name-only-one-match,Paul,Mason/Paul|Jones/Peter,,,,Mason/Paul
+matchname,two-pauls-ambiguous,Paul,Mason/Paul|Price/Paul,,,,?
+matchname,initial-picks-one,Paul_P,Mason/Paul|Price/Paul,,,,Price/Paul
+matchname,no-match,Fred,Mason/Paul|Jones/Peter,,,,none
+matchname,extra-words-ignored,Paul_M_8h_vac,Mason/Paul|Jones/Peter,,,,Mason/Paul
+matchname,first-last-roster-form,Paul_M,Paul_Mason|Peter_Jones,,,,Paul Mason
+matchname,first-is-a-prefix,Pa,Mason/Paul|Jones/Peter,,,,Mason/Paul
+attendstatus,available,Y,5,0,,,Paid sick available
+attendstatus,used-up,Y,0,2,,,Paid sick days used up
+attendstatus,third-occurrence-running,Y,2,3,,,Paid sick only while the current occurrence continues
+attendstatus,waiting,N,0,3,2027-03-04,,No paid sick until Mar 4. 2027
+attendstatus,waiting-beats-used-up,N,3,1,2027-01-15,,No paid sick until Jan 15. 2027
+attendstatus,used-up-beats-occurrences,Y,0,3,,,Paid sick days used up
+totalsdiff,same,Smith=12|21|21;Jones=8|0|0,Smith=12|21|21;Jones=8|0|0,,,,same
+totalsdiff,one-changed,Smith=12|21|21;Jones=8|0|0,Smith=13|21|21;Jones=8|0|0,,,,Smith: was Total 12/Refused 21/periods 21/now Total 13/Refused 21/periods 21
+totalsdiff,the-person-the-change-is-about-is-skipped,Smith=12|21|21;Jones=8|0|0,Smith=13|21|21;Jones=8|0|0,smith,,,same
+totalsdiff,removed,Smith=12|21|21;Jones=8|0|0,Jones=8|0|0,,,,Smith: no longer on the roster
+totalsdiff,removed-but-skipped,Smith=12|21|21;Jones=8|0|0,Jones=8|0|0,Smith,,,same
+totalsdiff,appeared,Jones=8|0|0,Jones=8|0|0;New=0|0|0,,,,New: appeared on the roster
+totalsdiff,quarter-hours-shown-plain,Smith=12.75|21|21,Smith=12.5|21|21,,,,Smith: was Total 12.75/Refused 21/periods 21/now Total 12.5/Refused 21/periods 21
+totalsdiff,two-lines,Smith=12|21|21;Jones=8|0|0,Smith=13|21|21,,,,Smith: was Total 12/Refused 21/periods 21/now Total 13/Refused 21/periods 21;Jones: no longer on the roster
+totalsdiff,capped-at-ten-lines,A=1|0|0;B=1|0|0;C=1|0|0;D=1|0|0;E=1|0|0;F=1|0|0;G=1|0|0;H=1|0|0;I=1|0|0;J=1|0|0;K=1|0|0;L=1|0|0,,,,,A: no longer on the roster;B: no longer on the roster;C: no longer on the roster;D: no longer on the roster;E: no longer on the roster;F: no longer on the roster;G: no longer on the roster;H: no longer on the roster;I: no longer on the roster;J: no longer on the roster;...and 2 more

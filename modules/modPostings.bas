@@ -1880,7 +1880,7 @@ Public Function ClearLeftExemptions(ByVal emp As String) As String
 End Function
 
 ' "Exempt - moves Feb 1 (PM-0007)" -> "PM-0007" ("" = the note carries no planned-move ID)
-Private Function PlanIdIn(ByVal note As String) As String
+Public Function PlanIdIn(ByVal note As String) As String
     Dim a As Long, b As Long
     a = InStr(1, note, "(PM-", vbTextCompare)
     If a = 0 Then Exit Function

@@ -610,7 +610,7 @@ End Function
 ' of absence never leaves the master; the five sick-time COUNTS on the card stay (BuildAttend).
 ' (This reverses the same-day decision to show "Sick".) The members' file has no OFF colour
 ' and draws it as any other line.
-Private Function PublicType(ByVal code As String) As String
+Public Function PublicType(ByVal code As String) As String
     Select Case UCase$(Trim$(code))
         Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": PublicType = "LV"
         Case "SIC", "PER": PublicType = "OFF"

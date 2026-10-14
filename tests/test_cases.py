@@ -37,6 +37,16 @@ def load_cases() -> list[dict]:
     return rows
 
 
+def parse_map(spec: str) -> dict[str, str]:
+    """'name=12|21|21;name2=...' -> {name: '12|21|21'} (modSelfTest.CaseMap)."""
+    out: dict[str, str] = {}
+    for part in spec.split(";"):
+        p = part.find("=")
+        if p > 0:
+            out[part[:p].strip(" ")] = part[p + 1:]
+    return out
+
+
 def parse_people(spec: str) -> list[rules.Emp]:
     out = []
     for rec in spec.split(";"):
@@ -230,6 +240,32 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "backupname":                    # v24.3.1: file name -> yes / no (a backup, FINAL or pre-change copy)
         return "yes" if rules.is_backup_copy_name(i1) else "no"
+    if suite == "backupdate":                    # v25: file name -> the date a daily backup carries / none
+        bd = rules.backup_file_date(i1)
+        return iso(bd) if bd else "none"
+    if suite == "deptcode":                      # v25: grade code (_ = space) -> numeric part (999 = none)
+        return fmt_num(rules.dept_code_value(i1.replace("_", " ")))
+    if suite == "hourstext":                     # v25: hours -> the text every message shows
+        return rules.hours_text(float(i1))
+    if suite == "typetag":                       # v25: absence code -> calendar tag / what members get
+        return rules.type_tag(i1) + "/" + rules.public_type(i1)
+    if suite == "planid":                        # v25: an Exempt note -> the planned move's ID / none
+        return rules.plan_id_in(i1) or "none"
+    if suite == "namekey":                       # v25: a name (_ = space) -> the match key (, shown as /)
+        return rules.name_key(i1.replace("_", " ")).replace(",", "/")
+    if suite == "barlist":                       # v25: in|trim, list (_ = space), item -> yes / no, or the cleaned list
+        if i1 == "in":
+            return "yes" if rules.in_bar_list(i2.replace("_", " "), i3.replace("_", " ")) else "no"
+        return rules.trim_bar_list(i2.replace("_", " ")) or "empty"
+    if suite == "matchname":                     # v25: text (_ = space), roster 'Last/First|...' -> name / ? / none
+        roster = i2.replace("/", ", ").replace("_", " ").split("|")
+        return rules.match_import_name(i1.replace("_", " "), roster).replace(", ", "/") or "none"
+    if suite == "attendstatus":                  # v25: entitled Y|N, paid left, occurrences, wait-until -> the phrase (, as .)
+        return rules.attend_public_status(i1 == "Y", int(i2), int(i3), d(i4) if i4 else None).replace(",", ".")
+    if suite == "totalsdiff":                    # v25: before, after 'name=G|I|periods;...', skip -> the lines squeezed to one
+        s = rules.totals_difference(parse_map(i1), parse_map(i2), i3)
+        s = s.replace("\n  ", ";").replace("\n", "").strip(" ").replace(", ", "/")
+        return s or "same"
     if suite == "snapyear":                      # through, snapshot year (0 = none), roster year, year from -> through to use
         return iso(rules.snapshot_through_for_year(d(i1), int(i2), int(i3), d(i4)))
     if suite == "signups":                       # 'name:S|W:hours:yyyy-mm-dd-hh;...', closing 'yyyy-mm-dd-hh' -> name=F|hours[L];...

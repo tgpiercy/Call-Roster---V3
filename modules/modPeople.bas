@@ -1718,7 +1718,7 @@ End Function
 
 ' Is item one of the "|"-separated entries of listTxt? (trimmed, any case; a blank item never is)
 ' (TrimBarList gives the same list cleaned up: "A | B |" -> "A|B")
-Private Function InBarList(ByVal listTxt As String, ByVal item As String) As Boolean
+Public Function InBarList(ByVal listTxt As String, ByVal item As String) As Boolean
     Dim part As Variant
     item = Trim$(item)
     If item = "" Then Exit Function
@@ -1823,7 +1823,7 @@ Public Function PlannedFor(ByVal emp As String, Optional ByRef eff As Date, Opti
 End Function
 
 ' "Phosphine | Cypure |" -> "Phosphine|Cypure" (each entry trimmed, blanks dropped)
-Private Function TrimBarList(ByVal listTxt As String) As String
+Public Function TrimBarList(ByVal listTxt As String) As String
     Dim part As Variant, s As String
     For Each part In Split(listTxt, "|")
         If Trim$(CStr(part)) <> "" Then s = s & IIf(s = "", "", "|") & Trim$(CStr(part))

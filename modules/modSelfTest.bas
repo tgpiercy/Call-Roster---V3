@@ -56,14 +56,14 @@ Private Function SelfTestRun() As Boolean
             expected = f(7)
             actual = RunCase(f)
         End If
-        If StrComp(Trim$(actual), Trim$(expected), vbTextCompare) = 0 Then
+        If StrComp(Trim$(actual), Trim$(expected), vbBinaryCompare) = 0 Then     ' v25 (T13): case counts
             nPass = nPass + 1
         Else
             nFail = nFail + 1
             If nFail <= 15 Then fails = fails & "  " & suite & " / " & f(1) & ": got """ & actual & """, expected """ & expected & """" & vbNewLine
             Debug.Print "SelfTest FAIL " & mCases(i) & " -> " & actual
         End If
-        bySuite(suite) = bySuite(suite) & IIf(StrComp(Trim$(actual), Trim$(expected), vbTextCompare) = 0, ".", "F")
+        bySuite(suite) = bySuite(suite) & IIf(StrComp(Trim$(actual), Trim$(expected), vbBinaryCompare) = 0, ".", "F")
     Next i
     If nFail > 15 Then fails = fails & "  ...and " & (nFail - 15) & " more (see the Immediate window)" & vbNewLine
 
@@ -194,6 +194,38 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "backupname"                          ' v24.3.1: a backup, FINAL or pre-change copy by its name
             RunCase = IIf(IsBackupCopyName(i1), "yes", "no")
+        Case "backupdate"                          ' v25: file name -> the date a daily backup carries / none
+            Dim bdD As Date: bdD = BackupFileDate(i1)
+            RunCase = IIf(bdD = 0, "none", FmtD(bdD))
+        Case "deptcode"                            ' v25: grade code (_ = space) -> its numeric part (999 = none)
+            RunCase = NumText(DeptCodeValue(Replace(i1, "_", " ")))
+        Case "hourstext"                           ' v25: hours -> the text every message shows (no trailing point)
+            RunCase = HoursText(Val(i1))
+        Case "typetag"                             ' v25: absence code -> calendar tag / what members get
+            RunCase = TypeTag(i1) & "/" & PublicType(i1)
+        Case "planid"                              ' v25: an Exempt note -> the planned move's ID it carries / none
+            RunCase = PlanIdIn(i1)
+            If RunCase = "" Then RunCase = "none"
+        Case "namekey"                             ' v25: a Kronos or roster name (_ = space) -> the match key (, shown as /)
+            RunCase = Replace(NameKey(Replace(i1, "_", " ")), ",", "/")
+        Case "barlist"                             ' v25: in|trim, list (_ = space), item -> yes / no, or the cleaned list
+            If i1 = "in" Then
+                RunCase = IIf(InBarList(Replace(i2, "_", " "), Replace(i3, "_", " ")), "yes", "no")
+            Else
+                RunCase = TrimBarList(Replace(i2, "_", " "))
+                If RunCase = "" Then RunCase = "empty"
+            End If
+        Case "matchname"                           ' v25: old-calendar text (_ = space), roster 'Last/First|...' -> name / ? / none
+            Dim mnList As Variant: mnList = Split(Replace(Replace(i2, "/", ", "), "_", " "), "|")
+            RunCase = Replace(MatchImportName(Replace(i1, "_", " "), mnList), ", ", "/")
+            If RunCase = "" Then RunCase = "none"
+        Case "attendstatus"                        ' v25: entitled Y|N, paid left, occurrences, wait-until -> the phrase (, as .)
+            Dim asSt As AttendanceStatus
+            asSt.Entitled = (i1 = "Y"): asSt.PaidLeft = CLng(i2): asSt.Occurrences = CLng(i3)
+            If i4 <> "" Then asSt.WaitUntil = ParseD(i4)
+            RunCase = Replace(AttendPublicStatus(asSt), ",", ".")
+        Case "totalsdiff"                          ' v25: before, after as 'name=G|I|periods;...', skip -> the lines (; between, / for ', ')
+            RunCase = CaseTotalsDiff(i1, i2, i3)
         Case "snapyear"
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
         Case "signups"
@@ -675,6 +707,28 @@ Private Function CaseEligCrew(ByVal spec As String, ByVal d As Date, ByVal shift
 End Function
 
 ' ---------------- helpers ----------------
+' v25: TotalsDifference on two packed maps 'name=12|21|21;name2=...' -> its report squeezed to one line
+' ("  k: was Total 12, Refused 21, periods 21, now ..." lines become "k: was Total 12/Refused 21/periods 21/now ...;")
+Private Function CaseTotalsDiff(ByVal beforeSpec As String, ByVal afterSpec As String, ByVal skipName As String) As String
+    Dim s As String
+    s = TotalsDifference(CaseMap(beforeSpec), CaseMap(afterSpec), skipName)
+    s = Replace(s, vbNewLine & "  ", ";")
+    s = Replace(s, vbNewLine, "")
+    s = Replace(Trim$(s), ", ", "/")
+    CaseTotalsDiff = IIf(s = "", "same", s)
+End Function
+
+Private Function CaseMap(ByVal spec As String) As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1
+    Dim part As Variant, p As Long
+    For Each part In Split(spec, ";")
+        p = InStr(part, "=")
+        If p > 1 Then d(Trim$(Left$(part, p - 1))) = Mid$(part, p + 1)
+    Next part
+    Set CaseMap = d
+End Function
+
 Private Function ParseD(ByVal s As String) As Date         ' "yyyy-mm-dd" -> date
     ParseD = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
 End Function
@@ -1263,5 +1317,79 @@ Private Sub LoadCases()
     AddCase "postclosed,day-before,2026-10-20,2026-10-19,,,,open"
     AddCase "postclosed,closing-day-still-open,2026-10-20,2026-10-20,,,,open"
     AddCase "postclosed,day-after,2026-10-20,2026-10-21,,,,closed"
+    AddCase "backupdate,daily-backup,Call Out Roster 2026-10-12.xlsm,,,,,2026-10-12"
+    AddCase "backupdate,live-master,V2 - Call Out Roster.xlsm,,,,,none"
+    AddCase "backupdate,final-is-not-dated,Call Out Roster 2026 FINAL.xlsm,,,,,none"
+    AddCase "backupdate,wrong-extension,Call Out Roster 2026-10-12.xlsx,,,,,none"
+    AddCase "backupdate,letters-in-the-date,Call Out Roster 2026-1O-12.xlsm,,,,,none"
+    AddCase "backupdate,month-13-rolls-over-as-dateserial-does,Call Out Roster 2026-13-12.xlsm,,,,,2027-01-12"
+    AddCase "deptcode,d1,D1,,,,,1"
+    AddCase "deptcode,p1-5,P1.5,,,,,1.5"
+    AddCase "deptcode,g3,G3,,,,,3"
+    AddCase "deptcode,blank,,,,,,999"
+    AddCase "deptcode,letter-only,D,,,,,999"
+    AddCase "deptcode,bare-number,2,,,,,2"
+    AddCase "deptcode,trailing-space,P2_,,,,,2"
+    AddCase "deptcode,two-points-not-numeric,D1.5.2,,,,,999"
+    AddCase "deptcode,stops-at-the-first-gap,D1-2,,,,,1"
+    AddCase "hourstext,whole,8,,,,,8"
+    AddCase "hourstext,quarter,22.75,,,,,22.75"
+    AddCase "hourstext,zero,0,,,,,0"
+    AddCase "hourstext,third-rounds-to-hundredths,21.333,,,,,21.33"
+    AddCase "hourstext,negative-quarter,-0.25,,,,,-0.25"
+    AddCase "hourstext,twelve-and-a-half,12.5,,,,,12.5"
+    AddCase "typetag,vacation,VAC,,,,,Vac/VAC"
+    AddCase "typetag,std-is-leave-and-lv,STD,,,,,Leave/LV"
+    AddCase "typetag,wsib-is-leave-and-lv,WSIB,,,,,Leave/LV"
+    AddCase "typetag,ltd,LTD,,,,,Leave/LV"
+    AddCase "typetag,olv,OLV,,,,,Leave/LV"
+    AddCase "typetag,par,PAR,,,,,Leave/LV"
+    AddCase "typetag,loa,LOA,,,,,Leave/LV"
+    AddCase "typetag,sick-call-members-see-off,SIC,,,,,Sick/OFF"
+    AddCase "typetag,personal-day-members-see-off,PER,,,,,Personal/OFF"
+    AddCase "typetag,shift-switch,SS,,,,,S/S/SS"
+    AddCase "typetag,training,TRN,,,,,Trn/TRN"
+    AddCase "typetag,support,SUP,,,,,Support/SUP"
+    AddCase "typetag,lower-case-code,std,,,,,Leave/LV"
+    AddCase "typetag,unknown-code-is-off,XYZ,,,,,Off/XYZ"
+    AddCase "planid,moves-mark,Exempt - moves Feb 1 (PM-0007),,,,,PM-0007"
+    AddCase "planid,cancelled-mark,Exempt - move cancelled (PM-0012),,,,,PM-0012"
+    AddCase "planid,no-id,Exempt - left Feb 1,,,,,none"
+    AddCase "planid,lower-case-tag,exempt - moves Feb 1 (pm-0003),,,,,pm-0003"
+    AddCase "planid,unclosed-bracket,Exempt - moves Feb 1 (PM-0007,,,,,none"
+    AddCase "namekey,kronos-form,Dobbin_Stephen,,,,,dobbinstephen"
+    AddCase "namekey,roster-form,Dobbin_Stephen_A.,,,,,dobbinstephena"
+    AddCase "namekey,trailing-space-and-case,_SMITH_Paul_,,,,,smithpaul"
+    AddCase "barlist,in-plain,in,Phosphine|Cypure,Cypure,,,yes"
+    AddCase "barlist,in-trimmed-any-case,in,Phosphine_|_Cypure_|,cypure,,,yes"
+    AddCase "barlist,in-not-there,in,Phosphine|Cypure,Gases,,,no"
+    AddCase "barlist,in-blank-item-never,in,Phosphine||Cypure,,,,no"
+    AddCase "barlist,in-partial-is-not-a-match,in,Phosphine|Cypure,Cyp,,,no"
+    AddCase "barlist,trim-spaces-and-blanks,trim,Phosphine_|_Cypure_|,,,,Phosphine|Cypure"
+    AddCase "barlist,trim-already-clean,trim,Phosphine|Cypure,,,,Phosphine|Cypure"
+    AddCase "barlist,trim-only-bars,trim,_|_|,,,,empty"
+    AddCase "matchname,one-match,Paul_M,Mason/Paul|Jones/Peter,,,,Mason/Paul"
+    AddCase "matchname,first-name-only-one-match,Paul,Mason/Paul|Jones/Peter,,,,Mason/Paul"
+    AddCase "matchname,two-pauls-ambiguous,Paul,Mason/Paul|Price/Paul,,,,?"
+    AddCase "matchname,initial-picks-one,Paul_P,Mason/Paul|Price/Paul,,,,Price/Paul"
+    AddCase "matchname,no-match,Fred,Mason/Paul|Jones/Peter,,,,none"
+    AddCase "matchname,extra-words-ignored,Paul_M_8h_vac,Mason/Paul|Jones/Peter,,,,Mason/Paul"
+    AddCase "matchname,first-last-roster-form,Paul_M,Paul_Mason|Peter_Jones,,,,Paul Mason"
+    AddCase "matchname,first-is-a-prefix,Pa,Mason/Paul|Jones/Peter,,,,Mason/Paul"
+    AddCase "attendstatus,available,Y,5,0,,,Paid sick available"
+    AddCase "attendstatus,used-up,Y,0,2,,,Paid sick days used up"
+    AddCase "attendstatus,third-occurrence-running,Y,2,3,,,Paid sick only while the current occurrence continues"
+    AddCase "attendstatus,waiting,N,0,3,2027-03-04,,No paid sick until Mar 4. 2027"
+    AddCase "attendstatus,waiting-beats-used-up,N,3,1,2027-01-15,,No paid sick until Jan 15. 2027"
+    AddCase "attendstatus,used-up-beats-occurrences,Y,0,3,,,Paid sick days used up"
+    AddCase "totalsdiff,same,Smith=12|21|21;Jones=8|0|0,Smith=12|21|21;Jones=8|0|0,,,,same"
+    AddCase "totalsdiff,one-changed,Smith=12|21|21;Jones=8|0|0,Smith=13|21|21;Jones=8|0|0,,,,Smith: was Total 12/Refused 21/periods 21/now Total 13/Refused 21/periods 21"
+    AddCase "totalsdiff,the-person-the-change-is-about-is-skipped,Smith=12|21|21;Jones=8|0|0,Smith=13|21|21;Jones=8|0|0,smith,,,same"
+    AddCase "totalsdiff,removed,Smith=12|21|21;Jones=8|0|0,Jones=8|0|0,,,,Smith: no longer on the roster"
+    AddCase "totalsdiff,removed-but-skipped,Smith=12|21|21;Jones=8|0|0,Jones=8|0|0,Smith,,,same"
+    AddCase "totalsdiff,appeared,Jones=8|0|0,Jones=8|0|0;New=0|0|0,,,,New: appeared on the roster"
+    AddCase "totalsdiff,quarter-hours-shown-plain,Smith=12.75|21|21,Smith=12.5|21|21,,,,Smith: was Total 12.75/Refused 21/periods 21/now Total 12.5/Refused 21/periods 21"
+    AddCase "totalsdiff,two-lines,Smith=12|21|21;Jones=8|0|0,Smith=13|21|21,,,,Smith: was Total 12/Refused 21/periods 21/now Total 13/Refused 21/periods 21;Jones: no longer on the roster"
+    AddCase "totalsdiff,capped-at-ten-lines,A=1|0|0;B=1|0|0;C=1|0|0;D=1|0|0;E=1|0|0;F=1|0|0;G=1|0|0;H=1|0|0;I=1|0|0;J=1|0|0;K=1|0|0;L=1|0|0,,,,,A: no longer on the roster;B: no longer on the roster;C: no longer on the roster;D: no longer on the roster;E: no longer on the roster;F: no longer on the roster;G: no longer on the roster;H: no longer on the roster;I: no longer on the roster;J: no longer on the roster;...and 2 more"
 ' <<< CASES
 End Sub

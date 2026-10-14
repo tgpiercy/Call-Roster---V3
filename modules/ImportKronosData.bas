@@ -648,7 +648,7 @@ Private Function PayrollColumn(ByRef src As Variant, ByVal hdrRow As Long) As Lo
     Next c
 End Function
 
-Private Function NameKey(ByVal s As String) As String
+Public Function NameKey(ByVal s As String) As String
     NameKey = LCase$(Replace(Replace(Trim$(s), " ", ""), ".", ""))
 End Function
 

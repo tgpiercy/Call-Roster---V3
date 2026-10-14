@@ -68,7 +68,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     mRestoreAdmin = gAdminUnlocked
     If mRestoreAdmin Then
         Set mWasActive = ActiveSheet
-        Application.ScreenUpdating = False
+        Application.ScreenUpdating = False          ' restored by Workbook_AfterSave (the admin view comes back there)
         ApplyView False
     End If
     On Error GoTo 0

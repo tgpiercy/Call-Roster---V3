@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24.3.1 (Oct 14)
+' @version v25 (Oct 14)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object

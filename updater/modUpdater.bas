@@ -60,7 +60,7 @@ Option Explicit
 '     code back, so that flag still has working code behind it.
 ' ====================================================================
 
-Public Const UPD_VERSION As String = "Updater v4 (Oct 14)"
+Public Const UPD_VERSION As String = "Updater v4.1 (Oct 14)"
 
 Private Const UPD_TITLE As String = "Update the roster code"
 Private Const UPD_TEMPLATE As String = "Call Out Roster - Members TEMPLATE.xlsm"

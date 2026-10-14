@@ -26,7 +26,7 @@ Option Explicit
 '  SelfTest can hand them a planted bad cell / duplicate ID in memory.
 ' ====================================================================
 
-Public Const IC_VERSION As String = "Integrity v24.4 (Oct 14)"
+Public Const IC_VERSION As String = "Integrity v25 (Oct 14)"
 Public Const IC_SHEET As String = "Integrity"
 
 Private Const SEV_ERR As String = "PROBLEM"

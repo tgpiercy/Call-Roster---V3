@@ -23,14 +23,14 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v24.4 (Oct 14)"
-Public Const EXPECTED_RELEASE As String = "v24.4"
+Public Const SYS_VERSION As String = "System v25 (Oct 14)"
+Public Const EXPECTED_RELEASE As String = "v25"
 Private Const N_MODULES As Long = 24           ' v24.4: + modSmoke
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v24.3.1"
+Private Const THISWB_RELEASE As String = "v25"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.3.1,frmNewPosting|v24.3.2,frmPostingEntry|v24.3.1,frmShiftSwitch|v24.3.1," & _
-                                        "frmTimeOff|v24.3.1,frmLeave|v24.3.1,frmSickCall|v24.3.1,frmConvert|v24.3.1,frmEmployee|v24.3.1"
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v25,frmNewPosting|v25,frmPostingEntry|v25,frmShiftSwitch|v25," & _
+                                        "frmTimeOff|v25,frmLeave|v25,frmSickCall|v25,frmConvert|v24.3.1,frmEmployee|v24.3.1"
 
 Private mBackupWarned As Boolean
 

@@ -88,6 +88,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     On Error GoTo Failed
     If Not trusted Then
         info = info & "Forms / leftovers: not checked (VBA project access is off)" & vbNewLine
+        verOk = False                              ' v24.4: the forms' versions are unverified, so the Install panel's step can't pass
     Else
         Dim compNames As String, f As Variant
         For Each comp In proj.VBComponents

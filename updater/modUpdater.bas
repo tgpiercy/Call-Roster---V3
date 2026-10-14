@@ -1413,6 +1413,7 @@ Private Function InstEnsureLog(ByVal wb As Workbook, ByRef why As String) As Obj
         ws.Columns("A:G").ColumnWidth = 18: ws.Columns("B").ColumnWidth = 60: ws.Columns("G").ColumnWidth = 70
         ws.Visible = 2                                 ' xlSheetVeryHidden: the roster's ApplyView shows it to admins
         On Error Resume Next
+        actWas.Parent.Activate                         ' (Worksheets.Add made the roster the active workbook)
         actWas.Activate
         On Error GoTo 0
         Application.EnableEvents = evWas
@@ -1431,7 +1432,14 @@ Private Function InstEnsureLog(ByVal wb As Workbook, ByRef why As String) As Obj
     Exit Function
 Failed:
     why = "The " & INST_LOG_SHEET & " sheet couldn't be made in " & wb.Name & ": " & Err.Description
+    On Error Resume Next                                ' (re-review) a half-made sheet goes; the roster is as it was
+    Application.DisplayAlerts = False
+    If Not ws Is Nothing Then ws.Delete
+    Application.DisplayAlerts = True
     Application.EnableEvents = evWas
+    wb.Saved = wasSaved
+    actWas.Parent.Activate
+    actWas.Activate
 End Function
 
 Private Sub InstLog(ByVal wb As Workbook, ByVal ver As String, ByRef st As InstStep, ByVal status As String, ByVal note As String)
@@ -1579,7 +1587,6 @@ Private Function InstButtonText(ByRef st As InstStep, ByVal status As String) As
     End Select
 End Function
 
-' The roster for the panel's draw: UpdTarget without its "pick the workbook in front" question
 ' The roster for the panel: the one open roster, or, with a practice COPY (or a backup / FINAL opened to
 ' look at) beside it, the one whose name carries none of those words; failing that the one in front.
 Private Function InstRosterQuiet() As Workbook
@@ -1712,7 +1719,12 @@ Private Sub InstRunStep(ByRef wb As Workbook, ByVal folder As String, ByVal ver 
                 If UpdSwapAll(wb, items, n, rep, repPath, why) Then
                     status = "OK": note = n & " components swapped; not saved yet. Report: " & repPath
                 Else
-                    status = "FAILED": note = why & " Report: " & repPath & ". Close the roster WITHOUT saving (Don't Save), open it again, then Retry or install by hand."
+                    status = "FAILED"
+                    If repPath = "" Then            ' the save block couldn't be set: nothing was touched
+                        note = why
+                    Else
+                        note = why & " Report: " & repPath & ". Close the roster WITHOUT saving (Don't Save), open it again, then Retry or install by hand."
+                    End If
                 End If
             End If
 
@@ -1930,6 +1942,7 @@ Private Function InstParseCall(ByVal txt As String, ByRef nm As String, ByRef ar
             s = s & c
         End If
     Next p
+    If inQ Then why = "a quote isn't closed on the step": Exit Function
     If s <> "" Then
         nTok = nTok + 1
         If nTok > 16 Then why = "too many words on the step": Exit Function

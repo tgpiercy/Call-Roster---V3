@@ -12,7 +12,7 @@ Needs **v24.3.3 installed** on the roster and **Roster Updater.xlsm** (v3) on yo
 3. Close it.
 
 ## B. The panel (everything else)
-1. Open the roster COPY from its folder, then File > Open `Roster Updater.xlsm` in the same Excel window. Click the roster so it is in front, ADMIN view on.
+1. Open the roster copy from its folder, then File > Open `Roster Updater.xlsm` in the same Excel window. Click the roster so it is in front, ADMIN view on. (The copy you install on keeps the roster's own name in a test folder: COPY, DRY RUN, FINAL or Backup in its name makes the "Make a practice copy" row refuse.)
 2. Alt+F8 > `'Roster Updater.xlsm'!InstallPanel`. It asks for the update folder: pick the unzipped `Callout_Roster_v24.4` folder. The Install sheet fills with the steps, grouped: **1. Prepare** (backup, check), **2. Install code** (swap, compile, finish + reopen), **3. Run once** (SystemCheck, SelfTest, Kronos), **4. Checks** (SmokeTest, three pre-filled pop-ups, Member View with the members' file open, the Install Log).
 3. Click the one blue button, read its box, click the next. Each step writes OK / FAILED / PASS / FAIL / DONE and the time on its row. A FAILED step blocks the rest: **Retry** (its button again) or **Skip this step...** with a note.
    - **finish** saves, closes and reopens the roster (its open boxes run as usual), then the panel carries on.

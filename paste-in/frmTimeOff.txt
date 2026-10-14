@@ -239,25 +239,16 @@ Private Sub mOpen_Click()
 End Sub
 
 Private Sub DateHint(ByVal tb As Object, ByVal nm As String)
-    Dim t As String: t = Trim$(tb.Text)
-    With C(nm)
-        If t = "" Then
-            .Caption = "": .ForeColor = RGB(120, 120, 120)
-        ElseIf IsDate(t) Then
-            .Caption = "= " & Format$(CDate(t), "ddd mmm d, yyyy"): .ForeColor = RGB(0, 110, 60)
-        Else
-            .Caption = "not a date": .ForeColor = RGB(190, 30, 30)
-        End If
-    End With
+    TypedDateHint tb.Text, C(nm)                   ' v25: the one parser's hint
 End Sub
 
 Private Sub UpdateInfo()
     Dim lbl As Object: Set lbl = C("info")
     lbl.ForeColor = RGB(30, 56, 100)
-    If Not IsDate(Trim$(mStart.Text)) Then lbl.Caption = "": Exit Sub
-    Dim d1 As Date, d2 As Date: d1 = CDate(Trim$(mStart.Text))
+    Dim d1 As Date, d2 As Date
+    If Not ParseTypedDate(mStart.Text, d1) Then lbl.Caption = "": Exit Sub
     If mOptNeed.Value Then
-        If IsDate(Trim$(mEnd.Text)) Then d2 = CDate(Trim$(mEnd.Text)) Else d2 = d1
+        If Not ParseTypedDate(mEnd.Text, d2) Then d2 = d1
         lbl.Caption = (Int(d2) - Int(d1) + 1) & " day(s) - one line per day" & _
                       IIf(C("cboShift").Text = "Both", " and shift", "") & "."
         Exit Sub
@@ -268,8 +259,7 @@ Private Sub UpdateInfo()
         ShiftCount mEmp.Text, d1, d1 + 27, nD, nN
         lbl.Caption = "Open-ended from " & Format$(d1, "mmm d") & ": " & nD & " day / " & nN & _
                       " night shifts in the first 4 weeks. Set the end date when known."
-    ElseIf IsDate(Trim$(mEnd.Text)) Then
-        d2 = CDate(Trim$(mEnd.Text))
+    ElseIf ParseTypedDate(mEnd.Text, d2) Then
         If d2 < d1 Then lbl.Caption = "The end is before the start.": lbl.ForeColor = RGB(190, 30, 30): Exit Sub
         ShiftCount mEmp.Text, d1, d2, nD, nN
         lbl.Caption = "Covers " & (nD + nN) & " scheduled shift(s): " & nD & " day, " & nN & " night." & _
@@ -306,16 +296,17 @@ End Function
 Private Sub mSave_Click()
     Dim problems As String
     If C("cboUnit").ListIndex < 0 Then problems = problems & "- Unit" & vbNewLine
-    If Not IsDate(Trim$(mStart.Text)) Then problems = problems & "- From date" & vbNewLine
+    Dim ds0 As Date, de0 As Date                   ' v25: every date through the one parser
+    If Not ParseTypedDate(mStart.Text, ds0) Then problems = problems & "- From date" & vbNewLine
     Dim t As String: t = Trim$(C("cboHrs").Text)
     If t <> "" And Val(t) <= 0 Then problems = problems & "- Hours / shift" & vbNewLine
 
     If mOptNeed.Value Then
         If Trim$(C("cboNeed").Text) = "" Then problems = problems & "- Need" & vbNewLine
-        If Trim$(mEnd.Text) <> "" And Not IsDate(Trim$(mEnd.Text)) Then problems = problems & "- To date" & vbNewLine
+        If Trim$(mEnd.Text) <> "" And Not ParseTypedDate(mEnd.Text, de0) Then problems = problems & "- To date" & vbNewLine
         If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation: Exit Sub
-        Dim d1 As Date, d2 As Date: d1 = CDate(Trim$(mStart.Text))
-        If IsDate(Trim$(mEnd.Text)) Then d2 = CDate(Trim$(mEnd.Text)) Else d2 = d1
+        Dim d1 As Date, d2 As Date: d1 = ds0
+        If Trim$(mEnd.Text) <> "" Then d2 = de0 Else d2 = d1
         If d2 < d1 Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
         Dim needTxt As String, typ As String
         If C("cboNeed").ListIndex >= 0 Then
@@ -342,15 +333,15 @@ Private Sub mSave_Click()
     ' ---- person off ----
     If mEmp.ListIndex < 0 Then problems = problems & "- Employee" & vbNewLine
     If C("cboType").ListIndex < 0 Then problems = problems & "- Type" & vbNewLine
-    If Not mOpen.Value And Not IsDate(Trim$(mEnd.Text)) Then problems = problems & "- To date (or tick Open-ended)" & vbNewLine
+    If Not mOpen.Value And Not ParseTypedDate(mEnd.Text, de0) Then problems = problems & "- To date (or tick Open-ended)" & vbNewLine
     If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation: Exit Sub
 
-    Dim ds As Date: ds = CDate(Trim$(mStart.Text))
+    Dim ds As Date: ds = ds0
     Dim de As Variant
     If mOpen.Value Then
         de = Empty
     Else
-        de = CDate(Trim$(mEnd.Text))
+        de = de0
         If de < ds Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
     End If
 

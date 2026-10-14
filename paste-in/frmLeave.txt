@@ -211,10 +211,15 @@ Private Sub mCalcBtn_Click()
     mCalcOk = False
     If mLeave.ListIndex < 0 Or Not IsArray(mLeaveIds) Then MsgBox "Pick who's back.", vbExclamation: Exit Sub
     Dim t As String: t = Trim$(C("txtReturn").Text)
-    If t = "" Or Not IsDate(t) Then MsgBox "Enter the return date (first day back).", vbExclamation: Exit Sub
+    Dim dRet As Date
+    If Not ParseTypedDate(t, dRet) Then MsgBox "Enter the return date (first day back, e.g. Oct 12).", vbExclamation: Exit Sub
+    If dRet > Date Then                            ' v25 (D-C7): the top-up measures a gap that has happened
+        MsgBox "The return date is after today. Log the return on or after the first day back.", vbExclamation
+        Exit Sub
+    End If
     Me.MousePointer = fmMousePointerHourGlass
     Dim ok As Boolean
-    ok = ComputeLeaveReturn(CStr(mLeaveIds(mLeave.ListIndex)), Int(CDate(t)), mCalc)
+    ok = ComputeLeaveReturn(CStr(mLeaveIds(mLeave.ListIndex)), dRet, mCalc)
     Me.MousePointer = fmMousePointerDefault
     If Not ok Then
         C("result").Caption = "Can't work it out: " & mCalc.Warnings
@@ -238,12 +243,12 @@ Private Sub SaveGoing()
     Dim problems As String, d1 As Date, d2 As Variant
     If mEmp.ListIndex < 0 Then problems = problems & "- Employee" & vbNewLine
     If C("cboType").ListIndex < 0 Then problems = problems & "- Type" & vbNewLine
-    If Not IsDate(Trim$(C("txtFirst").Text)) Then problems = problems & "- First day off" & vbNewLine
-    If Trim$(C("txtExp").Text) <> "" And Not IsDate(Trim$(C("txtExp").Text)) Then problems = problems & "- Expected return (a date, or blank)" & vbNewLine
+    Dim dExp As Date                               ' v25: every date through the one parser
+    If Not ParseTypedDate(C("txtFirst").Text, d1) Then problems = problems & "- First day off" & vbNewLine
+    If Trim$(C("txtExp").Text) <> "" And Not ParseTypedDate(C("txtExp").Text, dExp) Then problems = problems & "- Expected return (a date, or blank)" & vbNewLine
     If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Leave": Exit Sub
-    d1 = Int(CDate(Trim$(C("txtFirst").Text)))
     If Trim$(C("txtExp").Text) <> "" Then
-        d2 = Int(CDate(Trim$(C("txtExp").Text)))
+        d2 = dExp
         If d2 <= d1 Then MsgBox "The expected return must be after the first day off.", vbExclamation: Exit Sub
     Else
         d2 = Empty

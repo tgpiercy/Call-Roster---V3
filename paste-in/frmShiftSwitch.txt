@@ -209,65 +209,16 @@ Private Function PickedDate(ByRef d As Date) As Boolean
     PickedDate = ParseShiftDate(mDate.Text, d)
 End Function
 
-' Reads a typed date (no time part). With no year typed ("Oct 12", "10/12"),
-' a date more than 90 days ago means next year - typing January in December.
-' More than ~13 months from today is treated as not finished typing.
+' v25: the one parser (modPeople.ParseTypedDate); this wrapper keeps the form's call sites
 Private Function ParseShiftDate(ByVal t As String, ByRef d As Date) As Boolean
-    t = Trim$(t)
-    If t = "" Then Exit Function
-    If Not IsDate(t) Then Exit Function
-    Dim dd As Date: dd = Int(CDate(t))
-    If Not HasYear(t) Then
-        If dd < Date - 90 Then dd = DateAdd("yyyy", 1, dd)
-    End If
-    If Abs(dd - Date) > 400 Then Exit Function
-    d = dd
-    ParseShiftDate = True
-End Function
-
-' True when the text includes a year: a 3+ digit number, three numbers
-' (10/12/26), or a month name plus two numbers (Oct 12 26).
-Private Function HasYear(ByVal t As String) As Boolean
-    Dim i As Long, ch As String, tok As String
-    Dim nNum As Long, hasAlpha As Boolean, bigNum As Boolean
-    ' leave out a time typed after the date ("10/12 7:00", "Oct 12 7pm")
-    Dim p As Long: p = InStr(t, ":")
-    If p > 0 Then t = Left$(t, InStrRev(Left$(t, p), " "))
-    Dim w As Variant, kept As String
-    For Each w In Split(t, " ")
-        If Not (LCase$(CStr(w)) Like "#*[ap]m") Then kept = kept & CStr(w) & " "
-    Next w
-    t = kept & " "
-    For i = 1 To Len(t)
-        ch = Mid$(t, i, 1)
-        If ch Like "[0-9]" Then
-            tok = tok & ch
-        Else
-            If tok <> "" Then
-                nNum = nNum + 1
-                If Len(tok) >= 3 Then bigNum = True
-                tok = ""
-            End If
-            If ch Like "[A-Za-z]" Then hasAlpha = True
-        End If
-    Next i
-    HasYear = bigNum Or nNum >= 3 Or (hasAlpha And nNum >= 2)
+    ParseShiftDate = ParseTypedDate(t, d)
 End Function
 
 Private Sub mDate_Change()
     Dim d As Date, ok As Boolean, key As String
     ok = PickedDate(d)
-    With C("hDate")
-        If Trim$(mDate.Text) = "" Then
-            .Caption = "e.g. Oct 12 or 10/12/2026": .ForeColor = RGB(120, 120, 120)
-        ElseIf ok Then
-            .Caption = "= " & Format$(d, "ddd mmm d, yyyy"): .ForeColor = RGB(0, 110, 60)
-        ElseIf IsDate(Trim$(mDate.Text)) And InStr(mDate.Text, ":") = 0 Then
-            .Caption = "check the year": .ForeColor = RGB(190, 30, 30)
-        Else
-            .Caption = "not a date": .ForeColor = RGB(190, 30, 30)
-        End If
-    End With
+    TypedDateHint mDate.Text, C("hDate")
+    If Trim$(mDate.Text) = "" Then C("hDate").Caption = "e.g. Oct 12 or 10/12/2026"
     If ok Then key = Format$(d, "yyyy-mm-dd")
     If key = mLastDateKey Then Exit Sub   ' same date as before (or still unfinished) - nothing to rebuild
     mLastDateKey = key

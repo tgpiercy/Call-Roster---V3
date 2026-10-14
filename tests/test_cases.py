@@ -119,6 +119,8 @@ def evaluate(row: dict) -> str:
         return iso(rules.dst_fall_back(int(i1)) if i2 == "fall" else rules.dst_spring_forward(int(i1)))
     if suite == "dsthours":                      # date -> 13 / 11 / 12
         return fmt_num(rules.dst_night_hours(d(i1)))
+    if suite == "typeddate":                     # text (_ = space), today -> yyyy-mm-dd or the hint word (v25)
+        return rules.typed_date(i1.replace("_", " "), d(i2))
     if suite == "crewsoff":                      # date -> the crews off that day, e.g. C/D (v25)
         return rules.crews_off(d(i1))
     if suite == "shifthours":                    # date, day|night -> the default hours (v25)

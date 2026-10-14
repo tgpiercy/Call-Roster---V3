@@ -1291,21 +1291,22 @@ Public Function SetAbsenceEnd(ByVal id As String) As Boolean
     Dim v As Variant: v = TableData(lo)
     Dim r As Long: r = RowOf(v, id)
     If r = 0 Then Exit Function
-    Dim cur As String: cur = IIf(IsDate(v(r, AB_END)), Format$(v(r, AB_END), "mm/dd/yyyy"), "")
+    Dim cur As String: cur = IIf(IsDate(v(r, AB_END)), DateText(CDate(v(r, AB_END))), "")
     Dim s As Variant
     s = Application.InputBox("New end date for " & id & " (" & SafeStr(v(r, AB_EMP)) & ", " & SafeStr(v(r, AB_TYPE)) & ")." & _
                              vbNewLine & "Leave blank for open-ended.", "End date", cur, Type:=2)
     If VarType(s) = vbBoolean Then Exit Function
     s = Trim$(CStr(s))
-    If s <> "" And Not IsDate(s) Then MsgBox "That isn't a date.", vbExclamation: Exit Function
+    Dim dEnd As Date                               ' v25: the one parser
     If s <> "" Then
-        If CDate(s) < CDate(v(r, AB_START)) Then MsgBox "The end is before the start.", vbExclamation: Exit Function
+        If Not ParseTypedDate(s, dEnd) Then MsgBox "That isn't a date (e.g. Oct 12).", vbExclamation: Exit Function
+        If dEnd < CDate(v(r, AB_START)) Then MsgBox "The end is before the start.", vbExclamation: Exit Function
     End If
     lo.Parent.Unprotect Password:=SHEET_PASSWORD
     If s = "" Then
         lo.DataBodyRange.Cells(r, AB_END).ClearContents
     Else
-        lo.DataBodyRange.Cells(r, AB_END).Value = Int(CDate(s))
+        lo.DataBodyRange.Cells(r, AB_END).Value = dEnd
     End If
     ProtectSheet lo.Parent
     SaveIfWritable
@@ -2609,10 +2610,10 @@ Public Sub ImportUnitCalendar()
 
     Dim dIn As Variant
     dIn = Application.InputBox("Import entries from this date on:", "Import calendar", _
-                               Format$(DateSerial(Year(Date), Month(Date), 1), "mm/dd/yyyy"), Type:=2)
+                               DateText(DateSerial(Year(Date), Month(Date), 1)), Type:=2)
     If VarType(dIn) = vbBoolean Then Exit Sub
-    If Not IsDate(dIn) Then MsgBox "Not a date.", vbExclamation: Exit Sub
-    Dim dFrom As Date: dFrom = CDate(dIn)
+    Dim dFrom As Date                              ' v25: the one parser
+    If Not ParseTypedDate(CStr(dIn), dFrom) Then MsgBox "Not a date (e.g. Oct 1).", vbExclamation: Exit Sub
 
     Dim f As Variant
     f = Application.GetOpenFilename("Excel files (*.xlsx;*.xlsm;*.xls),*.xlsx;*.xlsm;*.xls", , "Pick the " & unit & " calendar workbook")

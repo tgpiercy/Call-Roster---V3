@@ -134,6 +134,10 @@ Private Function RunCase(f() As String) As String
             RunCase = FmtD(IIf(i2 = "fall", DstFallBack(CLng(i1)), DstSpringForward(CLng(i1))))
         Case "dsthours"
             RunCase = NumText(DstNightHours(ParseD(i1)))
+        Case "typeddate"                           ' v25: text, today -> the date, or the hint word
+            Dim tdD As Date, tdW As String
+            tdW = TypedDateCore(Replace(i1, "_", " "), ParseD(i2), tdD)
+            RunCase = IIf(tdW = "", FmtD(tdD), tdW)
         Case "crewsoff"                            ' v25
             RunCase = CrewsOff(ParseD(i1))
         Case "shifthours"                          ' v25
@@ -1211,5 +1215,18 @@ Private Sub LoadCases()
     AddCase "accepted,whole,12,12,,,,12"
     AddCase "accepted,zero,12,0,,,,12"
     AddCase "accepted,over,12,15,,,,12"
+    AddCase "typeddate,jan-in-december,Jan_5,2026-12-15,,,,2027-01-05"
+    AddCase "typeddate,recent-past-stays,Oct_12,2026-12-15,,,,2026-10-12"
+    AddCase "typeddate,old-rolls-over,Sep_1,2026-12-15,,,,2027-09-01"
+    AddCase "typeddate,year-typed,Oct_12_2026,2026-12-15,,,,2026-10-12"
+    AddCase "typeddate,year-with-comma,Oct_12_2026,2027-03-01,,,,2026-10-12"
+    AddCase "typeddate,iso,2026-10-12,2026-12-15,,,,2026-10-12"
+    AddCase "typeddate,time-after,Oct_12_7pm,2026-12-15,,,,2026-10-12"
+    AddCase "typeddate,clock-after,Oct_12_7:00,2026-12-15,,,,2026-10-12"
+    AddCase "typeddate,ahead-in-march,Dec_1,2026-03-01,,,,2026-12-01"
+    AddCase "typeddate,junk,junk,2026-12-15,,,,not a date"
+    AddCase "typeddate,blank,,2026-12-15,,,,blank"
+    AddCase "typeddate,decades-back,Mar_3_2011,2026-12-15,,,,check the year"
+    AddCase "typeddate,too-far-ahead,2028-06-01,2026-12-15,,,,check the year"
 ' <<< CASES
 End Sub

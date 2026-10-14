@@ -1048,3 +1048,51 @@ def payroll_decision(roster_num: str, num_in_kronos: bool, names_agree: bool) ->
         return "name"
     return "number" if names_agree else "mismatch"
 
+
+# ---------------------------------------------------------------- typed dates (v25, D-C7)
+_MONTH_INDEX = {m.lower(): i + 1 for i, m in enumerate(_MONTHS)}
+
+
+def _strip_time(text: str) -> str:
+    """modPeople.TypedHasYear drops a time typed after the date ('7:00', '7pm')."""
+    words = text.split()
+    if any(":" in w for w in words):
+        words = words[: next(i for i, w in enumerate(words) if ":" in w)]
+    return " ".join(w for w in words if not (w[0].isdigit() and w.lower().endswith(("am", "pm"))))
+
+
+def typed_date(text: str, today: date) -> str:
+    """modPeople.TypedDateCore for the forms the plant types: 'Oct 12', 'Oct 12 2026',
+    'Oct 12, 2026', '12 Oct', '2026-10-12', with or without a time after it.
+    Returns 'yyyy-mm-dd', or the hint word: blank / not a date / check the year."""
+    t = text.strip()
+    if not t:
+        return "blank"
+    core = _strip_time(t).replace(",", " ")
+    words = core.split()
+    year = None
+    month = day = None
+    try:
+        if len(words) == 1 and words[0].count("-") == 2:
+            y, m, dd = (int(x) for x in words[0].split("-"))
+            year, month, day = y, m, dd
+        elif len(words) in (2, 3) and words[0][:3].lower() in _MONTH_INDEX:
+            month, day = _MONTH_INDEX[words[0][:3].lower()], int(words[1])
+            if len(words) == 3:
+                year = int(words[2])
+        elif len(words) in (2, 3) and words[1][:3].lower() in _MONTH_INDEX:
+            day, month = int(words[0]), _MONTH_INDEX[words[1][:3].lower()]
+            if len(words) == 3:
+                year = int(words[2])
+        else:
+            return "not a date"
+        if year is not None and year < 100:
+            year += 2000
+        d = date(year if year is not None else today.year, month, day)
+    except (ValueError, TypeError):
+        return "not a date"
+    if year is None and d < today - timedelta(days=90):
+        d = date(d.year + 1, d.month, d.day)
+    if abs((d - today).days) > 400:
+        return "check the year"
+    return d.isoformat()

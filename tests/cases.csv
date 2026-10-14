@@ -442,3 +442,16 @@ accepted,part,12,8,,,,8
 accepted,whole,12,12,,,,12
 accepted,zero,12,0,,,,12
 accepted,over,12,15,,,,12
+typeddate,jan-in-december,Jan_5,2026-12-15,,,,2027-01-05
+typeddate,recent-past-stays,Oct_12,2026-12-15,,,,2026-10-12
+typeddate,old-rolls-over,Sep_1,2026-12-15,,,,2027-09-01
+typeddate,year-typed,Oct_12_2026,2026-12-15,,,,2026-10-12
+typeddate,year-with-comma,Oct_12_2026,2027-03-01,,,,2026-10-12
+typeddate,iso,2026-10-12,2026-12-15,,,,2026-10-12
+typeddate,time-after,Oct_12_7pm,2026-12-15,,,,2026-10-12
+typeddate,clock-after,Oct_12_7:00,2026-12-15,,,,2026-10-12
+typeddate,ahead-in-march,Dec_1,2026-03-01,,,,2026-12-01
+typeddate,junk,junk,2026-12-15,,,,not a date
+typeddate,blank,,2026-12-15,,,,blank
+typeddate,decades-back,Mar_3_2011,2026-12-15,,,,check the year
+typeddate,too-far-ahead,2028-06-01,2026-12-15,,,,check the year

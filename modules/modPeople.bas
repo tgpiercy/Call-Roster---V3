@@ -620,21 +620,46 @@ End Sub
 ' ====================================================================
 '  TYPED DATES
 ' ====================================================================
-' Reads a typed date (no time part). With no year typed ("Jan 12", "1/12"),
-' a date more than 90 days ago means next year - typing January in December.
-' More than ~13 months from today is refused. Same rule as the Shift Switch
-' pop-up's date box.
-Public Function ParseTypedDate(ByVal t As String, ByRef d As Date) As Boolean
+' v25 (D-C7): THE one typed-date rule, for every date box and date prompt. "" = d holds the
+' date; otherwise the word for the hint: "blank", "not a date", "check the year". No year typed
+' ("Jan 12", "1/12") = this year, or NEXT year when that is more than 90 days back (typing
+' January in December). More than ~13 months from today either way is refused. A time typed
+' after the date is ignored ("Oct 12 7pm", "10/12 7:00"). Pure: today is passed in (SelfTest
+' suite typeddate; the year of a yearless date comes from today, never from the PC clock).
+Public Function TypedDateCore(ByVal t As String, ByVal today As Date, ByRef d As Date) As String
     t = Trim$(t)
-    If t = "" Then Exit Function
-    If Not IsDate(t) Then Exit Function
+    If t = "" Then TypedDateCore = "blank": Exit Function
+    If Not IsDate(t) Then TypedDateCore = "not a date": Exit Function
     Dim dd As Date: dd = Int(CDate(t))
     If Not TypedHasYear(t) Then
-        If dd < Date - 90 Then dd = DateAdd("yyyy", 1, dd)
+        dd = DateSerial(Year(today), Month(dd), Day(dd))
+        If dd < today - 90 Then dd = DateAdd("yyyy", 1, dd)
     End If
-    If Abs(dd - Date) > 400 Then Exit Function
+    If Abs(dd - today) > 400 Then TypedDateCore = "check the year": Exit Function
     d = dd
-    ParseTypedDate = True
+End Function
+
+' Reads a typed date (no time part) as of today: True and d, or False (the box shows why).
+Public Function ParseTypedDate(ByVal t As String, ByRef d As Date) As Boolean
+    ParseTypedDate = (TypedDateCore(t, Date, d) = "")
+End Function
+
+' v25: the hint under a date box: "= Mon Oct 12, 2026" in green, or the word in red ("" when blank)
+Public Sub TypedDateHint(ByVal t As String, ByVal lbl As Object, Optional ByVal suffix As String = "")
+    Dim d As Date, w As String
+    w = TypedDateCore(t, Date, d)
+    If w = "blank" Then
+        lbl.Caption = "": lbl.ForeColor = RGB(120, 120, 120)
+    ElseIf w = "" Then
+        lbl.Caption = "= " & Format$(d, "ddd mmm d, yyyy") & suffix: lbl.ForeColor = RGB(0, 110, 60)
+    Else
+        lbl.Caption = w: lbl.ForeColor = RGB(190, 30, 30)
+    End If
+End Sub
+
+' v25: how every date box is pre-filled (no ambiguity about month / day order)
+Public Function DateText(ByVal d As Date) As String
+    DateText = Format$(d, "mmm d, yyyy")
 End Function
 
 ' A typed date that must carry its year (a seniority date can be decades
@@ -650,11 +675,18 @@ Public Function ParseFullDate(ByVal t As String, ByRef d As Date) As Boolean
 End Function
 
 ' True when the text includes a year: a 3+ digit number, three numbers
-' (1/12/27), or a month name plus two numbers (Jan 12 27).
+' (1/12/27), or a month name plus two numbers (Jan 12 27). v25: a time typed
+' after the date ("10/12 7:00", "Oct 12 7pm") is left out first.
 Private Function TypedHasYear(ByVal t As String) As Boolean
     Dim i As Long, ch As String, tok As String
     Dim nNum As Long, hasAlpha As Boolean, bigNum As Boolean
-    t = t & " "
+    Dim p As Long: p = InStr(t, ":")
+    If p > 0 Then t = Left$(t, InStrRev(Left$(t, p), " "))
+    Dim w As Variant, kept As String
+    For Each w In Split(t, " ")
+        If Not (LCase$(CStr(w)) Like "#*[ap]m") Then kept = kept & CStr(w) & " "
+    Next w
+    t = kept & " "
     For i = 1 To Len(t)
         ch = Mid$(t, i, 1)
         If ch Like "[0-9]" Then

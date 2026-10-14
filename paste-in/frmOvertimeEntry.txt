@@ -175,7 +175,7 @@ Private Sub UserForm_Initialize()
     Set mDateBox = C("txtDate")
     FillCombo "cmbReason", UnavailableReasons()
 
-    C("txtDate").Value = Format$(Date, "MM/DD/YYYY")
+    C("txtDate").Value = DateText(Date)
     mCount = 0: mCurrent = 0
     ApplyFormTheme Me
     mPartAcc.BackColor = RGB(0, 110, 90): mPartAcc.ForeColor = vbWhite
@@ -206,7 +206,7 @@ End Sub
 Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, Optional ByVal statusTxt As String = "")
     On Error Resume Next
     C("cmbDept").Value = unit
-    C("txtDate").Value = Format$(d, "MM/DD/YYYY")
+    C("txtDate").Value = DateText(d)
     C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
     If statusTxt = "" Then statusTxt = "Sick call"
     C("lblStatus").Caption = statusTxt & ": " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - enter the hours and click LOAD LIST."
@@ -227,12 +227,11 @@ End Sub
 
 Private Sub AutoCrew()
     C("lblRot").ForeColor = RGB(30, 56, 100)         ' back to normal until a DST note says otherwise
-    Dim t As String: t = Trim$(C("txtDate").Text)
-    If Not IsDate(t) Then
+    Dim d As Date
+    If Not ParseTypedDate(C("txtDate").Text, d) Then
         C("lblRot").Caption = "Pick the date and Days / Nights - the crew fills in from the rotation."
         Exit Sub
     End If
-    Dim d As Date: d = CDate(t)
     If C("cmbDN").ListIndex < 0 Then
         C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "   - pick Days / Nights"
         Exit Sub
@@ -272,7 +271,8 @@ Private Sub btnLoad_Click()
     If C("cmbDept").Value = "" Then MsgBox "Select a department.", vbExclamation: Exit Sub
     If C("cmbDN").ListIndex < 0 Then MsgBox "Select Days or Nights.", vbExclamation: Exit Sub
     If C("cmbShift").Value = "" Then MsgBox "Select a crew.", vbExclamation: Exit Sub
-    If Not IsDate(C("txtDate").Value) Then MsgBox "Enter a valid date.", vbExclamation: Exit Sub
+    Dim dL As Date                                 ' v25: every date through the one parser
+    If Not ParseTypedDate(C("txtDate").Text, dL) Then MsgBox "Enter a valid date (e.g. Oct 12).", vbExclamation: Exit Sub
 
     Dim hoursStr As String: hoursStr = Trim$(C("txtHours").Value)
     If hoursStr = "" Or Not IsNumeric(hoursStr) Then MsgBox "Enter valid hours.", vbExclamation: Exit Sub
@@ -291,10 +291,10 @@ Private Sub btnLoad_Click()
     Application.Calculate
     ' v24: each person's crew is the one they are on that date (crew history)
     mCount = LoadEligible(C("cmbDept").Value, CrewFilter(C("cmbShift").Value), mEntries, 999, CALLOUT_INCLUDE_DAYS, _
-                          CDate(C("txtDate").Value))
+                          dL)
     ' only people free that shift: not scheduled, rest rule, not booked off, not on a switch
     Dim offList As String
-    If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, CDate(C("txtDate").Value), C("cmbDN").Text, offList)
+    If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, dL, C("cmbDN").Text, offList)
     If mCount = 0 Then
         lstEmployees.Clear
         C("lblOffer").Caption = ""
@@ -306,7 +306,7 @@ Private Sub btnLoad_Click()
     End If
 
     mDept = C("cmbDept").Value: mShift = C("cmbShift").Value: mShiftLbl = C("cmbDN").Text
-    mDate = CDate(C("txtDate").Value): mHours = CDbl(hoursStr)
+    mDate = dL: mHours = CDbl(hoursStr)
     ' flag anyone already working a shift switch on this date / shift
     Dim j As Long, nSS As Long
     ReDim mSS(1 To mCount)
@@ -536,8 +536,9 @@ Private Function InputsChanged() As Boolean
     Dim d As Variant, h As Variant
     d = C("txtDate").Value: h = Trim$(C("txtHours").Value)
     If C("cmbDept").Value <> mDept Or C("cmbShift").Value <> mShift Or C("cmbDN").Text <> mShiftLbl Then InputsChanged = True: Exit Function
-    If Not IsDate(d) Or Not IsNumeric(h) Or h = "" Then InputsChanged = True: Exit Function
-    If CDate(d) <> mDate Or CDbl(h) <> mHours Then InputsChanged = True
+    Dim dI As Date
+    If Not ParseTypedDate(CStr(d), dI) Or Not IsNumeric(h) Or h = "" Then InputsChanged = True: Exit Function
+    If dI <> mDate Or CDbl(h) <> mHours Then InputsChanged = True
 End Function
 
 Private Sub ResetForm()
@@ -546,7 +547,7 @@ Private Sub ResetForm()
     C("cmbDept").Value = "": C("cmbShift").Value = CREW_ALL: C("cmbDN").Value = ""
     C("cmbReason").Value = ""
     C("txtHours").Value = "": mAutoHours = ""
-    C("txtDate").Value = Format$(Date, "MM/DD/YYYY")
+    C("txtDate").Value = DateText(Date)
     C("lblCurrent").Caption = "Load a list to begin"
     C("lblPhone").Caption = ""
     C("lblProgress").Caption = "": C("lblStatus").Caption = ""

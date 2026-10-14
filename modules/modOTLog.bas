@@ -268,10 +268,10 @@ Public Sub AddAdjustment()
 
     Dim dIn As Variant
     dIn = Application.InputBox(Prompt:="Date the adjustment applies to (decides the pay period):", _
-                               Title:="Adjustment - " & nm, Default:=Format$(Date, "mm/dd/yyyy"), Type:=2)
+                               Title:="Adjustment - " & nm, Default:=DateText(Date), Type:=2)
     If VarType(dIn) = vbBoolean Then Exit Sub
-    If Not IsDate(dIn) Then MsgBox "That isn't a valid date.", vbExclamation: Exit Sub
-    Dim d As Date: d = CDate(dIn)
+    Dim d As Date                                  ' v25: the one parser
+    If Not ParseTypedDate(CStr(dIn), d) Then MsgBox "That isn't a valid date (e.g. Oct 12).", vbExclamation: Exit Sub
     Dim ps As Date: ps = PeriodStartFor(d)
     If Not ConfirmPeriod(ps) Then Exit Sub
 

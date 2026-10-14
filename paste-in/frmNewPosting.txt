@@ -219,7 +219,7 @@ Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As Stri
                    ByVal hrs As Double, ByVal note As String)
     On Error Resume Next
     mUnit.Value = unit
-    mDate.Text = Format$(d, "mm/dd/yyyy")
+    mDate.Text = DateText(d)
     mShiftCb.Value = shiftLbl                 ' crew fills in from the rotation
     C("cboReason").Text = reason
     ' a full shift keeps the auto value (13 / 11 on a DST night, else 12);
@@ -285,14 +285,13 @@ End Sub
 ' already past, the day before the shift (never before today). Typing your
 ' own closing date stops the auto-fill.
 Private Sub AutoCloses()
-    Dim t As String: t = Trim$(mDate.Text)
-    If Not IsDate(t) Then Exit Sub
+    Dim d As Date
+    If Not ParseTypedDate(mDate.Text, d) Then Exit Sub
     If Trim$(mCloses.Text) <> "" And Trim$(mCloses.Text) <> mAutoCloses Then Exit Sub   ' typed by hand
-    Dim d As Date: d = CDate(t)
     Dim cl As Date: cl = d - POSTING_CLOSE_DAYS
     If cl < Date Then cl = d - 1
     If cl < Date Then cl = Date
-    mAutoCloses = Format$(cl, "mm/dd/yyyy")
+    mAutoCloses = DateText(cl)
     mCloses.Text = mAutoCloses
 End Sub
 
@@ -306,10 +305,11 @@ End Sub
 Private Sub AutoHours()
     Dim hintTxt As String, want As String
     want = CStr(USUAL_SHIFT_HOURS)
-    If IsDate(Trim$(mDate.Text)) And mShiftCb.ListIndex >= 0 Then
+    Dim dH As Date
+    If ParseTypedDate(mDate.Text, dH) And mShiftCb.ListIndex >= 0 Then
         If IsNightShift(mShiftCb.Text) Then
-            hintTxt = DstNote(CDate(Trim$(mDate.Text)))
-            want = CStr(DefaultShiftHours(CDate(Trim$(mDate.Text)), True, USUAL_SHIFT_HOURS))
+            hintTxt = DstNote(dH)
+            want = CStr(DefaultShiftHours(dH, True, USUAL_SHIFT_HOURS))
         End If
     End If
     C("hintHours").Caption = hintTxt
@@ -322,12 +322,11 @@ End Sub
 ' date + Days/Nights -> crew from the rotation (can still be changed)
 Private Sub AutoCrew()
     AutoHours
-    Dim t As String: t = Trim$(mDate.Text)
-    If Not IsDate(t) Then
+    Dim d As Date
+    If Not ParseTypedDate(mDate.Text, d) Then
         C("hintCrew").Caption = "fills in from the rotation"
         Exit Sub
     End If
-    Dim d As Date: d = CDate(t)
     If mShiftCb.ListIndex < 0 Then
         C("hintCrew").Caption = "On: " & DaysCrew(d) & " days, " & NightsCrew(d) & " nights" & vbLf & "Off: " & CrewsOff(d)
         Exit Sub
@@ -345,16 +344,8 @@ End Sub
 
 Private Sub ShowDateHint(ByVal tb As Object, ByVal hintName As String, ByVal emptyTxt As String, _
                          ByVal suffix As String)
-    Dim t As String: t = Trim$(tb.Text)
-    With C(hintName)
-        If t = "" Then
-            .Caption = emptyTxt: .ForeColor = RGB(120, 120, 120)
-        ElseIf IsDate(t) Then
-            .Caption = "= " & Format$(CDate(t), "ddd mmm d, yyyy") & suffix: .ForeColor = RGB(0, 110, 60)
-        Else
-            .Caption = "not a date": .ForeColor = RGB(190, 30, 30)
-        End If
-    End With
+    TypedDateHint tb.Text, C(hintName), suffix     ' v25: the one parser's hint
+    If Trim$(tb.Text) = "" Then C(hintName).Caption = emptyTxt
 End Sub
 
 Private Sub mUnit_Change()
@@ -368,9 +359,10 @@ End Sub
 Private Sub UpdateEligible()
     If mUnit.ListIndex < 0 Or mCrew.ListIndex < 0 Then Exit Sub
     Dim n As Long, notFree As String, haveDay As Boolean, nProv As Long
-    haveDay = IsDate(Trim$(mDate.Text)) And mShiftCb.ListIndex >= 0
+    Dim dE As Date
+    haveDay = ParseTypedDate(mDate.Text, dE) And mShiftCb.ListIndex >= 0
     If haveDay Then
-        n = EligibleCount(mUnit.Text, mCrew.Text, CDate(Trim$(mDate.Text)), mShiftCb.Text, notFree, nProv)
+        n = EligibleCount(mUnit.Text, mCrew.Text, dE, mShiftCb.Text, notFree, nProv)
     Else
         n = EligibleCount(mUnit.Text, mCrew.Text)
     End If
@@ -453,7 +445,8 @@ Private Sub mCreate_Click()
     Dim pos As String: pos = Trim$(C("txtPos").Text)
 
     If mUnit.ListIndex < 0 Then Flag problems, firstBad, "Unit", mUnit
-    If Not IsDate(Trim$(mDate.Text)) Then Flag problems, firstBad, "Shift date", mDate
+    Dim dS As Date, dC As Date                     ' v25: every date through the one parser
+    If Not ParseTypedDate(mDate.Text, dS) Then Flag problems, firstBad, "Shift date", mDate
     If C("cboShift").ListIndex < 0 Then Flag problems, firstBad, "Shift (Days / Nights)", C("cboShift")
     If mCrew.ListIndex < 0 Then Flag problems, firstBad, "Crew available", mCrew
     If Trim$(C("cboReason").Text) = "" Then
@@ -475,7 +468,7 @@ Private Sub mCreate_Click()
     ElseIf CDbl(pos) < 1 Or CDbl(pos) > 20 Or CDbl(pos) <> Int(CDbl(pos)) Then
         Flag problems, firstBad, "Positions (1 - 20)", C("txtPos")
     End If
-    If Not IsDate(Trim$(mCloses.Text)) Then Flag problems, firstBad, "Posting closes", mCloses
+    If Not ParseTypedDate(mCloses.Text, dC) Then Flag problems, firstBad, "Posting closes", mCloses
 
     If problems <> "" Then
         MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "New Posting"
@@ -487,13 +480,13 @@ Private Sub mCreate_Click()
 
     Dim p As PostRec
     p.Unit = mUnit.Text
-    p.ShiftDate = CDate(Trim$(mDate.Text))
+    p.ShiftDate = dS
     p.ShiftLbl = C("cboShift").Text
     p.Crew = mCrew.Text
     p.Reason = Trim$(C("cboReason").Text)
     p.Hours = CDbl(hrs)
     p.Positions = CLng(pos)
-    p.ClosesOn = CDate(Trim$(mCloses.Text))
+    p.ClosesOn = dC
 
     Me.MousePointer = fmMousePointerHourGlass
     Dim ok As Boolean

@@ -1,6 +1,6 @@
 # Call Out Roster: CLAUDE.md
 
-Context for every coding session on this repo. Read this first, then the brief for the update you're building (`briefs/`). Reconciled on 2026-10-13 from the project's code kit (`docs/code-kit-2026-10/CLAUDE-kit.md`) and what is actually built through v24.3.2 (Oct 13, 2026).
+Context for every coding session on this repo. Read this first, then the brief for the update you're building (`briefs/`). Reconciled on 2026-10-13 from the project's code kit (`docs/code-kit-2026-10/CLAUDE-kit.md`) and what is actually built through v24.3.3 (Oct 14, 2026).
 
 ## What this is
 An Excel desktop `.xlsm` (VBA) overtime call-out system for Syensqo's Niagara Falls phosphine plant.
@@ -29,7 +29,7 @@ CHANGELOG.md
 ```
 **Never commit data:** no `*.xls*`, Kronos exports, posting PDFs or plant CSVs (names, phones, emails, leave codes). Test fixtures use made-up names only.
 
-## Workbook map (as built, through v24.3.2)
+## Workbook map (as built, through v24.3.3)
 ### Modules (23 checked by SystemCheck, plus 6 that carry no version stamp; the updater lives in its own workbook)
 | Module | Holds |
 |---|---|
@@ -47,7 +47,7 @@ CHANGELOG.md
 | `ImportKronosData` | Kronos import (v24.3.1: `Employee Name`, `Grand Total` and `Payroll #` found by heading, `IsHeaderMatch`; refused when a heading is missing), Hours History snapshot (+ Data Through), `KronosDataThrough`, `EnsureDataThrough` |
 | `modGradeLog` | Grade change log (`tblGradeChange`, snapshot `GradeSnap`) |
 | `modSelfTest` | Alt+F8 > SelfTest: known-answer cases generated from `tests/cases.csv` |
-| `modPublish` | `PublishMembers` (M1): builds the members' tables as values, privacy + order self-checks, fills the template, saves the members' file. v24.3.1: pure `LeaveWordsIn` screens every published free text (calendar Left / Right, posting Reason, log Note); sick calls and personal days go out as "Off" (`PublicType`, `PublicLeft`) |
+| `modPublish` | `PublishMembers` (M1): builds the members' tables as values, privacy + order self-checks, fills the template, saves the members' file. v24.3.1: pure `LeaveWordsIn` screens every published free text (calendar Left / Right, posting Reason, log Note); sick calls and personal days go out as "Off" (`PublicType`, `PublicLeft`). v24.3.3: the members' file open in this Excel is closed (asked first) and rewritten; open elsewhere the publish is refused; never a dated copy |
 | `modLeave` | v22: sick calls (`SaveSickCall`, `SickBlocks`), leave going / returning (`ComputeLeaveReturn`, `TotalHoursAsOf`), convert imported calendar lines |
 | `modAttendance` | v22.1: the sick / personal day rule (`AttendanceCore`), `AttendanceFor`, Sick Call preview, past sick days, the Attendance sheet |
 | `modIntegrity` | v23: `IntegrityCheck` / `RunIntegrity` (read-only; PROBLEM / Check / Note), `IntegrityOnOpen`, the Integrity sheet, pure `PeriodCellCode`, `DuplicatesIn` |
@@ -226,6 +226,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | Question | Default |
 |---|---|
 | Network paths (`REPORT_FOLDER`, `PUBLISH_FOLDER`, `KRONOS_PATH` on P:) | Everything is built and tested locally on Graeme's desktop; the P: links are wired in at go-live. SystemCheck will flag them as unreachable until then. |
+| Kronos today (Oct 14, 2026): the hours are entered from a Kronos PDF by hand; the Excel import (`ImportKronosData`) is for the planned daily export and has not run on a real file yet, so its heading test (guide C8) waits for that | Build the daily import when the export exists; until then Import Kronos is untested on plant data. |
 | Kronos worked hours after Jan 1 (YTD or cumulative), and OT worked Dec 27-31 | Check the first January 2027 export; the import shows a reminder on that first run. A small follow-up if hours are missing or cumulative. |
 | `ADMIN_USERS` logins | The constant holds two logins today (Graeme's and one other); the rest of the supervisors are added at go-live (settings constant, no code) |
 | Go-live date, the members' folder, the supervisor-only master folder, `Roster error log.txt`'s home once the folders split | Not set. Nothing in the roadmap below is dated by it except v25.1. |
@@ -245,7 +246,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | v24.3 | with or after v24.2 | Unit moves entered ahead of time (planned moves, applied on open); Roster Updater v3 | built, tagged `v24.3`; **installed by hand on Graeme's copy Oct 13, 2026: SystemCheck, SelfTest and SmokeTest passed**; brief `briefs/v24.3.md`, report-back `docs/v24.3-report-back.md`; + three unstamped commits (posting lists follow a move) carried into v24.3.1 |
 | v24.3.1 | before the December dry run; he installs it instead of re-installing v24.3 | Hotfix from the Oct 13 deep review: leave-word screen + "Off" for members, backup / live tests, paid sick days left, leave return after year end, Kronos by heading, ReportError restores + error frames, one sick line, orphan posting IDs, ask-first apply, cancel save block, SmokeTest list rows through a filter, every stamp (23 of 23) | built, tagged `v24.3.1`; brief `briefs/v24.3.1.md`, report-back `docs/v24.3.1-report-back.md`, review `docs/deep-review-2026-10-13.md` |
 | v24.3.2 | with v24.3.1, before the December dry run | Two findings from Graeme's Oct 13 test: "Change the text of this line" and "Change the Reason of posting" on the Calendar (a leave word in a posting's Reason survives the cancel), New Posting refuses one, MakePracticeCopy refuses to run inside a copy or where saving is blocked | built, tagged `v24.3.2`; `docs/v24.3.2-report-back.md` |
-| v24.4 | right after v24.3.2 has run (decided Oct 14, 2026) | Install panel: modUpdater v4 in the updater workbook draws an Install sheet from `install-steps.txt` (shipped in every zip, generated by build_zip), runs backup / swap / compile / macros, Pass-Fail rows for the hand checks, log in a hidden `Install Log` sheet in the roster; `modSmoke` openers; `SystemCheckOK` / `SelfTestOK`. The engine stays OUT of the roster (v1 crash) | brief `briefs/v24.4.md`; report-back + build when the v24.3.2 install report is in; v25 installs through it |
+| v24.3.3 | with v24.3.2 | Member View closes an open members' file here (asks) and refuses when it is open elsewhere; no dated copy (Graeme's Oct 14 test, C6) | built, tagged `v24.3.3`; results of the Oct 14 test run in `docs/v24.3.2-report-back.md` |
+| v24.4 | right after v24.3.3 has run (decided Oct 14, 2026) | Install panel: modUpdater v4 in the updater workbook draws an Install sheet from `install-steps.txt` (shipped in every zip, generated by build_zip), runs backup / swap / compile / macros, Pass-Fail rows for the hand checks, log in a hidden `Install Log` sheet in the roster; `modSmoke` openers; `SystemCheckOK` / `SelfTestOK`. The engine stays OUT of the roster (v1 crash) | brief `briefs/v24.4.md`; report-back + build when the v24.3.3 install report is in; v25 installs through it |
 | v25 | before go-live (moved up Oct 12, 2026) | Pop-up rules into modules (SmokeTest covers them), protection without the VBA password (sheets stay protected; admins type only into unlocked columns), the admin-view copies saved restricted (`SaveRestrictedCopy`), one typed-date parser, one closing test, planned-move follow-ups H2-H9 | brief to write fresh from review section 4.4; after v24.4; installs through the panel |
 | v26 | before go-live (moved up) | Employee history report, "why was I charged", board print, payback aging | kit brief 07; minimum staffing waits for the minimums |
 | v25.2 | before go-live (moved up) | Calendar speed, alone | kit brief 06 item 3 |

@@ -92,7 +92,7 @@ Click **Calendar**. Pick the month and the unit at the top. OPEN means the line 
 Click **Call Out Roster**. It is redrawn in call order. Answer Yes to print.
 
 ## Publish Member View
-Click **Member View**. Wait for "Members' file published". If the message says the file is open somewhere, have it closed and publish again. "NOT published. Something private would have gone into the members' file" names a calendar line or posting reason that mentions a kind of leave, sick or personal: reword it and publish again. Member View refuses to run from a dated backup or the frozen year-end file: open the live roster.
+Click **Member View**. Wait for "Members' file published". If it asks "The members' file is open in this Excel ... Close it and publish?", Yes closes it and publishes. If it says the file couldn't be written, it is open on a plant PC: have it closed there and publish again (nothing was written). "NOT published. Something private would have gone into the members' file" names a calendar line or posting reason that mentions a kind of leave, sick or personal: reword it and publish again. Member View refuses to run from a dated backup or the frozen year-end file: open the live roster.
 
 ## Postings when someone moves unit
 A person who moves into a unit (today, or on a date the admin entered ahead of time) is added to that unit's open postings for shifts from the move that can still be signed up for, in call order. Print those sheets again; the box after the move names them. If a planned move is cancelled before the day, they come off again.

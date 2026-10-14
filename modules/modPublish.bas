@@ -104,7 +104,6 @@ Public Sub PublishReminderOnClose()
 Quit:
 End Sub
 
-' PUBLISH_FOLDER with "." (the roster's own folder) and ".\sub" resolved
 ' v24.3.3: the open workbook with that file name in this Excel, or Nothing
 Private Function OpenWorkbookNamed(ByVal fileName As String) As Workbook
     Dim w As Workbook
@@ -116,6 +115,7 @@ Private Function OpenWorkbookNamed(ByVal fileName As String) As Workbook
     Next w
 End Function
 
+' PUBLISH_FOLDER with "." (the roster's own folder) and ".\sub" resolved
 Public Function PublishFolderPath() As String
     ' v24.2: a practice copy (COPY / DRY RUN in its name) only ever uses its own folder, wherever
     ' PUBLISH_FOLDER points - so its publish and its sign-up inbox can't reach the real ones
@@ -195,13 +195,21 @@ Public Sub PublishMembers()
     Dim openHere As Workbook
     Set openHere = OpenWorkbookNamed(outName)
     If Not openHere Is Nothing Then
+        ' (a copy opened from another folder matches by name too: it is closed the same way - Excel
+        '  can't save to a name that is open - and the publish writes the members' folder as always)
         If Ask("The members' file is open in this Excel:" & vbNewLine & openHere.FullName & vbNewLine & vbNewLine & _
-               "Close it and publish? (Nothing in it is kept: the file is rewritten by the publish.)", _
-               vbYesNo + vbQuestion, "Member View", vbYes) <> vbYes Then Exit Sub
+               "Close it and publish? It is closed without saving (nobody edits it); the publish writes" & vbNewLine & _
+               folder & outName, vbYesNo + vbQuestion, "Member View", vbYes) <> vbYes Then Exit Sub
         Application.DisplayAlerts = False
+        On Error Resume Next
         openHere.Close SaveChanges:=False
+        On Error GoTo 0
         Application.DisplayAlerts = True
         Set openHere = Nothing
+        If Not OpenWorkbookNamed(outName) Is Nothing Then
+            MsgBox "NOT published: the members' file couldn't be closed. Close it yourself and publish again.", vbExclamation, "Member View"
+            Exit Sub
+        End If
     End If
 
     Dim t0 As Single: t0 = Timer

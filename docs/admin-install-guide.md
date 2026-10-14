@@ -299,7 +299,8 @@ Without it, SystemCheck still checks the module versions. It says "Forms / lefto
 | NOT published. Something private would have gone in | An email, phone number, employee number or leave code is in a published field, or a calendar line or posting reason contains a leave word (STD, WSIB, parental ...) or the word sick or personal. | The message names the table, the row and the word. Reword that entry and publish again. |
 | This file is a backup or frozen copy of the roster | You clicked Member View in a dated backup, the FINAL or a "Backup before" copy. | Open the live roster and publish there. |
 | NOT published. The call positions ... don't match | The publish check failed. Nothing was written. | Run SystemCheck and SelfTest, and report the message. |
-| NOTE: ... is open somewhere | The members' file was in use, so a dated copy was saved. | Have the file closed there. Publish again. |
+| The members' file is open in this Excel ... Close it and publish? | You (or this PC) had the members' file open. | Yes closes it without saving and publishes into it. No writes nothing. |
+| NOT published. The members' file couldn't be written | It is open on a plant PC, or read-only in the folder. Nothing was written; members see the old one. | Have it closed there. Publish again. (v24.3.3: no dated copy is saved any more.) |
 
 The members' file is values only. It never reads the master. Members open it on a plant PC and click Enable Content.
 

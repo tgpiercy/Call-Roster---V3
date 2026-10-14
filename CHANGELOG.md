@@ -1,5 +1,11 @@
 # Changelog
 
+## v24.3.3 - Member View and an open members' file (built Oct 14, 2026)
+From Graeme's Oct 14 run of the test guide on v24.3.2 (row C6; results in `docs/v24.3.2-report-back.md`). Install: `INSTALL.md` in `dist/Callout_Roster_v24.3.3.zip` (full set). Needs v24.3.2. Code change in `modPublish` only; every module re-stamped so SystemCheck says 23 of 23 on v24.3.3. ThisWorkbook, the forms, the members' template and the updater are not touched.
+
+- **The members' file open in this Excel** (a supervisor looking at it) used to make the publish save a dated copy beside the real file: the open file stayed stale, members never saw the copy, and the folder filled with copies. Now `PublishMembers` finds it first (`OpenWorkbookNamed`), asks "Close it and publish?" (SmokeTest answers Yes), closes it without saving and publishes into it. Open elsewhere (a plant PC), the failed save is a plain refusal: "NOT published ... close it there and publish again", nothing written. No dated copy on any path; `ClearMembersDirty` is unconditional on a save.
+- SystemCheck 23 of 23 on v24.3.3; SelfTest 432 / 50 and pytest 433 unchanged.
+
 ## v24.3.2 - two findings from Graeme's v24.3.1 test (built Oct 13, 2026)
 Report-back: `docs/v24.3.2-report-back.md`. Install: `INSTALL.md` in `dist/Callout_Roster_v24.3.2.zip` (full set). Needs v24.3.1. ThisWorkbook, eight of the nine forms, the members' template and the Roster Updater are not touched; **frmNewPosting is re-pasted** (it now refuses a leave word in the Reason).
 

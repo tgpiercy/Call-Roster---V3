@@ -293,7 +293,7 @@ Public Sub UpgradeAbsenceColumns()
     Dim bk As String
     bk = EnsureSlash(ThisWorkbook.Path) & "Backup before Absences upgrade " & Format$(Now, "yyyy-mm-dd hhmm") & " - " & ThisWorkbook.Name
     On Error Resume Next
-    ThisWorkbook.SaveCopyAs bk
+    SaveRestrictedCopy bk                          ' v25 (I2)
     If Err.Number <> 0 Then
         Dim e As String: e = Err.Description
         On Error GoTo 0

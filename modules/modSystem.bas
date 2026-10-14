@@ -306,6 +306,25 @@ Private Function FormMarker(ByVal proj As Object, ByVal formName As String) As S
     FormMarker = "no version line (before v20)"
 End Function
 
+' ---------------- restricted copies (v25, deep review I2) ----------------
+' Every copy of the roster that code saves while an admin is working (a "Backup before ..."
+' copy, the practice copy, the updater's backup) is saved in the RESTRICTED view, as the daily
+' backup and the rollover's frozen copy already were: admin sheets very hidden, phone / email /
+' Payroll # columns hidden, every sheet protected. Opened with macros off, such a copy shows
+' nothing an ordinary supervisor can't see. The admin view is put back after the save, whatever
+' happened. An error from SaveCopyAs itself raises to the caller (which says so).
+Public Sub SaveRestrictedCopy(ByVal fullPath As String)
+    Dim wasAdmin As Boolean: wasAdmin = gAdminUnlocked
+    Dim en As Long, em As String
+    If wasAdmin Then ApplyView False
+    On Error Resume Next
+    ThisWorkbook.SaveCopyAs fullPath
+    en = Err.Number: em = Err.Description
+    On Error GoTo 0
+    If wasAdmin Then ApplyView True
+    If en <> 0 Then Err.Raise en, , em
+End Sub
+
 ' ---------------- the Install Log sheet (v25) ----------------
 ' The Install panel (Roster Updater.xlsm, v24.4) writes one row per install step to this sheet.
 ' Under structure protection (v25) the updater can't add a sheet, so the roster makes it on an
@@ -396,7 +415,7 @@ Public Sub MakePracticeCopy()
               "It is a separate file with the roster as it is right now (saved or not). Nothing you do in it reaches the real roster " & _
               "or the members' file. Its title bar says COPY: check that before you test anything.", _
               vbOKCancel + vbQuestion, "Practice copy") <> vbOK Then Exit Sub
-    ThisWorkbook.SaveCopyAs target
+    SaveRestrictedCopy target                      ' v25 (I2): the copy never carries the admin view
     Dim tplNote As String
     If MemberTemplateExists() Then
         On Error Resume Next

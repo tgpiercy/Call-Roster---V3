@@ -719,7 +719,7 @@ Public Function PeopleBackup(ByVal what As String, ByRef bk As String) As Boolea
     bk = EnsureSlash(ThisWorkbook.Path) & "Backup before " & what & " " & Format$(Now, "yyyy-mm-dd hhmmss") & " - " & ThisWorkbook.Name
     Dim e As String
     On Error Resume Next
-    ThisWorkbook.SaveCopyAs bk
+    SaveRestrictedCopy bk                          ' v25 (I2)
     If Err.Number <> 0 Then e = Err.Description
     On Error GoTo 0
     If e <> "" Then

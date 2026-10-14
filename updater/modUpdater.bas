@@ -343,8 +343,14 @@ Private Function UpdBackup(ByVal wb As Workbook, ByVal label As String, ByRef bk
     bk = UpdSlash(wb.Path) & "Backup before " & label & " " & Format$(Now, "yyyy-mm-dd hhmmss") & " - " & wb.Name
     why = ""
     On Error Resume Next
-    wb.SaveCopyAs bk
-    If Err.Number <> 0 Then why = Err.Description
+    ' v25 (I2): the roster saves its own copy in the restricted view when it can (its code runs
+    ' before a swap); an older roster, or one whose code can't run, is copied as it is
+    Application.Run "'" & Replace(wb.Name, "'", "''") & "'!SaveRestrictedCopy", bk
+    If Err.Number <> 0 Then
+        Err.Clear
+        wb.SaveCopyAs bk
+        If Err.Number <> 0 Then why = Err.Description
+    End If
     On Error GoTo 0
     UpdBackup = (why = "")
 End Function

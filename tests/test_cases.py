@@ -157,6 +157,8 @@ def evaluate(row: dict) -> str:
             flags["ss_gave_up"] = True
         elif i4 == "ssrest":
             flags["ss_rest"] = True
+        elif i4 == "ssgaveup":
+            flags["ss_gave_up_adjoining"] = True
         elif i4:
             raise ValueError(i4)
         return rules.not_free_reason(i1, d(i2), i3, **flags) or "free"

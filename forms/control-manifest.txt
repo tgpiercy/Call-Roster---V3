@@ -1,14 +1,14 @@
-control-manifest - design-time controls of the two designer forms, read from forms/*.frx (exported by Graeme, Oct 14, 2026).
-Every other control of these forms is built in code (AddCtl / MakeBox in the paste-in). form | control | type
-frmOvertimeEntry | btnLoad | CommandButton
-frmOvertimeEntry | btnAccepted | CommandButton
-frmOvertimeEntry | btnRefused | CommandButton
-frmOvertimeEntry | btnLeftMsg | CommandButton
-frmOvertimeEntry | btnUnavailable | CommandButton
-frmOvertimeEntry | btnSubmit | CommandButton
-frmOvertimeEntry | lstEmployees | ListBox
-frmPostingEntry | btnLoad | CommandButton
-frmPostingEntry | btnPassed | CommandButton
-frmPostingEntry | btnSignedUp | CommandButton
-frmPostingEntry | btnSubmit | CommandButton
-frmPostingEntry | lstEmployees | ListBox
+control-manifest 2026-10-14 17:19 from V2 - Call Out Roster.xlsm
+frmOvertimeEntry | btnSubmit | CommandButton | Submit
+frmOvertimeEntry | btnLoad | CommandButton | Load
+frmOvertimeEntry | btnRefused | CommandButton | Refused
+frmOvertimeEntry | btnLeftMsg | CommandButton | Left Message
+frmOvertimeEntry | btnAccepted | CommandButton | Accepted
+frmOvertimeEntry | lstEmployees | ListBox | 
+frmOvertimeEntry | btnUnavailable | CommandButton | Unavailable
+frmPostingEntry | lstEmployees | ListBox | 
+frmPostingEntry | btnSubmit | CommandButton | Submit
+frmPostingEntry | btnLoad | CommandButton | Load
+frmPostingEntry | btnSignedUp | CommandButton | Refused
+frmPostingEntry | btnPassed | CommandButton | Pass
+

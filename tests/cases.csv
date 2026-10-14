@@ -455,3 +455,8 @@ typeddate,junk,junk,2026-12-15,,,,not a date
 typeddate,blank,,2026-12-15,,,,blank
 typeddate,decades-back,Mar_3_2011,2026-12-15,,,,check the year
 typeddate,too-far-ahead,2028-06-01,2026-12-15,,,,check the year
+eligibility,rotation-rest-day-ot,C,2026-10-07,Days,,,rest
+eligibility,gave-up-night-relieves-rest,C,2026-10-07,Days,ssgaveup,,free
+eligibility,rotation-rest-night-ot,A,2026-10-06,Nights,,,rest
+eligibility,gave-up-day-relieves-rest,A,2026-10-06,Nights,ssgaveup,,free
+eligibility,gave-up-elsewhere-no-relief,C,2026-10-31,Days,ssgaveup,,free

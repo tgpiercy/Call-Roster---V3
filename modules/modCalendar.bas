@@ -542,6 +542,20 @@ Public Function BookedOff(ByVal empName As String, ByVal d As Date, Optional ByR
     BookedOff = AbsentOn(empName, d, typ)
 End Function
 
+' v25 (D-L1): BookedOff for ONE shift - a sick call blocks the shifts inside its 24 h window,
+' other absences the whole date (AbsentForShift). The switch paths use it wherever the shift
+' is known, so a person inside a sick window may neither work nor give up that shift.
+Public Function BookedOffShift(ByVal empName As String, ByVal d As Date, ByVal shiftLbl As String, _
+                               Optional ByRef typ As String) As Boolean
+    If mShiftMap Is Nothing Then LoadCache
+    If Not mTestMode Then mAbs = TableData(AbsTable())
+    If shiftLbl = "" Then
+        BookedOffShift = AbsentOn(empName, d, typ)
+    Else
+        BookedOffShift = AbsentForShift(empName, d, shiftLbl, typ)
+    End If
+End Function
+
 ' The rotation part of the rule, pure (v21 - mirrored in tests/):
 '   "scheduled" on that shift's date, "rest" (coming off nights that
 '   morning for day OT, starting days the next morning for night OT),
@@ -603,6 +617,11 @@ Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String,
     ' (the roster's crew) is only the answer for someone with no history rows
     NotFreeReason = RotationFreeReason3(CrewOn(empName, d - 1, crewCode), CrewOn(empName, d, crewCode), _
                                         CrewOn(empName, d + 1, crewCode), d, shiftLbl)
+    ' v25 (D-C3): a shift GIVEN UP in a switch was not worked, so it brings no rest rule with it
+    If NotFreeReason = "rest" Then
+        If Not night And SwitchOffOn(empName, d - 1, "Nights") <> "" Then NotFreeReason = ""
+        If night And SwitchOffOn(empName, d + 1, "Days") <> "" Then NotFreeReason = ""
+    End If
     If NotFreeReason <> "" Then Exit Function
     If SwitchWorkingOn(empName, d, "") <> "" Then NotFreeReason = "S/S": Exit Function
     If SwitchOffOn(empName, d) <> "" Then NotFreeReason = "S/S off": Exit Function
@@ -640,12 +659,13 @@ Public Function SwitchPickList(ByVal unit As String, ByVal d As Variant, ByVal r
             If role = "OFF" Then
                 keep = (onD = "Days" Or onD = "Nights" Or onD = "?")
                 If keep And shiftLbl <> "" And onD <> "?" Then keep = (onD = shiftLbl)
-                If keep Then keep = Not AbsentOn(recs(i).EmpName, dd, t)
+                ' v25 (D-L1): booked off for the shift they would give up (a sick window is per shift)
+                If keep Then keep = Not AbsentForShift(recs(i).EmpName, dd, IIf(onD = "?", shiftLbl, onD), t)
                 If keep Then keep = (SwitchOffOn(recs(i).EmpName, dd) = "")
                 If keep Then keep = (SwitchWorkingOn(recs(i).EmpName, dd, "") = "")
             ElseIf sisterSwap Then
                 keep = ((onD = "Days" Or onD = "Nights") And onD <> shiftLbl)
-                If keep Then keep = Not AbsentOn(recs(i).EmpName, dd, t)
+                If keep Then keep = Not AbsentForShift(recs(i).EmpName, dd, onD, t)
             Else
                 If shiftLbl = "" Then
                     why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, dd, "Days")

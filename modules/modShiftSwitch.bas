@@ -266,31 +266,19 @@ Public Function CrewStatus(ByVal empName As String, ByVal d As Date) As String
     End If
 End Function
 
-' Problems with "works" covering the shift (blank = looks fine)
+' Problems with "works" covering the shift (blank = looks fine). v25: the one rule
+' (NotFreeReason: the rotation on d - 1, d, d + 1 from the crew history, a given-up shift
+' relieving the rest rule); only "scheduled" and "rest" are warnings here - a booking or a
+' switch that day is a hard stop in EligibilityProblems.
 Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal isNight As Boolean) As String
-    ' v24: a crew change can fall between d - 1, d and d + 1, so each day has its own crew
+    Dim shiftLbl As String: shiftLbl = IIf(isNight, "Nights", "Days")
     Dim code As String: code = EmpCrewCode(empName, d)
-    Dim codePrev As String: codePrev = EmpCrewCode(empName, d - 1)
-    Dim codeNext As String: codeNext = EmpCrewCode(empName, d + 1)
-    If IsPairCrew(code) Or code = "DAYS" Then   ' DAYS: Mon-Fri days (v20)
-        If CrewShiftOn(code, d) = "Days" Then
-            WorksConflict = code & " is already working days that day"
-        ElseIf isNight And CrewShiftOn(codeNext, d + 1) = "Days" Then
-            WorksConflict = codeNext & " starts days the next morning"
-        ElseIf Not isNight And CrewShiftOn(codePrev, d - 1) = "Nights" Then
-            WorksConflict = "crew " & codePrev & " is coming off nights that morning"     ' was on a rotation crew the day before
-        End If
-        Exit Function
-    End If
-    Dim c As String: c = EmpCrew(empName, d)
-    If c = "" Then Exit Function
-    If c = DaysCrew(d) Or c = NightsCrew(d) Then
-        WorksConflict = "crew " & c & " is already working that day"
-    ElseIf Not isNight And CrewShiftOn(codePrev, d - 1) = "Nights" Then
-        WorksConflict = "crew " & codePrev & " is coming off nights that morning"
-    ElseIf isNight And CrewShiftOn(codeNext, d + 1) = "Days" Then
-        WorksConflict = "crew " & codeNext & " starts days the next morning"
-    End If
+    Select Case NotFreeReason(empName, code, d, shiftLbl)
+        Case "scheduled"
+            WorksConflict = "is already working " & LCase$(CrewShiftOn(CrewOn(empName, d, code), d)) & " that day"
+        Case "rest"
+            If isNight Then WorksConflict = "starts days the next morning" Else WorksConflict = "is coming off nights that morning"
+    End Select
 End Function
 
 ' Problems with "gives up" (blank = they're scheduled on that shift)
@@ -331,13 +319,13 @@ Public Function SwitchWorkingOn(ByVal empName As String, ByVal d As Date, ByVal 
     End If
 End Function
 
-' SS ID if empName GAVE UP a shift (any shift) on date d ("" if not)
-Public Function SwitchOffOn(ByVal empName As String, ByVal d As Date) As String
+' SS ID if empName GAVE UP a shift on date d ("" if not); shiftLbl "" = any shift (v25: or that one)
+Public Function SwitchOffOn(ByVal empName As String, ByVal d As Date, Optional ByVal shiftLbl As String = "") As String
     If mBatch Then
-        SwitchOffOn = MatchSwitch(mBatchRows, SW_OFF, empName, d, "")
+        SwitchOffOn = MatchSwitch(mBatchRows, SW_OFF, empName, d, shiftLbl)
     Else
         Dim v As Variant: v = SwitchData()
-        SwitchOffOn = MatchSwitch(v, SW_OFF, empName, d, "")
+        SwitchOffOn = MatchSwitch(v, SW_OFF, empName, d, shiftLbl)
     End If
 End Function
 
@@ -364,14 +352,16 @@ End Function
 '   the person giving up the shift must not be booked off (vac / training /
 '   leave) or already on a switch that day; the person working it must not
 '   be booked off or already working a switch that day.
-Public Function EligibilityProblems(ByVal offName As String, ByVal worksName As String, ByVal d As Date) As String
+' v25 (D-L1): shiftLbl = the shift switched; a sick window blocks the shifts inside it only.
+Public Function EligibilityProblems(ByVal offName As String, ByVal worksName As String, ByVal d As Date, _
+                                    Optional ByVal shiftLbl As String = "") As String
     Dim s As String, t As String, id As String
-    If BookedOff(offName, d, t) Then s = s & "- " & offName & " is booked off (" & t & ") on " & Format$(d, "mmm d") & vbNewLine
+    If BookedOffShift(offName, d, shiftLbl, t) Then s = s & "- " & offName & " is booked off (" & t & ") on " & Format$(d, "mmm d") & vbNewLine
     id = SwitchOffOn(offName, d)
     If id <> "" Then s = s & "- " & offName & " already switched off that day (" & id & ")" & vbNewLine
     id = SwitchWorkingOn(offName, d, "")
     If id <> "" Then s = s & "- " & offName & " is already working a switch that day (" & id & ")" & vbNewLine
-    If BookedOff(worksName, d, t) Then s = s & "- " & worksName & " is booked off (" & t & ") on " & Format$(d, "mmm d") & vbNewLine
+    If BookedOffShift(worksName, d, shiftLbl, t) Then s = s & "- " & worksName & " is booked off (" & t & ") on " & Format$(d, "mmm d") & vbNewLine
     id = SwitchWorkingOn(worksName, d, "")
     If id <> "" Then s = s & "- " & worksName & " is already working a switch that day (" & id & ")" & vbNewLine
     EligibilityProblems = s
@@ -381,14 +371,87 @@ End Function
 ' kind (optional) says which: "OFF" booked off, "GAVE_UP" already gave up a
 ' shift that day, "WORKING" already working a switch, "" none. The form
 ' checks kind, never the wording.
-Public Function PersonFlag(ByVal empName As String, ByVal d As Date, Optional ByRef kind As String) As String
+Public Function PersonFlag(ByVal empName As String, ByVal d As Date, Optional ByRef kind As String, _
+                           Optional ByVal shiftLbl As String = "") As String
     Dim t As String, id As String
     kind = ""
-    If BookedOff(empName, d, t) Then PersonFlag = "booked off (" & t & ")": kind = "OFF": Exit Function
+    If BookedOffShift(empName, d, shiftLbl, t) Then PersonFlag = "booked off (" & t & ")": kind = "OFF": Exit Function
     id = SwitchOffOn(empName, d)
     If id <> "" Then PersonFlag = "already switched off (" & id & ")": kind = "GAVE_UP": Exit Function
     id = SwitchWorkingOn(empName, d, "")
     If id <> "" Then PersonFlag = "already working " & id: kind = "WORKING"
+End Function
+
+' ---------------- v25: the switch pop-up's rules, out of the form ----------------
+' "Fred C" for "Campbell, Fred" (the pop-up's short form)
+Public Function SwitchShortName(ByVal nm As String) As String
+    Dim p As Long: p = InStr(nm, ",")
+    If p > 0 Then SwitchShortName = Trim$(Mid$(nm, p + 1)) & " " & Left$(nm, 1) Else SwitchShortName = nm
+End Function
+
+' Can the payback physically happen on d2? "" = yes.
+'  - the one being paid back (today's "works") must be scheduled that day (sh2)
+'  - the one paying back (today's "gives up") must be free for that shift:
+'    not scheduled, not under the rest rule, not booked off, not on another switch
+' A same-day sister swap is exempt from the "scheduled" check (they trade shifts).
+Public Function PaybackProblem(ByVal offName As String, ByVal worksName As String, ByVal d As Date, _
+                               ByVal d2 As Date, ByVal sh2 As String) As String
+    If sh2 = "" Then PaybackProblem = SwitchShortName(worksName) & " isn't scheduled that day - no shift to pay back": Exit Function
+    Dim who As String: who = SwitchShortName(offName)
+    Dim t As String
+    If Int(d2) = Int(d) Then
+        If BookedOffShift(offName, d2, sh2, t) Then PaybackProblem = who & " is booked off (" & t & ")"
+        Exit Function
+    End If
+    Dim code As String: code = EmpCrewCode(offName, d2)          ' v24: their crew on the payback date
+    Dim why As String: why = NotFreeReason(offName, code, d2, sh2)
+    Select Case why
+        Case "", "S/S off"
+        Case "scheduled": PaybackProblem = who & " is scheduled to work " & LCase$(CrewShiftOn(code, d2)) & " that day"
+        Case "rest"
+            If sh2 = "Days" Then
+                PaybackProblem = who & " is coming off nights that morning"
+            Else
+                PaybackProblem = who & " starts days the next morning"
+            End If
+        Case "S/S": PaybackProblem = who & " is already working a switch that day"
+        Case Else: PaybackProblem = who & " is booked off (" & why & ")"
+    End Select
+End Function
+
+' The hard stops before a switch is saved ("" = none): booked off / already on a switch, for
+' the switch itself and, two-way, for its payback (a same-day sister swap: each is the other's
+' switch, so only bookings and other switches that day count).
+Public Function SwitchSaveStops(ByVal offName As String, ByVal worksName As String, ByVal d As Date, ByVal shiftLbl As String, _
+                                ByVal twoWay As Boolean, ByVal d2 As Date, ByVal sh2 As String) As String
+    Dim stops As String, t2 As String
+    stops = EligibilityProblems(offName, worksName, d, shiftLbl)
+    If twoWay Then
+        If Int(d2) = Int(d) Then
+            stops = ""
+            If BookedOffShift(offName, d, shiftLbl, t2) Then stops = stops & "- " & offName & " is booked off (" & t2 & ")" & vbNewLine
+            If BookedOffShift(worksName, d, sh2, t2) Then stops = stops & "- " & worksName & " is booked off (" & t2 & ")" & vbNewLine
+            If SwitchOffOn(offName, d) <> "" Or SwitchWorkingOn(offName, d, "") <> "" Then stops = stops & "- " & offName & " is already on a switch that day" & vbNewLine
+            If SwitchOffOn(worksName, d) <> "" Or SwitchWorkingOn(worksName, d, "") <> "" Then stops = stops & "- " & worksName & " is already on a switch that day" & vbNewLine
+        Else
+            stops = stops & EligibilityProblems(worksName, offName, d2, sh2)
+        End If
+    End If
+    SwitchSaveStops = stops
+End Function
+
+' The rotation warnings shown in the confirm ("" = none): the one giving up isn't on that shift;
+' the one working is scheduled or under the rest rule (not for a same-day sister swap).
+Public Function SwitchWarnings(ByVal offName As String, ByVal worksName As String, ByVal d As Date, _
+                               ByVal isNight As Boolean, ByVal sameDaySwap As Boolean) As String
+    Dim warn As String, s As String
+    s = OffConflict(offName, d, isNight)
+    If s <> "" Then warn = warn & "- " & offName & ": " & s & vbNewLine
+    If Not sameDaySwap Then
+        s = WorksConflict(worksName, d, isNight)
+        If s <> "" Then warn = warn & "- " & worksName & ": " & s & vbNewLine
+    End If
+    SwitchWarnings = warn
 End Function
 
 ' Unpaid switches this pair could be paying back: earlier records where

@@ -408,16 +408,19 @@ def type_tag(code: str) -> str:
 
 def not_free_reason(code: str, d: date, shift_lbl: str, *, booked_off: str = "",
                     ss_working: bool = False, ss_gave_up: bool = False,
-                    ss_rest: bool = False) -> str:
+                    ss_rest: bool = False, ss_gave_up_adjoining: bool = False) -> str:
     """modCalendar.NotFreeReason with the table lookups replaced by flags:
     booked_off = absence type code ('VAC', 'LOA' ...) active on d;
     ss_working = working a switch on d; ss_gave_up = gave up a shift on d;
     ss_rest = working a switch on the adjoining shift (nights before a day
-    OT, days after a night OT)."""
+    OT, days after a night OT); ss_gave_up_adjoining (v25, D-C3) = gave up
+    that adjoining shift, which relieves the rotation's rest rule."""
     night = is_night_shift(shift_lbl)
     if booked_off:
         return type_tag(booked_off)
     why = rotation_free_reason(code, d, shift_lbl)
+    if why == "rest" and ss_gave_up_adjoining:
+        why = ""
     if why:
         return why
     if ss_working:

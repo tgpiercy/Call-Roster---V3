@@ -345,7 +345,7 @@ Private Sub Refresh(ByVal setShift As Boolean)
     Dim flag As String
     If mOff.ListIndex >= 0 Then
         msg = CrewStatus(mOff.Text, d)
-        flag = PersonFlag(mOff.Text, d)
+        flag = PersonFlag(mOff.Text, d, , mShift.Text)
         Dim oc As String
         If mShift.ListIndex >= 0 Then oc = OffConflict(mOff.Text, d, isNight)
         If flag <> "" Then
@@ -361,7 +361,7 @@ Private Sub Refresh(ByVal setShift As Boolean)
     If mWorks.ListIndex >= 0 Then
         msg = CrewStatus(mWorks.Text, d)
         Dim wkKind As String
-        flag = PersonFlag(mWorks.Text, d, wkKind)
+        flag = PersonFlag(mWorks.Text, d, wkKind, mShift.Text)
         If wkKind = "GAVE_UP" Then flag = ""     ' gave up their own shift that day - fine for the one working
         Dim wc As String
         If mShift.ListIndex >= 0 And Not SameDaySwap() Then wc = WorksConflict(mWorks.Text, d, isNight)
@@ -407,7 +407,7 @@ Private Sub PayHint()
         ' the same hard stops Save checks for the payback half (booked off / already on a switch)
         Dim d As Date
         If PickedDate(d) Then
-            If Int(d2) <> Int(d) Then prob = FirstProblem(EligibilityProblems(mWorks.Text, mOff.Text, d2))
+            If Int(d2) <> Int(d) Then prob = FirstProblem(EligibilityProblems(mWorks.Text, mOff.Text, d2, sh))
         End If
     End If
     If prob <> "" Then
@@ -417,35 +417,12 @@ Private Sub PayHint()
     End If
 End Sub
 
-' Can the payback physically happen on d2? "" = yes.
-'  - the one being paid back (today's "works") must be scheduled that day (sh2)
-'  - the one paying back (today's "gives up") must be free for that shift:
-'    not scheduled, not under the rest rule, not booked off, not on another switch
-' A same-day sister swap is exempt from the "scheduled" check (they trade shifts).
+' v25: the rule is modShiftSwitch.PaybackProblem; this wrapper keeps the form's call sites
 Private Function PaybackProblem(ByVal d2 As Date, ByVal sh2 As String) As String
     If mOff.ListIndex < 0 Or mWorks.ListIndex < 0 Then Exit Function
-    If sh2 = "" Then PaybackProblem = ShortName(mWorks.Text) & " isn't scheduled that day - no shift to pay back": Exit Function
     Dim d As Date
     If Not PickedDate(d) Then Exit Function
-    Dim who As String: who = ShortName(mOff.Text)
-    Dim t As String
-    If Int(d2) = Int(d) Then
-        If BookedOff(mOff.Text, d2, t) Then PaybackProblem = who & " is booked off (" & t & ")"
-        Exit Function
-    End If
-    Dim code As String: code = EmpCrewCode(mOff.Text, d2)          ' v24: their crew on the payback date
-    Select Case NotFreeReason(mOff.Text, code, d2, sh2)
-        Case "", "S/S off"
-        Case "scheduled": PaybackProblem = who & " is scheduled to work " & LCase$(CrewShiftOn(code, d2)) & " that day"
-        Case "rest"
-            If sh2 = "Days" Then
-                PaybackProblem = who & " is coming off nights that morning"
-            Else
-                PaybackProblem = who & " starts days the next morning"
-            End If
-        Case "S/S": PaybackProblem = who & " is already working a switch that day"
-        Case Else: PaybackProblem = who & " is booked off (" & NotFreeReason(mOff.Text, code, d2, sh2) & ")"
-    End Select
+    PaybackProblem = modShiftSwitch.PaybackProblem(mOff.Text, mWorks.Text, d, d2, sh2)
 End Function
 
 ' first line of an EligibilityProblems list, without its "- "
@@ -486,8 +463,7 @@ Private Sub SetHint(ByVal nm As String, ByVal txt As String, ByVal ok As Boolean
 End Sub
 
 Private Function ShortName(ByVal nm As String) As String
-    Dim p As Long: p = InStr(nm, ",")
-    If p > 0 Then ShortName = Trim$(Mid$(nm, p + 1)) & " " & Left$(nm, 1) Else ShortName = nm
+    ShortName = SwitchShortName(nm)                ' v25: the module's
 End Function
 
 ' Payback choices: earlier switches where today's "works" gave up a shift
@@ -624,35 +600,17 @@ Private Sub mSave_Click()
         End If
     End If
 
-    ' ---- hard stops: booked off / already on a switch ----
+    ' ---- hard stops: booked off / already on a switch (v25: modShiftSwitch.SwitchSaveStops) ----
     Dim stops As String
-    stops = EligibilityProblems(mOff.Text, mWorks.Text, d)
-    If twoWay Then
-        If Int(d2) = Int(d) Then
-            ' same-day swap: each one is the other's "switch" - only check booked off
-            Dim t2 As String
-            stops = ""
-            If BookedOff(mOff.Text, d, t2) Then stops = stops & "- " & mOff.Text & " is booked off (" & t2 & ")" & vbNewLine
-            If BookedOff(mWorks.Text, d, t2) Then stops = stops & "- " & mWorks.Text & " is booked off (" & t2 & ")" & vbNewLine
-            If SwitchOffOn(mOff.Text, d) <> "" Or SwitchWorkingOn(mOff.Text, d, "") <> "" Then stops = stops & "- " & mOff.Text & " is already on a switch that day" & vbNewLine
-            If SwitchOffOn(mWorks.Text, d) <> "" Or SwitchWorkingOn(mWorks.Text, d, "") <> "" Then stops = stops & "- " & mWorks.Text & " is already on a switch that day" & vbNewLine
-        Else
-            stops = stops & EligibilityProblems(mWorks.Text, mOff.Text, d2)
-        End If
-    End If
+    stops = SwitchSaveStops(mOff.Text, mWorks.Text, d, mShift.Text, twoWay, d2, sh2)
     If stops <> "" Then
         MsgBox "This switch can't be logged:" & vbNewLine & vbNewLine & stops, vbExclamation, "Not eligible"
         Exit Sub
     End If
 
-    ' ---- rotation warnings ----
-    Dim warn As String, s As String
-    s = OffConflict(mOff.Text, d, isNight)
-    If s <> "" Then warn = warn & "- " & mOff.Text & ": " & s & vbNewLine
-    If Not (twoWay And Int(d2) = Int(d)) Then
-        s = WorksConflict(mWorks.Text, d, isNight)
-        If s <> "" Then warn = warn & "- " & mWorks.Text & ": " & s & vbNewLine
-    End If
+    ' ---- rotation warnings (v25: modShiftSwitch.SwitchWarnings) ----
+    Dim warn As String
+    warn = SwitchWarnings(mOff.Text, mWorks.Text, d, isNight, (twoWay And Int(d2) = Int(d)))
 
     Dim payFor As String
     If Not twoWay Then

@@ -379,7 +379,7 @@ Private Function CaseEligibility(ByVal code As String, ByVal d As Date, ByVal sh
         a(1, AB_END) = d
         a(1, AB_STATUS) = "Active"
         absRows = a
-    ElseIf fixture = "ss" Or fixture = "ssoff" Or fixture = "ssrest" Then
+    ElseIf fixture = "ss" Or fixture = "ssoff" Or fixture = "ssrest" Or fixture = "ssgaveup" Then
         Dim s(1 To 1, 1 To SW_N) As Variant
         s(1, SW_ID) = "SS-9999"
         s(1, SW_UNIT) = "Phosphine"
@@ -395,7 +395,11 @@ Private Function CaseEligibility(ByVal code As String, ByVal d As Date, ByVal sh
             Else
                 s(1, SW_DATE) = d - 1: s(1, SW_SHIFT) = "Nights"
             End If
-            s(1, SW_WORKS) = ST_NAME: s(1, SW_OFF) = "Someone Else"
+            If fixture = "ssgaveup" Then                 ' v25 (D-C3): they GAVE UP the adjoining shift
+                s(1, SW_WORKS) = "Someone Else": s(1, SW_OFF) = ST_NAME
+            Else
+                s(1, SW_WORKS) = ST_NAME: s(1, SW_OFF) = "Someone Else"
+            End If
         End If
         swRows = s
     ElseIf fixture <> "" Then
@@ -1228,5 +1232,10 @@ Private Sub LoadCases()
     AddCase "typeddate,blank,,2026-12-15,,,,blank"
     AddCase "typeddate,decades-back,Mar_3_2011,2026-12-15,,,,check the year"
     AddCase "typeddate,too-far-ahead,2028-06-01,2026-12-15,,,,check the year"
+    AddCase "eligibility,rotation-rest-day-ot,C,2026-10-07,Days,,,rest"
+    AddCase "eligibility,gave-up-night-relieves-rest,C,2026-10-07,Days,ssgaveup,,free"
+    AddCase "eligibility,rotation-rest-night-ot,A,2026-10-06,Nights,,,rest"
+    AddCase "eligibility,gave-up-day-relieves-rest,A,2026-10-06,Nights,ssgaveup,,free"
+    AddCase "eligibility,gave-up-elsewhere-no-relief,C,2026-10-31,Days,ssgaveup,,free"
 ' <<< CASES
 End Sub

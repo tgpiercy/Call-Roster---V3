@@ -711,6 +711,33 @@ Private Sub CheckPlannedMoves()
                      " and hasn't been applied", "Alt+F8 > ApplyPlannedMoves (the Note on the Planned Moves sheet says why)"
         End If
     Next i
+    ' v25 (H9): two waiting moves for one person (a hand edit: the code reads them two ways)
+    Dim perEmp As Object: Set perEmp = CreateObject("Scripting.Dictionary")
+    perEmp.CompareMode = 1
+    For i = 1 To UBound(pv, 1)
+        emp = Trim$(SafeStr(pv(i, PM_EMP)))
+        If emp <> "" Then perEmp(emp) = NumOr0(perEmp(emp)) + 1
+    Next i
+    Dim k As Variant
+    For Each k In perEmp.Keys
+        If perEmp(k) > 1 Then AddIssue SEV_WARN, "Planned moves", perEmp(k) & " waiting moves for " & k, "Cancel all but one: Needs Attention > Planned unit moves"
+    Next k
+    ' v25 (H9): a crew row dated in the future with no planned move behind it (an orphan from a hand edit)
+    Dim lo As ListObject: Set lo = CrewTable()
+    If Not lo Is Nothing Then
+        If Not lo.DataBodyRange Is Nothing Then
+            Dim cv As Variant: cv = lo.DataBodyRange.Value
+            For i = 1 To UBound(cv, 1)
+                If IsDate(cv(i, CH_FROM)) Then
+                    If Int(CDate(cv(i, CH_FROM))) > Date And Not perEmp.Exists(Trim$(SafeStr(cv(i, CH_EMP)))) Then
+                        AddIssue SEV_WARN, "Planned moves", "Crew History: " & Trim$(SafeStr(cv(i, CH_EMP))) & " has a crew row dated " & _
+                                 Format$(CDate(cv(i, CH_FROM)), "mmm d, yyyy") & " with no planned move behind it", _
+                                 "Remove that row on the Crew History sheet if it was typed by mistake"
+                    End If
+                End If
+            Next i
+        End If
+    End If
     AddIssue SEV_INFO, "Planned moves", n & " unit move(s) waiting for their date", "Listed on Needs Attention"
 End Sub
 

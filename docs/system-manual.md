@@ -93,7 +93,7 @@ People are called in this order. Each step only breaks ties in the step before.
 | 3 | Plant seniority, earliest date first |
 | 4 | Name, A to Z |
 
-One rule decides the order everywhere. The call-out list, the posting list, the printed roster and the members' file all use it.
+One rule decides the order everywhere. The call-out list, the posting list, the out-of-department box on the award pop-up, the printed roster and the members' file all use it. A Plant Seniority that isn't a date sorts last; IntegrityCheck reports it (and a unit column that mixes code letters) rather than change a cell.
 
 ## 6. Who is listed
 
@@ -107,8 +107,8 @@ A person is not free when one of these applies.
 | Rest rule, day overtime | Their crew comes off nights that morning. |
 | Rest rule, night overtime | Their crew starts days the next morning. |
 | Booked off | A time-off booking covers the date. |
-| Shift switch | They are working a switch that day, or gave up a shift that day. A switch worked the night before or the day after also counts for the rest rule. |
-| Sick window | They called in sick. They are off that shift and any shift starting within 24 hours after it ends. |
+| Shift switch | They are working a switch that day, or gave up a shift that day (not free for the other shift either). A switch worked the night before or the day after also counts for the rest rule; a shift GIVEN UP in a switch relieves the next day's rest rule, since they did not work it. |
+| Sick window | They called in sick. They are off that shift and any shift starting within 24 hours after it ends, and inside that window they can neither work nor give up a shift in a switch. |
 
 Old-calendar vacation lines that were imported are display only. They keep nobody off a list until the admin converts them into bookings.
 
@@ -128,6 +128,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | Call-out: Refused | That person | Call-out date |
 | Call-out: Left Message | That person | Call-out date |
 | Call-out: Accepted | Nobody. The hours count as provisional. | - |
+| Call-out: part of the hours accepted | The shift is closed: nobody below is offered the rest and nobody is charged for it. Refusals logged before the partial keep their charge. (Since v25; before it the rest was offered down the list.) | - |
 | Call-out: Unavailable (a reason is required) | Nobody | - |
 | Posting: Submit Award | People ahead of the last awarded person in call order who did not sign up | Shift date |
 | Posting: Award Out of Dept | Everyone eligible in the department who did not sign up | Shift date |
@@ -141,7 +142,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | The list | Made when the posting is created. It holds everyone free for that shift, in call order. |
 | Posted totals | Each person's Total Hours is frozen on the list at creation. Awards and charges use these posted totals, not later ones. |
 | Sign-up | On the printed sheet. The sheet has 3 blank lines for out-of-department sign-ups. |
-| Closing | Default is 14 days before the shift, at 8:00 AM. If that has passed, the day before the shift. The supervisor can type another date. |
+| Closing | Default is 14 days before the shift, at 8:00 AM. If that has passed, the day before the shift. The supervisor can type another date. A posting counts as closed from the day after its closing date; one test decides it everywhere (ready to award, still open, can still be signed up for). |
 | Awarding early | The system warns when a posting is awarded before it closes. |
 | Who is awarded | The supervisor marks who signed up and who is awarded. The system does not pick. |
 | Signed up, ahead, not awarded | The system warns. These people are not charged. |
@@ -153,7 +154,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | Moved unit or left | Someone who moved out of the unit, or left, before the shift is never charged on that posting, even though the frozen list still shows them. |
 | Moved into the unit | Someone who moves into a unit, today or on a planned date, is added to that unit's open postings for shifts on or after the move that can still be signed up for, placed among the frozen names by call order. Nobody else's place or posted hours change. If a planned move is cancelled before the day, they come off those lists again. This is the only way a posted list changes after it is made. |
 | Award email | A draft opens to the awarded person, with the unit's CC list. The supervisor checks it and sends it. |
-| Reopen | A closed posting can be reopened only after its log rows are voided. Nothing is charged twice. |
+| Reopen | A closed posting can be reopened only after its log rows are voided. Nothing is charged twice. A shift before the roster year is never reopened. The reopen names anyone it marks not chargeable (moved out, left, no code in the unit now). |
 
 ## 9. Shift switches and paybacks
 
@@ -168,6 +169,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | Either person is booked off that day | The switch cannot be saved. |
 | The person giving up the shift is already on a switch that day | The switch cannot be saved. |
 | The person working the shift is already working a switch that day | The switch cannot be saved. |
+| Either person is inside the 24 h window after a sick shift | The switch cannot be saved (they may neither work nor give up a shift). |
 | The rotation looks wrong, for example the person is not on that shift | A warning. The supervisor can still save. |
 
 Needs Attention lists every payback still owed.
@@ -251,6 +253,8 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | Not counted as peers | The returner, anyone on leave during that time, anyone with no hours history before it |
 | Leave across the yearly reset | The top-up counts only from the reset. |
 | Return dated after the roster's last pay period | Refused until the year-end rollover has been run; then it is logged on the new year's roster. |
+| Return dated in the future | Refused: the return is logged on or after the first day back. |
+| Average of 0 hours | Still logged, as an LV- row with "no hours added", so the return is on record. |
 | Rounding | To 0.1 hour |
 | Before saving | The system shows the peers, the dates, the average, and the returner's hours before and after. |
 | How it is recorded | One Adjustment row in the OT Log, numbered LV-####, with the calculation in its Note |
@@ -343,8 +347,8 @@ An adjustment adds or removes charged hours for one person. Only the admin can m
 | Entering | Employee > Move to unit with a date after today. Nothing on the roster changes that day. One row goes on the Planned Moves sheet. |
 | Lists before the day | For any shift on or after the date, the person is off the old unit's call-out and posting lists and on the new unit's, at the hours they would have after the top-up (an estimate, marked `~` on the call-out pop-up and the printed roster). The estimate is for call order only; a call-out's log row records their real total. A posting made in that window freezes the estimate on its list, as it freezes everyone's hours. |
 | Open postings | Old-unit postings for shifts on or after the date mark the person "Exempt": never charged. New-unit postings for such shifts that can still be signed up for get the person added to their list (section 8). |
-| On the day | The first admin to open the file on or after the date is asked whether to apply the due moves. Yes applies them (codes, Home Unit, grade log, the UM- top-up with hours as of the move date), with a backup first and one summary. No leaves them waiting; the question comes back at the next open, and ApplyPlannedMoves (Alt+F8) does it at any time. |
-| Changing | Cancel and enter again. A cancel puts the lists back, removes only that move's Exempt marks, takes them off the new unit's lists it had added them to, and puts back a crew change entered with it. |
+| On the day | The first admin to open the file on or after the date is asked whether to apply the due moves. Yes applies them (codes, Home Unit, grade log, the UM- top-up with hours as of the move date), with a backup first and one summary that carries the warnings, the postings marked exempt and the UM- number. No leaves them waiting; the question comes back at the next open, a Needs Attention line applies only that one move ("Apply it now?", then "Cancel the move?"), and ApplyPlannedMoves (Alt+F8) does them all at any time. |
+| Changing | Cancel and enter again. A cancel puts the lists back, removes only that move's Exempt marks, takes them off the new unit's lists it had added them to, and undoes a crew change entered with it: before the date the never-effective crew row is deleted; on or after it the old crew is written back dated today, and the message says so. |
 | One at a time | A second move for the same person is refused until the first is cancelled or applied. Rename carries a planned move; Remove cancels it. |
 
 ## 16. The yearly reset
@@ -402,7 +406,8 @@ The steps are in docs/rollover-one-pager.md.
 | Logins on the admin list | Everything else: postings, shift switches, time off, sick calls, leave, the printed call-out roster, publishing, Kronos import, adjustments and voids |
 
 - Phone numbers and email addresses are hidden from people not on the admin list.
-- The file is always saved in the restricted view.
+- The file is always saved in the restricted view, and so is every copy the system makes (pre-change backups, practice copies, the updater's backup).
+- Every sheet is protected in both views. Admins type only into the roster's Home Unit, Crew, Phone, Plant Seniority, EMAIL and unit code columns and the Holidays sheet's "Observed on"; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
 
 ## 19. Safeguards
 
@@ -411,7 +416,8 @@ The steps are in docs/rollover-one-pager.md.
 | Automatic save | The file saves after each entry, and again when it is closed. |
 | Daily backup | A dated copy is saved the first time an admin opens the live file each day. 30 days are kept. A backup, the frozen year-end file or a practice copy never takes that day's slot. |
 | Error log | A button or pop-up that fails part-way writes a line to the admin-only Error Log sheet (and a text file beside the roster) and shows "This didn't finish ... Error Log line N" instead of a code error. |
-| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 14 steps through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, rename, publish, void, remove, integrity) and checks every total comes back. It never saves. |
+| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 18 steps through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos heading rule, a planted leave word stopping the publish, void, remove, integrity) and checks every total comes back. It never saves. |
+| One parser, one rule | Every date box reads through one parser; every rule (call order, who is free, closing, charging, the trim, the switch stops) lives in one module function the pop-ups call, with known answers in SelfTest. |
 | Checked changes | A change to the roster's layout is compared before and after. If the totals differ, saving is blocked. |
 | SystemCheck | Confirms the installed code is the right release and the data is in order. |
 | IntegrityCheck | Compares every roster total with the OT Log, and looks for typed numbers, missing formulas and duplicate IDs. It only reads. It runs each time an admin opens the file, and the result is on the roster's status line. |

@@ -1,0 +1,18 @@
+# Groups 3 and 4 of install-steps.txt for v25 (groups 1 and 2 are standard; tests/build_zip.py adds them,
+# the VERSION / EXPECT / MEMBER header, and the members' template step when member/ changed).
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+# modUpdater v4.1 goes into Roster Updater.xlsm BY HAND before this panel is opened (INSTALL-v25.md part A).
+
+[3. Run once]
+macro   | System check (expect 24 of 24 on v25, and the Protection line)   | SystemCheckOK
+macro   | Self test (expect 552 passed, 67 suites)                           | SelfTestOK
+manual  | Import Kronos when the next export arrives                         | Hours are entered from the Kronos PDF today; the Excel import waits for the daily export (SmokeTest step 14 proves the heading rule on a made-up sheet). Click Done.
+
+[4. Checks]
+macro   | Make a practice copy (it opens; leave it for the next row)        | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY                                            | In the practice copy (its title says COPY): Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, 18 steps (a step may say SKIPPED with its reason; FAILED is a fail). Then CLOSE THE COPY WITHOUT SAVING and come back to this sheet. Click Done.
+manual  | Typing on the sheets (every sheet stays protected)                | ADMIN view, OT Roster: type into a Total Hours (G) cell or a pay-period cell: Excel refuses (protected). Type into Home Unit (B), Crew (E), Phone (F), Seniority (J), EMAIL (K) or a unit code column: allowed (Esc or Ctrl+Z to undo; a crew change asks its date). Holidays: "Observed on" accepts typing, the other columns don't. Switch to the non-admin view (Full Access off): nothing can be typed anywhere.
+test    | A partial acceptance closes the call-out shift                    | SmokeCallout Phosphine +7 Days | In the pop-up: type 12 hours, LOAD LIST, select the first name, ACCEPTED PART OF THE HOURS, enter 4. The pop-up says the shift is closed and the names below are not offered the rest; ACCEPTED on another name is refused. Close it WITHOUT submitting.
+test    | Typed dates: one parser, full pre-fill                            | SmokeSwitch +14 | The Shift Switch pop-up's date box shows a full date (Oct 28, 2026 style). Type "Jan 5": the hint reads Jan 5, 2027 (a day more than 90 days back rolls to next year). Type "Oct 20 7:00": the time is ignored. Type "yesterday": the hint says it isn't a date. Cancel.
+test    | New Posting pre-filled from the panel                             | SmokePosting Phosphine +21 Days | The New Posting pop-up opens with Phosphine, the date 3 weeks out and Days filled in; its caption says "From the Install panel". Cancel it.
+manual  | Install Log sheet                                                 | ADMIN view: the Install Log sheet is listed and holds this install's rows (one per step). Non-admin view hides it.

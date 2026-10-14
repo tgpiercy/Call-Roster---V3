@@ -108,14 +108,15 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 
 | Line | Meaning | What to do |
 |---|---|---|
-| Modules: N of N on vNN | Every checked module carries this release's stamp (23 since v24.3.1). | Nothing. Both numbers must match the INSTALL note. |
+| Modules: N of N on vNN | Every checked module carries this release's stamp (24 since v24.4). | Nothing. Both numbers must match the INSTALL note. |
+| Protection: n of N sheets protected, roster totals locked | v25: every sheet must be protected in both views and the roster's Total / period cells locked. | A short count or "unlocked" means a sheet was unprotected by hand: run `ProtectAll` (Alt+F8) or close without saving and reopen. |
 | [module] is ...: remove it and import the vNN file | That module is from an older release. | Remove it and import the new file. |
 | ThisWorkbook code is older than vNN | ThisWorkbook was not re-pasted. | Re-paste `ThisWorkbook.txt`. |
 | [form] code is older than vNN | That form was not re-pasted. | Re-paste its `.txt` file. |
 | form [name] is missing | A form was never added. | Insert > UserForm, name it, paste its file. |
 | '[name]' looks like a duplicate from an import | A module was imported twice. | Remove the duplicate. |
 | '[name]' is left over from an earlier version | An old module is still there. | Remove it. |
-| Forms / leftovers: not checked (VBA project access is off) | Excel will not let the check read the code. | Turn on VBA project access (section 9). Module versions are still checked without it. |
+| Forms / leftovers: not checked (VBA project access is off) | Excel will not let the check read the code. | Turn on VBA project access (section 9). Module versions are still checked without it; the Install panel's System check step passes on the version lines alone (v25). |
 | OT Log is in the old layout | The log needs its one-time upgrade. | Run `UpgradeOTLogLayout`. |
 | Kronos data is old | The Kronos data is more than 7 days old, or was never imported. | Click Import Kronos. |
 | Total Hours doesn't include provisional accepted OT yet | The total formulas are from before v21. | Run `RefreshRosterFormulas`. |
@@ -146,7 +147,7 @@ After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)"
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering and the integrity helpers. It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v25: 552 cases in 67 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|
@@ -346,7 +347,8 @@ Restore the backup only if the reopened file is wrong.
 | Employee > Move to unit with a later date | Plans the move. Nothing changes until the date; the first admin open on or after it asks "apply now?". Needs Attention > Planned unit moves cancels or applies one. |
 | `MakePracticeCopy`, `SmokeTest` (Alt+F8) | Section 3, step 14 |
 | `ShowErrorLog`, `ErrorLogTest` (Alt+F8) | The Error Log sheet (admin only, never published) |
-| `ReopenPosting` (Alt+F8) | Reopens a closed posting after its log rows are voided |
+| `ReopenPosting` (Alt+F8) | Reopens a closed posting after its log rows are voided; refuses a shift before the roster year; names anyone it marks not chargeable (moved, left, no code now) |
+| Typing on the sheets (v25) | Every sheet stays protected in both views. In ADMIN view you can type into the roster's Home Unit (B), Crew (E), Phone (F), Plant Seniority (J), EMAIL (K) and the unit code columns (L:S), and the Holidays sheet's "Observed on"; everything else (totals, pay-period cells, every other sheet) is refused and goes through the buttons. Sheets can't be added, deleted or unhidden by hand. Copies made by the system (pre-change, practice, the updater's backup) are saved in the restricted view. |
 | `ShowGradeLog` (Alt+F8) | Shows the log of grade code changes |
 | `SystemCheck`, `SelfTest` (Alt+F8) | See sections 4 and 5 |
 
@@ -401,4 +403,4 @@ Other admin-only sheets made on first use: Error Log (v24.2), Planned Moves (v24
 | `REPORT_FOLDER` | Keep `{YEAR}` in the path. It is replaced by the roster year, so reports follow the rollover. |
 
 ## The Install panel (v24.4)
-From v24.4 every release is installed from one sheet of buttons in `Roster Updater.xlsm`: open the roster (ADMIN view) and the updater in the same Excel window, Alt+F8 > `InstallPanel`, pick the unzipped release folder (it holds `install-steps.txt`), then click the one blue button at a time. Groups: Prepare (backup, check), Install code (swap, compile, finish + reopen), Run once (SystemCheck, SelfTest, the release's macros), Checks (SmokeTest, Pass / Fail rows that open the pop-ups pre-filled). Every click writes a row to the roster's hidden **Install Log** sheet (ADMIN view lists it), so closing Excel part-way and opening again resumes at the next step; **Skip this step...** records a note for a step done by hand. A FAILED step blocks the rest until Retry or Skip. If "Trust access to the VBA project object model" is off, the swap and compile rows show the exact remove / import / paste list instead. The old macros (`UpdateFromFolder`, `UpdateFinished`, `UpdateDrop`, `UpdateMemberTemplate`) still work for a release without a step list. When a release changes the updater itself, its note says to import `updater/modUpdater.bas` into Roster Updater.xlsm by hand first (remove the old module, import, Compile, save).
+From v24.4 every release is installed from one sheet of buttons in `Roster Updater.xlsm`: open the roster (ADMIN view) and the updater in the same Excel window, Alt+F8 > `InstallPanel`, pick the unzipped release folder (it holds `install-steps.txt`), then click the one blue button at a time. Groups: Prepare (backup, check), Install code (swap, compile, finish + reopen), Run once (SystemCheck, SelfTest, the release's macros), Checks (SmokeTest, Pass / Fail rows that open the pop-ups pre-filled). Every click writes a row to the roster's hidden **Install Log** sheet (ADMIN view lists it), so closing Excel part-way and opening again resumes at the next step; **Skip this step...** records a note for a step done by hand. A FAILED step blocks the rest until Retry or Skip. If "Trust access to the VBA project object model" is off, the swap and compile rows show the exact remove / import / paste list instead. The old macros (`UpdateFromFolder`, `UpdateFinished`, `UpdateDrop`, `UpdateMemberTemplate`) still work for a release without a step list. When a release changes the updater itself, its note says to import `updater/modUpdater.bas` into Roster Updater.xlsm by hand first (remove the old module, import, Compile, save): v25 does (Updater v4.1). The updater's admin gate is advisory: when the roster's own code can't run, the panel still shows the by-hand list.

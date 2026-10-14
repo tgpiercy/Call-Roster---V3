@@ -1,14 +1,18 @@
 # Call Out Roster: Supervisor Quick Guide
 
-How to do each everyday job in the roster. Current as of v24.3.1 (Oct 2026).
+How to do each everyday job in the roster. Current as of v25 (Oct 2026).
 
 The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out** and **Calendar** show for everyone. The other buttons show only for logins on the admin list. If a button is missing, ask the admin.
 
 ## Open the file
 1. Open the roster from its usual folder. Click **Enable Content** if Excel asks.
-2. A notice that someone "has the roster open for editing, so this copy is read-only" means you can look but not log. Close it. Open it again when they are out.
+2. A notice that someone "has the roster open for editing, so this copy is read-only" means you can look but not log. Close it. Open it again when they are out. "This is a frozen copy of the roster" means you opened a dated backup or the year-end FINAL file: look, but log in the live roster.
 3. An admin may see "N planned unit move(s) are due: apply them now?" Yes applies them (a backup is saved first). No leaves them waiting; the question comes back at the next open.
 4. Close the file as soon as you are done, so the next supervisor can get in.
+5. Every sheet is protected. Nothing is typed into cells: the buttons do the writing. (Admins can type into the roster's Home Unit, Crew, Phone, Seniority, EMAIL and unit code columns, and the Holidays sheet's "Observed on"; everything else, totals included, is refused.)
+
+## Typing a date
+Every date box takes "Oct 12", "12 Oct" or "Oct 12, 2026", and shows the full date it understood. A date more than three months back with no year means next year ("Jan 5" typed in October is next January). A time typed after the date is ignored. The box tells you when it can't read what you typed.
 
 ## If a red "This didn't finish" box appears
 Something stopped part-way. The box says "Error Log line N" and the name of what you were doing. Nothing you did before the error is lost; it is saved when you close (unless the box says this copy can't be saved). Check what you were doing (run it again if it was an import), and tell the admin the line number. If the same thing fails twice, stop and ask.
@@ -23,7 +27,7 @@ Something stopped part-way. The box says "Error Log line N" and the name of what
 Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. `~` means the hours are an estimate because the person has a unit move planned for a later date (the admin entered it ahead of time). If warned that Kronos data is old, No stops so the admin can import first.
 
 ## Part of a call-out
-If someone takes only part of the hours, select them and click **ACCEPTED PART OF THE HOURS**, then enter the hours. Keep calling down the list for the rest: the pop-up shows how many hours are on offer to each person, and anyone who refuses is charged on those hours.
+If someone takes only part of the hours, select them and click **ACCEPTED PART OF THE HOURS**, then enter the hours. **That closes the shift:** nobody below them is offered the rest, nobody is charged for it, and the pop-up refuses another Accepted. Anyone who refused BEFORE the partial keeps their charge. Submit as usual.
 
 ## Postings
 **Post a shift**
@@ -43,17 +47,17 @@ If someone takes only part of the hours, select them and click **ACCEPTED PART O
 
 | Case | Do this | Charged |
 |---|---|---|
-| Someone from another department signed a blank line | Pick the name in the "Out of department" box. Click **AWARD OUT OF DEPT**. | In-department people who did not sign up |
+| Someone from another department signed a blank line | Pick the name in the "Out of department" box (listed in call order, grade first). Click **AWARD OUT OF DEPT**. | In-department people who did not sign up |
 | Nobody took it | Click **NO TAKERS**. | Everyone eligible on the list |
 | Overtime no longer needed | Click **CANCEL REQUEST**. | Nobody |
 | Only part of the shift was taken | Award the partial sign-up(s). The rest of the hours drop off. | People ahead who did not sign up at all, the posting's full hours |
 | Out of department takes part of the shift | Type the hours in the **hrs** box beside the name. Only allowed when nobody in the department signed up. | In-department people who did not sign up, the posting's full hours |
-| Awarded wrong | Ask the admin to void the posting number (P-0003) and reopen it. Then award it again. | - |
+| Awarded wrong | Ask the admin to void the posting number (P-0003) and reopen it. The reopen names anyone who is no longer chargeable on it (moved, left). Then award it again. | - |
 
 ## Shift switch and payback
 1. Click **Shift Switch**. Type the Shift date and pick the Unit.
 2. Pick "Gives up shift" and "Works the shift". The Shift fills in.
-3. Read the hint lines. "NOT ELIGIBLE" stops the save. "check" is a warning only.
+3. Read the hint lines. "NOT ELIGIBLE" stops the save. "check" is a warning only. Someone inside the 24 hours after a sick shift can neither work nor give up a shift (the pick list leaves them out). A shift given up in a switch still keeps the person off the other shift that day.
 4. Click **SAVE SWITCH**, then OK. It stays on the OWED list until paid back.
 
 - **Payback:** click the switch in the OWED list. Type the payback date. Click **SAVE SWITCH**.
@@ -61,7 +65,7 @@ If someone takes only part of the hours, select them and click **ACCEPTED PART O
 - **Wrong switch:** select it in the list and click **Void selected**. Give the reason.
 
 ## Book time off
-1. Click **Book Time Off**. Pick Employee, Unit and Type. Type From and To (last day).
+1. Click **Book Time Off**. Pick Employee, Unit and Type. Type From and To (last day). A date before this roster year's January 1 is refused.
 2. Types: VAC vacation, PER personal day (unpaid), TRN training, or a leave. For a leave, the **Leave** button is better (see below).
 3. Vacation and personal days go on scheduled shifts only. A range with no scheduled shift is refused.
 4. If the range starts or ends on days off, you are asked to trim it. Yes trims. No saves as typed. Cancel goes back.
@@ -73,6 +77,7 @@ If someone takes only part of the hours, select them and click **ACCEPTED PART O
 2. Read the line under the Note box. It gives the person's counts and "This shift: Paid sick day ..." or "Unpaid - ..." with the reason.
 3. Click **SAVE + START CALL-OUT**. Log Call-Out opens filled in. Type the hours, click **LOAD LIST** and call as usual.
 4. **Save only** books the sick shift without starting a call-out.
+5. **Past sick days** (a range already gone): the box says how many days were recorded and how many were skipped because there was no scheduled shift or the day was already booked sick.
 
 The person is off call lists for that shift and any shift starting within 24 hours after it ends. Log each sick shift as its own sick call. The calendar shows one "Sick" line on the shift called in; members see it as "Off".
 
@@ -80,10 +85,11 @@ The person is off call lists for that shift and any shift starting within 24 hou
 - **Going:** click **Leave**, choose "Going on leave". Pick Employee and Type. Type the first day off. Type the expected return, or leave it blank. Click **SAVE LEAVE**.
 - **Returning:** click **Leave**, choose "Returning from leave (top-up)". Pick who is back and type the return date (first day back). Click **Work out the top-up**. Read the result: the peers, the average, and hours before and after. Click **SAVE TOP-UP**, then OK.
 - Use "Override hours" only if the average is wrong. A reason is required.
-- A return dated after the roster's last pay period is refused until the year-end rollover has been run.
+- A return dated after the roster's last pay period is refused until the year-end rollover has been run. A return date in the future is refused: log the return on or after the first day back.
+- A top-up of 0 hours is still logged (an LV- row with "no hours added"), so the return is on record and can't be logged twice.
 
 ## Needs Attention
-Open it from the Calendar with the **Needs attention >** button (it reads "N need cover >" when lines are open), or click the Needs Attention tab. It lists open lines, postings ready to award, paybacks owed, leaves to watch and other items. Double-click any row for its options.
+Open it from the Calendar with the **Needs attention >** button (it reads "N need cover >" when lines are open), or click the Needs Attention tab. It lists open lines, postings ready to award, paybacks owed, leaves to watch, planned unit moves and other items. Double-click any row for its options. A due planned move's row asks "Apply it now?": Yes applies that one move; No asks "Cancel the move?".
 
 ## Calendar
 Click **Calendar**. Pick the month and the unit at the top. OPEN means the line still needs cover. Double-click a line for its details and options. **Print / PDF** prints the month or saves it as a PDF.

@@ -1,0 +1,16 @@
+# Groups 3 and 4 of install-steps.txt for v24.4 (groups 1 and 2 are standard; tests/build_zip.py adds them,
+# the VERSION / EXPECT / MEMBER header, and the members' template step when member/ changed).
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+
+[3. Run once]
+macro   | System check (expect 24 of 24 on v24.4)       | SystemCheckOK
+macro   | Self test (expect 432 passed, 50 suites)       | SelfTestOK
+manual  | Import Kronos when the next export arrives     | Hours are entered from the Kronos PDF today; the Excel import waits for the daily export. Click Done.
+
+[4. Checks]
+macro   | Smoke test: make a practice copy, run SmokeTest in it, close it without saving | MakePracticeCopy | confirm
+test    | New Posting pre-filled from the panel        | SmokePosting Phosphine +21 Days | The New Posting pop-up opens with Phosphine, the date 3 weeks out and Days filled in. Cancel it.
+test    | Log Call-Out pre-filled from the panel       | SmokeCallout Derivatives +7 Nights | The Log Call-Out pop-up opens with Derivatives, the date a week out and Nights filled in. Close it.
+test    | Shift Switch opens from the panel            | SmokeSwitch +14 | The Shift Switch pop-up opens. Cancel it.
+test    | Member View with the members' file open     | | Member View once; open the members' file beside the roster; Member View again: it asks to close it, Yes publishes. No dated copy in the folder.
+manual  | Install Log sheet                            | ADMIN view: the Install Log sheet is listed and holds this install's rows (one per step). Non-admin view hides it.

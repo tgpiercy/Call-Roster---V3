@@ -215,6 +215,7 @@ End Sub
 '  THE ROSTER
 ' ====================================================================
 Private Sub UpdRun(ByVal checkOnly As Boolean)
+    On Error GoTo Oops                              ' v25 (C4): a catch-all; the swap itself has its own handling
     Dim wb As Workbook: Set wb = UpdTarget()
     If wb Is Nothing Then Exit Sub
     Dim why As String
@@ -336,6 +337,10 @@ Private Sub UpdRun(ByVal checkOnly As Boolean)
            "    It closes without saving; your file stays exactly as it was." & vbNewLine & _
            "    Do NOT press Ctrl+S (with a compile error the block may not hold). Closing by hand: DON'T SAVE." & vbNewLine & vbNewLine & _
            "Backup: " & bk & vbNewLine & "Report: " & repPath, vbInformation, UPD_TITLE
+    Exit Sub
+Oops:
+    MsgBox "The update stopped part-way: " & Err.Description & vbNewLine & vbNewLine & _
+           "If the code was already swapped, saving is blocked: close the roster WITHOUT saving (Don't Save) and run it again.", vbCritical, UPD_TITLE
 End Sub
 
 ' v4: a copy of the roster beside it, "Backup before <label> <stamp> - <name>". False = why.

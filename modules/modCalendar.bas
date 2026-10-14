@@ -1393,12 +1393,16 @@ End Function
 ' ====================================================================
 ' Alt+F8 > CalendarCheck: shows which calendar code is installed, then redraws
 Public Sub CalendarCheck()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     MarkCalDirty
     MsgBox "Installed: " & CAL_VERSION & vbNewLine & _
            "ThisWorkbook events: " & IIf(mEventsSeen, "working", _
                "not seen yet - switch tabs once, or re-paste ThisWorkbook.txt if this stays") & _
            vbNewLine & vbNewLine & "Click OK to redraw the calendar.", vbInformation, "Calendar"
     ShowCalendar
+    Exit Sub
+Oops:
+    ReportError "CalendarCheck"
 End Sub
 
 Public Sub ShowCalendar()
@@ -4119,6 +4123,7 @@ Private Function MenuUnit() As String
 End Function
 
 Public Sub CalMenuDetails()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     If mMenuKey = "" Then Exit Sub
     Dim t As String
     Select Case Left$(mMenuKey, 2)
@@ -4129,9 +4134,13 @@ Public Sub CalMenuDetails()
     End Select
     If t = "" Then t = "No details found - try Refresh."
     MsgBox Replace(t, vbLf, vbNewLine), vbInformation, "Details"
+    Exit Sub
+Oops:
+    ReportError "CalMenuDetails"
 End Sub
 
 Public Sub CalMenuDayDetails()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim d As Date: d = KeyDate(mMenuKey)
     If d = 0 Then Exit Sub
     Dim grp As String: grp = CalGroup()
@@ -4148,6 +4157,9 @@ Public Sub CalMenuDayDetails()
         Next i
     Next sh
     MsgBox t, vbInformation, "Calendar"
+    Exit Sub
+Oops:
+    ReportError "CalMenuDayDetails"
 End Sub
 
 Private Function SwitchDetails(ByVal id As String) As String
@@ -4175,11 +4187,19 @@ Private Function BookingDetails(ByVal id As String) As String
 End Function
 
 Public Sub CalMenuPost()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     CalPostKey mMenuKey
+    Exit Sub
+Oops:
+    ReportError "CalMenuPost"
 End Sub
 
 Public Sub CalMenuSetCoverage()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     CalSetCoverageKey mMenuKey
+    Exit Sub
+Oops:
+    ReportError "CalMenuSetCoverage"
 End Sub
 
 ' v24.3.2: the words on a need line (the Reason a posting wrote, or a typed need)
@@ -4203,19 +4223,35 @@ Oops:
 End Sub
 
 Public Sub CalMenuPostSupport()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     PostNewLine "Unit Operator Support", KeyShift(mMenuKey)
+    Exit Sub
+Oops:
+    ReportError "CalMenuPostSupport"
 End Sub
 
 Public Sub CalMenuPostPHA()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     PostNewLine "PHA", KeyShift(mMenuKey)
+    Exit Sub
+Oops:
+    ReportError "CalMenuPostPHA"
 End Sub
 
 Public Sub CalMenuPostSupportD()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     PostNewLine "Unit Operator Support", "Days"
+    Exit Sub
+Oops:
+    ReportError "CalMenuPostSupportD"
 End Sub
 
 Public Sub CalMenuPostSupportN()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     PostNewLine "Unit Operator Support", "Nights"
+    Exit Sub
+Oops:
+    ReportError "CalMenuPostSupportN"
 End Sub
 
 ' New Posting for a NEW calendar line (support / PHA with nobody off)
@@ -4240,13 +4276,21 @@ Private Sub PostNewLine(ByVal reason As String, ByVal shiftLbl As String)
 End Sub
 
 Public Sub CalMenuAddNeed()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim sh As String: sh = KeyShift(mMenuKey)
     If sh = "" Then sh = "Both"
     OpenTimeOff True, KeyDate(mMenuKey), sh
+    Exit Sub
+Oops:
+    ReportError "CalMenuAddNeed"
 End Sub
 
 Public Sub CalMenuBookFrom()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     OpenTimeOff False, KeyDate(mMenuKey), ""
+    Exit Sub
+Oops:
+    ReportError "CalMenuBookFrom"
 End Sub
 
 ' Book Time Off, already filled in with the date / shift / unit
@@ -4273,15 +4317,20 @@ Private Sub OpenTimeOff(ByVal needMode As Boolean, ByVal d As Date, ByVal shiftL
 End Sub
 
 Public Sub CalMenuViewPosting()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim id As String: id = MenuPostId()
     If id = "" Then Exit Sub
     If Not RequireAdmin() Then Exit Sub
     Dim rep As String
     If Not PostingOutput(id, True, False, False, rep) Then MsgBox "Couldn't show posting " & id & ". " & rep, vbExclamation
+    Exit Sub
+Oops:
+    ReportError "CalMenuViewPosting"
 End Sub
 
 ' Award pop-up with this posting already picked - just click LOAD
 Public Sub CalMenuAward()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim id As String: id = MenuPostId()
     If id = "" Then Exit Sub
     If Not RequireAdmin() Then Exit Sub
@@ -4304,10 +4353,14 @@ Public Sub CalMenuAward()
     End If
     frmPostingEntry.Show
     RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMenuAward"
 End Sub
 
 ' A posting that never made it onto the calendar: pick its line now
 Public Sub CalMenuLinkPosting()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim id As String: id = MenuPostId()
     If id = "" Then Exit Sub
     If Not RequireAdmin() Then Exit Sub
@@ -4339,12 +4392,19 @@ Public Sub CalMenuLinkPosting()
         MsgBox p.ID & " is on the calendar: " & t, vbInformation, "Calendar"
     End If
     RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMenuLinkPosting"
 End Sub
 
 Public Sub CalMenuEndDate()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim id As String: id = MenuAbsId()
     If id = "" Then Exit Sub
     If SetAbsenceEnd(id) Then RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMenuEndDate"
 End Sub
 
 ' v22: is the booking under the menu a leave (so "Return from leave" applies)?
@@ -4380,22 +4440,35 @@ Oops:
 End Sub
 
 Public Sub CalMenuVoid()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim id As String: id = MenuAbsId()
     If id = "" Then Exit Sub
     If VoidAbsence(id) Then RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMenuVoid"
 End Sub
 
 Public Sub CalMenuSwitch()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     ShowShiftSwitchForm
     RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMenuSwitch"
 End Sub
 
 Public Sub CalMenuBook()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     ShowTimeOffForm
+    Exit Sub
+Oops:
+    ReportError "CalMenuBook"
 End Sub
 
 ' from Needs Attention: open the calendar on that month with the line selected
 Public Sub CalMenuGoto()
+    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim keyTxt As String: keyTxt = mMenuKey
     Dim d As Date: d = KeyDate(keyTxt)
     If d = 0 Then Exit Sub
@@ -4413,6 +4486,9 @@ Public Sub CalMenuGoto()
     If Not hit Is Nothing Then
         Application.Goto CalendarSheet().Range(hit.Address), False
     End If
+    Exit Sub
+Oops:
+    ReportError "CalMenuGoto"
 End Sub
 
 

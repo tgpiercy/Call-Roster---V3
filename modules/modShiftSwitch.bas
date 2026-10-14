@@ -68,6 +68,8 @@ Public Function SyncSwitchesToCalendar() As Long
         End If
     Next i
 Quit:
+    If Err.Number <> 0 Then LogError "SyncSwitchesToCalendar", Err.Number, Err.Description      ' v25 (I5): not swallowed any more
+    On Error Resume Next
     If n > 0 Then SaveIfWritable
     SyncSwitchesToCalendar = n
 End Function

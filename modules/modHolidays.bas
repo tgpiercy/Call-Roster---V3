@@ -366,7 +366,7 @@ Public Sub ShowHolidays()
     ThisWorkbook.Worksheets(HOL_SHEET).Activate
     Exit Sub
 Fail:
-    MsgBox "The Holidays sheet couldn't be opened: " & Err.Description, vbExclamation
+    ReportError "ShowHolidays"                     ' v25 (I5): logged, state restored, plain message
 End Sub
 
 ' Opens the sheet on a given holiday's row (from Needs Attention)
@@ -390,5 +390,7 @@ Public Sub GoToHoliday(ByVal d As Date)
     Next r
     Exit Sub
 Fail:
+    Dim em As String: em = Err.Description
+    LogError "GoToHoliday", Err.Number, em          ' v25 (I5): an error here used to be a bare box, never logged
     MsgBox "The Holidays sheet couldn't be opened: " & Err.Description, vbExclamation
 End Sub

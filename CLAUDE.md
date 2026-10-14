@@ -187,7 +187,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 4. **Independent review** of every changed file by a separate read-only agent that didn't write it: compile traps above, rule consistency with this file, filter/visible-row bugs, events/calc restored on every exit path, privacy, no new write paths to the roster or OT Log outside the existing ones. Fix, then re-review the fixes.
 5. Add SelfTest + `tests/` cases for every rule touched.
 6. Package `dist/Callout_Roster_vNN.zip` (full set + `install-steps.txt`) with `INSTALL-vNN.md` and `briefs/steps-vNN.txt`. From v24.4 the step list IS the install (the Install panel in Roster Updater.xlsm runs it: backup, swap, compile, finish + reopen, the run-once macros, the hand checks as Pass / Fail rows); the INSTALL note is "what's new" plus "open the panel" and one line pointing at the panel's own by-hand fallback. A release that changes `updater/modUpdater.bas` says so: that one file is imported into Roster Updater.xlsm by hand.
-7. Update `CHANGELOG.md` and the affected `docs/`; tag `vNN`.
+7. Update `CHANGELOG.md` and the affected `docs/`; tag `vNN`; push main and the tag to the private remote `origin` (https://github.com/tgpiercy/Call-Roster---V3, set up Oct 14, 2026; the push runs in Graeme's Terminal panel with his approval).
 
 **Install freezes:** no updates Dec 20 - Jan 4 except the rollover; none in the week before Jan 23, 2027.
 

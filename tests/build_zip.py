@@ -36,10 +36,8 @@ def main() -> int:
     ).stdout.splitlines()
     # v25 (T10): a release zip is built from a committed tree, so the tag names exactly what shipped
     if pending and "--allow-dirty" not in sys.argv:
-        raise SystemExit("the tree has uncommitted changes: commit them (or pass --allow-dirty for a scratch zip):
-  "
-                         + "
-  ".join(pending))
+        raise SystemExit("the tree has uncommitted changes: commit them (or pass --allow-dirty for a scratch zip):\n  "
+                         + "\n  ".join(pending))
     for ln in pending:
         changed.append(ln[3:].strip())
     files = sorted({p for p in changed if (ROOT / p).is_file()})
@@ -67,11 +65,7 @@ def main() -> int:
             z.writestr(top + p.replace("\\", "/"), data)
         describe = subprocess.run(["git", "describe", "--tags", "--always", "--dirty"], cwd=ROOT,
                                   capture_output=True, text=True, check=True).stdout.strip()
-        stamp = f"
-
----
-Built from `{describe}` by tests/build_zip.py.
-"      # v25 (T11): the note names the commit it came from
+        stamp = f"\n\n---\nBuilt from `{describe}` by tests/build_zip.py.\n"      # v25 (T11): the note names the commit it came from
         z.writestr(top + "INSTALL.md", install.read_bytes() + stamp.encode("ascii"))
         if steps is not None:
             z.writestr(top + "install-steps.txt", steps)

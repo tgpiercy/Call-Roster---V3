@@ -2315,26 +2315,39 @@ Public Sub ReopenPosting()
     Dim id As Variant
     id = Application.InputBox(Prompt:="Posting ID to reopen (e.g. P-0012):", Title:="Reopen Posting", Type:=2)
     If VarType(id) = vbBoolean Then Exit Sub
-    id = UCase$(Trim$(CStr(id)))
+    Dim report As String
+    ReopenPostingById UCase$(Trim$(CStr(id))), report
+    Exit Sub
+Oops:
+    ReportError "ReopenPosting"
+End Sub
+
+' v25: the reopen itself (ReopenPosting asks for the ID; SmokeTest calls this). True when the posting
+' is open again; report = the outcome text (also shown, unless SmokeTest is running).
+Public Function ReopenPostingById(ByVal id As String, ByRef report As String) As Boolean
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Function
+    If Not RequireWritable() Then Exit Function
+    If Not PostingTablesReady() Then Exit Function
     Dim p As PostRec, lst() As PListRec, n As Long
     n = LoadPosting(CStr(id), p, lst)
-    If n = 0 Then MsgBox "Posting " & id & " not found.", vbExclamation: Exit Sub
-    If p.Status = "Open" Then MsgBox id & " is already open.", vbInformation: Exit Sub
+    If n = 0 Then MsgBox "Posting " & id & " not found.", vbExclamation: Exit Function
+    If p.Status = "Open" Then MsgBox id & " is already open.", vbInformation: Exit Function
 
     ' its OT Log rows must be voided first so nothing is charged twice
     If HasActiveLogRows(CStr(id)) Then
         MsgBox id & " still has active OT Log rows. Void them first (Void Entry > " & id & "), then reopen.", vbExclamation
-        Exit Sub
+        Exit Function
     End If
     If Int(p.ShiftDate) < RosterYearFrom() Then     ' v25 (P4): a shift in a closed year is never reopened
         MsgBox id & " is for " & Format$(p.ShiftDate, "mmm d, yyyy") & ", before this roster year (" & Format$(RosterYearFrom(), "mmm d, yyyy") & "): it can't be reopened.", vbExclamation
-        Exit Sub
+        Exit Function
     End If
     If ArchiveHasActiveRef(CStr(id)) Then          ' v23: its rows left the live log at the year-end rollover
         MsgBox id & " belongs to a closed year, so it can't be reopened. Its OT Log rows are on the archive sheet and that year's file is frozen.", vbExclamation
-        Exit Sub
+        Exit Function
     End If
-    If Ask("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion, "Reopen", vbYes) = vbNo Then Exit Sub
+    If Ask("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion, "Reopen", vbYes) = vbNo Then Exit Function
     Dim newlyExempt As String                      ' v25 (P5): who is marked not chargeable by this reopen
     ' v24: the list is frozen, the people aren't. Someone who has left by the shift
     ' date, or no longer holds a code in this unit, must not be charged on the re-award.
@@ -2384,11 +2397,13 @@ Public Sub ReopenPosting()
     If Not gSmokeRun Then RestoreSignups CStr(id)             ' v24.1: its electronic sign-ups count again (v25: never from SmokeTest)
     MarkMembersDirty
     SaveIfWritable
-    Tell id & " is open again." & IIf(newlyExempt <> "", vbNewLine & vbNewLine & "Not chargeable on it (moved, left, or no code now): " & newlyExempt, ""), vbInformation, "Reopen"
-    Exit Sub
+    report = id & " is open again." & IIf(newlyExempt <> "", vbNewLine & vbNewLine & "Not chargeable on it (moved, left, or no code now): " & newlyExempt, "")
+    Tell report, vbInformation, "Reopen"
+    ReopenPostingById = True
+    Exit Function
 Oops:
-    ReportError "ReopenPosting"
-End Sub
+    ReportError "ReopenPostingById"
+End Function
 
 
 ' ====================================================================

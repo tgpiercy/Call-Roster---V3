@@ -36,7 +36,7 @@ Public Const SMK_VERSION As String = "Smoke test v24.4 (Oct 14)"
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
 Private Const SMK_WHY As String = "SmokeTest"
-Private Const SMK_STEPS As Long = 14
+Private Const SMK_STEPS As Long = 18          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words
 
 Private Type SmkState
     Emp As String           ' the test person's current name
@@ -49,6 +49,10 @@ Private Type SmkState
     PostShift As String
     PostId As String
     PostId2 As String       ' v24.3.1: step 9's open posting in Unit (a list row is added by the plan and removed by the cancel)
+    PostId3 As String       ' v25: step 12's posting - no takers, voided, reopened; step 15 plants a leave word on it
+    PostId4 As String       ' v25: step 12's posting awarded out of department to the test person
+    LeaveAbsId As String    ' v25: step 13's leave booking
+    LeaveRef As String      ' v25: step 13's leave-return log ref (LV-)
     SessionId As String
     AbsId As String
     SickId As String
@@ -183,9 +187,13 @@ Private Function SmkName(ByVal k As Long) As String
         Case 9: SmkName = "plan a unit move for tomorrow (+ crew, old-unit posting), cancel it through a filtered list, cancel the postings"
         Case 10: SmkName = "rename"
         Case 11: SmkName = "publish to a scratch file and read it back"
-        Case 12: SmkName = "void everything it logged"
-        Case 13: SmkName = "remove the test employee"
-        Case 14: SmkName = "integrity check"
+        Case 12: SmkName = "no takers, award out of dept, void, reopen"
+        Case 13: SmkName = "leave going and returning (top-up logged)"
+        Case 14: SmkName = "Kronos headings on a made-up sheet (good, then one missing)"
+        Case 15: SmkName = "a planted leave word stops the publish (Reason, then a calendar line)"
+        Case 16: SmkName = "void everything it logged"
+        Case 17: SmkName = "remove the test employee"
+        Case 18: SmkName = "integrity check"
     End Select
 End Function
 
@@ -204,9 +212,13 @@ Private Function SmkStep(ByVal k As Long, ByRef st As SmkState, ByVal nErr0 As L
         Case 9: SmkStep = SmkPlanned(st, why)
         Case 10: SmkStep = SmkRename(st, why)
         Case 11: SmkStep = SmkPublish(st, why)
-        Case 12: SmkStep = SmkVoid(st, why)
-        Case 13: SmkStep = SmkRemove(st, why)
-        Case 14: SmkStep = SmkIntegrity(st, nErr0, why)
+        Case 12: SmkStep = SmkOutcomes(st, why)
+        Case 13: SmkStep = SmkLeaveReturn(st, why)
+        Case 14: SmkStep = SmkKronosHeadings(st, why)
+        Case 15: SmkStep = SmkPlantedWords(st, why)
+        Case 16: SmkStep = SmkVoid(st, why)
+        Case 17: SmkStep = SmkRemove(st, why)
+        Case 18: SmkStep = SmkIntegrity(st, nErr0, why)
     End Select
     If Not SmkStep And why = "" Then why = "the function returned False (a message above says why)"
     Exit Function
@@ -726,7 +738,128 @@ Private Function SmkRows(ByVal wb As Workbook, ByVal sheetName As String) As Lon
     If last > 1 Then SmkRows = last - 1
 End Function
 
-' ---- 12. void everything ----
+' ---- 12. no takers, award out of dept, void, reopen (v25) ----
+' Two more postings in Unit (the test person holds no code there since step 8, so they are OUT of
+' department for them). Posting 3: No takers (everyone on the list charged), its rows voided, then
+' reopened (ReopenPostingById) and left Open for step 15. Posting 4: awarded out of department to
+' the test person (an Awarded row under their name, voided in step 16).
+Private Function SmkOutcomes(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim p As PostRec, lst() As PListRec, n As Long, dd As Long, d As Date, found As Boolean, report As String, calN As Long
+    If RosterRowOf(st.Emp) = 0 Then why = st.Emp & " isn't on the roster": Exit Function
+    For dd = 2 To 60
+        d = Date + dd
+        If SmkFreeCount(st.Unit, d, "Days") >= 1 Then found = True: Exit For
+    Next dd
+    If Not found Then why = "no day shift in the next 60 days has anyone free in " & st.Unit: Exit Function
+    p.Unit = st.Unit: p.ShiftDate = d: p.ShiftLbl = "Days": p.Crew = CREW_ALL
+    p.Reason = "Unit Operator Support": p.Hours = USUAL_SHIFT_HOURS: p.Positions = 1: p.ClosesOn = d - 1
+    If Not CreatePostingFrom(p, False, False) Then why = "posting 3 couldn't be created": Exit Function
+    st.PostId3 = p.ID
+    n = LoadPosting(st.PostId3, p, lst)
+    If n < 1 Then why = st.PostId3 & " has nobody on its list": Exit Function
+    If Not SubmitNoTakers(p, lst, n) Then why = st.PostId3 & " couldn't be closed as no takers": Exit Function
+    If PostingStatus(st.PostId3) <> "No takers" Then why = st.PostId3 & " is " & PostingStatus(st.PostId3) & " after no takers": Exit Function
+    If Not HasActiveLogRows(st.PostId3) Then why = "no takers wrote no OT Log rows for " & st.PostId3: Exit Function
+    If VoidRef(st.PostId3, SMK_WHY, calN) = 0 Then why = "VoidRef voided nothing for " & st.PostId3: Exit Function
+    If HasActiveLogRows(st.PostId3) Then why = st.PostId3 & " still has active OT Log rows after the void": Exit Function
+    If Not ReopenPostingById(st.PostId3, report) Then why = st.PostId3 & " couldn't be reopened (a message above says why)": Exit Function
+    If PostingStatus(st.PostId3) <> "Open" Then why = st.PostId3 & " is " & PostingStatus(st.PostId3) & " after the reopen": Exit Function
+    ' posting 4: out of department to the test person
+    Dim p4 As PostRec, lst4() As PListRec, n4 As Long
+    p4.Unit = st.Unit: p4.ShiftDate = d: p4.ShiftLbl = "Days": p4.Crew = CREW_ALL
+    p4.Reason = "Unit Operator Support": p4.Hours = USUAL_SHIFT_HOURS: p4.Positions = 1: p4.ClosesOn = d - 1
+    If Not CreatePostingFrom(p4, False, False) Then why = "posting 4 couldn't be created": Exit Function
+    st.PostId4 = p4.ID
+    n4 = LoadPosting(st.PostId4, p4, lst4)
+    If SmkOnPostingList(st.PostId4, st.Emp) Then why = st.Emp & " is on " & st.PostId4 & "'s list, so isn't out of department": Exit Function
+    If Not SubmitAwardOutside(p4, lst4, n4, st.Emp, 0) Then why = st.PostId4 & " couldn't be awarded out of department": Exit Function
+    If PostingStatus(st.PostId4) = "Open" Then why = st.PostId4 & " is still Open after the out-of-department award": Exit Function
+    If Not HasActiveLogRows(st.PostId4) Then why = "the out-of-department award wrote no OT Log rows": Exit Function
+    st.Note = st.PostId3 & " no takers -> voided -> open again; " & st.PostId4 & " awarded out of dept to " & st.Emp
+    SmkOutcomes = True
+End Function
+
+' ---- 13. leave going and returning (v25) ----
+' A leave booked from 30 days ago, returned today through the leave rule; the LV- row is logged even
+' when the top-up is 0 h (L5), and the rule then refuses a second return. The rule can decline on this
+' copy (no peers, no history): then the step is recorded as skipped with its reason, never as a pass.
+Private Function SmkLeaveReturn(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim lc As LeaveCalc, grp As String, unit As String
+    If RosterRowOf(st.Emp) = 0 Then why = st.Emp & " isn't on the roster": Exit Function
+    unit = IIf(st.Unit2 <> "", st.Unit2, st.Unit)
+    st.LeaveAbsId = SaveAbsence(st.Emp, unit, "LOA", Date - 30, Empty, Empty, "", SMK_WHY, "", "", "", "AB", True)
+    If st.LeaveAbsId = "" Then why = "the leave couldn't be booked": Exit Function
+    If Not ComputeLeaveReturn(st.LeaveAbsId, Date, lc) Then
+        st.Note = "SKIPPED: the leave rule declined on this copy - " & Left$(lc.Warnings, 160)
+        SmkLeaveReturn = True
+        Exit Function
+    End If
+    grp = SaveLeaveReturn(lc, lc.Average, "")
+    If grp = "" Then why = "the leave return wasn't saved": Exit Function
+    st.LeaveRef = grp
+    If Not HasActiveLogRows(grp) Then why = "the leave return logged no row (" & grp & ")": Exit Function
+    If ComputeLeaveReturn(st.LeaveAbsId, Date, lc) Then why = "a second return on " & st.LeaveAbsId & " wasn't refused": Exit Function
+    If InStr(1, lc.Warnings, "already been topped up", vbTextCompare) = 0 Then why = "the second return was refused for the wrong reason: " & lc.Warnings: Exit Function
+    st.Note = grp & ": " & Format$(lc.Average, "0.0") & " h logged; a second return refused"
+    SmkLeaveReturn = True
+End Function
+
+' ---- 14. Kronos headings on a made-up sheet (v25, D-I4) ----
+Private Function SmkKronosHeadings(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim src(1 To 4, 1 To 4) As Variant, nameCol As Long, totCol As Long, hdrName As Long, hdrTot As Long, w As String
+    src(1, 1) = "Hours report": src(2, 1) = "Payroll #": src(2, 2) = "Employee Name": src(2, 3) = "Regular": src(2, 4) = "Grand Total"
+    src(3, 1) = "12345678": src(3, 2) = "Test, Someone": src(3, 3) = 80: src(3, 4) = 80
+    w = KronosHeadingProblem(src, nameCol, totCol, hdrName, hdrTot)
+    If w <> "" Then why = "a good sheet was refused: " & w: Exit Function
+    If nameCol <> 2 Or totCol <> 4 Or hdrName <> 2 Then why = "the headings were found in the wrong place (" & nameCol & ", " & totCol & ", row " & hdrName & ")": Exit Function
+    src(2, 4) = "Total"
+    w = KronosHeadingProblem(src, nameCol, totCol, hdrName, hdrTot)
+    If InStr(w, "Grand Total") = 0 Then why = "a sheet without 'Grand Total' wasn't refused (" & w & ")": Exit Function
+    src(2, 4) = "Grand Total": src(2, 2) = "Name": src(4, 2) = "Employee Name"
+    w = KronosHeadingProblem(src, nameCol, totCol, hdrName, hdrTot)
+    If InStr(w, "same heading row") = 0 Then why = "headings on two rows weren't refused (" & w & ")": Exit Function
+    st.Note = "found by heading; 'Total' for 'Grand Total' refused; headings on two rows refused"
+    SmkKronosHeadings = True
+End Function
+
+' ---- 15. a planted leave word stops the publish (v25) ----
+' The posting Reason first, then a calendar line's covered-by; each publish must write nothing. The
+' words are taken back and posting 3 is cancelled (step 16 cancels it if this step fails first).
+Private Function SmkPlantedWords(ByRef st As SmkState, ByRef why As String) As Boolean
+    If Not MemberTemplateExists() Then st.Note = "SKIPPED: no members' template beside this copy": SmkPlantedWords = True: Exit Function
+    If st.PostId3 = "" Then st.Note = "SKIPPED: no open posting from step 12": SmkPlantedWords = True: Exit Function
+    If PostingStatus(st.PostId3) <> "Open" Then st.Note = "SKIPPED: " & st.PostId3 & " isn't open": SmkPlantedWords = True: Exit Function
+    Dim folder As String: folder = EnsureSlash(Environ$("TEMP")) & "RosterSmoke\"
+    On Error Resume Next
+    MkDir folder
+    On Error GoTo 0
+    If Not FolderExists(folder) Then why = "couldn't make " & folder: Exit Function
+    Dim p As PostRec, lst() As PListRec, n As Long, reasonWas As String
+    n = LoadPosting(st.PostId3, p, lst)
+    reasonWas = p.Reason
+    If Not SetPostingReason(st.PostId3, "Covering J. Smith STD") Then why = "the Reason couldn't be planted": Exit Function
+    gSmokeFolder = folder: gSmokeSaved = ""
+    PublishMembers
+    Application.ScreenUpdating = False             ' the publish switches it back on
+    SetPostingReason st.PostId3, reasonWas
+    If gSmokeSaved <> "" Then why = "the publish wrote its file although a posting Reason said STD": GoTo Fail
+    If UpdateCoverageBySource(st.PostId3, "NCN STD") = 0 Then why = st.PostId3 & " has no calendar line to plant on": Exit Function
+    gSmokeSaved = ""
+    PublishMembers
+    Application.ScreenUpdating = False
+    UpdateCoverageBySource st.PostId3, "POSTED " & st.PostId3
+    If gSmokeSaved <> "" Then why = "the publish wrote its file although a calendar line said STD": GoTo Fail
+    n = LoadPosting(st.PostId3, p, lst)
+    If Not SubmitCancel(p, lst, n) Then why = st.PostId3 & " couldn't be cancelled": Exit Function
+    st.Note = "Reason and calendar line each refused; " & st.PostId3 & " cancelled"
+    SmkPlantedWords = True
+    Exit Function
+Fail:
+    On Error Resume Next
+    Kill gSmokeSaved
+End Function
+
+' ---- 16. void everything ----
 Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     ' every Ref ID that is the session, the posting, or carries a row under either test name
     Dim lo As ListObject: Set lo = LogTable()
@@ -739,6 +872,8 @@ Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
             ref = Trim$(SafeStr(v(i, L_REF))): emp = Trim$(SafeStr(v(i, L_EMP)))
             If ref <> "" Then
                 If StrComp(ref, st.SessionId, vbTextCompare) = 0 Or StrComp(ref, st.PostId, vbTextCompare) = 0 Or _
+                   StrComp(ref, st.PostId3, vbTextCompare) = 0 Or StrComp(ref, st.PostId4, vbTextCompare) = 0 Or _
+                   StrComp(ref, st.LeaveRef, vbTextCompare) = 0 Or _
                    StrComp(emp, SMK_EMP, vbTextCompare) = 0 Or StrComp(emp, SMK_EMP2, vbTextCompare) = 0 Then refs(ref) = True
             End If
         End If
@@ -758,12 +893,29 @@ Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     If st.SickId <> "" Then
         If Not VoidAbsence(st.SickId, SMK_WHY) Then why = "VoidAbsence " & st.SickId & " returned False": Exit Function
     End If
+    If st.LeaveAbsId <> "" Then                      ' v25: step 13's leave (its LV- row went with the refs above)
+        If Not VoidAbsence(st.LeaveAbsId, SMK_WHY) Then why = "VoidAbsence " & st.LeaveAbsId & " returned False": Exit Function
+    End If
+    ' v25: a posting a failed step 12 / 15 left open is cancelled here, so nothing of the run stays Open
+    Dim p As PostRec, lst() As PListRec
+    If st.PostId3 <> "" Then
+        If PostingStatus(st.PostId3) = "Open" Then
+            n = LoadPosting(st.PostId3, p, lst)
+            If Not SubmitCancel(p, lst, n) Then why = st.PostId3 & " couldn't be cancelled": Exit Function
+        End If
+    End If
+    If st.PostId4 <> "" Then
+        If PostingStatus(st.PostId4) = "Open" Then
+            n = LoadPosting(st.PostId4, p, lst)
+            If Not SubmitCancel(p, lst, n) Then why = st.PostId4 & " couldn't be cancelled": Exit Function
+        End If
+    End If
     MarkCalDirty
     st.Note = refs.Count & " Ref IDs, " & nRows & " rows"
     SmkVoid = True
 End Function
 
-' ---- 13. remove ----
+' ---- 17. remove ----
 Private Function SmkRemove(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim report As String
     If Not RemoveEmployee(st.Emp, Date, report) Then Exit Function
@@ -772,7 +924,7 @@ Private Function SmkRemove(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkRemove = True
 End Function
 
-' ---- 14. integrity ----
+' ---- 18. integrity ----
 Private Function SmkIntegrity(ByRef st As SmkState, ByVal nErr0 As Long, ByRef why As String) As Boolean
     Dim nErr As Long, nWarn As Long
     Application.Calculate

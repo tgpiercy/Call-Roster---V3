@@ -28,6 +28,19 @@ Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
 Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)
 
+' v25: the by-heading rule on its own (D-I4): "" when 'Employee Name' and 'Grand Total' are both found
+' on one heading row within the first 10 rows of src (a 2-D array of the sheet), else what is missing.
+Public Function KronosHeadingProblem(ByRef src As Variant, ByRef nameCol As Long, ByRef totCol As Long, _
+                                     ByRef hdrName As Long, ByRef hdrTot As Long) As String
+    Dim missingHdr As String
+    nameCol = HeaderColumn(src, hdrName, "Employee Name")
+    totCol = HeaderColumn(src, hdrTot, "Grand Total")
+    If nameCol = 0 Then missingHdr = "'Employee Name'"
+    If totCol = 0 Then missingHdr = missingHdr & IIf(missingHdr = "", "", " and ") & "'Grand Total'"
+    If missingHdr = "" And hdrName <> hdrTot Then missingHdr = "'Employee Name' and 'Grand Total' on the same heading row"
+    KronosHeadingProblem = missingHdr
+End Function
+
 Sub SyncKronosData()
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
@@ -88,11 +101,7 @@ Sub SyncKronosData()
     Dim src As Variant: src = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(lastSrc, lastCol)).Value
     Dim i As Long, k As String, raw As String, a As String
     Dim nameCol As Long, totCol As Long, hdrName As Long, hdrTot As Long, missingHdr As String
-    nameCol = HeaderColumn(src, hdrName, "Employee Name")
-    totCol = HeaderColumn(src, hdrTot, "Grand Total")
-    If nameCol = 0 Then missingHdr = "'Employee Name'"
-    If totCol = 0 Then missingHdr = missingHdr & IIf(missingHdr = "", "", " and ") & "'Grand Total'"
-    If missingHdr = "" And hdrName <> hdrTot Then missingHdr = "'Employee Name' and 'Grand Total' on the same heading row"
+    missingHdr = KronosHeadingProblem(src, nameCol, totCol, hdrName, hdrTot)     ' v25: the rule on its own (SmokeTest runs it)
     If missingHdr <> "" Then
         If openedHere Then wbSource.Close SaveChanges:=False
         ThisWorkbook.Activate

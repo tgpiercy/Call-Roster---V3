@@ -141,6 +141,10 @@ Private Function RunCase(f() As String) As String
         Case "trimkind"                            ' v25: start, end, first shift, last shift -> which ends are days off
             RunCase = TrimKind(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
             If RunCase = "" Then RunCase = "none"
+        Case "partialhrs"                          ' v25: typed hours, posting hours -> whole / the hours / bad
+            Dim phH As Double, phW As String
+            phW = PartialHoursValue(i1, CDbl(i2), phH)
+            RunCase = IIf(phW <> "", "bad", IIf(phH = 0, "whole", NumText(phH)))
         Case "crewsoff"                            ' v25
             RunCase = CrewsOff(ParseD(i1))
         Case "shifthours"                          ' v25
@@ -1245,5 +1249,13 @@ Private Sub LoadCases()
     AddCase "trimkind,days-off-at-end,2026-10-05,2026-10-11,2026-10-05,2026-10-09,,end"
     AddCase "trimkind,both-ends,2026-10-03,2026-10-11,2026-10-05,2026-10-09,,both"
     AddCase "trimkind,one-shift,2026-10-03,2026-10-11,2026-10-07,2026-10-07,,both"
+    AddCase "partialhrs,blank-is-whole,,12,,,,whole"
+    AddCase "partialhrs,eight,8,12,,,,8"
+    AddCase "partialhrs,half-hours,7.5,12,,,,7.5"
+    AddCase "partialhrs,the-whole-shift,12,12,,,,whole"
+    AddCase "partialhrs,more-than-the-shift,15,12,,,,whole"
+    AddCase "partialhrs,words,abc,12,,,,bad"
+    AddCase "partialhrs,zero,0,12,,,,bad"
+    AddCase "partialhrs,negative,-3,12,,,,bad"
 ' <<< CASES
 End Sub

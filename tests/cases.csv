@@ -465,3 +465,11 @@ trimkind,days-off-at-start,2026-10-03,2026-10-09,2026-10-05,2026-10-09,,start
 trimkind,days-off-at-end,2026-10-05,2026-10-11,2026-10-05,2026-10-09,,end
 trimkind,both-ends,2026-10-03,2026-10-11,2026-10-05,2026-10-09,,both
 trimkind,one-shift,2026-10-03,2026-10-11,2026-10-07,2026-10-07,,both
+partialhrs,blank-is-whole,,12,,,,whole
+partialhrs,eight,8,12,,,,8
+partialhrs,half-hours,7.5,12,,,,7.5
+partialhrs,the-whole-shift,12,12,,,,whole
+partialhrs,more-than-the-shift,15,12,,,,whole
+partialhrs,words,abc,12,,,,bad
+partialhrs,zero,0,12,,,,bad
+partialhrs,negative,-3,12,,,,bad

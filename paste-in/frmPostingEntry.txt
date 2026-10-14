@@ -337,8 +337,7 @@ End Sub
 Private Sub btnPassed_Click()           ' AWARD toggle
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation: Exit Sub
-    mL(i).Awarded = Not mL(i).Awarded
-    If mL(i).Awarded Then mL(i).SignedUp = True      ' the winner signed up by definition
+    SetAwarded mL, i, Not mL(i).Awarded              ' v25: the rule is modPostings.SetAwarded
     mDirty = True
     RefreshList i - 1
 End Sub
@@ -346,8 +345,7 @@ End Sub
 Private Sub ToggleSigned()
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then Exit Sub
-    mL(i).SignedUp = Not mL(i).SignedUp
-    If Not mL(i).SignedUp Then mL(i).Awarded = False: mL(i).SignupHrs = 0: mL(i).ESign = ""
+    SetSignedUp mL, i, Not mL(i).SignedUp            ' v25: the rule is modPostings.SetSignedUp
     mDirty = True
     RefreshList i - 1
 End Sub
@@ -363,18 +361,9 @@ Private Sub mPartial_Click()
                              "or leave it blank for the whole shift.", _
                              Title:="Partial hours", Default:=IIf(mL(i).SignupHrs > 0, CStr(mL(i).SignupHrs), ""), Type:=2)
     If VarType(a) = vbBoolean Then Exit Sub                 ' Cancel
-    If Trim$(CStr(a)) = "" Then
-        h = 0
-    ElseIf Not IsNumeric(Trim$(CStr(a))) Then
-        MsgBox "Enter a number of hours, e.g. 8.", vbExclamation, "Partial hours"
-        Exit Sub
-    Else
-        h = CDbl(Trim$(CStr(a)))
-        If h <= 0 Then MsgBox "The hours must be more than 0.", vbExclamation, "Partial hours": Exit Sub
-        If h >= mP.Hours Then h = 0                         ' the whole shift
-    End If
-    mL(i).SignedUp = True
-    mL(i).SignupHrs = h
+    Dim why As String                                       ' v25: the rule is modPostings.SetPartialHours
+    If Not SetPartialHours(mL, i, CStr(a), mP.Hours, why) Then MsgBox why, vbExclamation, "Partial hours": Exit Sub
+    h = mL(i).SignupHrs
     mDirty = True
     RefreshList i - 1
 End Sub
@@ -403,13 +392,9 @@ End Sub
 
 Private Sub mOutside_Click()
     If mN = 0 Then Exit Sub
-    Dim ot As Double, otTxt As String
-    otTxt = Trim$(C("txtOutHrs").Text)
-    If otTxt <> "" Then
-        If Not IsNumeric(otTxt) Then MsgBox "The out-of-department hours must be a number, or blank for the whole shift.", vbExclamation: Exit Sub
-        ot = CDbl(otTxt)
-        If ot <= 0 Then MsgBox "The hours must be more than 0, or blank for the whole shift.", vbExclamation: Exit Sub
-    End If
+    Dim ot As Double, why As String                         ' v25: the same rule as a partial sign-up (PartialHoursValue)
+    why = PartialHoursValue(C("txtOutHrs").Text, mP.Hours, ot)
+    If why <> "" Then MsgBox why, vbExclamation, "Out of department": Exit Sub
     If SubmitAwardOutside(mP, mL, mN, C("cmbOutside").Text, ot) Then
         Finished mP.ID & " awarded out of department."
     Else

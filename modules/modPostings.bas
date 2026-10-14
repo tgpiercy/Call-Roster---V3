@@ -1501,6 +1501,43 @@ Public Function SubmitNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
     SubmitNoTakers = True
 End Function
 
+' ---------------- v25: the Award pop-up's rules, out of the form ----------------
+' Signed up on / off. Off also clears the award, the partial hours and the electronic sign-up.
+Public Sub SetSignedUp(ByRef lst() As PListRec, ByVal i As Long, ByVal onNow As Boolean)
+    lst(i).SignedUp = onNow
+    If Not onNow Then lst(i).Awarded = False: lst(i).SignupHrs = 0: lst(i).ESign = ""
+End Sub
+
+' Awarded on / off. The winner signed up by definition.
+Public Sub SetAwarded(ByRef lst() As PListRec, ByVal i As Long, ByVal onNow As Boolean)
+    lst(i).Awarded = onNow
+    If onNow Then lst(i).SignedUp = True
+End Sub
+
+' The hours typed for a partial sign-up or an out-of-department award, against the posting's
+' hours: "" = fine and hrs holds them (0 = the whole shift: blank, or the posting's hours or
+' more); otherwise why it is refused. Pure (SelfTest partialhrs).
+Public Function PartialHoursValue(ByVal txt As String, ByVal postHours As Double, ByRef hrs As Double) As String
+    hrs = 0
+    txt = Trim$(txt)
+    If txt = "" Then Exit Function
+    If Not IsNumeric(txt) Then PartialHoursValue = "Enter a number of hours, e.g. 8 - or leave it blank for the whole shift.": Exit Function
+    hrs = CDbl(txt)
+    If hrs <= 0 Then hrs = 0: PartialHoursValue = "The hours must be more than 0 - or blank for the whole shift.": Exit Function
+    If hrs >= postHours Then hrs = 0
+End Function
+
+' The selected person signed up for part of the shift (0 = the whole of it). False = refused (why).
+Public Function SetPartialHours(ByRef lst() As PListRec, ByVal i As Long, ByVal txt As String, ByVal postHours As Double, _
+                                ByRef why As String) As Boolean
+    Dim h As Double
+    why = PartialHoursValue(txt, postHours, h)
+    If why <> "" Then Exit Function
+    lst(i).SignedUp = True
+    lst(i).SignupHrs = h
+    SetPartialHours = True
+End Function
+
 ' ---------------- CANCEL ----------------
 Public Function SubmitCancel(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long) As Boolean
     If Not CanFinalize(p) Then Exit Function

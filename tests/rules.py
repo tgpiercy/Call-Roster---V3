@@ -1106,3 +1106,21 @@ def trim_kind(ds: date, de: date, d_first: date, d_last: date) -> str:
     """modCalendar.TrimKind: which end(s) of a booking are days off: '' / start / end / both."""
     a, b = d_first > ds, d_last < de
     return "both" if a and b else "start" if a else "end" if b else ""
+
+
+# ---------------------------------------------------------------- the Award pop-up's hours box (v25, from frmPostingEntry)
+def partial_hours_value(text: str, post_hours: float) -> str:
+    """modPostings.PartialHoursValue as the SelfTest shows it: 'whole' (blank, or the
+    posting's hours or more), the hours as text, or 'bad' (not a number, 0 or less)."""
+    t = text.strip()
+    if not t:
+        return "whole"
+    try:
+        h = float(t)
+    except ValueError:
+        return "bad"
+    if h <= 0:
+        return "bad"
+    if h >= post_hours:
+        return "whole"
+    return f"{h:g}"

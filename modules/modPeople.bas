@@ -313,7 +313,7 @@ Public Function CrewTable(Optional ByVal create As Boolean = False) As ListObjec
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Range("A1").Resize(1, CH_N).Value = Array("Employee", "Crew", "Effective From", "Logged By", "Timestamp")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, CH_N), , xlYes)
         lo.Name = CH_TABLE
@@ -353,7 +353,7 @@ Private Function AppendCrewRows(ByRef rows() As Variant, ByVal n As Long) As Boo
     Dim em As String
     On Error GoTo Fail
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, CH_N)
         .Columns(CH_CREW).NumberFormat = "@"
@@ -608,7 +608,7 @@ Private Sub PutCrewBack(ByVal ws As Worksheet, ByVal r1 As Long, ByRef chgIdx() 
     Dim i As Long
     On Error Resume Next
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     For i = 1 To nChg
         ws.Cells(r1 + chgIdx(i) - 1, C_SHIFT).Value = chgOld(i)
     Next i
@@ -1009,7 +1009,7 @@ Public Function FormerTable(Optional ByVal create As Boolean = False) As ListObj
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         Dim hdr() As Variant: ReDim hdr(1 To FM_N)
         Dim c As Long
         hdr(FM_EMP) = "Employee": hdr(FM_LEFT) = "Left On": hdr(FM_CREW) = "Crew": hdr(FM_HOME) = "Home Unit"
@@ -1043,7 +1043,7 @@ Private Sub EnsureFormerColumns(ByVal lo As ListObject)
     If ThisWorkbook.ReadOnly Then Exit Sub
     Dim ws As Worksheet: Set ws = lo.Parent
     On Error Resume Next
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.ListColumns.Add.Name = "Payroll #"
     ws.Columns(FM_PAYROLL).ColumnWidth = 12
     ws.Columns(FM_PAYROLL).NumberFormat = "@"
@@ -1157,7 +1157,7 @@ Private Function AppendFormerRow(ByRef rec() As Variant) As Boolean
     If cnt = 1 Then
         If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then cnt = 0
     End If
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 2)
     FormatFormer ws
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, FM_N).Value = rec
@@ -1179,7 +1179,7 @@ Private Function AddRosterRow(ByVal ws As Worksheet, ByVal nm As String, ByVal c
     ' payrollNo (v24.2): Bring back passes the number kept on the Former sheet; a new hire's is filled by the next Kronos import
     Dim r As Long: r = RosterLastRow() + 1
     If r < R_FIRST Then r = R_FIRST
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     If ws.FilterMode Then ws.ShowAllData
     If Application.WorksheetFunction.CountA(ws.Range(ws.Cells(r, 1), ws.Cells(r, C_LAST))) > 0 Then
         Err.Raise vbObjectError + 711, , "row " & r & " (under the last name on the roster) isn't empty - clear it and try again"
@@ -1513,7 +1513,7 @@ Public Function SaveUnitMove(ByVal emp As String, ByVal newUnit As String, ByVal
     Application.EnableEvents = False
     mBusy = True
     gSuppressGradeLog = True
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     For Each u In Split(clearUnits, "|")
         If CStr(u) <> "" And StrComp(CStr(u), newUnit, vbTextCompare) <> 0 Then
             If DeptCol(CStr(u)) > 0 Then
@@ -1828,7 +1828,7 @@ Public Function PlannedTable(Optional ByVal create As Boolean = False) As ListOb
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Range("A1").Resize(1, PM_N).Value = Array("ID", "Employee", "New Unit", "Grade Code", "Codes To Clear", "New Crew", _
                                                     "Old Crew", "Effective From", "Status", "Entered By", "Entered On", "Closed On", "Note")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, PM_N), , xlYes)
@@ -1863,7 +1863,7 @@ Private Function AppendPlannedRow(ByRef rec() As Variant) As Boolean
     Dim em As String
     On Error GoTo Fail
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 2)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, PM_N)
         .NumberFormat = "@"
@@ -1911,7 +1911,7 @@ Private Function MarkPlannedRow(ByVal id As String, ByVal newStatus As String, B
     Dim em As String
     On Error GoTo Fail
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     If newStatus <> "" Then
         lo.DataBodyRange.Cells(r, PM_STATUS).Value = newStatus
         lo.DataBodyRange.Cells(r, PM_CLOSED).Value = Date
@@ -2063,7 +2063,7 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
     If Not AppendPlannedRow(rec) Then Err.Raise vbObjectError + 751, , "the Planned Moves sheet couldn't be written"
     ClearCancelledMoveMarks emp, newUnit, eff     ' an earlier, cancelled move to this unit left them not chargeable there
     If crewChanges Then
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Cells(r, C_SHIFT).Value = crewTo
         ProtectSheet ws
         If Not AddCrewRow(emp, crewTo, eff) Then Err.Raise vbObjectError + 752, , "the crew history row couldn't be written"
@@ -2158,7 +2158,7 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
             ElseIf found And newest = crewTo And Int(since) = Int(eff) Then
                 ' same date, later row: of two rows with the same date the later one wins
                 Set ws = RosterSheet()
-                ws.Unprotect Password:=SHEET_PASSWORD
+                UnlockSheet ws
                 ws.Cells(r, C_SHIFT).Value = crewOld
                 ProtectSheet ws
                 If Not AddCrewRow(emp, crewOld, eff) Then Err.Raise vbObjectError + 761, , "the crew history row couldn't be written"
@@ -2675,7 +2675,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     ' the name columns
     For i = 1 To n
         If aBefore(i) > 0 Then
-            los(i).Parent.Unprotect Password:=SHEET_PASSWORD
+            UnlockSheet los(i).Parent
             done = RenameColumn(los(i), cols(i), oldName, newName)
             ProtectSheet los(i).Parent
             total = total + done
@@ -2686,7 +2686,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     Set lo = TableOn(POSTINGS_SHEET, PT_TABLE)
     v = BodyOf(lo)
     If IsArray(v) Then
-        lo.Parent.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet lo.Parent
         For i = 1 To UBound(v, 1)
             hits = 0
             newTxt = RenameInList(SafeStr(v(i, PS_AWARDTO)), oldName, newName, hits)
@@ -2702,7 +2702,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
         Set lo = CovTable(False)
         v = BodyOf(lo)
         If IsArray(v) Then
-            lo.Parent.Unprotect Password:=SHEET_PASSWORD
+            UnlockSheet lo.Parent
             For i = 1 To UBound(v, 1)
                 If UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
                     ' "Covered By" is theirs when the line came from their own call-out, award or switch
@@ -2725,7 +2725,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     End If
 
     ' the roster
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells(r, C_NAME).Value = newName
     ProtectSheet ws
     Application.Calculation = calcWas
@@ -2855,7 +2855,7 @@ Public Function RemoveEmployee(ByVal emp As String, ByVal leftOn As Date, ByRef 
     rec(1, FM_PAYROLL) = PayrollText(ws.Cells(r, C_PAYROLL).Value)
     If Not AppendFormerRow(rec) Then Err.Raise vbObjectError + 731, , "the Former sheet couldn't be written"
 
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     If ws.FilterMode Then ws.ShowAllData
     ws.Rows(r).Delete Shift:=xlUp
     EnsureRosterFilter ws
@@ -2933,7 +2933,7 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     EnsureRosterFilter ws
     ProtectSheet ws
     Set lo = FormerTable(False)
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     lo.DataBodyRange.Cells(fr, FM_STATUS).Value = "Returned"
     lo.DataBodyRange.Cells(fr, FM_BACK).Value = Date
     ProtectSheet lo.Parent

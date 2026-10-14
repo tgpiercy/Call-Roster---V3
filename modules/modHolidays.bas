@@ -219,6 +219,20 @@ End Function
 ' ====================================================================
 '  HOLIDAYS SHEET (admin only)
 ' ====================================================================
+' v25 (R4): the "Observed on" column is the one cell block an admin types into on this sheet
+Public Sub LockHolidayCells(ByVal adminView As Boolean)
+    Dim lo As ListObject: Set lo = HolidayTable()
+    If lo Is Nothing Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    UnlockSheet ws
+    ws.Cells.Locked = True
+    If adminView Then
+        On Error Resume Next
+        If Not lo.DataBodyRange Is Nothing Then lo.ListColumns("Observed on").DataBodyRange.Locked = False
+        On Error GoTo 0
+    End If
+End Sub
+
 Public Function HolidayTable(Optional ByVal create As Boolean = False) As ListObject
     Dim ws As Worksheet, lo As ListObject
     If SheetExists(HOL_SHEET) Then
@@ -233,7 +247,7 @@ Public Function HolidayTable(Optional ByVal create As Boolean = False) As ListOb
             ws.Name = HOL_SHEET
             ws.Tab.Color = RGB(176, 0, 32)
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Range("A1").Resize(1, HC_N).Value = Array("Year", "Holiday", "Date", "Day", "Observed on", "Note")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, HC_N), , xlYes)
         lo.Name = HOL_TABLE
@@ -296,7 +310,7 @@ Public Function EnsureHolidayYears(ByVal y1 As Long, ByVal y2 As Long) As Long
     Dim evOn As Boolean: evOn = Application.EnableEvents
     On Error GoTo Fail
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     Dim cnt As Long: cnt = lo.ListRows.Count
     If blankFirst Then cnt = 0
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)

@@ -326,7 +326,7 @@ Public Sub RefusalsReport()
     ' ---- the sheet ----
     Set ws = ReportSheet()
     ws.Visible = xlSheetVisible
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells.Clear
     Const NC As Long = 8
     ws.Range("A1").Value = "REFUSED HOURS BY KIND  -  " & IIf(allUnits, "all units", unit) & "  -  " & RosterYear()

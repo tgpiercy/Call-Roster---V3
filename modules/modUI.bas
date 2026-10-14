@@ -32,7 +32,7 @@ Public Sub ApplyRosterLayout()
 
     Dim ws As Worksheet: Set ws = RosterSheet()
     Application.ScreenUpdating = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     On Error GoTo Failed
 
     RenameRosterTab ws
@@ -45,7 +45,7 @@ Public Sub ApplyRosterLayout()
     ' log: newest first
     Dim lo As ListObject: Set lo = LogTable()
     If Not lo Is Nothing Then
-        lo.Parent.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet lo.Parent
         SortLogNewestFirst lo
         ProtectSheet lo.Parent
     End If
@@ -120,7 +120,7 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
     If txt = Replace(cur, vbCr, "") Then Exit Sub
 
     Dim wasLocked As Boolean: wasLocked = ws.ProtectContents
-    If wasLocked Then ws.Unprotect Password:=SHEET_PASSWORD
+    If wasLocked Then UnlockSheet ws
     ' leftovers from earlier versions of the status line
     If Left$(SafeStr(ws.Range("E3").Value), 10) = "Pay period" Then ws.Range("E3").ClearContents
     If Left$(SafeStr(ws.Range("L3").Value), 5) = "View:" Then ws.Range("L3").ClearContents
@@ -665,7 +665,7 @@ Public Sub SetupHomeUnit()
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     On Error GoTo Failed
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells(2, C_HOME).Value = "HOME UNIT"
     For i = 1 To UBound(v, 1)
         nm = Trim$(SafeStr(v(i, C_NAME)))
@@ -736,7 +736,7 @@ Public Sub GoToHomeUnit(ByVal empName As String)
             ws.Activate
             On Error Resume Next
             If ws.Rows(r).Hidden Then                 ' hidden by a sort button's filter: show everyone
-                ws.Unprotect Password:=SHEET_PASSWORD
+                UnlockSheet ws
                 If ws.FilterMode Then ws.ShowAllData
                 ws.Rows(r).Hidden = False
                 ProtectSheet ws

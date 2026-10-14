@@ -60,7 +60,7 @@ Public Function ErrorLogTable(Optional ByVal create As Boolean = False) As ListO
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Range("A1").Resize(1, EL_N).Value = Array("When", "User", "Procedure", "Error", "Detail", "Release", "Seen")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, EL_N), , xlYes)
         lo.Name = EL_TABLE
@@ -106,7 +106,7 @@ Public Function LogError(ByVal proc As String, ByVal errNumber As Long, ByVal er
     rec(1, 5) = AsCellText(Left$(detail, EL_MAX_TEXT))
     rec(1, 6) = EXPECTED_RELEASE
     rec(1, EL_SEEN) = ""
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 2)
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, EL_N).Value = rec
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, 1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
@@ -210,7 +210,7 @@ Public Sub ShowErrorLog()
             If SafeStr(w(i, 1)) <> "" And SafeStr(v(i, 1)) = "" Then v(i, 1) = "Yes"
         Next i
         Application.EnableEvents = False
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         lo.ListColumns(EL_SEEN).DataBodyRange.Value = v
         ProtectSheet ws
         Application.EnableEvents = evWas

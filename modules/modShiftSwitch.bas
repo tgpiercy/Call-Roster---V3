@@ -95,7 +95,7 @@ Private Function CreateSwitchTable() As ListObject
         ws.Name = SS_SHEET
         ws.Tab.Color = RGB(180, 100, 0)
     End If
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Range("A1").Resize(1, SW_N).Value = Array("SS ID", "Shift Date", "Shift", "Unit", "Gives Up", "Off Crew", _
         "Works", "Works Crew", "Payback For", "Paid Back By", "Note", "Status", "Logged By", "Timestamp", "Void Note")
     Dim lo As ListObject
@@ -618,7 +618,7 @@ Public Function SaveSwitch(ByVal d As Date, ByVal shiftLbl As String, ByVal unit
     End If
     Dim em As String
     On Error GoTo Fail
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 2)
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, SW_N).Value = rec
     If payFor <> "" Then SetPaidBy lo, payFor, id
@@ -682,7 +682,7 @@ Public Function VoidSwitch(ByVal id As String, Optional ByVal reasonTxt As Strin
     If Trim$(why) = "" Then Exit Function
 
     Dim ws As Worksheet: Set ws = lo.Parent
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.DataBodyRange.Cells(r, SW_STATUS).Value = "VOID"
     lo.DataBodyRange.Cells(r, SW_VOIDNOTE).Value = Format$(Now, "yyyy-mm-dd hh:nn") & " " & CurrentUser() & ": " & Trim$(why)
     ' a voided payback no longer pays the original back

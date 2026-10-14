@@ -586,7 +586,7 @@ Public Sub ShowAttendance()
     Set ws = AttendanceSheet(True)
     If ws Is Nothing Then Err.Raise vbObjectError + 701, , "the sheet couldn't be created (is the workbook structure protected?)"
     ws.Visible = xlSheetVisible
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     If ws.AutoFilterMode Then ws.AutoFilterMode = False
     ws.Cells.Clear
     Dim i As Long, j As Long

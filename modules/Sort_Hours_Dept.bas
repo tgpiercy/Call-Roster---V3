@@ -26,7 +26,7 @@ Public Sub SortForDept(ByVal dept As String)
 
     Set ws = RosterSheet()
     Application.ScreenUpdating = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     EnsureRosterFilter ws                      ' keep the filter; just show everyone for the sort
     If ws.FilterMode Then ws.ShowAllData
     Dim lastRow As Long: lastRow = RosterLastRow()
@@ -50,7 +50,7 @@ Sub ShowAllRows()
     On Error GoTo Oops
     Dim ws As Worksheet: Set ws = RosterSheet()
     Application.ScreenUpdating = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     EnsureRosterFilter ws
     If ws.FilterMode Then ws.ShowAllData
     Dim lastRow As Long: lastRow = RosterLastRow()

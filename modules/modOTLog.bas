@@ -36,7 +36,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
         If Trim$(SafeStr(ws.Cells(rr, C_NAME).Value)) <> "" Then
             For cc = C_PERIOD1 To PeriodLastCol()
                 If IsBrokenFormula(ws.Cells(rr, cc)) Then
-                    ws.Unprotect Password:=SHEET_PASSWORD
+                    UnlockSheet ws
                     WritePeriodRow ws, rr
                     Exit For
                 End If
@@ -133,7 +133,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
     End If
 
     ' ---- 3. formulas (locked, so they can't be typed over) ----
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     Application.Calculation = xlCalculationManual
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
@@ -400,7 +400,7 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
 
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim stampText As String: stampText = why & " - " & CurrentUser() & " " & Format$(Now, "mm/dd/yyyy hh:mm")
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     For i = 1 To UBound(v, 1)
         If hit(i) Then
             lo.DataBodyRange.Cells(i, L_STATUS).Value = "VOID"

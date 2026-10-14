@@ -35,7 +35,7 @@ Public Sub RemoveOldSheets()
             Set vr = ws.Cells.SpecialCells(xlCellTypeAllValidation)
             On Error GoTo 0
             If Not vr Is Nothing Then
-                ws.Unprotect Password:=SHEET_PASSWORD
+                UnlockSheet ws
                 For Each c In vr.Cells
                     f = ""
                     On Error Resume Next
@@ -70,7 +70,7 @@ Public Sub RemoveOldSheets()
     For Each nm In targets
         If SheetExists(CStr(nm)) Then
             With ThisWorkbook.Worksheets(CStr(nm))
-                .Unprotect Password:=SHEET_PASSWORD
+                UnlockSheet ThisWorkbook.Worksheets(CStr(nm))
                 .Visible = xlSheetVisible
                 .Delete
             End With

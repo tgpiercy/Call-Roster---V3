@@ -107,7 +107,7 @@ Private Sub UnprotectAll()
     Dim ws As Worksheet
     For Each ws In ThisWorkbook.Worksheets
         On Error Resume Next
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         On Error GoTo 0
     Next ws
 End Sub

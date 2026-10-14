@@ -85,3 +85,15 @@ def test_every_suite_has_a_handler_and_no_dead_mirror():
     used = tests_src + rules_src
     dead = [fn for fn in public if len(re.findall(r"\b" + fn + r"\b", used)) < 2]      # the def itself + one use
     assert not dead, f"rules.py functions used nowhere (dead mirrors): {dead}"
+
+
+def test_only_unlocksheet_unprotects():
+    """v25 (R4): code opens a sheet through UnlockSheet only."""
+    hits = []
+    for p in sorted(MODULES.glob("*.bas")):
+        for i, ln in enumerate(p.read_text(encoding="ascii").splitlines(), 1):
+            if "Unprotect Password:=SHEET_PASSWORD" in ln:
+                hits.append(f"{p.name}:{i}")
+    assert hits == ["modOvertimeEntry.bas:" + hits[0].split(":")[1]] and len(hits) == 1, hits
+    src = (MODULES / "modOvertimeEntry.bas").read_text(encoding="ascii")
+    assert "Public Sub UnlockSheet(" in src

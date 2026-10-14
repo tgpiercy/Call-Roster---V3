@@ -220,6 +220,10 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     Else
         info = info & "Sign-ups: off (SIGNUPS_ON in modOvertimeEntry)" & vbNewLine
     End If
+    Dim prInfo As String, prWarn As String          ' v25: every sheet protected, totals locked
+    prWarn = ProtectionStatus(prInfo)
+    info = info & prInfo & vbNewLine
+    If prWarn <> "" Then warn = warn & prWarn & vbNewLine
     Dim bkWarn As String, bkInfo As String
     BackupStatus bkWarn, bkInfo
     warn = warn & bkWarn

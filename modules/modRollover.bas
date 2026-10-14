@@ -270,7 +270,7 @@ Public Sub RolloverYear()
 
     ' ---- 5. the roster's year ----
     stepTxt = "moving the roster to " & newYear
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells(2, C_PERIOD1).Value = newFrom
     WritePeriodHeaders ws
     Application.Calculate                             ' calculation is manual here: PStartRow / PeriodLastCol read these dates
@@ -434,7 +434,7 @@ Private Function YearEndTable(ByVal create As Boolean) As ListObject
             ws.Name = YE_SHEET
             ws.Tab.Color = RGB(96, 125, 139)
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Range("A1").Resize(1, YE_NCOLS).Value = Array("Year", "Employee", "Home Unit", "Total Hours", "Worked", "Refused", _
                                                           "Provisional", "Rolled On", "Rolled By")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, YE_NCOLS), , xlYes)
@@ -477,7 +477,7 @@ Private Sub AppendYearEnd(ByVal y As Long, ByRef blk As Variant, ByRef nm() As S
     If Not lo.DataBodyRange Is Nothing Then
         If cnt = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then cnt = 0
     End If
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, YE_NCOLS)
         .Columns(2).NumberFormat = "@"
@@ -512,7 +512,7 @@ Private Sub AppendYearEndFormer(ByVal y As Long)
     If Not lo.DataBodyRange Is Nothing Then
         If cnt = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then cnt = 0
     End If
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, YE_NCOLS)
         .Columns(2).NumberFormat = "@"
@@ -698,7 +698,7 @@ Private Function ArchiveLogRows(ByVal lo As ListObject, ByRef v As Variant, ByVa
     End If
 
     Dim wl As Worksheet: Set wl = lo.Parent
-    wl.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet wl
     On Error Resume Next                         ' no filter set = an error; that's fine
     lo.AutoFilter.ShowAllData
     Err.Clear

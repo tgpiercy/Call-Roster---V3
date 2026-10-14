@@ -172,7 +172,7 @@ Public Sub RefreshGradeSnapshot()
     Set ws = SnapSheet(True)
     If ws Is Nothing Then Exit Sub
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells.ClearContents
     ws.Range("A1:I1").Value = Array("Employee", "QC Derivatives", "Derivatives", "Cypure", "Phosphine", _
                                    "Material Handler", "QC Gases", "Utilities", "SBP")
@@ -255,7 +255,7 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Range("A1").Resize(1, GL_N).Value = Array("Timestamp", "Employee", "Unit", "Old Code", "New Code", "Windows Login")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, GL_N), , xlYes)
         lo.Name = GL_TABLE
@@ -285,7 +285,7 @@ Private Function AppendGradeRows(ByRef outA() As Variant, ByVal n As Long) As Bo
     Dim em As String
     On Error GoTo Fail
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, GL_N)
         .Value = outA

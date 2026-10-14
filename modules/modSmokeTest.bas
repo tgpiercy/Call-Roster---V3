@@ -380,7 +380,7 @@ Private Function SmkCrew(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim eff As Date: eff = Date + 7
     Application.EnableEvents = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells(r, C_SHIFT).Value = "A"
     ProtectSheet ws
     Application.EnableEvents = evWas

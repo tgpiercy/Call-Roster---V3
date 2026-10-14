@@ -75,7 +75,7 @@ Public Sub UpgradeOTLogLayout()
     Application.Calculation = xlCalculationManual
     Dim changed As Boolean                  ' False until the first column is touched
     On Error GoTo Failed
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     On Error Resume Next
     ws.Cells.ClearOutline                   ' errors if there's no outline - that's fine
     Err.Clear
@@ -143,7 +143,7 @@ Public Sub UpgradeOTLogLayout()
         If RosterDiffers(rs, lastRow, before) Then
             ' re-point the roster formulas by name and check again
             Dim r As Long
-            rs.Unprotect Password:=SHEET_PASSWORD
+            UnlockSheet rs
             For r = R_FIRST To lastRow
                 If Trim$(SafeStr(rs.Cells(r, C_NAME).Value)) <> "" Then WritePeriodRow rs, r
             Next r
@@ -221,7 +221,7 @@ Public Sub FormatOTLog()
 
     Dim wasActive As Worksheet: Set wasActive = ActiveSheet
     Application.ScreenUpdating = False
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
 
     Dim lastCol As String: lastCol = ColLetter(L_NCOLS)
     Dim widths As Variant, i As Long

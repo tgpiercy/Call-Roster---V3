@@ -76,7 +76,7 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
     Dim i As Long, r As Long
 
     Application.Calculate
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     Application.DisplayAlerts = False
 
     ' ---- wipe: old sections, buttons, merges, formats ----

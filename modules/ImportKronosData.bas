@@ -153,7 +153,7 @@ Sub SyncKronosData()
 
     ' ---- fill column H ----
     Application.ScreenUpdating = False
-    wsDest.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet wsDest
     wsDest.Range(wsDest.Cells(R_FIRST, C_NAME), wsDest.Cells(lastRow, C_NAME)).Interior.ColorIndex = xlNone
 
     Dim r As Long, nm As String, hit As String, found As Long, missing As String, kVal As Variant
@@ -473,7 +473,7 @@ Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As L
             ws.Name = HH_SHEET
             ws.Tab.Color = RGB(96, 125, 139)
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         ws.Range("A1:H1").Value = Array("Import ID", "Imported At", "Kronos File Date", "Employee", "Worked Hours", "Imported By", "Data Through", "Year")
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1:H2"), , xlYes)
         lo.Name = HH_TABLE
@@ -497,7 +497,7 @@ Private Sub EnsureHoursHistoryColumns(ByVal lo As ListObject)
     If ThisWorkbook.ReadOnly Then Exit Sub
     Dim ws As Worksheet: Set ws = lo.Parent
     On Error Resume Next
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     If lo.ListColumns.Count < 7 Then
         lo.ListColumns.Add.Name = "Data Through"
         ws.Columns(7).ColumnWidth = 13
@@ -528,7 +528,7 @@ Public Function StampHoursHistoryYear(ByVal y As Long) As Long
         End If
     Next i
     If n > 0 Then
-        lo.Parent.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet lo.Parent
         lo.ListColumns(HH_NCOLS).DataBodyRange.Value = yv
         ProtectSheet lo.Parent
     End If
@@ -582,7 +582,7 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
 
     Dim em As String
     On Error GoTo Fail
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, HH_NCOLS)
         .Value = outA

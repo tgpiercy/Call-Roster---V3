@@ -537,7 +537,7 @@ Private Sub SetAbsenceGroup(ByVal absId As String, ByVal grp As String)
     Dim i As Long
     For i = 1 To UBound(v, 1)
         If StrComp(SafeStr(v(i, 1)), absId, vbTextCompare) = 0 Then
-            lo.Parent.Unprotect Password:=SHEET_PASSWORD
+            UnlockSheet lo.Parent
             lo.DataBodyRange.Cells(i, AB_GROUP).Value = grp
             ProtectSheet lo.Parent
             Exit Sub
@@ -750,7 +750,7 @@ End Sub
 Private Sub MarkLineBooked(ByVal lo As ListObject, ByRef v As Variant, ByVal lineId As String, ByVal absId As String)
     Dim r As Long: r = RowOfId(v, lineId)
     If r = 0 Then Exit Sub
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     lo.DataBodyRange.Cells(r, CV_ABS).Value = absId
     ProtectSheet lo.Parent
 End Sub

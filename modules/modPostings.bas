@@ -132,7 +132,7 @@ Private Sub CreatePostingTables()
         ws.Name = POSTINGS_SHEET
         ws.Tab.Color = RGB(0, 128, 70)
     End If
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
 
     Dim lo As ListObject
     If GetTable(PT_TABLE) Is Nothing Then
@@ -170,7 +170,7 @@ End Sub
 
 Private Sub SetupEmailColumn()
     Dim ws As Worksheet: Set ws = RosterSheet()
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     If UCase$(Trim$(SafeStr(ws.Cells(2, C_EMAIL).Value))) <> "EMAIL" Then
         Dim lastRow As Long: lastRow = RosterLastRow()
         ' column K only held copies of the Shift column - free it up for email addresses
@@ -220,7 +220,7 @@ Public Function UpgradePostingList(ByRef why As String) As Boolean
         Exit Function
     End If
     Dim nRows As Long: nRows = lr.ListRows.Count
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lr.ListColumns.Add.Name = "Signup Hours"
     ws.Columns(lr.Range.Column + PL_SIGNHRS - 1).ColumnWidth = 11
     ProtectSheet ws
@@ -529,7 +529,7 @@ Private Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef 
     Dim blank As Boolean: blank = (p.ID = "")
     Dim i As Long, r As Long
 
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     Application.DisplayAlerts = False       ' no "merging cells only keeps..." prompts
 
     ' ---- wipe everything: old inputs, dropdowns, buttons, formats ----
@@ -1685,7 +1685,7 @@ Public Function SetPostingReason(ByVal id As String, ByVal reason As String) As 
     For i = 1 To UBound(v, 1)
         If UCase$(Trim$(SafeStr(v(i, PS_ID)))) = UCase$(Trim$(id)) Then
             On Error GoTo Failed
-            ws.Unprotect Password:=SHEET_PASSWORD
+            UnlockSheet ws
             lo.DataBodyRange.Cells(i, PS_REASON).Value = "'" & reason      ' text, whatever it starts with (= + - or a date)
             ProtectSheet ws
             On Error GoTo 0
@@ -1828,7 +1828,7 @@ Public Function ExemptFromOpenPostings(ByVal emp As String, ByVal fromDate As Da
                InStr(1, SafeStr(lv(i, PL_RESULT)), EXEMPT_TAG, vbTextCompare) = 0 Then
                 outS = outS & IIf(outS = "", "", ", ") & id
                 If Not listOnly Then
-                    If Not hit Then lr.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
+                    If Not hit Then UnlockSheet lr.Parent: hit = True
                     lr.DataBodyRange.Cells(i, PL_RESULT).Value = EXEMPT_TAG & noteTxt
                 End If
             End If
@@ -1862,7 +1862,7 @@ Public Function ClearLeftExemptions(ByVal emp As String) As String
                 res = SafeStr(lv(i, PL_RESULT))
                 SplitExempt res, note
                 If LCase$(Left$(note, Len(EXEMPT_TAG) + 4)) = LCase$(EXEMPT_TAG & "left") Then
-                    If Not hit Then lr.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
+                    If Not hit Then UnlockSheet lr.Parent: hit = True
                     lr.DataBodyRange.Cells(i, PL_RESULT).Value = res
                     outS = outS & IIf(outS = "", "", ", ") & id
                 End If
@@ -2052,7 +2052,7 @@ Private Sub InsertListRow(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n A
     Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
     Dim ws As Worksheet: Set ws = lr.Parent
     Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     For i = 1 To UBound(lv, 1)
         If UCase$(Trim$(SafeStr(lv(i, PL_ID)))) = UCase$(p.ID) Then
             If CLng(NumOr0(lv(i, PL_RANK))) >= newRank Then lr.DataBodyRange.Cells(i, PL_RANK).Value = CLng(NumOr0(lv(i, PL_RANK))) + 1
@@ -2095,7 +2095,7 @@ Private Sub DeleteListRow(ByVal id As String, ByVal emp As String, ByVal nWas As
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
     Dim ws As Worksheet: Set ws = lr.Parent
     Dim lv As Variant, i As Long, rowAt As Long, cntWas As Long, rankWas As Long, postWas As Long
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     On Error Resume Next                                ' (each of these raises when there is nothing to clear)
     lr.AutoFilter.ShowAllData
     lo.AutoFilter.ShowAllData
@@ -2176,7 +2176,7 @@ Public Function ClearCancelledMoveMarks(ByVal emp As String, ByVal unit As Strin
                 SplitExempt res, note
                 If InStr(1, note, EXEMPT_TAG & "move cancelled (PM-", vbTextCompare) > 0 Then
                     If Not hit Then
-                        lr.Parent.Unprotect Password:=SHEET_PASSWORD
+                        UnlockSheet lr.Parent
                         hit = True
                     End If
                     lr.DataBodyRange.Cells(i, PL_RESULT).Value = res
@@ -2216,7 +2216,7 @@ Public Function ClearMoveExemptions(ByVal emp As String, ByVal moveId As String)
                 SplitExempt res, note
                 If InStr(1, note, "(" & Trim$(moveId) & ")", vbTextCompare) > 0 Then
                     If Not hit Then
-                        lr.Parent.Unprotect Password:=SHEET_PASSWORD
+                        UnlockSheet lr.Parent
                         hit = True
                     End If
                     lr.DataBodyRange.Cells(i, PL_RESULT).Value = res
@@ -2249,7 +2249,7 @@ Private Sub UpdatePostingRecords(ByRef p As PostRec, ByRef lst() As PListRec, By
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
     Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
     Dim v As Variant, i As Long, j As Long
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
 
     v = RangeTo2D(lo.DataBodyRange)
     For i = 1 To UBound(v, 1)
@@ -2582,7 +2582,7 @@ Private Function AppendRows(ByVal lo As ListObject, data As Variant, ByVal nCols
     End If
     Dim em As String
     On Error GoTo Fail
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, nCols).Value = data
     ProtectSheet ws

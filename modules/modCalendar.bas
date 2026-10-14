@@ -311,7 +311,7 @@ Public Sub UpgradeAbsenceColumns()
     Dim names As Variant: names = Array("Home Unit", "Leave Group", "Shift")
     Dim i As Long, em As String
     On Error GoTo Failed
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     For i = lo.ListColumns.Count + 1 To AB_N
         lo.ListColumns.Add.Name = names(i - AB_VOIDNOTE - 1)
     Next i
@@ -377,7 +377,7 @@ Private Function GetOrMakeTable(ByVal sh As String, ByVal tn As String, ByVal cr
             ws.Name = sh
             ws.Tab.Color = tabCol
         End If
-        ws.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet ws
         Dim n As Long: n = UBound(hdr) + 1
         ws.Range("A1").Resize(1, n).Value = hdr
         Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, n), , xlYes)
@@ -434,7 +434,7 @@ Private Function AppendTo(ByVal lo As ListObject, ByVal data As Variant, ByVal n
     End If
     Dim em As String
     On Error GoTo Fail
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, nCols).Value = data
     ProtectSheet ws
@@ -896,7 +896,7 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
     rec(1, AB_GROUP) = leaveGroup
     rec(1, AB_SHIFT) = shiftLbl
     If Not AppendTo(lo, rec, AB_N) Then Exit Function
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     lo.ListColumns(AB_START).DataBodyRange.NumberFormat = "ddd mmm d, yyyy"
     lo.ListColumns(AB_END).DataBodyRange.NumberFormat = "ddd mmm d, yyyy"
     ProtectSheet lo.Parent
@@ -910,7 +910,7 @@ Public Function SetAbsenceEndTo(ByVal id As String, ByVal dEnd As Date) As Boole
     Dim v As Variant: v = TableData(lo)
     Dim r As Long: r = RowOf(v, id)
     If r = 0 Then Exit Function
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     lo.DataBodyRange.Cells(r, AB_END).Value = Int(dEnd)
     lo.DataBodyRange.Cells(r, AB_END).NumberFormat = "ddd mmm d, yyyy"
     ProtectSheet lo.Parent
@@ -1077,7 +1077,7 @@ End Function
 
 Private Sub FormatCovDates(ByVal lo As ListObject)
     On Error Resume Next
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     lo.ListColumns(CV_DATE).DataBodyRange.NumberFormat = "ddd mmm d, yyyy"
     ProtectSheet lo.Parent
 End Sub
@@ -1101,7 +1101,7 @@ Public Function AddCoverage(ByVal d As Date, ByVal shiftLbl As String, ByVal uni
             ' fill in place if empty, or if it's this same posting's POSTED line;
             ' a POSTED line from another source keeps its posting (new line below)
             If cur = "" Or (cur Like "POSTED*" And StrComp(curSrc, source, vbTextCompare) = 0) Then
-                lo.Parent.Unprotect Password:=SHEET_PASSWORD
+                UnlockSheet lo.Parent
                 lo.DataBodyRange.Cells(r, CV_BY).Value = coveredBy
                 If IsNumeric(hrs) And Not IsEmpty(hrs) Then
                     If CDbl(hrs) > 0 And CDbl(hrs) < FULL_SHIFT Then lo.DataBodyRange.Cells(r, CV_HOURS).Value = CDbl(hrs)
@@ -1161,7 +1161,7 @@ Public Function UpdateCoverageBySource(ByVal source As String, ByVal coveredBy A
     Dim i As Long, hit As Boolean
     For i = 1 To UBound(v, 1)
         If StrComp(SafeStr(v(i, CV_SOURCE)), source, vbTextCompare) = 0 And UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
-            If Not hit Then lo.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
+            If Not hit Then UnlockSheet lo.Parent: hit = True
             UpdateCoverageBySource = UpdateCoverageBySource + 1
             lo.DataBodyRange.Cells(i, CV_BY).Value = coveredBy
             If clearHours Then
@@ -1191,7 +1191,7 @@ Public Function ReleaseCoverage(ByVal source As String, Optional ByVal empName A
             by = SafeStr(v(i, CV_BY))
             If empName = "" Then newBy = "" Else newBy = DropName(by, CalName(empName))
             If newBy <> by Or empName = "" Then
-                If Not hit Then lo.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
+                If Not hit Then UnlockSheet lo.Parent: hit = True
                 If newBy <> "" Then
                     lo.DataBodyRange.Cells(i, CV_BY).Value = newBy
                 ElseIf StrComp(SafeStr(v(i, CV_NEED)), "Call-out " & source, vbTextCompare) = 0 Then
@@ -1256,7 +1256,7 @@ Public Sub VoidCoverageBySource(ByVal source As String)
     Dim i As Long, hit As Boolean
     For i = 1 To UBound(v, 1)
         If StrComp(SafeStr(v(i, CV_SOURCE)), source, vbTextCompare) = 0 And UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
-            If Not hit Then lo.Parent.Unprotect Password:=SHEET_PASSWORD: hit = True
+            If Not hit Then UnlockSheet lo.Parent: hit = True
             lo.DataBodyRange.Cells(i, CV_STATUS).Value = "VOID"
         End If
     Next i
@@ -1354,7 +1354,7 @@ Public Function SetAbsenceEnd(ByVal id As String) As Boolean
         If Not ParseTypedDate(s, dEnd) Then MsgBox "That isn't a date (e.g. Oct 12).", vbExclamation: Exit Function
         If dEnd < CDate(v(r, AB_START)) Then MsgBox "The end is before the start.", vbExclamation: Exit Function
     End If
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     If s = "" Then
         lo.DataBodyRange.Cells(r, AB_END).ClearContents
     Else
@@ -1376,7 +1376,7 @@ Public Function VoidAbsence(ByVal id As String, Optional ByVal reasonTxt As Stri
     Dim why As String: why = reasonTxt
     If Trim$(why) = "" Then why = InputBox("Why is " & id & " (" & SafeStr(v(r, AB_EMP)) & ") being removed?", "Void time off")
     If Trim$(why) = "" Then Exit Function
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     lo.DataBodyRange.Cells(r, AB_STATUS).Value = "VOID"
     lo.DataBodyRange.Cells(r, AB_VOIDNOTE).Value = Format$(Now, "yyyy-mm-dd hh:nn") & " " & CurrentUser() & ": " & Trim$(why)
     ProtectSheet lo.Parent
@@ -1517,7 +1517,7 @@ Private Sub SetCalHint(ByVal ws As Worksheet)
                             "Hover over a line for details, or double-click it.  Print / PDF gives the copy to post.")
     If SafeStr(ws.Range("F3").Value) = t Then Exit Sub
     If Left$(SafeStr(ws.Range("F3").Value), 8) = "Calendar" Then Exit Sub   ' leave an error message showing
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Range("F3").Value = t
     ProtectSheet ws
 End Sub
@@ -1732,7 +1732,7 @@ Public Sub DrawCalendar()
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     On Error GoTo Failed
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     LoadCache
     LoadPostCache
 
@@ -1965,7 +1965,7 @@ Failed:
 AfterFail:
     On Error Resume Next
     LogError "DrawCalendar", en, em       ' v24.3.1: the box below was the only record
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells(3, 6).Value = "Calendar couldn't finish drawing: " & em & "  - click This month to retry."
     ws.Cells(3, 6).Font.Color = thOpen()
     BuildCalControls ws, m0, grp          ' never leave the sheet without its buttons
@@ -2104,7 +2104,7 @@ End Sub
 
 Private Sub BuildCalControls(ByVal ws As Worksheet, ByVal m0 As Date, ByVal grp As String)
     On Error Resume Next                  ' one control failing must not stop the rest
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     Dim i As Long
     For i = ws.Shapes.Count To 1 Step -1
         If Left$(ws.Shapes(i).Name, 4) = "cal_" Then ws.Shapes(i).Delete
@@ -2260,7 +2260,7 @@ Private Sub CalSetCoverageKey(ByVal keyTxt As String)
             If srcs <> "" Then
                 If MsgBox("This line is filled by" & srcs & ". Replace it anyway?", vbYesNo + vbExclamation) = vbNo Then Exit Sub
             End If
-            lo.Parent.Unprotect Password:=SHEET_PASSWORD
+            UnlockSheet lo.Parent
             For i = 1 To UBound(v, 1)
                 If CovLive(i, d, shiftLbl) And StrComp(SafeStr(v(i, CV_ABS)), Mid$(slotKey, 3), vbTextCompare) = 0 Then
                     lo.DataBodyRange.Cells(i, CV_STATUS).Value = "VOID"
@@ -2272,7 +2272,7 @@ Private Sub CalSetCoverageKey(ByVal keyTxt As String)
     Else
         Dim cr As Long: cr = RowOf(mCov, Mid$(slotKey, 3))
         If cr = 0 Then Exit Sub
-        lo.Parent.Unprotect Password:=SHEET_PASSWORD
+        UnlockSheet lo.Parent
         Select Case UCase$(ans)
             Case "DELETE": lo.DataBodyRange.Cells(cr, CV_STATUS).Value = "VOID"
             Case "CLEAR": lo.DataBodyRange.Cells(cr, CV_BY).ClearContents
@@ -2397,7 +2397,7 @@ End Function
 Private Sub WriteNeedText(ByVal lo As ListObject, ByVal rowIx As Long, ByVal txt As String)
     Dim en As Long, em As String
     On Error GoTo Failed
-    lo.Parent.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet lo.Parent
     lo.DataBodyRange.Cells(rowIx, CV_NEED).Value = "'" & txt
     ProtectSheet lo.Parent
     Exit Sub
@@ -2606,7 +2606,7 @@ Public Sub CalPrintPdf()
     ' the admin toolbar and the needs-attention box are screen-only
     Dim hideTo As Long: hideTo = CLng(Val(MapSheet().Range("Z4").Value))
     If hideTo < 3 Then hideTo = 3
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Rows("3:" & hideTo).Hidden = True
     ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=folder & fName, Quality:=xlQualityStandard, _
         IncludeDocProperties:=False, IgnorePrintAreas:=False, OpenAfterPublish:=False
@@ -2693,7 +2693,7 @@ Public Sub ImportUnitCalendar()
                            "Cancel = stop", vbYesNoCancel + vbExclamation, "Import calendar")
             Case vbCancel: Exit Sub
             Case vbYes
-                lo.Parent.Unprotect Password:=SHEET_PASSWORD
+                UnlockSheet lo.Parent
                 For j = 1 To UBound(ov, 1)
                     If Left$(SafeStr(ov(j, CV_SOURCE)), 6) = "Import" And UCase$(SafeStr(ov(j, CV_STATUS))) <> "VOID" And _
                        StrComp(SafeStr(ov(j, CV_UNIT)), unit, vbTextCompare) = 0 Then
@@ -3286,7 +3286,7 @@ Public Sub DrawNeeds()
     Application.Calculation = xlCalculationManual
     Application.ScreenUpdating = False
     On Error GoTo Failed
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     LoadCache
     LoadPostCache
     Dim plV As Variant: plV = PostListData()
@@ -3639,7 +3639,7 @@ Failed:
 AfterFail:
     On Error Resume Next
     LogError "DrawNeeds", en, em          ' v24.3.1
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells(3, 2).Value = "Couldn't finish: " & em
     ws.Cells(3, 2).Font.Color = thOpen()
     BuildNAControls ws, grp, nDays
@@ -3778,7 +3778,7 @@ End Sub
 
 Private Sub BuildNAControls(ByVal ws As Worksheet, ByVal grp As String, ByVal nDays As Long)
     On Error Resume Next
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     Dim i As Long
     For i = ws.Shapes.Count To 1 Step -1
         If Left$(ws.Shapes(i).Name, 3) = "na_" Then ws.Shapes(i).Delete

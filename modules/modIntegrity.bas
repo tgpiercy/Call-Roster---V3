@@ -790,7 +790,7 @@ Public Sub DrawIntegritySheet(Optional ByVal fromCode As Boolean = True)
         ws.Tab.Color = RGB(176, 0, 32)
     End If
     ws.Visible = xlSheetVisible
-    ws.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet ws
     ws.Cells.Clear
     ws.Range("A1").Value = "INTEGRITY CHECK  -  " & Format$(mRanAt, "ddd mmm d, yyyy h:mm AM/PM")
     ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 12

@@ -1225,26 +1225,62 @@ End Sub
 
 ' UserInterfaceOnly lets macros edit while users can't. It is not saved
 ' with the file, so Workbook_Open re-applies it every session.
-' In admin view every sheet except the OT Log stays unprotected (as the old
-' password login did), so admins can edit grades, shifts, postings etc.
+' v25 (R4, decided Oct 13, 2026): every sheet stays protected in EVERY view. What an admin
+' may type into is the set of cells ApplyView leaves UNLOCKED (roster B, E, F, J, K, L:S and
+' the Holidays "Observed on" column); everything else, formulas and tables included, goes
+' through the buttons. Before this the admin view unprotected every sheet but the OT Log.
+' Code writes through the UnlockSheet / ProtectSheet pair (both idempotent).
 Public Sub ProtectSheet(ByVal ws As Worksheet)
     ' v24.4: the Install Log is written by the Roster Updater from outside this workbook, which has no
     ' password: it is never protected (admin-only through ApplyView, like the Error Log)
-    If ws.Name = IL_SHEET Then
-        On Error Resume Next
-        ws.Unprotect Password:=SHEET_PASSWORD
-        On Error GoTo 0
-        Exit Sub
-    End If
-    If gAdminUnlocked And ws.Name <> LOG_SHEET And Not IsYearEndSheet(ws.Name) Then
-        ws.Unprotect Password:=SHEET_PASSWORD
-        Exit Sub
-    End If
+    If ws.Name = IL_SHEET Then UnlockSheet ws: Exit Sub
     ws.Protect Password:=SHEET_PASSWORD, DrawingObjects:=True, Contents:=True, _
                Scenarios:=True, UserInterfaceOnly:=True, _
                AllowSorting:=True, AllowFiltering:=True
     If ws.Name = LOG_SHEET Then ws.EnableOutlining = True     ' +/- on the audit columns
 End Sub
+
+' v25: the one way code opens a sheet to write to it (ProtectSheet closes it again). The only
+' Unprotect in the codebase: tests/test_drift.py checks that.
+Public Sub UnlockSheet(ByVal ws As Worksheet)
+    On Error Resume Next
+    ws.Unprotect Password:=SHEET_PASSWORD
+    On Error GoTo 0
+End Sub
+
+' v25 (R4): the cells an admin types into, unlocked; every other roster cell locked. Non-admins
+' get nothing unlocked. Idempotent, so ApplyView does it every time (no one-time migration).
+Public Sub LockRosterCells(ByVal rs As Worksheet, ByVal adminView As Boolean)
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    rs.Cells.Locked = True
+    If Not adminView Or lastRow < R_FIRST Then Exit Sub
+    Dim cols As Variant: cols = Array(C_HOME, C_SHIFT, C_PHONE, C_SENIORITY, C_EMAIL)
+    Dim c As Variant
+    For Each c In cols
+        rs.Range(rs.Cells(R_FIRST, CLng(c)), rs.Cells(lastRow, CLng(c))).Locked = False
+    Next c
+    rs.Range(rs.Cells(R_FIRST, UnitColFirst()), rs.Cells(lastRow, UnitColLast())).Locked = False
+End Sub
+
+' v25: how many sheets are protected, for SystemCheck ("" = as expected; otherwise the odd ones out)
+Public Function ProtectionStatus(ByRef info As String) As String
+    Dim ws As Worksheet, nProt As Long, nAll As Long, odd As String
+    For Each ws In ThisWorkbook.Worksheets
+        nAll = nAll + 1
+        If ws.ProtectContents Then
+            nProt = nProt + 1
+        ElseIf ws.Name <> IL_SHEET Then
+            odd = odd & IIf(odd = "", "", ", ") & ws.Name
+        End If
+    Next ws
+    Dim rs As Worksheet: Set rs = RosterSheet()
+    Dim totalsLocked As Boolean
+    totalsLocked = rs.Cells(R_FIRST, C_TOTAL).Locked And rs.Cells(R_FIRST, C_PERIOD1).Locked
+    info = "Protection: " & nProt & " of " & nAll & " sheets protected (the Install Log open by design); roster totals " & _
+           IIf(totalsLocked, "locked", "NOT locked")
+    If odd <> "" Then ProtectionStatus = "- unprotected sheet(s): " & odd & " (reopen the roster; ApplyView protects every sheet)"
+    If Not totalsLocked Then ProtectionStatus = ProtectionStatus & IIf(ProtectionStatus = "", "", vbNewLine) & "- the roster's totals are not locked: reopen the roster"
+End Function
 
 ' The archived logs ("OT Log 2026") and the Year End record: never unprotected, even for admins (v23)
 Public Function IsYearEndSheet(ByVal nm As String) As Boolean
@@ -1258,8 +1294,10 @@ Public Sub ProtectAll()
     Next ws
 End Sub
 
-' Admin view shows the admin sheets and phone numbers; everyone else doesn't see them
+' Admin view shows the admin sheets and phone numbers; everyone else doesn't see them.
+' v25: and unlocks the typed-into roster cells for admins (LockRosterCells); error frame (E4).
 Public Sub ApplyView(ByVal adminView As Boolean)
+    On Error GoTo Oops
     gAdminUnlocked = adminView
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4
@@ -1272,7 +1310,9 @@ Public Sub ApplyView(ByVal adminView As Boolean)
         End If
     Next nm
     Dim rs As Worksheet: Set rs = RosterSheet()
-    rs.Unprotect Password:=SHEET_PASSWORD
+    UnlockSheet rs
+    LockRosterCells rs, adminView                   ' v25 (R4)
+    If SheetExists(HOL_SHEET) Then LockHolidayCells adminView
     Dim leftWas As Double: leftWas = rs.Cells(1, C_SHIFT).Left
     rs.Columns(C_PHONE).Hidden = Not adminView
     rs.Columns(C_EMAIL).Hidden = Not adminView
@@ -1292,10 +1332,13 @@ Public Sub ApplyView(ByVal adminView As Boolean)
             If Left$(shp.Name, 8) = "cal_adm_" Then shp.Visible = IIf(adminView, msoTrue, msoFalse)
         Next shp
     End If
-    ProtectAll      ' protects for everyone else; unlocks (except OT Log) for admins
+    ProtectAll      ' v25: protects every sheet in every view
     On Error Resume Next
     SetRosterStatus                 ' refresh pay period / log count (keeps the current view text)
     On Error GoTo 0
+    Exit Sub
+Oops:
+    ReportError "ApplyView"
 End Sub
 
 
@@ -1442,7 +1485,7 @@ Public Function AppendLogRows(data As Variant) As Boolean
 
     Dim errMsg As String
     On Error GoTo Fail
-    ws.Unprotect Password:=SHEET_PASSWORD        ' tables can't grow on a protected sheet
+    UnlockSheet ws        ' tables can't grow on a protected sheet
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, L_NCOLS)
         .Value = data

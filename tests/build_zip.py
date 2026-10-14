@@ -104,7 +104,7 @@ def install_steps(tag: str, changed: list[str]) -> bytes:
         "[2. Install code]",
         "swap    | Replace the modules, forms and ThisWorkbook code (new modules imported)",
         "compile | Compile VBAProject",
-        "finish  | Lift the save block, save, then close and reopen the roster | reopen",
+        "finish  | Lift the save block, save, then close and reopen the roster | | reopen",
         "",
     ]
     body = src.read_text(encoding="ascii").replace("\r\n", "\n").split("\n")
@@ -118,9 +118,18 @@ def install_steps(tag: str, changed: list[str]) -> bytes:
             body += ["", "[3. Run once]", "template| Members' template rebuilt from member/ (then Member View publishes)"]
     text = "\r\n".join(lines + body).rstrip() + "\r\n"
     text.encode("ascii")
+    kinds = {"backup", "check", "swap", "compile", "finish", "macro", "template", "manual", "test"}
     for ln in text.split("\r\n"):
-        if ln and not ln.startswith("#") and not ln.startswith("[") and "|" not in ln and " " not in ln.strip():
-            raise SystemExit(f"install-steps.txt: odd line {ln!r}")
+        if not ln or ln.startswith("#") or ln.startswith("["):
+            continue
+        if "|" in ln:
+            f = [x.strip() for x in ln.split("|")]
+            if f[0].lower() not in kinds:
+                raise SystemExit(f"install-steps.txt: unknown step kind in {ln!r}")
+            if len(f) < 2 or not f[1]:
+                raise SystemExit(f"install-steps.txt: a step without a caption: {ln!r}")
+        elif ln.split(" ")[0] not in {"VERSION", "EXPECT", "MEMBER", "FORMS"}:
+            raise SystemExit(f"install-steps.txt: a step without its '|' separators: {ln!r}")
     return text.encode("ascii")
 
 

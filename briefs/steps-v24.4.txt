@@ -8,7 +8,8 @@ macro   | Self test (expect 432 passed, 50 suites)       | SelfTestOK
 manual  | Import Kronos when the next export arrives     | Hours are entered from the Kronos PDF today; the Excel import waits for the daily export. Click Done.
 
 [4. Checks]
-macro   | Smoke test: make a practice copy, run SmokeTest in it, close it without saving | MakePracticeCopy | confirm
+macro   | Make a practice copy (it opens; leave it for the next row)   | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY                       | In the practice copy (its title says COPY): Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, 14 steps. Then CLOSE THE COPY WITHOUT SAVING and come back to this sheet. Click Done.
 test    | New Posting pre-filled from the panel        | SmokePosting Phosphine +21 Days | The New Posting pop-up opens with Phosphine, the date 3 weeks out and Days filled in. Cancel it.
 test    | Log Call-Out pre-filled from the panel       | SmokeCallout Derivatives +7 Nights | The Log Call-Out pop-up opens with Derivatives, the date a week out and Nights filled in. Close it.
 test    | Shift Switch opens from the panel            | SmokeSwitch +14 | The Shift Switch pop-up opens. Cancel it.

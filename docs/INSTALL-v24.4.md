@@ -16,8 +16,8 @@ Needs **v24.3.3 installed** on the roster and **Roster Updater.xlsm** (v3) on yo
 2. Alt+F8 > `'Roster Updater.xlsm'!InstallPanel`. It asks for the update folder: pick the unzipped `Callout_Roster_v24.4` folder. The Install sheet fills with the steps, grouped: **1. Prepare** (backup, check), **2. Install code** (swap, compile, finish + reopen), **3. Run once** (SystemCheck, SelfTest, Kronos), **4. Checks** (SmokeTest, three pre-filled pop-ups, Member View with the members' file open, the Install Log).
 3. Click the one blue button, read its box, click the next. Each step writes OK / FAILED / PASS / FAIL / DONE and the time on its row. A FAILED step blocks the rest: **Retry** (its button again) or **Skip this step...** with a note.
    - **finish** saves, closes and reopens the roster (its open boxes run as usual), then the panel carries on.
-   - **System check** should say **"Modules: 24 of 24 on v24.4"**; **Self test** 432 passed, 50 suites (no rule changed).
-   - **Smoke test**: the step runs MakePracticeCopy for you; in the practice copy run Alt+F8 > SmokeTest, close that copy WITHOUT saving, come back to the Install sheet and answer Yes.
+   - **System check** should say **"Modules: 24 of 24 on v24.4"** (the step passes on the version lines; the usual CHECK lines about Kronos age or the P: paths are shown but don't fail it); **Self test** 432 passed, 50 suites (no rule changed).
+   - **Smoke test** is two rows: "Make a practice copy" runs MakePracticeCopy (answer Yes when the copy has opened), then "Smoke test in the COPY": in that copy run Alt+F8 > SmokeTest, note the result, CLOSE THE COPY WITHOUT SAVING, come back to the Install sheet and click Done. (While the copy is open the panel keeps writing to the real roster, never to the copy.)
    - **The three pop-up rows** open Log Call-Out, New Posting and Shift Switch pre-filled; cancel each and click Pass (or Fail with what you saw).
 4. When every row is done the status line says so. **Show the log** opens the roster's Install Log sheet (ADMIN view lists it from now on; non-admins never see it).
 

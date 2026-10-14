@@ -160,7 +160,7 @@ Public Sub UpdateFinished()
            "2. Alt+F8 > SystemCheck." & vbNewLine & _
            "3. Run the macros the install note lists under 'run once'." & vbNewLine & _
            "4. Alt+F8 > UpdateMemberTemplate (if the release has a members' part), then Member View." & vbNewLine & vbNewLine & _
-           "Keep the Roster Updater workbook for the next release; it needs no saving.", vbInformation, UPD_TITLE
+           "Keep the Roster Updater workbook for the next release (v4: its Install sheet is saved with it).", vbInformation, UPD_TITLE
 End Sub
 
 ' v4: the finish itself (UpdateFinished and the panel's finish step): the new code must run
@@ -319,6 +319,7 @@ Private Sub UpdRun(ByVal checkOnly As Boolean)
     End If
     rep = rep & "Backup: " & bk & vbNewLine & vbNewLine
     If Not UpdSwapAll(wb, items, n, rep, repPath, why) Then
+        If repPath = "" Then MsgBox why, vbCritical, UPD_TITLE: Exit Sub          ' the save block couldn't be set: nothing was touched
         MsgBox "The update did NOT go in:" & vbNewLine & why & vbNewLine & _
                "Saving is blocked. Close this workbook now; if Excel asks, click DON'T SAVE." & vbNewLine & _
                "(If you try to save, the roster says 'conversion failed verification': that is this block.)" & vbNewLine & vbNewLine & _
@@ -722,6 +723,7 @@ Failed:
     Application.EnableEvents = evWas
     roster.Activate
     If savedIt Then
+        UpdTemplate = True
         MsgBox "The members' template was updated and saved, but closing it gave: " & why & vbNewLine & _
                "Close it by hand if it is still open, then click Member View.", vbExclamation, TTL
     Else
@@ -1226,7 +1228,7 @@ Public Sub InstallSkip()
     Dim steps() As InstStep, n As Long
     n = InstSteps(ws, steps)
     If n = 0 Then MsgBox "Pick the update folder first.", vbInformation, INST_TITLE: Exit Sub
-    Dim wb As Workbook: Set wb = UpdTarget()
+    Dim wb As Workbook: Set wb = InstTarget()
     If wb Is Nothing Then Exit Sub
     Dim st As Object: Set st = InstReadLog(wb, InstVersion(ws))
     Dim i As Long: i = InstNext(steps, n, st)
@@ -1245,7 +1247,7 @@ End Sub
 ' The "Show the log" button: the roster's Install Log sheet, in front
 Public Sub InstallShowLog()
     On Error GoTo Oops
-    Dim wb As Workbook: Set wb = UpdTarget()
+    Dim wb As Workbook: Set wb = InstTarget()
     If wb Is Nothing Then Exit Sub
     Dim why As String
     Dim lo As Object: Set lo = InstEnsureLog(wb, why)
@@ -1267,14 +1269,15 @@ Private Function InstSheet(ByVal create As Boolean) As Worksheet
     If ws Is Nothing And create Then
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = INST_SHEET
-        InstDrawFrame ws
     End If
+    If Not ws Is Nothing And create Then InstDrawFrame ws      ' every time: the buttons carry this workbook's current name
     Set InstSheet = ws
 End Function
 
 Private Sub InstDrawFrame(ByVal ws As Worksheet)
     With ws
-        .Cells.Clear
+        .Range("B1:B6").ClearContents                   ' the labels only: C3:C6 and B7 (state) and K:P (the list) stay
+        .Range("B8:G8").ClearContents
         .Range("B1").Value = "CALL OUT ROSTER - INSTALL PANEL"
         .Range("B1").Font.Bold = True: .Range("B1").Font.Size = 16
         .Range("B2").Value = UPD_VERSION & ". One button at a time, in order. Each click runs one step and writes it to the roster's Install Log."
@@ -1316,34 +1319,50 @@ Private Function InstParse(ByVal path As String, ByVal ws As Worksheet, ByRef wh
     Dim txt As String
     If Not UpdReadFile(path, txt) Then why = "it couldn't be read": Exit Function
     Dim lines() As String: lines = Split(Replace(txt, vbCr, ""), vbLf)
-    Dim i As Long, ln As String, f() As String, n As Long, grp As String, ver As String, expect As String, hdr As String
-    ws.Range(ws.Cells(INST_ROW0, INST_COL_KIND), ws.Cells(INST_ROW0 + INST_MAX, INST_COL_KIND + 5)).ClearContents
+    Dim i As Long, j As Long, ln As String, f() As String, n As Long, grp As String, ver As String, expect As String, hdr As String
+    Dim rows() As String: ReDim rows(1 To INST_MAX, 1 To 6)
     For i = LBound(lines) To UBound(lines)
         ln = Trim$(lines(i))
         If ln = "" Or Left$(ln, 1) = "#" Then
             ' skip
         ElseIf Left$(ln, 1) = "[" Then
-            grp = Mid$(ln, 2, Len(ln) - 2)
+            If Len(ln) > 2 Then grp = Mid$(ln, 2, Len(ln) - 2)
         ElseIf InStr(ln, "|") = 0 Then
             If UCase$(Left$(ln, 8)) = "VERSION " Then ver = Trim$(Mid$(ln, 9))
             If UCase$(Left$(ln, 7)) = "EXPECT " Then expect = Trim$(Mid$(ln, 8))
             If UCase$(Left$(ln, 7)) = "MEMBER " Or UCase$(Left$(ln, 6)) = "FORMS " Then hdr = hdr & IIf(hdr = "", "", "   ") & ln
         Else
             f = Split(ln, "|")
+            If Trim$(f(0)) = "" Then why = "line " & (i + 1) & " has no step kind": Exit Function
             If UBound(f) < 1 Then why = "line " & (i + 1) & " has no caption": Exit Function
+            If Trim$(f(1)) = "" Then why = "line " & (i + 1) & " has no caption": Exit Function
+            Select Case LCase$(Trim$(f(0)))
+                Case "backup", "check", "swap", "compile", "finish", "macro", "template", "manual", "test"
+                Case Else: why = "line " & (i + 1) & ": '" & Trim$(f(0)) & "' isn't a step kind": Exit Function
+            End Select
             n = n + 1
             If n > INST_MAX Then why = "more than " & INST_MAX & " steps": Exit Function
-            ws.Cells(INST_ROW0 + n - 1, INST_COL_KIND).Value = LCase$(Trim$(f(0)))
-            ws.Cells(INST_ROW0 + n - 1, INST_COL_KIND + 1).Value = Trim$(f(1))
-            If UBound(f) >= 2 Then ws.Cells(INST_ROW0 + n - 1, INST_COL_KIND + 2).Value = Trim$(f(2))
-            If UBound(f) >= 3 Then ws.Cells(INST_ROW0 + n - 1, INST_COL_KIND + 3).Value = Trim$(f(3))
-            ws.Cells(INST_ROW0 + n - 1, INST_COL_KIND + 4).Value = "S" & Format$(n, "00")
-            ws.Cells(INST_ROW0 + n - 1, INST_COL_KIND + 5).Value = grp
+            rows(n, 1) = LCase$(Trim$(f(0)))
+            rows(n, 2) = Trim$(f(1))
+            If UBound(f) >= 2 Then rows(n, 3) = Trim$(f(2))
+            If UBound(f) >= 3 Then rows(n, 4) = Trim$(f(3))
+            rows(n, 5) = "S" & Format$(n, "00")
+            rows(n, 6) = grp
             grp = ""
         End If
     Next i
     If n = 0 Then why = "no steps in it": Exit Function
     If ver = "" Then why = "no VERSION line": Exit Function
+    ' only now the sheet changes (a bad file leaves the old list alone)
+    Dim rng As Range: Set rng = ws.Range(ws.Cells(INST_ROW0, INST_COL_KIND), ws.Cells(INST_ROW0 + INST_MAX, INST_COL_KIND + 5))
+    rng.ClearContents
+    rng.NumberFormat = "@"                              ' "Oct 12", "1,234", "TRUE" stay the words they are
+    For i = 1 To n
+        For j = 1 To 6
+            ws.Cells(INST_ROW0 + i - 1, INST_COL_KIND + j - 1).Value = rows(i, j)
+        Next j
+    Next i
+    ws.Range("C5").NumberFormat = "@"
     ws.Range("C5").Value = ver & IIf(expect <> "" And expect <> ver, " (SystemCheck expects " & expect & ")", "")
     ws.Range("B7").Value = hdr
     InstParse = True
@@ -1380,7 +1399,11 @@ Private Function InstEnsureLog(ByVal wb As Workbook, ByRef why As String) As Obj
     Set ws = wb.Worksheets(INST_LOG_SHEET)
     On Error GoTo 0
     If ws Is Nothing Then
+        Dim evWas As Boolean: evWas = Application.EnableEvents
+        Dim wasSaved As Boolean: wasSaved = wb.Saved
+        Dim actWas As Object: Set actWas = ActiveSheet
         On Error GoTo Failed
+        Application.EnableEvents = False                ' (review M1) no roster sheet events while the sheet is made
         Set ws = wb.Worksheets.Add(After:=wb.Worksheets(wb.Worksheets.Count))
         ws.Name = INST_LOG_SHEET
         ws.Range("A1:G1").Value = Array("Version", "Step", "Kind", "Status", "When", "User", "Note")
@@ -1389,29 +1412,39 @@ Private Function InstEnsureLog(ByVal wb As Workbook, ByRef why As String) As Obj
         lo.Name = INST_LOG_TABLE
         ws.Columns("A:G").ColumnWidth = 18: ws.Columns("B").ColumnWidth = 60: ws.Columns("G").ColumnWidth = 70
         ws.Visible = 2                                 ' xlSheetVeryHidden: the roster's ApplyView shows it to admins
+        On Error Resume Next
+        actWas.Activate
         On Error GoTo 0
+        Application.EnableEvents = evWas
+        wb.Saved = wasSaved
     Else
         On Error Resume Next
         Set lo = ws.ListObjects(INST_LOG_TABLE)
         On Error GoTo 0
         If lo Is Nothing Then why = "The roster's " & INST_LOG_SHEET & " sheet has no " & INST_LOG_TABLE & " table.": Exit Function
     End If
-    If ws.ProtectContents Then
-        On Error Resume Next
-        ws.Unprotect
-        On Error GoTo 0
-        If ws.ProtectContents Then why = "The roster's " & INST_LOG_SHEET & " sheet is protected: open the roster in ADMIN view, then click the step again.": Exit Function
+    If ws.ProtectContents Then                      ' (no Unprotect call: without the password Excel would prompt for one)
+        why = "The roster's " & INST_LOG_SHEET & " sheet is protected: open the roster in ADMIN view (its ProtectSheet leaves this sheet open), then click the step again."
+        Exit Function
     End If
     Set InstEnsureLog = lo
     Exit Function
 Failed:
     why = "The " & INST_LOG_SHEET & " sheet couldn't be made in " & wb.Name & ": " & Err.Description
+    Application.EnableEvents = evWas
 End Function
 
 Private Sub InstLog(ByVal wb As Workbook, ByVal ver As String, ByRef st As InstStep, ByVal status As String, ByVal note As String)
     Dim why As String
     Dim lo As Object: Set lo = InstEnsureLog(wb, why)
     If lo Is Nothing Then Err.Raise vbObjectError + 950, , why
+    ' (review H2 / M1) a log row must not make the roster "unsaved" (the check step wants it saved) and must not
+    ' run the roster's sheet events (right after a swap that code isn't compiled yet)
+    Dim wasSaved As Boolean: wasSaved = wb.Saved
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim en As Long, em As String
+    Application.EnableEvents = False
+    On Error GoTo Failed
     Dim lr As Object: Set lr = lo.ListRows.Add
     lr.Range.Cells(1, 1).Value = ver
     lr.Range.Cells(1, 2).Value = st.Id & "  " & st.Caption
@@ -1420,6 +1453,16 @@ Private Sub InstLog(ByVal wb As Workbook, ByVal ver As String, ByRef st As InstS
     lr.Range.Cells(1, 5).Value = Now
     lr.Range.Cells(1, 6).Value = Environ$("USERNAME")
     lr.Range.Cells(1, 7).Value = "'" & Left$(note, 250)
+    Application.EnableEvents = evWas
+    wb.Saved = wasSaved
+    Exit Sub
+Failed:
+    en = Err.Number: em = Err.Description
+    Application.EnableEvents = evWas
+    On Error Resume Next
+    wb.Saved = wasSaved
+    On Error GoTo 0
+    Err.Raise en, , em
 End Sub
 
 ' The latest row per step id for this version: key = step id, item = status & "|" & when & "|" & note
@@ -1537,17 +1580,43 @@ Private Function InstButtonText(ByRef st As InstStep, ByVal status As String) As
 End Function
 
 ' The roster for the panel's draw: UpdTarget without its "pick the workbook in front" question
+' The roster for the panel: the one open roster, or, with a practice COPY (or a backup / FINAL opened to
+' look at) beside it, the one whose name carries none of those words; failing that the one in front.
 Private Function InstRosterQuiet() As Workbook
-    Dim w As Workbook, why As String, n As Long, hit As Workbook
+    Dim w As Workbook, why As String, n As Long, hit As Workbook, nLive As Long, live As Workbook, u As String
     For Each w In Application.Workbooks
         If Not UpdSame(w, ThisWorkbook) Then
-            If UpdIsRoster(w, why) Then n = n + 1: Set hit = w
+            If UpdIsRoster(w, why) Then
+                n = n + 1: Set hit = w
+                u = UCase$(w.Name)
+                If InStr(u, "COPY") = 0 And InStr(u, "DRY RUN") = 0 And InStr(u, "BACKUP") = 0 And InStr(u, "FINAL") = 0 Then
+                    nLive = nLive + 1: Set live = w
+                End If
+            End If
         End If
     Next w
-    If n = 1 Then Set InstRosterQuiet = hit
+    If n = 1 Then Set InstRosterQuiet = hit: Exit Function
+    If nLive = 1 Then Set InstRosterQuiet = live: Exit Function
     If n > 1 Then
+        On Error Resume Next
         If UpdIsRoster(ActiveWorkbook, why) Then Set InstRosterQuiet = ActiveWorkbook
     End If
+End Function
+
+' InstRosterQuiet with the message when there is none
+Private Function InstTarget() As Workbook
+    Set InstTarget = InstRosterQuiet()
+    If InstTarget Is Nothing Then
+        MsgBox "Open the roster in this Excel (one roster; a practice COPY beside it is passed over), then click again.", vbExclamation, INST_TITLE
+    End If
+End Function
+
+' The open workbook at that path, or Nothing
+Private Function InstByPath(ByVal fullPath As String) As Workbook
+    Dim w As Workbook
+    For Each w In Application.Workbooks
+        If StrComp(w.FullName, fullPath, vbTextCompare) = 0 Then Set InstByPath = w: Exit Function
+    Next w
 End Function
 
 ' ---------------- running a step ----------------
@@ -1559,8 +1628,10 @@ Private Sub InstRunIndex(ByVal i As Long)
     If i < 1 Or i > n Then Exit Sub
     Dim folder As String: folder = UpdSlash(Trim$(CStr(ws.Range("C3").Value)))
     If folder = "" Or Not UpdDirExists(folder) Then MsgBox "Pick the update folder first.", vbInformation, INST_TITLE: Exit Sub
-    Dim wb As Workbook: Set wb = UpdTarget()
+    Dim wb As Workbook: Set wb = InstTarget()
     If wb Is Nothing Then Exit Sub
+    Dim why As String
+    If InstEnsureLog(wb, why) Is Nothing Then MsgBox why, vbExclamation, INST_TITLE: Exit Sub     ' (review M2) before the step, not after
     Dim ver As String: ver = InstVersion(ws)
     Dim st As Object: Set st = InstReadLog(wb, ver)
     Dim nxt As Long: nxt = InstNext(steps, n, st)
@@ -1570,16 +1641,24 @@ Private Sub InstRunIndex(ByVal i As Long)
                "(Skip this step... marks it skipped with a note if it was done by hand.)", vbInformation, INST_TITLE
         Exit Sub
     End If
-    Dim status As String, note As String
-    ws.Range("C6").Value = "Running " & steps(i).Id & " " & steps(i).Caption & " ..."
+    Dim status As String, note As String, fp As String
+    fp = wb.FullName                                    ' (review H3) the roster is found again by its PATH: a practice
+    ws.Range("C6").Value = "Running " & steps(i).Id & " " & steps(i).Caption & " ..."     '  COPY a step opened never takes the log
     InstRunStep wb, folder, ver, steps(i), status, note
-    ' (the finish step may have closed and reopened the roster: find it again for the log)
     If status <> "" Then
-        Set wb = UpdTarget()
+        Set wb = InstByPath(fp)                         ' (a reopen keeps the path)
         If wb Is Nothing Then
-            MsgBox "Step " & steps(i).Id & " ended " & status & " but the roster can't be found to record it: " & note, vbExclamation, INST_TITLE
+            MsgBox "Step " & steps(i).Id & " ended " & status & " but the roster (" & fp & ") can't be found to record it: " & note & vbNewLine & vbNewLine & _
+                   "Open it again, then Skip this step... with that result as the note.", vbExclamation, INST_TITLE
         Else
+            On Error Resume Next
             InstLog wb, ver, steps(i), status, note
+            why = Err.Description
+            On Error GoTo 0
+            If why <> "" Then
+                MsgBox "Step " & steps(i).Id & " ended " & status & " (" & note & ") but the row couldn't be written to the roster's Install Log: " & why & _
+                       vbNewLine & vbNewLine & "Fix that (ADMIN view), then Skip this step... with that result as the note.", vbExclamation, INST_TITLE
+            End If
         End If
     End If
     InstRefresh
@@ -1661,6 +1740,15 @@ Private Sub InstRunStep(ByRef wb As Workbook, ByVal folder As String, ByVal ver 
             End If
 
         Case "finish"
+            If wb.ReadOnly Then
+                status = "FAILED": note = "The roster is open read-only, so it can't be saved. Close it; nothing is kept."
+                Exit Sub
+            End If
+            If Not Application.EnableEvents Then
+                status = "FAILED": note = "Excel's events are switched off in this session (an earlier macro was stopped part-way): " & _
+                                           "Alt+F8 > UpdateDrop, close Excel completely, open the roster again and resume."
+                Exit Sub
+            End If
             If Not UpdNameSet(wb, UPD_PENDING) Then
                 If Not trusted Then
                     If MsgBox("Save the roster (Ctrl+S) now. Saved?", vbYesNo + vbQuestion, INST_TITLE) = vbYes Then status = "DONE": note = "saved by hand" Else Exit Sub
@@ -1673,7 +1761,7 @@ Private Sub InstRunStep(ByRef wb As Workbook, ByVal folder As String, ByVal ver 
                 status = "FAILED": note = why
                 Exit Sub
             End If
-            If LCase$(st.Flag) = "reopen" Then
+            If LCase$(st.Arg) = "reopen" Or LCase$(st.Flag) = "reopen" Then
                 If UpdReopen(wb, why) Then
                     note = note & "; closed and reopened"
                 Else
@@ -1728,11 +1816,16 @@ Private Function UpdCompile(ByVal wb As Workbook, ByRef why As String) As Long
     On Error Resume Next
     Set vbe = Application.VBE
     If vbe Is Nothing Then why = "the VBA editor object isn't reachable": UpdCompile = -1: Exit Function
-    Set vbe.ActiveVBProject = proj
     Err.Clear
+    Set vbe.ActiveVBProject = proj
+    If Err.Number <> 0 Then why = "the roster's project couldn't be made the active one: " & Err.Description: UpdCompile = -1: Exit Function
+    Err.Clear
+    If StrComp(vbe.ActiveVBProject.fileName, wb.FullName, vbTextCompare) <> 0 Then
+        why = "the VBA editor's active project isn't the roster's": UpdCompile = -1: Exit Function
+    End If
     Set ctl = vbe.CommandBars.FindControl(, 578)        ' 578 = Debug > Compile VBAProject
     If ctl Is Nothing Then why = "the Compile command wasn't found in the VBA editor": UpdCompile = -1: Exit Function
-    If Not ctl.Enabled Then UpdCompile = 1: Exit Function      ' already compiled: nothing to do
+    If Not ctl.Enabled Then why = "the Compile command is already disabled (compiled before, or not this project)": UpdCompile = -1: Exit Function
     Err.Clear
     ctl.Execute
     If Err.Number <> 0 Then why = "the Compile command didn't run: " & Err.Description: UpdCompile = -1: Exit Function
@@ -1815,27 +1908,47 @@ End Sub
 ' "SmokePosting Phosphine +21 Days" -> name + typed arguments (+N / -N = today plus N days as a Date;
 ' yyyy-mm-dd = that date; a whole number = a number; anything else = text)
 Private Function InstParseCall(ByVal txt As String, ByRef nm As String, ByRef args() As Variant, ByRef k As Long, ByRef why As String) As Boolean
-    Dim toks() As String, i As Long, s As String
-    ReDim args(1 To 8)
+    Dim toks() As String, i As Long, s As String, inQ As Boolean, c As String, p As Long, nTok As Long
+    ReDim args(1 To 4)
+    ReDim toks(1 To 16)
     k = 0: nm = ""
     txt = Trim$(txt)
     If txt = "" Then InstParseCall = True: Exit Function
-    toks = Split(txt, " ")
-    nm = toks(0)
-    For i = 1 To UBound(toks)
-        s = Trim$(toks(i))
-        If s <> "" Then
-            k = k + 1
-            If k > 8 Then why = "more than 8 arguments on " & nm: Exit Function
-            If (Left$(s, 1) = "+" Or Left$(s, 1) = "-") And IsNumeric(Mid$(s, 2)) And InStr(s, ".") = 0 Then
-                args(k) = CDate(Date + CLng(s))
-            ElseIf Len(s) = 10 And Mid$(s, 5, 1) = "-" And Mid$(s, 8, 1) = "-" And IsNumeric(Left$(s, 4)) Then
-                args(k) = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
-            ElseIf IsNumeric(s) Then
-                args(k) = CDbl(s)
-            Else
-                args(k) = s
+    ' split on spaces; a "quoted part" is one token (a unit like "Material Handler")
+    For p = 1 To Len(txt)
+        c = Mid$(txt, p, 1)
+        If c = Chr$(34) Then
+            inQ = Not inQ
+        ElseIf c = " " And Not inQ Then
+            If s <> "" Then
+                nTok = nTok + 1
+                If nTok > 16 Then why = "too many words on the step": Exit Function
+                toks(nTok) = s
+                s = ""
             End If
+        Else
+            s = s & c
+        End If
+    Next p
+    If s <> "" Then
+        nTok = nTok + 1
+        If nTok > 16 Then why = "too many words on the step": Exit Function
+        toks(nTok) = s
+    End If
+    If nTok = 0 Then InstParseCall = True: Exit Function
+    nm = toks(1)
+    For i = 2 To nTok
+        s = toks(i)
+        k = k + 1
+        If k > 4 Then why = "more than 4 arguments on " & nm: Exit Function
+        If (Left$(s, 1) = "+" Or Left$(s, 1) = "-") And IsNumeric(Mid$(s, 2)) And InStr(s, ".") = 0 Then
+            args(k) = CDate(Date + CLng(s))
+        ElseIf Len(s) = 10 And Mid$(s, 5, 1) = "-" And Mid$(s, 8, 1) = "-" And IsNumeric(Left$(s, 4)) Then
+            args(k) = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
+        ElseIf IsNumeric(s) Then
+            args(k) = CDbl(s)
+        Else
+            args(k) = s
         End If
     Next i
     InstParseCall = True

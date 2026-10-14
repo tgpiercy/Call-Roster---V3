@@ -39,9 +39,10 @@ Private mBackupWarned As Boolean
 ' Problems come first; the message stays short enough for one MsgBox.
 ' v24.4: the check itself; SystemCheck shows it, SystemCheckOK shows it and says whether it was clean
 ' (the Install panel's "System check" step). An error inside raises to the caller's handler.
-Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String)
+Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef verOk As Boolean)
     On Error GoTo Failed
     Dim nOk As Long
+    verOk = True
 
     ' ---- modules: each one's version constant (a missing module won't compile) ----
     VerCheck "modOvertimeEntry", CORE_VERSION, warn, nOk
@@ -69,8 +70,10 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String)
     VerCheck "modOTLog", OTL_VERSION, warn, nOk               ' v24.3.1: live code (Void Entry, Add Adjustment, Rename), stamped at last
     VerCheck "modSmoke", SMO_VERSION, warn, nOk               ' v24.4: the Install panel's pop-up openers
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
+    If nOk <> N_MODULES Then verOk = False
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
+        verOk = False
     End If
 
     ' ---- VBA project (needs trusted access) ----
@@ -110,6 +113,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String)
             If InStr(compNames, "|" & LCase$(fNm) & "|") > 0 Then
                 If InStr(FormMarker(proj, fNm), fRel) = 0 Then
                     warn = warn & "- " & fNm & " code is older than " & fRel & ": re-paste " & fNm & ".txt" & vbNewLine
+                    verOk = False
                 End If
             End If
         Next fr
@@ -229,8 +233,8 @@ End Sub
 
 Public Sub SystemCheck()
     On Error GoTo Oops                         ' v24.3.1: the first macro run after every install had no handler at all
-    Dim warn As String, info As String
-    SystemCheckBuild warn, info
+    Dim warn As String, info As String, verOk As Boolean
+    SystemCheckBuild warn, info, verOk
     If Len(warn) > 700 Then warn = Left$(warn, InStrRev(Left$(warn, 700), vbNewLine)) & "- ...and more" & vbNewLine
     Dim msg As String
     If warn = "" Then
@@ -244,16 +248,22 @@ Oops:
     ReportError "SystemCheck"
 End Sub
 
-' v24.4: SystemCheck as a result, for the Install panel: True when nothing is under CHECK. The box is
-' still shown (the admin reads the lines); an error inside logs and returns False.
+' v24.4: SystemCheck as a result, for the Install panel: True when every module, form and ThisWorkbook
+' is on this release (the VERSION lines). The environment lines (Kronos age, P: paths, unseen Error
+' Log lines ...) are shown as always but don't fail an install: they are expected until go-live.
+' An error inside logs and returns False.
 Public Function SystemCheckOK() As Boolean
     On Error GoTo Oops
-    Dim warn As String, info As String
-    SystemCheckBuild warn, info
+    Dim warn As String, info As String, verOk As Boolean, msg As String
+    SystemCheckBuild warn, info, verOk
     If Len(warn) > 700 Then warn = Left$(warn, InStrRev(Left$(warn, 700), vbNewLine)) & "- ...and more" & vbNewLine
-    MsgBox IIf(warn = "", "Everything looks right.", "CHECK:" & vbNewLine & warn) & vbNewLine & vbNewLine & info, _
-           IIf(warn = "", vbInformation, vbExclamation), "System check  (" & EXPECTED_RELEASE & ")"
-    SystemCheckOK = (warn = "")
+    If warn = "" Then
+        msg = "Everything looks right." & vbNewLine & vbNewLine & info
+    Else
+        msg = "CHECK:" & vbNewLine & warn & vbNewLine & info
+    End If
+    MsgBox msg, IIf(warn = "", vbInformation, vbExclamation), "System check  (" & EXPECTED_RELEASE & ")"
+    SystemCheckOK = verOk
     Exit Function
 Oops:
     ReportError "SystemCheckOK"

@@ -439,6 +439,14 @@ Public Sub OpenChecks()
     On Error Resume Next
     If ThisWorkbook.ReadOnly Then
         Dim who As String: who = LockOwner()
+        Dim onDisk As Boolean: onDisk = False
+        onDisk = ((GetAttr(ThisWorkbook.FullName) And vbReadOnly) = vbReadOnly)
+        If onDisk And IsBackupCopyName(ThisWorkbook.Name) Then       ' v25 (I6): the year-end FINAL, or a backup set read-only
+            MsgBox "This is a frozen copy of the roster (" & ThisWorkbook.Name & "): read-only on disk by design." & vbNewLine & vbNewLine & _
+                   "You can look at everything; nothing can be logged or saved in it. The live roster is the file without FINAL / a date in its name.", _
+                   vbInformation, "Frozen copy"
+            Exit Sub
+        End If
         MsgBox IIf(who <> "", who & " has", "Someone else has") & " the roster open for editing, so this copy is read-only." & _
                vbNewLine & vbNewLine & "You can look at everything, but nothing can be logged or saved." & vbNewLine & _
                "Close it and open it again once they're out.", vbInformation, "Read-only"

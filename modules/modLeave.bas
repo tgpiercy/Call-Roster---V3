@@ -506,22 +506,23 @@ Public Function SaveLeaveReturn(ByRef lc As LeaveCalc, ByVal hoursToAdd As Doubl
     calc = "Leave return " & Format$(lc.FirstOff, "mmm d") & " -> " & Format$(lc.ReturnDate, "mmm d, yyyy") & ": " & lc.HomeUnit & _
            " average of " & lc.NPeers & " peer(s) [" & lc.PeerNames & "] " & Format$(lc.Average, "0.0") & " h " & lc.SnapshotText & _
            IIf(hoursToAdd <> lc.Average, " - OVERRIDDEN to " & Format$(hoursToAdd, "0.0") & " h: " & overrideReason, "")
-    If hoursToAdd <> 0 Then
-        Dim data() As Variant: ReDim data(1 To 1, 1 To L_NCOLS)
-        data(1, L_REF) = grp
-        data(1, L_TYPE) = "Adjustment"
-        data(1, L_DATE) = lc.ReturnDate
-        data(1, L_DEPT) = lc.HomeUnit
-        data(1, L_TASK) = "Leave return"
-        data(1, L_EMP) = emp
-        data(1, L_EMPHRS) = lc.Before
-        data(1, L_REASON) = calc
-        data(1, L_CHARGED) = hoursToAdd
-        data(1, L_PERIOD) = ps
-        data(1, L_USER) = CurrentUser()
-        data(1, L_STAMP) = Now
-        If Not AppendLogRows(data) Then Exit Function
-    End If
+    ' v25 (L5): the row goes in even at 0 h - it records that the return was logged (Needs Attention and
+    ' the leave pop-up read LeaveToppedUp from the log), and it is what Void Entry undoes
+    If hoursToAdd = 0 Then calc = calc & " - no hours added"
+    Dim data() As Variant: ReDim data(1 To 1, 1 To L_NCOLS)
+    data(1, L_REF) = grp
+    data(1, L_TYPE) = "Adjustment"
+    data(1, L_DATE) = lc.ReturnDate
+    data(1, L_DEPT) = lc.HomeUnit
+    data(1, L_TASK) = "Leave return"
+    data(1, L_EMP) = emp
+    data(1, L_EMPHRS) = lc.Before
+    data(1, L_REASON) = calc
+    data(1, L_CHARGED) = hoursToAdd
+    data(1, L_PERIOD) = ps
+    data(1, L_USER) = CurrentUser()
+    data(1, L_STAMP) = Now
+    If Not AppendLogRows(data) Then Exit Function
     SetAbsenceEndTo lc.AbsId, lc.ReturnDate - 1
     If grp <> "" Then SetAbsenceGroup lc.AbsId, grp
     MarkCalDirty

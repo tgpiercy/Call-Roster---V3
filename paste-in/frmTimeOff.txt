@@ -355,16 +355,18 @@ Private Sub mSave_Click()
     If code = "PER" And mOpen.Value Then MsgBox "Personal days need an end date (each scheduled shift counts as one day).", vbExclamation: Exit Sub
     If code = "SIC" Then                          ' v22.1: past sick days, one row per scheduled shift
         If mOpen.Value Then MsgBox "Past sick days need an end date.", vbExclamation: Exit Sub
-        Dim nSick As Long
-        nSick = SaveSickPast(mEmp.Text, C("cboUnit").Text, ds, CDate(de), Trim$(C("txtNote").Text), HoursValue())
-        If nSick = 0 Then
-            MsgBox "No sick days were recorded: " & mEmp.Text & " has no scheduled shift between " & _
-                   Format$(ds, "mmm d") & " and " & Format$(de, "mmm d") & " that isn't already booked sick (or the file is read-only).", vbExclamation
+        Dim nSick As Long, nUnsched As Long, nAlready As Long, skipped As String
+        nSick = SaveSickPast(mEmp.Text, C("cboUnit").Text, ds, CDate(de), Trim$(C("txtNote").Text), HoursValue(), nUnsched, nAlready)
+        If nUnsched > 0 Then skipped = nUnsched & " day(s) with no scheduled shift"
+        If nAlready > 0 Then skipped = skipped & IIf(skipped = "", "", ", ") & nAlready & " already booked sick"
+        If nSick = 0 Then                               ' v25 (L6): says which it was
+            MsgBox "No sick days were recorded for " & mEmp.Text & ", " & Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & ": " & _
+                   IIf(skipped = "", "the file is read-only, or the dates are before this roster year", skipped) & ".", vbExclamation
             Exit Sub
         End If
         LoadList
         C("status").Caption = nSick & " past sick day(s) recorded for " & mEmp.Text & ", " & _
-                              Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & "."
+                              Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & IIf(skipped = "", ".", " (skipped: " & skipped & ").")
         mStart.Text = "": mEnd.Text = "": C("txtTimes").Text = "": C("txtNote").Text = ""
         Exit Sub
     End If
@@ -375,19 +377,17 @@ Private Sub mSave_Click()
                    "Vacation and personal days are booked on scheduled shifts only - check the dates or their crew.", vbExclamation, "Days off"
             Exit Sub
         End If
-        If True Then
-            If TrimKind(ds, CDate(de), dFirst, dLast) <> "" Then
-                Select Case MsgBox(Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & " covers " & (nD + nN) & " scheduled shift(s); " & _
-                                   IIf(dFirst > ds, Format$(ds, "mmm d") & IIf(dFirst - ds > 1, " - " & Format$(dFirst - 1, "mmm d"), "") & " at the start", "") & _
-                                   IIf(dFirst > ds And dLast < CDate(de), " and ", "") & _
-                                   IIf(dLast < CDate(de), Format$(dLast + 1, "mmm d") & IIf(CDate(de) - dLast > 1, " - " & Format$(de, "mmm d"), "") & " at the end", "") & _
-                                   " are days off." & vbNewLine & vbNewLine & _
-                                   "Trim the booking to " & Format$(dFirst, "mmm d") & " - " & Format$(dLast, "mmm d") & "?" & vbNewLine & _
-                                   "Yes = trim it, No = save as typed, Cancel = go back", vbYesNoCancel + vbQuestion, "Days off in the range")
-                    Case vbYes: ds = dFirst: de = dLast
-                    Case vbCancel: Exit Sub
-                End Select
-            End If
+        If TrimKind(ds, CDate(de), dFirst, dLast) <> "" Then
+            Select Case MsgBox(Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & " covers " & (nD + nN) & " scheduled shift(s); " & _
+                               IIf(dFirst > ds, Format$(ds, "mmm d") & IIf(dFirst - ds > 1, " - " & Format$(dFirst - 1, "mmm d"), "") & " at the start", "") & _
+                               IIf(dFirst > ds And dLast < CDate(de), " and ", "") & _
+                               IIf(dLast < CDate(de), Format$(dLast + 1, "mmm d") & IIf(CDate(de) - dLast > 1, " - " & Format$(de, "mmm d"), "") & " at the end", "") & _
+                               " are days off." & vbNewLine & vbNewLine & _
+                               "Trim the booking to " & Format$(dFirst, "mmm d") & " - " & Format$(dLast, "mmm d") & "?" & vbNewLine & _
+                               "Yes = trim it, No = save as typed, Cancel = go back", vbYesNoCancel + vbQuestion, "Days off in the range")
+                Case vbYes: ds = dFirst: de = dLast
+                Case vbCancel: Exit Sub
+            End Select
         End If
     End If
     id = SaveAbsence(mEmp.Text, C("cboUnit").Text, C("cboType").Text, ds, de, HoursValue(), _

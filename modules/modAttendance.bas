@@ -449,8 +449,12 @@ End Function
 '  One SC row per scheduled shift in the range, oldest first so each
 '  row's note says what the rule made of it. No OPEN line, no call-out.
 ' ====================================================================
+' v25 (L6): nUnsched / nAlready get the days skipped (no scheduled shift / already booked sick), so the
+' pop-up can say why a range made fewer rows than days.
 Public Function SaveSickPast(ByVal emp As String, ByVal unit As String, ByVal d1 As Date, ByVal d2 As Date, _
-                             ByVal note As String, Optional ByVal hrs As Variant = Empty) As Long
+                             ByVal note As String, Optional ByVal hrs As Variant = Empty, _
+                             Optional ByRef nUnsched As Long, Optional ByRef nAlready As Long) As Long
+    nUnsched = 0: nAlready = 0
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     If d2 < d1 Then Exit Function
@@ -463,7 +467,11 @@ Public Function SaveSickPast(ByVal emp As String, ByVal unit As String, ByVal d1
     Dim x As Date, sh As String, id As String, made As Long, outcome As String
     For x = Int(d1) To Int(d2)
         sh = EmpShiftOn(emp, x)
-        If sh <> "" And Not HasSickRow(emp, x, sh) Then          ' never a second row for the same shift
+        If sh = "" Then
+            nUnsched = nUnsched + 1
+        ElseIf HasSickRow(emp, x, sh) Then                        ' never a second row for the same shift
+            nAlready = nAlready + 1
+        Else
             outcome = SickOutcome(emp, x, sh)
             id = SaveAbsence(emp, unit, "SIC", x, x, hrs, "", "Past sick day" & IIf(note = "", "", " - " & note) & _
                              IIf(outcome = "", "", " - " & outcome), HomeUnitOf(emp), "", sh, "SC", True)

@@ -23,11 +23,12 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v24.3.3 (Oct 14)"
-Public Const EXPECTED_RELEASE As String = "v24.3.3"
-Private Const N_MODULES As Long = 23
+Public Const SYS_VERSION As String = "System v24.4 (Oct 14)"
+Public Const EXPECTED_RELEASE As String = "v24.4"
+Private Const N_MODULES As Long = 24           ' v24.4: + modSmoke
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24.3.1"
+Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v24.3.1,frmNewPosting|v24.3.2,frmPostingEntry|v24.3.1,frmShiftSwitch|v24.3.1," & _
                                         "frmTimeOff|v24.3.1,frmLeave|v24.3.1,frmSickCall|v24.3.1,frmConvert|v24.3.1,frmEmployee|v24.3.1"
 
@@ -36,9 +37,11 @@ Private mBackupWarned As Boolean
 
 ' ---------------- SystemCheck ----------------
 ' Problems come first; the message stays short enough for one MsgBox.
-Public Sub SystemCheck()
-    On Error GoTo Oops                         ' v24.3.1: the first macro run after every install had no handler at all
-    Dim warn As String, info As String, nOk As Long
+' v24.4: the check itself; SystemCheck shows it, SystemCheckOK shows it and says whether it was clean
+' (the Install panel's "System check" step). An error inside raises to the caller's handler.
+Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String)
+    On Error GoTo Failed
+    Dim nOk As Long
 
     ' ---- modules: each one's version constant (a missing module won't compile) ----
     VerCheck "modOvertimeEntry", CORE_VERSION, warn, nOk
@@ -64,6 +67,7 @@ Public Sub SystemCheck()
     VerCheck "modErrorLog", EL_VERSION, warn, nOk
     VerCheck "modSmokeTest", SMK_VERSION, warn, nOk
     VerCheck "modOTLog", OTL_VERSION, warn, nOk               ' v24.3.1: live code (Void Entry, Add Adjustment, Rename), stamped at last
+    VerCheck "modSmoke", SMO_VERSION, warn, nOk               ' v24.4: the Install panel's pop-up openers
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
         warn = warn & "- ThisWorkbook code is older than " & THISWB_RELEASE & ": re-paste ThisWorkbook.txt" & vbNewLine
@@ -78,7 +82,7 @@ Public Sub SystemCheck()
         cnt = proj.VBComponents.Count
         If Err.Number <> 0 Then trusted = False
     End If
-    On Error GoTo Oops
+    On Error GoTo Failed
     If Not trusted Then
         info = info & "Forms / leftovers: not checked (VBA project access is off)" & vbNewLine
     Else
@@ -116,7 +120,7 @@ Public Sub SystemCheck()
     Dim lo As ListObject
     On Error Resume Next
     Set lo = ThisWorkbook.Worksheets(LOG_SHEET).ListObjects(LOG_TABLE)
-    On Error GoTo Oops
+    On Error GoTo Failed
     If lo Is Nothing Then
         warn = warn & "- OT Log table not found" & vbNewLine
     ElseIf Not LogLayoutCurrent(lo) Then
@@ -128,7 +132,7 @@ Public Sub SystemCheck()
     On Error Resume Next
     info = info & "Roster year: " & RosterYear() & " (" & (PeriodLastCol() - C_PERIOD1 + 1) & " pay periods from " & _
            Format$(RosterYearFrom(), "mmm d, yyyy") & ")" & vbNewLine
-    On Error GoTo Oops
+    On Error GoTo Failed
     If Not FolderExists(ResolveFolder(ARCHIVE_FOLDER)) Then
         warn = warn & "- archive folder for the year-end frozen copy can't be reached: " & ResolveFolder(ARCHIVE_FOLDER) & vbNewLine
     End If
@@ -162,7 +166,7 @@ Public Sub SystemCheck()
     Dim hu As Variant, nHU As Long, huTxt As String
     On Error Resume Next
     hu = BlankHomeUnits()
-    On Error GoTo Oops
+    On Error GoTo Failed
     If UCase$(Trim$(SafeStr(RosterSheet().Cells(2, C_HOME).Value))) <> "HOME UNIT" Then
         warn = warn & "- Home Unit column not set up: run SetupHomeUnit" & vbNewLine
     ElseIf IsArray(hu) Then
@@ -179,7 +183,7 @@ Public Sub SystemCheck()
     Dim nImp As Long
     On Error Resume Next
     nImp = ImportedNotBookedCount()
-    On Error GoTo Oops
+    On Error GoTo Failed
     If nImp > 0 Then warn = warn & "- " & nImp & " imported vacation line(s) in the next " & IMPORT_WATCH_DAYS & " days not booked yet: Convert imports" & vbNewLine
     ' v24: crew history and the Former sheet
     If CrewTable(False) Is Nothing Or FormerTable(False) Is Nothing Then
@@ -191,7 +195,7 @@ Public Sub SystemCheck()
     Dim pmRows As Variant, nPm As Long
     On Error Resume Next
     pmRows = PlannedRows()
-    On Error GoTo Oops
+    On Error GoTo Failed
     If IsArray(pmRows) Then nPm = UBound(pmRows, 1)
     info = info & "Planned unit moves waiting: " & nPm & vbNewLine
     If Not PostingListCurrent() Then warn = warn & "- posting lists need their Signup Hours column: run SetupPeople" & vbNewLine
@@ -218,6 +222,15 @@ Public Sub SystemCheck()
     If nUnseen > 0 Then warn = warn & "- " & nUnseen & " new line(s) in the Error Log: run ShowErrorLog" & vbNewLine
     If ThisWorkbook.ReadOnly Then warn = warn & "- This copy is read-only" & vbNewLine
 
+    Exit Sub
+Failed:
+    Err.Raise Err.Number, , Err.Description        ' up to SystemCheck / SystemCheckOK (their Oops)
+End Sub
+
+Public Sub SystemCheck()
+    On Error GoTo Oops                         ' v24.3.1: the first macro run after every install had no handler at all
+    Dim warn As String, info As String
+    SystemCheckBuild warn, info
     If Len(warn) > 700 Then warn = Left$(warn, InStrRev(Left$(warn, 700), vbNewLine)) & "- ...and more" & vbNewLine
     Dim msg As String
     If warn = "" Then
@@ -230,6 +243,21 @@ Public Sub SystemCheck()
 Oops:
     ReportError "SystemCheck"
 End Sub
+
+' v24.4: SystemCheck as a result, for the Install panel: True when nothing is under CHECK. The box is
+' still shown (the admin reads the lines); an error inside logs and returns False.
+Public Function SystemCheckOK() As Boolean
+    On Error GoTo Oops
+    Dim warn As String, info As String
+    SystemCheckBuild warn, info
+    If Len(warn) > 700 Then warn = Left$(warn, InStrRev(Left$(warn, 700), vbNewLine)) & "- ...and more" & vbNewLine
+    MsgBox IIf(warn = "", "Everything looks right.", "CHECK:" & vbNewLine & warn) & vbNewLine & vbNewLine & info, _
+           IIf(warn = "", vbInformation, vbExclamation), "System check  (" & EXPECTED_RELEASE & ")"
+    SystemCheckOK = (warn = "")
+    Exit Function
+Oops:
+    ReportError "SystemCheckOK"
+End Function
 
 Private Sub VerCheck(ByVal modName As String, ByVal ver As String, ByRef warn As String, ByRef nOk As Long)
     If InStr(ver, EXPECTED_RELEASE) > 0 Then

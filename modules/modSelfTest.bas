@@ -20,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v24.3.3 (Oct 14)"
+Public Const ST_VERSION As String = "Self test v24.4 (Oct 14)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -33,14 +33,15 @@ Private mHits As Long               ' the rename helpers count their replacement
 
 
 ' ---------------- entry ----------------
-Public Sub SelfTest()
+' v24.4: the run itself, shared by SelfTest (Alt+F8) and SelfTestOK (the Install panel's step). True = every case passed.
+Private Function SelfTestRun() As Boolean
     Dim i As Long, f() As String, actual As String, expected As String
     Dim nPass As Long, nFail As Long, fails As String, suite As String
     Dim bySuite As Object: Set bySuite = CreateObject("Scripting.Dictionary")
     On Error GoTo Finally                      ' v24.3.1: from the first line (LoadCases was outside it)
     mN = 0
     LoadCases
-    If mN = 0 Then MsgBox "No test cases found in modSelfTest.", vbExclamation: Exit Sub
+    If mN = 0 Then MsgBox "No test cases found in modSelfTest.", vbExclamation: Exit Function
 
     SetTestCrewHistory Empty                ' v24: no case reads the Crew History sheet
     For i = 1 To mN
@@ -90,7 +91,25 @@ Finally:
     If fails <> "" Then msg = msg & vbNewLine & "Failed:" & vbNewLine & fails
     msg = msg & vbNewLine & "Nothing was written or saved. (" & ST_VERSION & ")"
     MsgBox msg, IIf(nFail = 0 And em = "", vbInformation, vbExclamation), "Self test"
+    SelfTestRun = (nFail = 0 And em = "" And mN > 0)
+End Function
+
+Public Sub SelfTest()
+    On Error GoTo Oops
+    SelfTestRun
+    Exit Sub
+Oops:
+    ReportError "SelfTest"
 End Sub
+
+' v24.4: the same run as a result, for the Install panel
+Public Function SelfTestOK() As Boolean
+    On Error GoTo Oops
+    SelfTestOK = SelfTestRun()
+    Exit Function
+Oops:
+    ReportError "SelfTestOK"
+End Function
 
 
 ' ---------------- one case ----------------

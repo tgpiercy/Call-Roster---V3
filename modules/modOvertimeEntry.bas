@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v24.3.3 (Oct 14)"
+Public Const CORE_VERSION As String = "Core v24.4 (Oct 14)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -1214,6 +1214,14 @@ End Sub
 ' In admin view every sheet except the OT Log stays unprotected (as the old
 ' password login did), so admins can edit grades, shifts, postings etc.
 Public Sub ProtectSheet(ByVal ws As Worksheet)
+    ' v24.4: the Install Log is written by the Roster Updater from outside this workbook, which has no
+    ' password: it is never protected (admin-only through ApplyView, like the Error Log)
+    If ws.Name = IL_SHEET Then
+        On Error Resume Next
+        ws.Unprotect Password:=SHEET_PASSWORD
+        On Error GoTo 0
+        Exit Sub
+    End If
     If gAdminUnlocked And ws.Name <> LOG_SHEET And Not IsYearEndSheet(ws.Name) Then
         ws.Unprotect Password:=SHEET_PASSWORD
         Exit Sub
@@ -1240,7 +1248,7 @@ End Sub
 Public Sub ApplyView(ByVal adminView As Boolean)
     gAdminUnlocked = adminView
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET)   ' absences hold leave types - admin only
+    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4
         If SheetExists(CStr(nm)) Then
             If adminView Then
                 ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible

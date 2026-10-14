@@ -134,6 +134,12 @@ Private Function RunCase(f() As String) As String
             RunCase = FmtD(IIf(i2 = "fall", DstFallBack(CLng(i1)), DstSpringForward(CLng(i1))))
         Case "dsthours"
             RunCase = NumText(DstNightHours(ParseD(i1)))
+        Case "crewsoff"                            ' v25
+            RunCase = CrewsOff(ParseD(i1))
+        Case "shifthours"                          ' v25
+            RunCase = NumText(DefaultShiftHours(ParseD(i1), (i2 = "night"), USUAL_SHIFT_HOURS))
+        Case "accepted"                            ' v25
+            RunCase = NumText(AcceptedHours(CDbl(i1), CDbl(i2)))
         Case "callorder"
             RunCase = CaseCallOrder(i1)
         Case "listinsert"                          ' v24.3.1: frozen list in its order, newcomer -> index 1..n+1
@@ -1194,5 +1200,16 @@ Private Sub LoadCases()
     AddCase "planhours,another-mover-is-not-a-peer,10,1:Y:10;1:Y:900;2:N:60,,,,60"
     AddCase "planhours,grade-3-is-not-a-peer,40,3:N:900;2:N:50,,,,50"
     AddCase "planhours,nobody-to-match-keeps-own,40,3:N:900,,,,40"
+    AddCase "crewsoff,anchor-day1,2025-12-28,,,,,C/D"
+    AddCase "crewsoff,day2,2025-12-29,,,,,A/B"
+    AddCase "crewsoff,oct14-2026,2026-10-14,,,,,A/B"
+    AddCase "shifthours,fall-night,2026-10-31,night,,,,13"
+    AddCase "shifthours,spring-night,2026-03-07,night,,,,11"
+    AddCase "shifthours,fall-day,2026-10-31,day,,,,12"
+    AddCase "shifthours,plain-night,2026-06-01,night,,,,12"
+    AddCase "accepted,part,12,8,,,,8"
+    AddCase "accepted,whole,12,12,,,,12"
+    AddCase "accepted,zero,12,0,,,,12"
+    AddCase "accepted,over,12,15,,,,12"
 ' <<< CASES
 End Sub

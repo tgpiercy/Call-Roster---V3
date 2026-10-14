@@ -431,3 +431,14 @@ planhours,own-entry-is-not-a-peer,10,1:Y:10;1:N:55.25,,,,55.25
 planhours,another-mover-is-not-a-peer,10,1:Y:10;1:Y:900;2:N:60,,,,60
 planhours,grade-3-is-not-a-peer,40,3:N:900;2:N:50,,,,50
 planhours,nobody-to-match-keeps-own,40,3:N:900,,,,40
+crewsoff,anchor-day1,2025-12-28,,,,,C/D
+crewsoff,day2,2025-12-29,,,,,A/B
+crewsoff,oct14-2026,2026-10-14,,,,,A/B
+shifthours,fall-night,2026-10-31,night,,,,13
+shifthours,spring-night,2026-03-07,night,,,,11
+shifthours,fall-day,2026-10-31,day,,,,12
+shifthours,plain-night,2026-06-01,night,,,,12
+accepted,part,12,8,,,,8
+accepted,whole,12,12,,,,12
+accepted,zero,12,0,,,,12
+accepted,over,12,15,,,,12

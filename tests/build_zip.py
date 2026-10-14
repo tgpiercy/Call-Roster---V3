@@ -31,9 +31,15 @@ def main() -> int:
     ).stdout.split()
     # files in the working tree that are not committed yet also count
     pending = subprocess.run(
-        ["git", "status", "--porcelain", "--", "modules", "paste-in", "member"],
+        ["git", "status", "--porcelain", "--", "modules", "paste-in", "member", "updater", "briefs", "docs", "tests"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout.splitlines()
+    # v25 (T10): a release zip is built from a committed tree, so the tag names exactly what shipped
+    if pending and "--allow-dirty" not in sys.argv:
+        raise SystemExit("the tree has uncommitted changes: commit them (or pass --allow-dirty for a scratch zip):
+  "
+                         + "
+  ".join(pending))
     for ln in pending:
         changed.append(ln[3:].strip())
     files = sorted({p for p in changed if (ROOT / p).is_file()})
@@ -59,7 +65,14 @@ def main() -> int:
                 raise SystemExit(f"{p}: not CRLF")
             data.decode("ascii")
             z.writestr(top + p.replace("\\", "/"), data)
-        z.writestr(top + "INSTALL.md", install.read_bytes())
+        describe = subprocess.run(["git", "describe", "--tags", "--always", "--dirty"], cwd=ROOT,
+                                  capture_output=True, text=True, check=True).stdout.strip()
+        stamp = f"
+
+---
+Built from `{describe}` by tests/build_zip.py.
+"      # v25 (T11): the note names the commit it came from
+        z.writestr(top + "INSTALL.md", install.read_bytes() + stamp.encode("ascii"))
         if steps is not None:
             z.writestr(top + "install-steps.txt", steps)
     print(f"{out.relative_to(ROOT)}: {len(files)} code files + INSTALL.md" + (" + install-steps.txt" if steps else ""))

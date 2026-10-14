@@ -119,6 +119,12 @@ def evaluate(row: dict) -> str:
         return iso(rules.dst_fall_back(int(i1)) if i2 == "fall" else rules.dst_spring_forward(int(i1)))
     if suite == "dsthours":                      # date -> 13 / 11 / 12
         return fmt_num(rules.dst_night_hours(d(i1)))
+    if suite == "crewsoff":                      # date -> the crews off that day, e.g. C/D (v25)
+        return rules.crews_off(d(i1))
+    if suite == "shifthours":                    # date, day|night -> the default hours (v25)
+        return fmt_num(rules.default_shift_hours(d(i1), i2 == "night"))
+    if suite == "accepted":                      # offer, taken -> hours accepted (v25)
+        return fmt_num(rules.accepted_hours(float(i1), float(i2)))
     if suite == "callorder":                     # people -> names in order
         return "/".join(e.name for e in rules.call_order(parse_people(i1)))
     if suite == "listinsert":                    # frozen list in its order, newcomer -> index 1..n+1

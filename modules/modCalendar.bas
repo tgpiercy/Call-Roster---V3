@@ -373,8 +373,10 @@ Private Function GetOrMakeTable(ByVal sh As String, ByVal tn As String, ByVal cr
     End If
     If lo Is Nothing And create Then
         If ws Is Nothing Then
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = sh
+            RelockStructure
             ws.Tab.Color = tabCol
         End If
         UnlockSheet ws
@@ -1407,7 +1409,7 @@ Public Sub ShowCalendar()
         SyncSwitchesToCalendar           ' switches logged before the calendar existed
         On Error GoTo Oops
     End If
-    ws.Visible = xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible
     ws.Activate                          ' the tab-switch check runs here (ThisWorkbook)
     If CalStale() Then DrawCalendar Else SetCalHint ws
     Exit Sub
@@ -1537,14 +1539,18 @@ End Function
 Private Function CalendarSheet() As Worksheet
     If Not SheetExists(CAL_SHEET) Then
         Dim ws As Worksheet
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=RosterSheet())
         ws.Name = CAL_SHEET
+        RelockStructure
     End If
     If Not SheetExists(MAP_SHEET) Then
         Dim m As Worksheet
+        UnlockStructure                                 ' v25: structure protection
         Set m = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         m.Name = MAP_SHEET
-        m.Visible = xlSheetVeryHidden
+        RelockStructure
+        SetSheetVisible m, xlSheetVeryHidden
     End If
     Set CalendarSheet = ThisWorkbook.Worksheets(CAL_SHEET)
     CalendarSheet.Tab.Color = thGreen()
@@ -3105,8 +3111,10 @@ End Function
 Private Function NeedsSheet() As Worksheet
     If Not SheetExists(NA_SHEET) Then
         Dim ws As Worksheet
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=CalendarSheet())
         ws.Name = NA_SHEET
+        RelockStructure
     End If
     Set NeedsSheet = ThisWorkbook.Worksheets(NA_SHEET)
     NeedsSheet.Tab.Color = thOpen()
@@ -3117,7 +3125,7 @@ Public Sub ShowNeedsAttention()
     If Not RequireAdmin() Then Exit Sub
     CalendarSheet
     Dim ws As Worksheet: Set ws = NeedsSheet()
-    ws.Visible = xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible
     ws.Activate                          ' the tab-switch check runs here (ThisWorkbook)
     If NAStale() Then DrawNeeds
     Exit Sub

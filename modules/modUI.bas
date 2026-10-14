@@ -147,7 +147,9 @@ End Sub
 Private Sub RenameRosterTab(ByVal ws As Worksheet)
     If ws.Name = ROSTER_SHEET Then Exit Sub
     If SheetExists(ROSTER_SHEET) Then Exit Sub    ' name taken - leave it
+    UnlockStructure
     ws.Name = ROSTER_SHEET
+    RelockStructure
 End Sub
 
 

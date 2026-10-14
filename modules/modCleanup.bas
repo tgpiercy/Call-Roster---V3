@@ -69,11 +69,11 @@ Public Sub RemoveOldSheets()
     Application.DisplayAlerts = False
     For Each nm In targets
         If SheetExists(CStr(nm)) Then
-            With ThisWorkbook.Worksheets(CStr(nm))
-                UnlockSheet ThisWorkbook.Worksheets(CStr(nm))
-                .Visible = xlSheetVisible
-                .Delete
-            End With
+            UnlockSheet ThisWorkbook.Worksheets(CStr(nm))
+            UnlockStructure                                 ' v25: structure protection
+            ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible
+            ThisWorkbook.Worksheets(CStr(nm)).Delete
+            RelockStructure
             nSheets = nSheets + 1
         End If
     Next nm

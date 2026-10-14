@@ -128,8 +128,10 @@ Private Sub CreatePostingTables()
     If SheetExists(POSTINGS_SHEET) Then
         Set ws = ThisWorkbook.Worksheets(POSTINGS_SHEET)
     Else
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(LOG_SHEET))
         ws.Name = POSTINGS_SHEET
+        RelockStructure
         ws.Tab.Color = RGB(0, 128, 70)
     End If
     UnlockSheet ws
@@ -235,7 +237,7 @@ Sub GoToPostingSheet()
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     If Not SheetExists(POSTING_SHEET) Then MsgBox "Sheet '" & POSTING_SHEET & "' not found.": Exit Sub
-    ThisWorkbook.Worksheets(POSTING_SHEET).Visible = xlSheetVisible
+    SetSheetVisible ThisWorkbook.Worksheets(POSTING_SHEET), xlSheetVisible
     ThisWorkbook.Worksheets(POSTING_SHEET).Activate
     Exit Sub
 Oops:
@@ -426,7 +428,7 @@ Private Function OutputPosting(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
 
     ' a hidden sheet can't print or export - show it for a moment if needed
     Dim wasVis As XlSheetVisibility: wasVis = ws.Visible
-    If (doPrint Or doPdf) And wasVis <> xlSheetVisible Then ws.Visible = xlSheetVisible
+    If (doPrint Or doPdf) And wasVis <> xlSheetVisible Then SetSheetVisible ws, xlSheetVisible
 
     Dim em As String
     If doPdf Then
@@ -450,9 +452,9 @@ Private Function OutputPosting(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
         End If
     End If
 
-    If ws.Visible <> wasVis And Not doView Then ws.Visible = wasVis
+    If ws.Visible <> wasVis And Not doView Then SetSheetVisible ws, wasVis
     If doView Then
-        ws.Visible = xlSheetVisible
+        SetSheetVisible ws, xlSheetVisible
         ws.Activate
         On Error Resume Next
         ActiveWindow.DisplayGridlines = False
@@ -506,8 +508,10 @@ End Function
 Private Function PostingSheet() As Worksheet
     If Not SheetExists(POSTING_SHEET) Then
         Dim ws As Worksheet
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=RosterSheet())
         ws.Name = POSTING_SHEET
+        RelockStructure
     End If
     Set PostingSheet = ThisWorkbook.Worksheets(POSTING_SHEET)
 End Function

@@ -325,7 +325,7 @@ Public Sub RefusalsReport()
 
     ' ---- the sheet ----
     Set ws = ReportSheet()
-    ws.Visible = xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible
     UnlockSheet ws
     ws.Cells.Clear
     Const NC As Long = 8
@@ -434,8 +434,10 @@ Private Function ReportSheet() As Worksheet
     If Not SheetExists(REFUSAL_SHEET) Then
         Dim was As Object: Set was = ActiveSheet
         Dim ws As Worksheet
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = REFUSAL_SHEET
+        RelockStructure
         ws.Tab.Color = RGB(30, 56, 100)
         On Error Resume Next
         If Not was Is Nothing Then was.Activate

@@ -469,8 +469,10 @@ Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As L
     End If
     If lo Is Nothing And create Then
         If ws Is Nothing Then
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = HH_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(96, 125, 139)
         End If
         UnlockSheet ws

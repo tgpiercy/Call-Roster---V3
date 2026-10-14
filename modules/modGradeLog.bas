@@ -194,7 +194,7 @@ Public Sub RefreshGradeSnapshot()
         If n > 0 Then ws.Range("A2").Resize(n, 9).Value = outA
     End If
     ProtectSheet ws
-    ws.Visible = xlSheetVeryHidden
+    SetSheetVisible ws, xlSheetVeryHidden
     Application.EnableEvents = evWas
     Exit Sub
 Quit:
@@ -209,9 +209,11 @@ Private Function SnapSheet(ByVal create As Boolean) As Worksheet
     ElseIf create Then
         Dim ws As Worksheet, was As Object
         Set was = ActiveSheet                      ' adding a sheet activates it - put the user back
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = GS_SHEET
-        ws.Visible = xlSheetVeryHidden
+        RelockStructure
+        SetSheetVisible ws, xlSheetVeryHidden
         On Error Resume Next
         If Not was Is Nothing Then was.Activate
         On Error GoTo 0
@@ -248,8 +250,10 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
     If lo Is Nothing And create Then
         If ws Is Nothing Then
             Dim was As Object: Set was = ActiveSheet       ' adding a sheet activates it - put the user back
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = GL_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(96, 125, 139)
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
@@ -267,7 +271,7 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
         ws.Columns("F").ColumnWidth = 14
         ws.Columns("A").NumberFormat = "mmm d, yyyy h:mm AM/PM"
         ProtectSheet ws
-        ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
     Set GradeLogTable = lo
 End Function
@@ -313,10 +317,8 @@ Public Sub ShowGradeLog()
         MsgBox "The Grade Log couldn't be created (is the file read-only?).", vbExclamation
         Exit Sub
     End If
-    With ThisWorkbook.Worksheets(GL_SHEET)
-        .Visible = xlSheetVisible
-        .Activate
-    End With
+    SetSheetVisible ThisWorkbook.Worksheets(GL_SHEET), xlSheetVisible
+    ThisWorkbook.Worksheets(GL_SHEET).Activate
     Exit Sub
 Oops:
     ReportError "ShowGradeLog"

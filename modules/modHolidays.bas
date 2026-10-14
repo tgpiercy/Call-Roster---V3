@@ -243,8 +243,10 @@ Public Function HolidayTable(Optional ByVal create As Boolean = False) As ListOb
     End If
     If lo Is Nothing And create Then
         If ws Is Nothing Then
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = HOL_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(176, 0, 32)
         End If
         UnlockSheet ws
@@ -360,10 +362,8 @@ Public Sub ShowHolidays()
         MsgBox "The Holidays sheet couldn't be created (is the file read-only?).", vbExclamation
         Exit Sub
     End If
-    With ThisWorkbook.Worksheets(HOL_SHEET)
-        .Visible = xlSheetVisible
-        .Activate
-    End With
+    SetSheetVisible ThisWorkbook.Worksheets(HOL_SHEET), xlSheetVisible
+    ThisWorkbook.Worksheets(HOL_SHEET).Activate
     Exit Sub
 Fail:
     MsgBox "The Holidays sheet couldn't be opened: " & Err.Description, vbExclamation
@@ -376,7 +376,7 @@ Public Sub GoToHoliday(ByVal d As Date)
     EnsureHolidayYears Year(d), Year(d)
     Dim lo As ListObject: Set lo = HolidayTable(False)
     If lo Is Nothing Then Exit Sub
-    ThisWorkbook.Worksheets(HOL_SHEET).Visible = xlSheetVisible
+    SetSheetVisible ThisWorkbook.Worksheets(HOL_SHEET), xlSheetVisible
     ThisWorkbook.Worksheets(HOL_SHEET).Activate
     If lo.DataBodyRange Is Nothing Then Exit Sub
     Dim r As Long, v As Variant: v = RangeTo2D(lo.DataBodyRange)

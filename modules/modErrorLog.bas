@@ -53,8 +53,10 @@ Public Function ErrorLogTable(Optional ByVal create As Boolean = False) As ListO
     If lo Is Nothing And create Then
         If ws Is Nothing Then
             Dim was As Object: Set was = ThisWorkbook.ActiveSheet     ' adding a sheet activates it - put the user back
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = EL_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(176, 0, 32)
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
@@ -74,7 +76,7 @@ Public Function ErrorLogTable(Optional ByVal create As Boolean = False) As ListO
         ws.Columns(7).ColumnWidth = 7
         ws.Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
         ProtectSheet ws
-        ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
     Set ErrorLogTable = lo
 End Function
@@ -201,7 +203,7 @@ Public Sub ShowErrorLog()
     If lo Is Nothing Then Exit Sub
     Set ws = lo.Parent
     n = UnseenErrorCount()
-    ws.Visible = xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible
     ws.Activate
     If n > 0 And Not lo.DataBodyRange Is Nothing Then
         v = RangeTo2D(lo.ListColumns(EL_SEEN).DataBodyRange)

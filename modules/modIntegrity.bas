@@ -785,11 +785,13 @@ Public Sub DrawIntegritySheet(Optional ByVal fromCode As Boolean = True)
     If SheetExists(IC_SHEET) Then
         Set ws = ThisWorkbook.Worksheets(IC_SHEET)
     Else
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = IC_SHEET
+        RelockStructure
         ws.Tab.Color = RGB(176, 0, 32)
     End If
-    ws.Visible = xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible
     UnlockSheet ws
     ws.Cells.Clear
     ws.Range("A1").Value = "INTEGRITY CHECK  -  " & Format$(mRanAt, "ddd mmm d, yyyy h:mm AM/PM")

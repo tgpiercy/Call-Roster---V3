@@ -91,8 +91,10 @@ Private Function CreateSwitchTable() As ListObject
     If SheetExists(SS_SHEET) Then
         Set ws = ThisWorkbook.Worksheets(SS_SHEET)
     Else
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = SS_SHEET
+        RelockStructure
         ws.Tab.Color = RGB(180, 100, 0)
     End If
     UnlockSheet ws

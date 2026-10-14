@@ -503,8 +503,10 @@ Private Function AttendanceSheet(ByVal create As Boolean) As Worksheet
         Set AttendanceSheet = ThisWorkbook.Worksheets(AT_SHEET)
     ElseIf create Then
         Dim ws As Worksheet
+        UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = AT_SHEET
+        RelockStructure
         ws.Tab.Color = RGB(230, 81, 0)
         Set AttendanceSheet = ws
     End If
@@ -585,7 +587,7 @@ Public Sub ShowAttendance()
     On Error GoTo Failed
     Set ws = AttendanceSheet(True)
     If ws Is Nothing Then Err.Raise vbObjectError + 701, , "the sheet couldn't be created (is the workbook structure protected?)"
-    ws.Visible = xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible
     UnlockSheet ws
     If ws.AutoFilterMode Then ws.AutoFilterMode = False
     ws.Cells.Clear

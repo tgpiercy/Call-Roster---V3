@@ -306,8 +306,10 @@ Public Function CrewTable(Optional ByVal create As Boolean = False) As ListObjec
     If lo Is Nothing And create Then
         If ws Is Nothing Then
             Dim was As Object: Set was = ActiveSheet       ' adding a sheet activates it - put the user back
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = CH_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(96, 125, 139)
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
@@ -327,7 +329,7 @@ Public Function CrewTable(Optional ByVal create As Boolean = False) As ListObjec
         ws.Columns(CH_FROM).NumberFormat = "ddd mmm d, yyyy"
         ws.Columns(CH_STAMP).NumberFormat = "mmm d, yyyy h:mm AM/PM"
         ProtectSheet ws
-        ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
     Set CrewTable = lo
 End Function
@@ -1002,8 +1004,10 @@ Public Function FormerTable(Optional ByVal create As Boolean = False) As ListObj
     If lo Is Nothing And create Then
         If ws Is Nothing Then
             Dim was As Object: Set was = ActiveSheet
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = FM_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(96, 125, 139)
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
@@ -1031,7 +1035,7 @@ Public Function FormerTable(Optional ByVal create As Boolean = False) As ListObj
         ws.Rows(1).WrapText = True
         FormatFormer ws
         ProtectSheet ws
-        ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
     If Not lo Is Nothing And create Then EnsureFormerColumns lo      ' never from a read (IntegrityCheck, SystemCheck)
     Set FormerTable = lo
@@ -1821,8 +1825,10 @@ Public Function PlannedTable(Optional ByVal create As Boolean = False) As ListOb
     If lo Is Nothing And create Then
         If ws Is Nothing Then
             Dim was As Object: Set was = ActiveSheet       ' adding a sheet activates it - put the user back
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = PM_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(96, 125, 139)
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
@@ -1845,7 +1851,7 @@ Public Function PlannedTable(Optional ByVal create As Boolean = False) As ListOb
         ws.Columns(PM_STAMP).NumberFormat = "mmm d, yyyy h:mm AM/PM"
         ws.Columns(PM_CLOSED).NumberFormat = "mmm d, yyyy"
         ProtectSheet ws
-        ws.Visible = IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
     Set PlannedTable = lo
 End Function

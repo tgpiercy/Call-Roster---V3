@@ -115,8 +115,10 @@ End Sub
 
 Private Sub CreateLogSheet()
     Dim ws As Worksheet
+    UnlockStructure                                 ' v25: structure protection
     Set ws = ThisWorkbook.Worksheets.Add(After:=RosterSheet())
     ws.Name = LOG_SHEET
+    RelockStructure
     ws.Range("A1").Resize(1, L_NCOLS).Value = LogHeaders()
 
     Dim lo As ListObject
@@ -202,15 +204,19 @@ Private Function CleanupSheetsAndNames() As String
     Application.DisplayAlerts = False
 
     If SheetExists("Posted Roster") Then
-        ThisWorkbook.Worksheets("Posted Roster").Visible = xlSheetVisible
+        SetSheetVisible ThisWorkbook.Worksheets("Posted Roster"), xlSheetVisible
+        UnlockStructure
         ThisWorkbook.Worksheets("Posted Roster").Delete
+        RelockStructure
         msg = msg & "Removed: Posted Roster" & vbNewLine
     End If
 
     If SheetExists("Notes") Then
         If Application.WorksheetFunction.CountA(ThisWorkbook.Worksheets("Notes").UsedRange) = 0 Then
-            ThisWorkbook.Worksheets("Notes").Visible = xlSheetVisible
+            SetSheetVisible ThisWorkbook.Worksheets("Notes"), xlSheetVisible
+            UnlockStructure
             ThisWorkbook.Worksheets("Notes").Delete
+            RelockStructure
             msg = msg & "Removed: Notes (empty)" & vbNewLine
         End If
     End If
@@ -220,19 +226,25 @@ Private Function CleanupSheetsAndNames() As String
         If SheetExists(CStr(nm)) Then
             Set ws = ThisWorkbook.Worksheets(CStr(nm))
             If Application.WorksheetFunction.CountA(ws.Range("A2:Z100000")) = 0 Then
-                ws.Visible = xlSheetVisible
+                SetSheetVisible ws, xlSheetVisible
+                UnlockStructure
                 ws.Delete
+                RelockStructure
                 msg = msg & "Removed: " & nm & " (empty, replaced by OT Log)" & vbNewLine
             Else
+                UnlockStructure
                 ws.Name = "Legacy " & CStr(nm)
+                RelockStructure
                 msg = msg & "Kept as 'Legacy " & nm & "' (it had rows)" & vbNewLine
             End If
         End If
     Next nm
 
     If SheetExists("Entry Log") Then
+        UnlockStructure
         ThisWorkbook.Worksheets("Entry Log").Name = "Legacy Entry Log"
-        ThisWorkbook.Worksheets("Legacy Entry Log").Visible = xlSheetVeryHidden
+        RelockStructure
+        SetSheetVisible ThisWorkbook.Worksheets("Legacy Entry Log"), xlSheetVeryHidden
         msg = msg & "Renamed: Entry Log -> Legacy Entry Log (still hidden, history kept)" & vbNewLine
     End If
 

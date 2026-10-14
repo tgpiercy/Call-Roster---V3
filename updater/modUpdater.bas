@@ -1250,7 +1250,13 @@ Public Sub InstallShowLog()
     On Error GoTo Oops
     Dim wb As Workbook: Set wb = InstTarget()
     If wb Is Nothing Then Exit Sub
-    Dim why As String
+    Dim why As String, en As Long
+    ' v25: the roster's structure is protected, so the roster shows the sheet itself (ShowInstallLog)
+    On Error Resume Next
+    Application.Run "'" & Replace(wb.Name, "'", "''") & "'!ShowInstallLog"
+    en = Err.Number
+    On Error GoTo Oops
+    If en = 0 Then Exit Sub
     Dim lo As Object: Set lo = InstEnsureLog(wb, why)
     If lo Is Nothing Then MsgBox why, vbExclamation, INST_TITLE: Exit Sub
     wb.Activate
@@ -1400,6 +1406,11 @@ Private Function InstEnsureLog(ByVal wb As Workbook, ByRef why As String) As Obj
     Set ws = wb.Worksheets(INST_LOG_SHEET)
     On Error GoTo 0
     If ws Is Nothing Then
+        If wb.ProtectStructure Then                   ' v25: only the roster's own code can add a sheet now
+            why = "The roster has no " & INST_LOG_SHEET & " sheet yet and its structure is protected (v25): open it in ADMIN view once " & _
+                  "(it makes the sheet at open), then click the step again."
+            Exit Function
+        End If
         Dim evWas As Boolean: evWas = Application.EnableEvents
         Dim wasSaved As Boolean: wasSaved = wb.Saved
         Dim actWas As Object: Set actWas = ActiveSheet

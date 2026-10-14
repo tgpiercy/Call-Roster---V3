@@ -306,6 +306,50 @@ Private Function FormMarker(ByVal proj As Object, ByVal formName As String) As S
     FormMarker = "no version line (before v20)"
 End Function
 
+' ---------------- the Install Log sheet (v25) ----------------
+' The Install panel (Roster Updater.xlsm, v24.4) writes one row per install step to this sheet.
+' Under structure protection (v25) the updater can't add a sheet, so the roster makes it on an
+' admin open (ApplyView) with the same layout the updater used: tblInstallLog, very hidden,
+' never protected (ProtectSheet skips IL_SHEET).
+Public Sub EnsureInstallLog()
+    If SheetExists(IL_SHEET) Then Exit Sub
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    On Error GoTo Oops
+    UnlockStructure
+    Dim actWas As Object: Set actWas = ActiveSheet
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+    ws.Name = IL_SHEET
+    ws.Range("A1:G1").Value = Array("Version", "Step", "Kind", "Status", "When", "User", "Note")
+    ws.Range("A1:G1").Font.Bold = True
+    Dim lo As ListObject
+    Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1:G1"), , xlYes)
+    lo.Name = "tblInstallLog"
+    ws.Columns("A:G").ColumnWidth = 18: ws.Columns("B").ColumnWidth = 60: ws.Columns("G").ColumnWidth = 70
+    SetSheetVisible ws, xlSheetVeryHidden
+    RelockStructure
+    On Error Resume Next
+    actWas.Activate
+    Exit Sub
+Oops:
+    LogError "EnsureInstallLog", Err.Number, Err.Description
+    On Error Resume Next
+    RelockStructure
+    actWas.Activate
+End Sub
+
+' v25: the Install panel's "Show the log" calls this (it can't show a sheet under structure protection)
+Public Sub ShowInstallLog()
+    On Error GoTo Oops
+    If Not SheetExists(IL_SHEET) Then EnsureInstallLog
+    If Not SheetExists(IL_SHEET) Then Exit Sub
+    SetSheetVisible ThisWorkbook.Worksheets(IL_SHEET), xlSheetVisible
+    ThisWorkbook.Worksheets(IL_SHEET).Activate
+    Exit Sub
+Oops:
+    ReportError "ShowInstallLog"
+End Sub
+
 ' ---------------- a practice copy (v24.2) ----------------
 ' Alt+F8 > MakePracticeCopy (admin): saves "<name> COPY <date time>.xlsm" in a
 ' Practice folder beside the roster, puts a copy of the members' template next

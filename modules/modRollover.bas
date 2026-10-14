@@ -430,8 +430,10 @@ Private Function YearEndTable(ByVal create As Boolean) As ListObject
     End If
     If lo Is Nothing And create Then
         If ws Is Nothing Then
+            UnlockStructure                                 ' v25: structure protection
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = YE_SHEET
+            RelockStructure
             ws.Tab.Color = RGB(96, 125, 139)
         End If
         UnlockSheet ws
@@ -649,8 +651,10 @@ End Function
 ' named tblOTLog2026. arc = the rows (or Empty when nArc = 0).
 Private Sub MakeArchiveSheet(ByVal lo As ListObject, ByVal arcName As String, ByVal y As Long, ByRef arc As Variant, ByVal nArc As Long)
     Dim wa As Worksheet, la As ListObject
+    UnlockStructure                                 ' v25: structure protection
     Set wa = ThisWorkbook.Worksheets.Add(After:=lo.Parent)
     wa.Name = arcName
+    RelockStructure
     wa.Tab.Color = RGB(120, 130, 140)
     wa.Range("A1").Resize(1, L_NCOLS).Value = LogHeaders()
     If nArc > 0 Then

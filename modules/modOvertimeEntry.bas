@@ -1292,6 +1292,31 @@ Public Sub ProtectAll()
     For Each ws In ThisWorkbook.Worksheets
         ProtectSheet ws
     Next ws
+    RelockStructure                                 ' v25: and the tabs themselves
+End Sub
+
+' v25 (R4 / the 2.7 design): the workbook's STRUCTURE is protected too - a tab can't be renamed,
+' moved, deleted or hidden by hand (a renamed OT Log would break every SUMIFS). Code that adds,
+' removes, renames or shows / hides a sheet goes through this pair (both idempotent, no password
+' outside the roster: the updater asks the roster's own macros).
+Public Sub UnlockStructure()
+    On Error Resume Next
+    ThisWorkbook.Unprotect Password:=SHEET_PASSWORD
+    On Error GoTo 0
+End Sub
+
+Public Sub RelockStructure()
+    On Error Resume Next
+    If Not ThisWorkbook.ProtectStructure Then ThisWorkbook.Protect Password:=SHEET_PASSWORD, Structure:=True
+    On Error GoTo 0
+End Sub
+
+' v25: show / hide a sheet under structure protection
+Public Sub SetSheetVisible(ByVal ws As Worksheet, ByVal state As Long)
+    If ws.Visible = state Then Exit Sub
+    UnlockStructure
+    ws.Visible = state
+    RelockStructure
 End Sub
 
 ' Admin view shows the admin sheets and phone numbers; everyone else doesn't see them.
@@ -1302,13 +1327,10 @@ Public Sub ApplyView(ByVal adminView As Boolean)
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4
         If SheetExists(CStr(nm)) Then
-            If adminView Then
-                ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVisible
-            Else
-                ThisWorkbook.Worksheets(CStr(nm)).Visible = xlSheetVeryHidden
-            End If
+            SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(adminView, xlSheetVisible, xlSheetVeryHidden)
         End If
     Next nm
+    If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; under structure protection only the roster can make it
     Dim rs As Worksheet: Set rs = RosterSheet()
     UnlockSheet rs
     LockRosterCells rs, adminView                   ' v25 (R4)

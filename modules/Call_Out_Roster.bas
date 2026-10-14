@@ -32,7 +32,7 @@ Sub Call_Out()
     On Error GoTo Failed
     RenderCalloutRoster ws, nPeople, nUnits
     On Error GoTo 0
-    ws.Visible = xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible
     ws.Activate
     On Error Resume Next
     ActiveWindow.DisplayGridlines = False

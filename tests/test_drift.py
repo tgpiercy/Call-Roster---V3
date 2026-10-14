@@ -94,6 +94,7 @@ def test_only_unlocksheet_unprotects():
         for i, ln in enumerate(p.read_text(encoding="ascii").splitlines(), 1):
             if "Unprotect Password:=SHEET_PASSWORD" in ln:
                 hits.append(f"{p.name}:{i}")
-    assert hits == ["modOvertimeEntry.bas:" + hits[0].split(":")[1]] and len(hits) == 1, hits
+    # UnlockSheet (a sheet) and UnlockStructure (the workbook's tabs) are the two allowed lines
+    assert len(hits) == 2 and all(h.startswith("modOvertimeEntry.bas:") for h in hits), hits
     src = (MODULES / "modOvertimeEntry.bas").read_text(encoding="ascii")
-    assert "Public Sub UnlockSheet(" in src
+    assert "Public Sub UnlockSheet(" in src and "Public Sub UnlockStructure(" in src

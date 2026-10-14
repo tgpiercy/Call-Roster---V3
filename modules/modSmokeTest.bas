@@ -180,7 +180,7 @@ Private Function SmkName(ByVal k As Long) As String
         Case 6: SmkName = "shift switch"
         Case 7: SmkName = "crew change from a date"
         Case 8: SmkName = "move to another unit"
-        Case 9: SmkName = "plan a unit move for tomorrow, cancel it through a filtered list, cancel that posting"
+        Case 9: SmkName = "plan a unit move for tomorrow (+ crew, old-unit posting), cancel it through a filtered list, cancel the postings"
         Case 10: SmkName = "rename"
         Case 11: SmkName = "publish to a scratch file and read it back"
         Case 12: SmkName = "void everything it logged"
@@ -489,9 +489,45 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     ' the posting itself is cancelled (nobody is charged), so nothing of it stays open
     If Not SubmitCancel(p, lst, n) Then why = st.PostId2 & " couldn't be cancelled": Exit Function
     If PostingStatus(st.PostId2) <> "Cancelled" Then why = st.PostId2 & " is " & PostingStatus(st.PostId2) & " after the cancel": Exit Function
+    ' v25 (item 4c): a second plan, with a CREW change and an open OLD-unit posting. The crew row dated
+    ' tomorrow must appear at the plan and go at the cancel (H7: never a floor under a later typed date);
+    ' the old-unit posting's row must carry the "moves" mark at the plan and lose it at the cancel.
+    Dim crewWas As String, crewTo As String, crewFound As Boolean, sinceWas As Date, sinceNow As Date, crewNow As String
+    crewWas = NewestCrew(st.Emp, crewFound, sinceWas)
+    crewTo = IIf(NormCrew(crewWas) = "A", "C", "A")
+    Dim p3 As PostRec, lst3() As PListRec, n3 As Long, d3 As Date, found3 As Boolean
+    For dd = 2 To 40                                ' a Unit2 shift on or after the move's date they are listed for
+        d3 = Date + dd
+        If SmkFreeListed(st.Emp, st.Unit2, d3, "Days", CrewFilter(CREW_ALL)) Then found3 = True: Exit For
+    Next dd
+    If Not found3 Then why = "no " & st.Unit2 & " day shift in the next 40 days lists " & st.Emp: Exit Function
+    p3.Unit = st.Unit2: p3.ShiftDate = d3: p3.ShiftLbl = "Days": p3.Crew = CREW_ALL
+    p3.Reason = "Unit Operator Support": p3.Hours = USUAL_SHIFT_HOURS: p3.Positions = 1: p3.ClosesOn = d3 - 1
+    If Not CreatePostingFrom(p3, False, False) Then why = "the old-unit posting couldn't be created": Exit Function
+    If Not SmkOnPostingList(p3.ID, st.Emp) Then why = st.Emp & " isn't on the old-unit posting " & p3.ID: GoTo Fail3
+    If SmkExemptNote(p3.ID, st.Emp) <> "" Then why = st.Emp & " is already marked on " & p3.ID & " before the plan": GoTo Fail3
+    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, crewTo, eff, report) Then GoTo Fail3
+    id = PlannedFor(st.Emp)
+    If id = "" Then why = "the second plan left no Planned row": GoTo Fail3
+    crewNow = NewestCrew(st.Emp, crewFound, sinceNow)
+    If NormCrew(crewNow) <> crewTo Or Int(sinceNow) <> Int(eff) Then why = "the planned crew " & crewTo & " from " & Format$(eff, "mmm d") & " isn't the newest Crew History row (" & crewNow & " from " & Format$(sinceNow, "mmm d") & ")": GoTo Fail3
+    If Left$(SmkExemptNote(p3.ID, st.Emp), Len(EXEMPT_TAG) + 5) <> EXEMPT_TAG & "moves" Then why = "the old-unit posting " & p3.ID & " didn't get the 'moves' mark (" & SmkExemptNote(p3.ID, st.Emp) & ")": GoTo Fail3
+    If Not CancelPlannedMove(id, SMK_WHY, report) Then GoTo Fail3
+    crewNow = NewestCrew(st.Emp, crewFound, sinceNow)
+    If NormCrew(crewNow) <> NormCrew(crewWas) Or Int(sinceNow) <> Int(sinceWas) Then why = "after the cancel the Crew History newest row is " & crewNow & " from " & Format$(sinceNow, "mmm d") & ", expected " & crewWas & " from " & Format$(sinceWas, "mmm d") & " (the planned row should be gone)": GoTo Fail3
+    If SmkExemptNote(p3.ID, st.Emp) <> "" Then why = "the 'moves' mark is still on " & p3.ID & " after the cancel": GoTo Fail3
+    n3 = LoadPosting(p3.ID, p3, lst3)
+    If Not SubmitCancel(p3, lst3, n3) Then why = p3.ID & " couldn't be cancelled": Exit Function
     st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & "; +1/-1 list row on " & st.PostId2 & _
-              " (filtered); line " & covId & " text and the Reason changed each way, leave words refused; cancelled"
+              " (filtered); line " & covId & " text and the Reason changed each way, leave words refused; cancelled; " & _
+              "crew " & crewWas & "->" & crewTo & " row added and removed; 'moves' mark on " & p3.ID & " on and off; cancelled"
     SmkPlanned = True
+    Exit Function
+Fail3:
+    On Error Resume Next
+    If PlannedFor(st.Emp) <> "" Then CancelPlannedMove PlannedFor(st.Emp), SMK_WHY, report
+    n3 = LoadPosting(p3.ID, p3, lst3)
+    SubmitCancel p3, lst3, n3
     Exit Function
 Fail:
     SmkFilterList False
@@ -519,6 +555,15 @@ Private Function SmkPostingRows(ByVal id As String) As Long
     Dim i As Long
     For i = 1 To UBound(v, 1)
         If StrComp(Trim$(SafeStr(v(i, PL_ID))), id, vbTextCompare) = 0 Then SmkPostingRows = SmkPostingRows + 1
+    Next i
+End Function
+
+' v25: the Result / Exempt note on one person's row of one posting ("" = none, or not on the list)
+Private Function SmkExemptNote(ByVal id As String, ByVal emp As String) As String
+    Dim p As PostRec, lst() As PListRec, n As Long, i As Long
+    n = LoadPosting(id, p, lst)
+    For i = 1 To n
+        If StrComp(Trim$(lst(i).EmpName), emp, vbTextCompare) = 0 Then SmkExemptNote = lst(i).ExemptNote: Exit Function
     Next i
 End Function
 

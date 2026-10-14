@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v24.3.2 (Oct 15)"
-Public Const EXPECTED_RELEASE As String = "v24.3.2"
+Public Const SYS_VERSION As String = "System v24.3.3 (Oct 14)"
+Public Const EXPECTED_RELEASE As String = "v24.3.3"
 Private Const N_MODULES As Long = 23
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v24.3.1"

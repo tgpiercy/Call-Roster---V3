@@ -19,7 +19,7 @@ Option Explicit
 '  when it last published. The members' file never reads the master.
 ' ====================================================================
 
-Public Const PUB_VERSION As String = "Publish v24.3.2 (Oct 15)"
+Public Const PUB_VERSION As String = "Publish v24.3.3 (Oct 14)"
 
 Public Const DS_META As String = "dMeta"
 Public Const DS_ROSTER As String = "dRoster"
@@ -105,6 +105,17 @@ Quit:
 End Sub
 
 ' PUBLISH_FOLDER with "." (the roster's own folder) and ".\sub" resolved
+' v24.3.3: the open workbook with that file name in this Excel, or Nothing
+Private Function OpenWorkbookNamed(ByVal fileName As String) As Workbook
+    Dim w As Workbook
+    For Each w In Application.Workbooks
+        If StrComp(w.Name, fileName, vbTextCompare) = 0 Then
+            Set OpenWorkbookNamed = w
+            Exit Function
+        End If
+    Next w
+End Function
+
 Public Function PublishFolderPath() As String
     ' v24.2: a practice copy (COPY / DRY RUN in its name) only ever uses its own folder, wherever
     ' PUBLISH_FOLDER points - so its publish and its sign-up inbox can't reach the real ones
@@ -176,6 +187,21 @@ Public Sub PublishMembers()
         MsgBox "The members' folder can't be reached:" & vbNewLine & folder & vbNewLine & vbNewLine & _
                "Check the drive, or PUBLISH_FOLDER in modOvertimeEntry.", vbExclamation, "Member View"
         Exit Sub
+    End If
+    ' v24.3.3 (Graeme's Oct 14 test, C6): the members' file open in THIS Excel (a supervisor looking at it)
+    ' is closed first - nobody edits it, so nothing is lost - and the publish goes on. Open on another PC
+    ' it can't be written: the publish is refused at the save (below). Before this a dated copy was saved
+    ' beside the real file, which members never open and which cluttered the folder.
+    Dim openHere As Workbook
+    Set openHere = OpenWorkbookNamed(outName)
+    If Not openHere Is Nothing Then
+        If Ask("The members' file is open in this Excel:" & vbNewLine & openHere.FullName & vbNewLine & vbNewLine & _
+               "Close it and publish? (Nothing in it is kept: the file is rewritten by the publish.)", _
+               vbYesNo + vbQuestion, "Member View", vbYes) <> vbYes Then Exit Sub
+        Application.DisplayAlerts = False
+        openHere.Close SaveChanges:=False
+        Application.DisplayAlerts = True
+        Set openHere = Nothing
     End If
 
     Dim t0 As Single: t0 = Timer
@@ -286,12 +312,9 @@ Public Sub PublishMembers()
     If Err.Number = 0 Then
         savedAs = folder & outName
     Else
-        em = Err.Description
+        em = Err.Description                       ' v24.3.3: no dated copy any more (see the open-here check above)
         Err.Clear
-        savedAs = folder & Replace(outName, ".xlsm", "") & " " & Format$(Now, "yyyy-mm-dd hhmm") & ".xlsm"
-        wb.SaveAs Filename:=savedAs, FileFormat:=52
-        If Err.Number <> 0 Then em = em & " / " & Err.Description: savedAs = ""
-        Err.Clear
+        savedAs = ""
     End If
     wb.Close SaveChanges:=False
     Application.DisplayAlerts = True
@@ -302,8 +325,9 @@ Public Sub PublishMembers()
     Application.ScreenUpdating = True
 
     If savedAs = "" Then
-        MsgBox "The members' file couldn't be saved:" & vbNewLine & em & vbNewLine & vbNewLine & _
-               "Is " & outName & " open on a plant PC? Close it there and publish again.", vbCritical, "Member View"
+        MsgBox "NOT published. The members' file couldn't be written:" & vbNewLine & folder & outName & vbNewLine & em & _
+               vbNewLine & vbNewLine & "It is probably open on a plant PC (or read-only in the folder). Close it there and " & _
+               "publish again. Members still see the old one; nothing was changed.", vbCritical, "Member View"
         Exit Sub
     End If
     If gSmokeRun Then                              ' the scratch copy is written: nothing about the real publish changes
@@ -311,7 +335,7 @@ Public Sub PublishMembers()
         Exit Sub
     End If
     SetPublishedAt Now
-    If savedAs = folder & outName Then ClearMembersDirty     ' a dated copy (file open on a plant PC) leaves members behind
+    ClearMembersDirty
     On Error Resume Next
     MarkCalDirty                                   ' Needs Attention's "members file" line
     SaveIfWritable                                 ' keeps the published-at stamp
@@ -321,10 +345,6 @@ Public Sub PublishMembers()
           nR & " people, " & nN & " who's-next rows, " & nC & " calendar lines, " & nP & " open posting(s), " & nL & " log rows." & _
           IIf(redrawn, "", vbNewLine & vbNewLine & "Its views couldn't be redrawn (macros didn't run in the template); " & _
           "members will see them refresh when they open it with macros on.")
-    If savedAs <> folder & outName Then
-        msg = msg & vbNewLine & vbNewLine & "NOTE: " & outName & " is open somewhere (" & em & "), so this copy was " & _
-              "saved with the date in its name. Members still see the old one until it's closed and you publish again."
-    End If
     MsgBox msg, vbInformation, "Member View"
     Exit Sub
 

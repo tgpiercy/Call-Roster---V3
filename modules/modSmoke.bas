@@ -20,7 +20,7 @@ Public Sub SmokeCallout(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
     On Error GoTo Oops
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
-    frmOvertimeEntry.Prefill unit, Int(d), shiftLbl
+    frmOvertimeEntry.Prefill unit, Int(d), shiftLbl, "From the Install panel"
     frmOvertimeEntry.Show
     Exit Sub
 Oops:

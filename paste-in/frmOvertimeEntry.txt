@@ -202,12 +202,14 @@ End Sub
 
 ' v22: a sick call opens this form already filled in (unit, date, Days / Nights);
 ' the crew fills from the rotation as usual, then the supervisor clicks LOAD LIST
-Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String)
+' v25: statusTxt names who pre-filled it (the Install panel); "" keeps the sick-call wording
+Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, Optional ByVal statusTxt As String = "")
     On Error Resume Next
     C("cmbDept").Value = unit
     C("txtDate").Value = Format$(d, "MM/DD/YYYY")
     C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
-    C("lblStatus").Caption = "Sick call: " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - enter the hours and click LOAD LIST."
+    If statusTxt = "" Then statusTxt = "Sick call"
+    C("lblStatus").Caption = statusTxt & ": " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - enter the hours and click LOAD LIST."
     On Error GoTo 0
 End Sub
 

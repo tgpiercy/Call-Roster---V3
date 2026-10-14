@@ -696,7 +696,8 @@ Private Function UpdTemplate(ByVal roster As Workbook, ByVal folder As String) A
 
     built = ""
     On Error Resume Next
-    built = CStr(tw.Worksheets("Home").Range("B19").Value)
+    built = CStr(Application.Run("'" & Replace(tw.Name, "'", "''") & "'!MemberLayoutVersion"))     ' v25 (I7): the template says which layout it built, as modPublish asks it
+    If built = "" Then built = CStr(tw.Worksheets("Home").Range("B19").Value)                       ' (older templates: the cell the function reads)
     On Error GoTo Failed
     If StrComp(Trim$(built), wantVer, vbTextCompare) <> 0 Then
         Err.Raise vbObjectError + 906, , "the rebuild didn't finish (the template's Home sheet says '" & built & "', expected '" & wantVer & "')"

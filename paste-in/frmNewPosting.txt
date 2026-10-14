@@ -231,7 +231,7 @@ Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As Stri
         AutoHours
     End If
     C("txtPos").Text = "1"
-    Me.Caption = "New Posting - from the calendar"
+    Me.Caption = "New Posting - " & IIf(InStr(1, note, "Install panel", vbTextCompare) > 0, "from the Install panel", "from the calendar")   ' v25
     C("lblNewHdr").Caption = "NEW POSTING  -  " & note
     On Error GoTo 0
 End Sub

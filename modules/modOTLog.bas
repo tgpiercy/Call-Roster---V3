@@ -134,6 +134,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
 
     ' ---- 3. formulas (locked, so they can't be typed over) ----
     UnlockSheet ws
+    On Error GoTo CalcBack                        ' v25 (E5): the calculation mode comes back whatever happens below
     Application.Calculation = xlCalculationManual
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
@@ -147,6 +148,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
         End If
     Next r
     Application.Calculation = calcMode
+    On Error GoTo 0
     Application.Calculate
 
     ' ---- 4. verify: period totals and Refused (I) unchanged; Total (G) =
@@ -188,7 +190,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
 
     If n > 0 Then
         summary = n & " pay-period value(s) moved into the OT Log as '" & entryType & _
-                  "' (" & refId & "), net " & Format$(total, "#,##0.##") & " hrs." & vbNewLine & _
+                  "' (" & refId & "), net " & HoursText(total) & " hrs." & vbNewLine & _
                   "Every employee's period and Refused hours were checked and are unchanged; " & _
                   "Total = Worked + Refused + Provisional on every row."
     Else
@@ -196,8 +198,15 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
                   "(Total = Worked + Refused + Provisional on every row)."
     End If
     summary = summary & vbNewLine & "Provisional accepted OT (not yet in Kronos, data through " & _
-              Format$(EnsureDataThrough(), "mmm d") & "): " & Format$(provTot, "#,##0.##") & " hrs in total."
+              Format$(EnsureDataThrough(), "mmm d") & "): " & HoursText(provTot) & " hrs in total."
     ConvertRosterToFormulas = True
+    Exit Function
+CalcBack:
+    Dim cbN As Long, cbM As String: cbN = Err.Number: cbM = Err.Description
+    Application.Calculation = calcMode
+    ProtectSheet ws
+    Err.Raise cbN, , cbM
+
 End Function
 
 ' a real number (not text that looks like one, not an error, not blank)

@@ -356,8 +356,29 @@ Private Sub CheckTypedValues()
                 AddIssue SEV_ERR, "Typed values", mNames(r) & ": " & bad & IIf(nBad > 3, " ... and " & (nBad - 3) & " more cells", ""), _
                          "Pay-period cells must be the log formula. Run RefreshRosterFormulas (it moves typed numbers into the OT Log)"
             End If
+            ' v25 (D-E1/E2): a seniority that isn't a date sorts last in the call order but not under the sort buttons
+            If Not IsEmpty(mVals(r, C_SENIORITY)) And Not IsDate(mVals(r, C_SENIORITY)) Then
+                AddIssue SEV_WARN, "Typed values", mNames(r) & ": Plant Seniority '" & SafeStr(mVals(r, C_SENIORITY)) & "' isn't a date", _
+                         "Type it as a date (the call order puts a non-date last; the sort buttons don't)"
+            End If
         End If
     Next r
+    ' v25 (D-E1/E2): two code letters in one unit column (D1 beside P1) sort one way by the buttons and another in the call order
+    Dim letters As String, firstL As String, cc As Long, nm As String, cd As String
+    For cc = UnitColFirst() To UnitColLast()
+        letters = "": firstL = ""
+        For r = 1 To mRows
+            cd = UCase$(Trim$(SafeStr(mVals(r, cc))))
+            If cd <> "" And mNames(r) <> "" Then
+                If firstL = "" Then firstL = Left$(cd, 1)
+                If Left$(cd, 1) <> firstL And InStr(letters, Left$(cd, 1)) = 0 Then letters = letters & Left$(cd, 1)
+            End If
+        Next r
+        If letters <> "" Then
+            AddIssue SEV_WARN, "Typed values", "Column " & ColLetter(cc) & " mixes code letters (" & firstL & " with " & letters & ")", _
+                     "One letter per unit column keeps the sort buttons and the call order in step"
+        End If
+    Next cc
 End Sub
 
 ' ---- 3. IDs ----

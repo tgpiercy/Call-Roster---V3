@@ -545,7 +545,8 @@ End Function
 
 Private Function RecBefore(a As EmpRec, b As EmpRec) As Boolean
     If a.Grade <> b.Grade Then RecBefore = (a.Grade < b.Grade): Exit Function
-    If a.TotalHrs <> b.TotalHrs Then RecBefore = (a.TotalHrs < b.TotalHrs): Exit Function
+    ' v25 (E6): hours are compared to the hundredth - two totals that differ only in floating-point dust tie
+    If Round(a.TotalHrs, 2) <> Round(b.TotalHrs, 2) Then RecBefore = (a.TotalHrs < b.TotalHrs): Exit Function
     If a.Seniority <> b.Seniority Then RecBefore = (a.Seniority < b.Seniority): Exit Function
     RecBefore = (StrComp(a.EmpName, b.EmpName, vbTextCompare) < 0)
 End Function

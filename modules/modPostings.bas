@@ -1441,25 +1441,18 @@ Public Function OutsideCandidates(ByRef p As PostRec, ByRef lst() As PListRec, B
         If Not onList Then m = m + 1: keep(m) = i
     Next i
     If m = 0 Then Exit Function
-    ' lowest hours first (ties: seniority, as in call order)
-    Dim a As Long, b As Long, t As Long
-    For a = 2 To m
-        t = keep(a)
-        b = a - 1
-        Do While b >= 1
-            If recs(keep(b)).TotalHrs < recs(t).TotalHrs Then Exit Do
-            If recs(keep(b)).TotalHrs = recs(t).TotalHrs And recs(keep(b)).Seniority <= recs(t).Seniority Then Exit Do
-            keep(b + 1) = keep(b)
-            b = b - 1
-        Loop
-        keep(b + 1) = t
-    Next a
+    ' v25 (D-E3): THE call order (grade, then hours, then seniority: SortEmpRecs), not a hours-only re-sort
+    Dim sub_() As EmpRec: ReDim sub_(1 To m)
+    For i = 1 To m
+        sub_(i) = recs(keep(i))
+    Next i
+    SortEmpRecs sub_, m
     Dim out() As String: ReDim out(0 To m - 1, 0 To 3)
     For i = 1 To m
-        out(i - 1, 0) = recs(keep(i)).EmpName
-        out(i - 1, 1) = recs(keep(i)).DeptCode
-        out(i - 1, 2) = recs(keep(i)).EmpShift
-        out(i - 1, 3) = Format$(recs(keep(i)).TotalHrs, "#,##0")
+        out(i - 1, 0) = sub_(i).EmpName
+        out(i - 1, 1) = sub_(i).DeptCode
+        out(i - 1, 2) = sub_(i).EmpShift
+        out(i - 1, 3) = Format$(sub_(i).TotalHrs, "#,##0")
     Next i
     OutsideCandidates = out
 End Function

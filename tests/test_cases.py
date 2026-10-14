@@ -121,6 +121,8 @@ def evaluate(row: dict) -> str:
         return fmt_num(rules.dst_night_hours(d(i1)))
     if suite == "typeddate":                     # text (_ = space), today -> yyyy-mm-dd or the hint word (v25)
         return rules.typed_date(i1.replace("_", " "), d(i2))
+    if suite == "trimkind":                      # start, end, first, last -> none / start / end / both (v25)
+        return rules.trim_kind(d(i1), d(i2), d(i3), d(i4)) or "none"
     if suite == "crewsoff":                      # date -> the crews off that day, e.g. C/D (v25)
         return rules.crews_off(d(i1))
     if suite == "shifthours":                    # date, day|night -> the default hours (v25)

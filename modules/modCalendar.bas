@@ -986,6 +986,38 @@ Public Function HasLeaveOverlapping(ByVal emp As String, ByVal dFrom As Date, By
 End Function
 
 ' Shifts a person would have worked in a range (for the pop-up)
+' v25 (item 1c, from frmTimeOff): the scheduled shifts of a booking in one call - how many
+' (days / nights) and the first and last day with one. 0 = none in the range (dFirst / dLast
+' unset). The 400-day cap is ShiftCount's.
+Public Function ScheduledSpan(ByVal emp As String, ByVal dStart As Date, ByVal dEnd As Date, _
+                              ByRef dFirst As Date, ByRef dLast As Date, ByRef nDays As Long, ByRef nNights As Long) As Long
+    LoadCache
+    Dim d As Date, s As String, found As Boolean
+    nDays = 0: nNights = 0
+    If dEnd < dStart Then Exit Function
+    If dEnd - dStart > 400 Then dEnd = dStart + 400
+    For d = Int(dStart) To Int(dEnd)
+        s = EmpShiftOn(emp, d)
+        If s = "Days" Then nDays = nDays + 1
+        If s = "Nights" Then nNights = nNights + 1
+        If s <> "" Then
+            If Not found Then dFirst = d
+            dLast = d
+            found = True
+        End If
+    Next d
+    ScheduledSpan = nDays + nNights
+End Function
+
+' v25: which end(s) of a vacation / personal booking are days off and can be trimmed to the
+' scheduled shifts inside it. "" = nothing to trim; "start", "end", "both". Pure (SelfTest trimkind).
+Public Function TrimKind(ByVal ds As Date, ByVal de As Date, ByVal dFirst As Date, ByVal dLast As Date) As String
+    Dim a As Boolean, b As Boolean
+    a = (Int(dFirst) > Int(ds))
+    b = (Int(dLast) < Int(de))
+    If a And b Then TrimKind = "both" ElseIf a Then TrimKind = "start" ElseIf b Then TrimKind = "end"
+End Function
+
 Public Function ShiftCount(ByVal emp As String, ByVal dStart As Date, ByVal dEnd As Date, _
                            ByRef nDays As Long, ByRef nNights As Long) As Long
     LoadCache

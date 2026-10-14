@@ -1099,3 +1099,10 @@ def typed_date(text: str, today: date) -> str:
     if abs((d - today).days) > 400:
         return "check the year"
     return d.isoformat()
+
+
+# ---------------------------------------------------------------- time off on scheduled shifts (v25, from frmTimeOff)
+def trim_kind(ds: date, de: date, d_first: date, d_last: date) -> str:
+    """modCalendar.TrimKind: which end(s) of a booking are days off: '' / start / end / both."""
+    a, b = d_first > ds, d_last < de
+    return "both" if a and b else "start" if a else "end" if b else ""

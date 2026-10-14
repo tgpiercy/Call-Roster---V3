@@ -138,6 +138,9 @@ Private Function RunCase(f() As String) As String
             Dim tdD As Date, tdW As String
             tdW = TypedDateCore(Replace(i1, "_", " "), ParseD(i2), tdD)
             RunCase = IIf(tdW = "", FmtD(tdD), tdW)
+        Case "trimkind"                            ' v25: start, end, first shift, last shift -> which ends are days off
+            RunCase = TrimKind(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
+            If RunCase = "" Then RunCase = "none"
         Case "crewsoff"                            ' v25
             RunCase = CrewsOff(ParseD(i1))
         Case "shifthours"                          ' v25
@@ -1237,5 +1240,10 @@ Private Sub LoadCases()
     AddCase "eligibility,rotation-rest-night-ot,A,2026-10-06,Nights,,,rest"
     AddCase "eligibility,gave-up-day-relieves-rest,A,2026-10-06,Nights,ssgaveup,,free"
     AddCase "eligibility,gave-up-elsewhere-no-relief,C,2026-10-31,Days,ssgaveup,,free"
+    AddCase "trimkind,exact,2026-10-05,2026-10-09,2026-10-05,2026-10-09,,none"
+    AddCase "trimkind,days-off-at-start,2026-10-03,2026-10-09,2026-10-05,2026-10-09,,start"
+    AddCase "trimkind,days-off-at-end,2026-10-05,2026-10-11,2026-10-05,2026-10-09,,end"
+    AddCase "trimkind,both-ends,2026-10-03,2026-10-11,2026-10-05,2026-10-09,,both"
+    AddCase "trimkind,one-shift,2026-10-03,2026-10-11,2026-10-07,2026-10-07,,both"
 ' <<< CASES
 End Sub

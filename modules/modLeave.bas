@@ -569,6 +569,7 @@ End Sub
 Public Function SaveSickCall(ByVal emp As String, ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String, _
                              ByVal hrs As Variant, ByVal note As String) As String
     Dim id As String
+    If HasSickRow(emp, d, shiftLbl) Then Exit Function   ' v25 (L7): never a second row for the same shift, whoever calls
     id = SaveAbsence(emp, unit, "SIC", d, d, hrs, "", note, HomeUnitOf(emp), "", shiftLbl, "SC", True)
     If id = "" Then Exit Function
     ' v24.3.1 (review C1): the absence row carries the shift (AB_SHIFT) and SlotsFor draws a sick

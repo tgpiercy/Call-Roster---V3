@@ -344,6 +344,11 @@ Private Sub mSave_Click()
         de = de0
         If de < ds Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
     End If
+    If ds < RosterYearFrom() Then                    ' v25: a year typed wrong (2008 for 2026) is caught here
+        MsgBox "The start (" & Format$(ds, "mmm d, yyyy") & ") is before this roster year's first day (" & _
+               Format$(RosterYearFrom(), "mmm d, yyyy") & "). Check the year.", vbExclamation, "Book Time Off"
+        Exit Sub
+    End If
 
     Dim code As String: code = TypeCode(C("cboType").Text)
     Dim id As String
@@ -363,15 +368,15 @@ Private Sub mSave_Click()
         mStart.Text = "": mEnd.Text = "": C("txtTimes").Text = "": C("txtNote").Text = ""
         Exit Sub
     End If
-    If (code = "VAC" Or code = "PER") And Not mOpen.Value Then      ' v22.1: scheduled shifts only
+    If (code = "VAC" Or code = "PER") And Not mOpen.Value Then      ' v22.1: scheduled shifts only (v25: modCalendar.ScheduledSpan / TrimKind)
         Dim nD As Long, nN As Long, dFirst As Date, dLast As Date
-        If ShiftCount(mEmp.Text, ds, CDate(de), nD, nN) = 0 Then
+        If ScheduledSpan(mEmp.Text, ds, CDate(de), dFirst, dLast, nD, nN) = 0 Then
             MsgBox mEmp.Text & " has no scheduled shift between " & Format$(ds, "mmm d") & " and " & Format$(de, "mmm d") & "." & vbNewLine & vbNewLine & _
                    "Vacation and personal days are booked on scheduled shifts only - check the dates or their crew.", vbExclamation, "Days off"
             Exit Sub
         End If
-        If FirstLastShift(mEmp.Text, ds, CDate(de), dFirst, dLast) Then
-            If dFirst > ds Or dLast < CDate(de) Then
+        If True Then
+            If TrimKind(ds, CDate(de), dFirst, dLast) <> "" Then
                 Select Case MsgBox(Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & " covers " & (nD + nN) & " scheduled shift(s); " & _
                                    IIf(dFirst > ds, Format$(ds, "mmm d") & IIf(dFirst - ds > 1, " - " & Format$(dFirst - 1, "mmm d"), "") & " at the start", "") & _
                                    IIf(dFirst > ds And dLast < CDate(de), " and ", "") & _
@@ -415,20 +420,6 @@ Private Sub mVoid_Click()
 End Sub
 
 ' First and last scheduled shift of emp inside d1..d2 (False when none)
-Private Function FirstLastShift(ByVal emp As String, ByVal d1 As Date, ByVal d2 As Date, _
-                                ByRef dFirst As Date, ByRef dLast As Date) As Boolean
-    Dim x As Date
-    If d2 < d1 Then Exit Function
-    If d2 - d1 > 400 Then d2 = d1 + 400
-    For x = Int(d1) To Int(d2)
-        If EmpShiftOn(emp, x) <> "" Then
-            If Not FirstLastShift Then dFirst = x
-            dLast = x
-            FirstLastShift = True
-        End If
-    Next x
-End Function
-
 Private Sub mClose_Click()
     Unload Me
 End Sub

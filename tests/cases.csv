@@ -460,3 +460,8 @@ eligibility,gave-up-night-relieves-rest,C,2026-10-07,Days,ssgaveup,,free
 eligibility,rotation-rest-night-ot,A,2026-10-06,Nights,,,rest
 eligibility,gave-up-day-relieves-rest,A,2026-10-06,Nights,ssgaveup,,free
 eligibility,gave-up-elsewhere-no-relief,C,2026-10-31,Days,ssgaveup,,free
+trimkind,exact,2026-10-05,2026-10-09,2026-10-05,2026-10-09,,none
+trimkind,days-off-at-start,2026-10-03,2026-10-09,2026-10-05,2026-10-09,,start
+trimkind,days-off-at-end,2026-10-05,2026-10-11,2026-10-05,2026-10-09,,end
+trimkind,both-ends,2026-10-03,2026-10-11,2026-10-05,2026-10-09,,both
+trimkind,one-shift,2026-10-03,2026-10-11,2026-10-07,2026-10-07,,both

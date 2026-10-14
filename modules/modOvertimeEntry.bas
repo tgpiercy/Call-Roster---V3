@@ -577,10 +577,22 @@ Public Sub CalloutOffers(ByVal hours As Double, ByRef outcomes() As String, ByRe
     For i = 1 To n
         offers(i) = remain
         If outcomes(i) = "Accepted" Then
-            If taken(i) > 0 And taken(i) < remain Then remain = remain - taken(i)
+            ' v25 (D-E4, Graeme Oct 14): a PARTIAL acceptance closes the shift - the rest is dropped,
+            ' uncharged; nobody below is offered it (v24.1 offered the rest down the list)
+            If taken(i) > 0 And taken(i) < remain Then remain = 0
         End If
     Next i
 End Sub
+
+' v25 (D-E4): has a partial acceptance closed this call-out's shift? (the pop-up refuses a further Accepted)
+Public Function CalloutClosed(ByRef outcomes() As String, ByRef taken() As Double, ByVal n As Long, ByVal hours As Double) As Boolean
+    Dim i As Long
+    For i = 1 To n
+        If outcomes(i) = "Accepted" Then
+            If taken(i) > 0 And taken(i) < hours Then CalloutClosed = True: Exit Function
+        End If
+    Next i
+End Function
 
 ' Hours an Accepted person works: the part they took, or everything on offer
 Public Function AcceptedHours(ByVal offer As Double, ByVal taken As Double) As Double
@@ -1079,7 +1091,9 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
             data(k, L_OUTCOME) = entries(i).Outcome
             data(k, L_REASON) = entries(i).Reason
             If entries(i).Outcome = "Accepted" And taken(i) > 0 And taken(i) < offers(i) Then
-                data(k, L_REASON) = "Took " & HoursText(taken(i)) & " of " & HoursText(offers(i)) & " h"
+                data(k, L_REASON) = "Took " & HoursText(taken(i)) & " of " & HoursText(offers(i)) & " h (the rest dropped, uncharged)"
+            ElseIf offers(i) = 0 And entries(i).Reason = "" Then
+                data(k, L_REASON) = "Not offered: a partial acceptance closed the shift"      ' v25 (D-E4): never charged
             ElseIf offers(i) < hours And entries(i).Reason = "" Then
                 data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (part already taken)"
             End If

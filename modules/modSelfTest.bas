@@ -1113,11 +1113,11 @@ Private Sub LoadCases()
     AddCase "refsplit,outside-the-year,Posting:21:A:N;Posting:21:A:Y,,,,,0|21|0"
     AddCase "refsplit,negative-adjustment,Callout:21:A:Y;Adjustment:-21:A:Y,,,,,21|0|-21"
     AddCase "refsplit,opening-balance-is-other,Opening Balance:40:A:Y,,,,,0|0|40"
-    AddCase "calloffer,partial-then-refusal,12,Refused:0;Accepted:8;Refused:0;Left Message:0,,,,12=21;12=0;4=7;4=7"
+    AddCase "calloffer,partial-then-refusal,12,Refused:0;Accepted:8;Refused:0;Left Message:0,,,,12=21;12=0;0=0;0=0"
     AddCase "calloffer,whole-shift-changes-nothing,12,Accepted:0;Refused:0,,,,12=0;12=21"
-    AddCase "calloffer,two-partials,12,Accepted:8;Accepted:2;Refused:0,,,,12=0;4=0;2=3.5"
-    AddCase "calloffer,partial-covering-the-rest,12,Accepted:8;Accepted:4;Refused:0,,,,12=0;4=0;4=7"
-    AddCase "calloffer,unavailable-not-charged,13,Accepted:6.5;Unavailable:0;Refused:0,,,,13=0;6.5=0;6.5=11.375"
+    AddCase "calloffer,two-partials,12,Accepted:8;Accepted:2;Refused:0,,,,12=0;0=0;0=0"
+    AddCase "calloffer,partial-covering-the-rest,12,Accepted:8;Accepted:4;Refused:0,,,,12=0;0=0;0=0"
+    AddCase "calloffer,unavailable-not-charged,13,Accepted:6.5;Unavailable:0;Refused:0,,,,13=0;0=0;0=0"
     AddCase "signups,one-whole-shift,Ann:S:0:2027-01-10-09,2027-01-12-08,,,,Ann=F"
     AddCase "signups,partial-hours,Ann:S:8:2027-01-10-09,2027-01-12-08,,,,Ann=8"
     AddCase "signups,withdrawn,Ann:S:0:2027-01-10-09;Ann:W:0:2027-01-10-11,2027-01-12-08,,,,none"
@@ -1257,5 +1257,6 @@ Private Sub LoadCases()
     AddCase "partialhrs,words,abc,12,,,,bad"
     AddCase "partialhrs,zero,0,12,,,,bad"
     AddCase "partialhrs,negative,-3,12,,,,bad"
+    AddCase "calloffer,refusals-before-the-partial-keep-their-charge,12,Refused:0;Left Message:0;Accepted:4;Refused:0,,,,12=21;12=21;12=0;0=0"
 ' <<< CASES
 End Sub

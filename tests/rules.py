@@ -892,13 +892,14 @@ def refused_split(rows: list[tuple[str, float, bool, bool]]) -> tuple[float, flo
 def callout_offers(hours: float, calls: list[tuple[str, float]]) -> list[float]:
     """modOvertimeEntry.CalloutOffers. calls = (outcome, hours taken; 0 = all on
     offer) in call order. A PARTIAL acceptance lowers the offer for everyone
-    below; a whole-shift acceptance changes nothing."""
+    below; a whole-shift acceptance changes nothing. v25 (D-E4): a partial
+    acceptance CLOSES the shift - nobody below is offered the rest."""
     remain = hours
     out = []
     for outcome, taken in calls:
         out.append(remain)
         if outcome == "Accepted" and 0 < taken < remain:
-            remain -= taken
+            remain = 0
     return out
 
 

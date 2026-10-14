@@ -9,7 +9,7 @@ The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out**
 2. A notice that someone "has the roster open for editing, so this copy is read-only" means you can look but not log. Close it. Open it again when they are out. "This is a frozen copy of the roster" means you opened a dated backup or the year-end FINAL file: look, but log in the live roster.
 3. An admin may see "N planned unit move(s) are due: apply them now?" Yes applies them (a backup is saved first). No leaves them waiting; the question comes back at the next open.
 4. Close the file as soon as you are done, so the next supervisor can get in.
-5. Every sheet is protected. Nothing is typed into cells: the buttons do the writing. (Admins can type into the roster's Home Unit, Crew, Phone, Seniority, EMAIL and unit code columns, and the Holidays sheet's "Observed on"; everything else, totals included, is refused.)
+5. Every sheet is protected. Nothing is typed into cells: the buttons do the writing. (Admins can type into the roster's Home Unit, Crew, Phone, Worked, Seniority, EMAIL and unit code columns, and the Holidays sheet's "Observed on"; everything else, totals included, is refused, and so is sorting a block of cells by hand: the sort buttons do it.)
 
 ## Typing a date
 Every date box takes "Oct 12", "12 Oct" or "Oct 12, 2026", and shows the full date it understood. A date more than three months back with no year means next year ("Jan 5" typed in October is next January). A time typed after the date is ignored. The box tells you when it can't read what you typed.

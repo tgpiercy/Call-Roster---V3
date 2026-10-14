@@ -43,6 +43,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
             Next cc
         End If
     Next rr
+    ProtectSheet ws                       ' v25 review: the repair unlocked it; the refusals below return with it protected
     Application.Calculate
 
     Dim lastPer As Long: lastPer = PeriodLastCol()             ' AS, or AT in a 27-period year (v23)
@@ -116,7 +117,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
                bad & vbNewLine & vbNewLine & _
                "(text) / (error): fix or clear the cell." & vbNewLine & _
                "(cleared): the log has hours there - put the formula back (copy it from the next cell) " & _
-               "and use Void Entry or Add Adjustment instead.", vbCritical, "Roster check"
+               "and use Void Entry or Add Adjustment instead." & ByHandHint(ws.Name), vbCritical, "Roster check"
         Exit Function
     End If
 

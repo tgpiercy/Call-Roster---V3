@@ -1235,9 +1235,11 @@ Public Sub ProtectSheet(ByVal ws As Worksheet)
     ' v24.4: the Install Log is written by the Roster Updater from outside this workbook, which has no
     ' password: it is never protected (admin-only through ApplyView, like the Error Log)
     If ws.Name = IL_SHEET Then UnlockSheet ws: Exit Sub
+    ' v25 review: AllowSorting stays OFF - Excel lets a user sort a block made only of unlocked cells, so an
+    ' admin could reorder seniority or grade codes against the names; the sort buttons sort in code
     ws.Protect Password:=SHEET_PASSWORD, DrawingObjects:=True, Contents:=True, _
                Scenarios:=True, UserInterfaceOnly:=True, _
-               AllowSorting:=True, AllowFiltering:=True
+               AllowSorting:=False, AllowFiltering:=True
     If ws.Name = LOG_SHEET Then ws.EnableOutlining = True     ' +/- on the audit columns
 End Sub
 
@@ -1251,11 +1253,13 @@ End Sub
 
 ' v25 (R4): the cells an admin types into, unlocked; every other roster cell locked. Non-admins
 ' get nothing unlocked. Idempotent, so ApplyView does it every time (no one-time migration).
+' Worked (H) is unlocked too (v25 review): today the hours are typed from the Kronos PDF by hand and
+' only the Excel import writes H in code; lock it again when the daily import is running.
 Public Sub LockRosterCells(ByVal rs As Worksheet, ByVal adminView As Boolean)
     Dim lastRow As Long: lastRow = RosterLastRow()
     rs.Cells.Locked = True
     If Not adminView Or lastRow < R_FIRST Then Exit Sub
-    Dim cols As Variant: cols = Array(C_HOME, C_SHIFT, C_PHONE, C_SENIORITY, C_EMAIL)
+    Dim cols As Variant: cols = Array(C_HOME, C_SHIFT, C_PHONE, C_WORKED, C_SENIORITY, C_EMAIL)
     Dim c As Variant
     For Each c In cols
         rs.Range(rs.Cells(R_FIRST, CLng(c)), rs.Cells(lastRow, CLng(c))).Locked = False
@@ -1276,11 +1280,24 @@ Public Function ProtectionStatus(ByRef info As String) As String
     Next ws
     Dim rs As Worksheet: Set rs = RosterSheet()
     Dim totalsLocked As Boolean
+    If rs Is Nothing Then
+        info = "Protection: " & nProt & " of " & nAll & " sheets protected; no roster sheet found"
+        ProtectionStatus = "- the roster sheet wasn't found (ROSTER_SHEET)"
+        Exit Function
+    End If
     totalsLocked = rs.Cells(R_FIRST, C_TOTAL).Locked And rs.Cells(R_FIRST, C_PERIOD1).Locked
-    info = "Protection: " & nProt & " of " & nAll & " sheets protected (the Install Log open by design); roster totals " & _
-           IIf(totalsLocked, "locked", "NOT locked")
+    info = "Protection: " & nProt & " of " & nAll & " sheets protected" & IIf(SheetExists(IL_SHEET), " (the Install Log open by design)", "") & _
+           "; roster totals " & IIf(totalsLocked, "locked", "NOT locked") & "; tabs " & IIf(ThisWorkbook.ProtectStructure, "locked", "NOT locked")
     If odd <> "" Then ProtectionStatus = "- unprotected sheet(s): " & odd & " (reopen the roster; ApplyView protects every sheet)"
     If Not totalsLocked Then ProtectionStatus = ProtectionStatus & IIf(ProtectionStatus = "", "", vbNewLine) & "- the roster's totals are not locked: reopen the roster"
+    If Not ThisWorkbook.ProtectStructure Then ProtectionStatus = ProtectionStatus & IIf(ProtectionStatus = "", "", vbNewLine) & "- the workbook's tabs are not protected: reopen the roster"
+End Function
+
+' v25 review: every sheet is protected, so a message that asks for a hand edit says how
+Public Function ByHandHint(ByVal sheetName As String) As String
+    Dim q As String: q = Chr$(34)
+    ByHandHint = " (The sheet is protected. In the VBA editor, Alt+F11 then Ctrl+G, type  UnlockSheet Sheets(" & q & sheetName & q & _
+                 ")  and Enter; make the change on the sheet; then type  ProtectAll  and Enter.)"
 End Function
 
 ' The archived logs ("OT Log 2026") and the Year End record: never unprotected, even for admins (v23)
@@ -1315,23 +1332,37 @@ End Sub
 ' v25: show / hide a sheet under structure protection
 Public Sub SetSheetVisible(ByVal ws As Worksheet, ByVal state As Long)
     If ws.Visible = state Then Exit Sub
+    Dim en As Long, em As String
     UnlockStructure
+    On Error Resume Next
     ws.Visible = state
-    RelockStructure
+    en = Err.Number: em = Err.Description
+    On Error GoTo 0
+    RelockStructure                                 ' v25 review: relocked whatever happened
+    If en <> 0 Then Err.Raise en, , em
 End Sub
 
 ' Admin view shows the admin sheets and phone numbers; everyone else doesn't see them.
 ' v25: and unlocks the typed-into roster cells for admins (LockRosterCells); error frame (E4).
 Public Sub ApplyView(ByVal adminView As Boolean)
     On Error GoTo Oops
+    ApplyViewCore adminView
+    Exit Sub
+Oops:
+    ReportError "ApplyView"
+End Sub
+
+' v25 review: the work itself, raising to its caller (SaveRestrictedCopy refuses the copy on an error;
+' the updater's "did the new code run" probe sees a real error). Buttons and the open use ApplyView.
+Public Sub ApplyViewCore(ByVal adminView As Boolean)
     gAdminUnlocked = adminView
+    If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4
         If SheetExists(CStr(nm)) Then
             SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(adminView, xlSheetVisible, xlSheetVeryHidden)
         End If
     Next nm
-    If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; under structure protection only the roster can make it
     Dim rs As Worksheet: Set rs = RosterSheet()
     UnlockSheet rs
     LockRosterCells rs, adminView                   ' v25 (R4)
@@ -1359,9 +1390,6 @@ Public Sub ApplyView(ByVal adminView As Boolean)
     On Error Resume Next
     SetRosterStatus                 ' refresh pay period / log count (keeps the current view text)
     On Error GoTo 0
-    Exit Sub
-Oops:
-    ReportError "ApplyView"
 End Sub
 
 

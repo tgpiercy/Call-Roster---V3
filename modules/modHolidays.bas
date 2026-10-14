@@ -333,6 +333,7 @@ Public Function EnsureHolidayYears(ByVal y1 As Long, ByVal y2 As Long) As Long
         .Header = xlYes
         .Apply
     End With
+    LockHolidayCells gAdminUnlocked               ' v25 review: the new rows' "Observed on" cells open unlocked for an admin
     ProtectSheet ws
     Application.EnableEvents = evOn
     ResetHolidayCache

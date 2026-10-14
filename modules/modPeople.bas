@@ -625,7 +625,7 @@ Private Function AskCrewDate(ByVal listTxt As String, ByVal notBefore As Date, B
             MsgBox "That isn't a date I can read. Try  Jan 12  or  Jan 12, 2027.", vbExclamation, "Crew change"
         ElseIf notBefore > 0 And d < notBefore Then
             MsgBox "The date must be " & Format$(notBefore, "mmm d, yyyy") & " or later: that is when the crew being replaced started." & _
-                   vbNewLine & "To correct an earlier row, edit it on the Crew History sheet.", vbExclamation, "Crew change"
+                   vbNewLine & "To correct an earlier row, edit it on the Crew History sheet." & ByHandHint(CH_SHEET), vbExclamation, "Crew change"
         ElseIf MsgBox("Crew change from " & Format$(d, "dddd, mmmm d, yyyy") & "?", vbYesNo + vbQuestion, "Crew change") = vbYes Then
             eff = d
             AskCrewDate = True
@@ -1239,7 +1239,7 @@ Private Function AddRosterRow(ByVal ws As Worksheet, ByVal nm As String, ByVal c
     UnlockSheet ws
     If ws.FilterMode Then ws.ShowAllData
     If Application.WorksheetFunction.CountA(ws.Range(ws.Cells(r, 1), ws.Cells(r, C_LAST))) > 0 Then
-        Err.Raise vbObjectError + 711, , "row " & r & " (under the last name on the roster) isn't empty - clear it and try again"
+        Err.Raise vbObjectError + 711, , "row " & r & " (under the last name on the roster) isn't empty - clear it and try again" & ByHandHint(ws.Name)
     End If
     If r > R_FIRST Then
         ws.Range(ws.Cells(r - 1, 1), ws.Cells(r - 1, C_LAST)).Copy
@@ -2886,7 +2886,7 @@ Public Function RemoveEmployee(ByVal emp As String, ByVal leftOn As Date, ByRef 
     r = RosterRowOf(emp, nRows)
     If r = 0 Then MsgBox emp & " isn't on the roster.", vbExclamation, "Remove": Exit Function
     If nRows > 1 Then
-        MsgBox emp & " is on the roster " & nRows & " times. Delete the extra row by hand first (IntegrityCheck shows which).", vbExclamation, "Remove"
+        MsgBox emp & " is on the roster " & nRows & " times. Delete the extra row by hand first (IntegrityCheck shows which)." & ByHandHint(RosterSheet().Name), vbExclamation, "Remove"
         Exit Function
     End If
     If Int(leftOn) > Date Then

@@ -680,7 +680,7 @@ Public Sub SetupHomeUnit()
     With ws.Range(ws.Cells(R_FIRST, C_HOME), ws.Cells(lastRow, C_HOME))
         .Font.Name = "Segoe UI": .Font.Size = 9: .Font.Color = INK
         .HorizontalAlignment = xlCenter
-        .Locked = True                             ' admins see the sheet unprotected; everyone else can't edit it
+        .Locked = Not gAdminUnlocked               ' v25 review: as LockRosterCells leaves it (admins type Home Unit)
     End With
     With ws.Cells(2, C_HOME)
         .Interior.Color = NAVY: .Font.Color = vbWhite: .Font.Bold = True: .Font.Size = 8

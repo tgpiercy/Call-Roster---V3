@@ -116,6 +116,7 @@ Public Function LogError(ByVal proc As String, ByVal errNumber As Long, ByVal er
     LogError = cnt + 1
 Quit:
     On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws       ' v25 review: a failed write leaves the Error Log protected
     Application.EnableEvents = evWas
     MarkCalDirty                                   ' Needs Attention's error line
 End Function
@@ -161,8 +162,8 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
     Application.Calculation = xlCalculationAutomatic
     Application.StatusBar = False
     Application.DisplayAlerts = True
-    ProtectSheet RosterSheet()                     ' a sort or draw that raised between Unprotect and ProtectSheet
-                                                   ' (ProtectSheet keeps an admin's unlocked view)
+    ProtectAll                                     ' v25 review: EVERY sheet (a table write that raised between UnlockSheet and
+                                                   ' ProtectSheet) and the tabs; ProtectSheet keeps an admin's unlocked cells
     Dim k As Long                                  ' a pop-up the error happened in is still loaded: close it
     gErrorClosing = True                           ' ...without its "close without saving?" question
     For k = VBA.UserForms.Count - 1 To 0 Step -1
@@ -224,6 +225,7 @@ Public Sub ShowErrorLog()
 Failed:
     Dim em As String: em = Err.Description
     On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws       ' v25 review
     Application.EnableEvents = evWas
     MsgBox "The Error Log couldn't be opened: " & em, vbExclamation, "Error Log"
 End Sub

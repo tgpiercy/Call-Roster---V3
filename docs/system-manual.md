@@ -407,7 +407,7 @@ The steps are in docs/rollover-one-pager.md.
 
 - Phone numbers and email addresses are hidden from people not on the admin list.
 - The file is always saved in the restricted view, and so is every copy the system makes (pre-change backups, practice copies, the updater's backup).
-- Every sheet is protected in both views. Admins type only into the roster's Home Unit, Crew, Phone, Plant Seniority, EMAIL and unit code columns and the Holidays sheet's "Observed on"; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
+- Every sheet is protected in both views. Admins type only into the roster's Home Unit, Crew, Phone, Worked (until the daily Kronos import exists), Plant Seniority, EMAIL and unit code columns and the Holidays sheet's "Observed on"; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
 
 ## 19. Safeguards
 

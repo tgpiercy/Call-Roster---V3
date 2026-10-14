@@ -61,7 +61,7 @@ for f in files:
         code = strip_strings_and_comments(ln).rstrip()
         if not buf:
             start = n
-        if code.endswith("_"):
+        if code.endswith(" _") or code.endswith("\t_"):      # a continuation is " _" (a name ending in _ isn't one)
             buf += code[:-1] + " "
             continue
         joined.append((start, buf + code))

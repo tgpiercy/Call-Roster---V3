@@ -314,15 +314,40 @@ End Function
 ' nothing an ordinary supervisor can't see. The admin view is put back after the save, whatever
 ' happened. An error from SaveCopyAs itself raises to the caller (which says so).
 Public Sub SaveRestrictedCopy(ByVal fullPath As String)
+    ' v25 review: the admin view is read from the sheet (the phone column shown), not only from the flag a VBA
+    ' reset clears; the live file's Saved state and active sheet are put back (the Install panel's check step
+    ' refuses an unsaved roster); an error in the view switch itself raises after the admin view is restored.
+    Dim rs As Worksheet: Set rs = RosterSheet()
     Dim wasAdmin As Boolean: wasAdmin = gAdminUnlocked
+    If Not rs Is Nothing Then wasAdmin = wasAdmin Or Not rs.Columns(C_PHONE).Hidden
+    Dim savedWas As Boolean: savedWas = ThisWorkbook.Saved
+    Dim actWas As Object: Set actWas = ActiveSheet
+    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Dim en As Long, em As String
-    If wasAdmin Then ApplyView False
+    Application.ScreenUpdating = False
+    On Error GoTo Failed
+    ApplyViewCore False
     On Error Resume Next
     ThisWorkbook.SaveCopyAs fullPath
     en = Err.Number: em = Err.Description
+    On Error GoTo Failed
+    If wasAdmin Then ApplyViewCore True
+    On Error Resume Next
+    actWas.Activate
+    Application.ScreenUpdating = scrWas
+    ThisWorkbook.Saved = savedWas
     On Error GoTo 0
-    If wasAdmin Then ApplyView True
     If en <> 0 Then Err.Raise en, , em
+    Exit Sub
+Failed:
+    en = Err.Number: em = Err.Description
+    On Error Resume Next
+    If wasAdmin Then ApplyViewCore True
+    actWas.Activate
+    Application.ScreenUpdating = scrWas
+    ThisWorkbook.Saved = savedWas
+    On Error GoTo 0
+    Err.Raise en, , "the copy wasn't saved: " & em
 End Sub
 
 ' ---------------- the Install Log sheet (v25) ----------------
@@ -353,6 +378,11 @@ Public Sub EnsureInstallLog()
 Oops:
     LogError "EnsureInstallLog", Err.Number, Err.Description
     On Error Resume Next
+    If Not ws Is Nothing Then                       ' v25 review: no half-made sheet left behind (the next admin open tries again)
+        Application.DisplayAlerts = False
+        ws.Delete
+        Application.DisplayAlerts = True
+    End If
     RelockStructure
     actWas.Activate
 End Sub

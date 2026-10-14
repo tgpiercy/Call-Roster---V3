@@ -218,7 +218,7 @@ Public Function UpgradePostingList(ByRef why As String) As Boolean
     Set nextCol = ws.Range(ws.Cells(lr.Range.Row, lr.Range.Column + lr.Range.Columns.Count), _
                            ws.Cells(lr.Range.Row + lr.Range.Rows.Count, lr.Range.Column + lr.Range.Columns.Count))
     If Application.WorksheetFunction.CountA(nextCol) > 0 Then
-        why = "column " & ColLetter(nextCol.Column) & " on the Postings sheet, right beside the posted lists, isn't empty. Clear it and run SetupPeople again"
+        why = "column " & ColLetter(nextCol.Column) & " on the Postings sheet, right beside the posted lists, isn't empty. Clear it and run SetupPeople again" & ByHandHint(ws.Name)
         Exit Function
     End If
     Dim nRows As Long: nRows = lr.ListRows.Count

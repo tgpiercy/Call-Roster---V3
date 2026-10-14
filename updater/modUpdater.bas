@@ -170,7 +170,7 @@ End Sub
 Private Function UpdFinish(ByVal wb As Workbook, ByRef why As String) As Boolean
     Dim en As Long, em As String
     On Error Resume Next
-    Application.Run "'" & Replace(wb.Name, "'", "''") & "'!ApplyView", True
+    Application.Run "'" & Replace(wb.Name, "'", "''") & "'!ApplyViewCore", True     ' v4.1: the unframed one, so a real error is seen
     en = Err.Number: em = Err.Description
     On Error GoTo 0
     If en <> 0 Then
@@ -347,15 +347,32 @@ End Sub
 Private Function UpdBackup(ByVal wb As Workbook, ByVal label As String, ByRef bk As String, ByRef why As String) As Boolean
     bk = UpdSlash(wb.Path) & "Backup before " & label & " " & Format$(Now, "yyyy-mm-dd hhmmss") & " - " & wb.Name
     why = ""
+    Dim nm As String: nm = "'" & Replace(wb.Name, "'", "''") & "'!"
+    Dim wasSaved As Boolean: wasSaved = wb.Saved
     On Error Resume Next
     ' v25 (I2): the roster saves its own copy in the restricted view when it can (its code runs
-    ' before a swap); an older roster, or one whose code can't run, is copied as it is
-    Application.Run "'" & Replace(wb.Name, "'", "''") & "'!SaveRestrictedCopy", bk
-    If Err.Number <> 0 Then
-        Err.Clear
-        wb.SaveCopyAs bk
-        If Err.Number <> 0 Then why = Err.Description
+    ' before a swap). A roster from before v25 has no SaveRestrictedCopy: then the older ApplyView
+    ' puts the restricted view on, the copy is taken, the admin view comes back (v4.1, review: never
+    ' a copy in the admin view; without ApplyView the backup is refused).
+    Application.Run nm & "SaveRestrictedCopy", bk
+    If Err.Number = 0 Then
+        On Error GoTo 0
+        UpdBackup = True
+        Exit Function
     End If
+    Err.Clear
+    Application.Run nm & "ApplyView", False
+    If Err.Number <> 0 Then
+        why = "The roster's code can't run (" & Err.Description & "), so a backup would carry the admin view (phones, emails, the admin sheets). " & _
+              "Close the roster, open it again with macros enabled, and click the step again."
+        On Error GoTo 0
+        Exit Function
+    End If
+    wb.SaveCopyAs bk
+    If Err.Number <> 0 Then why = Err.Description
+    Err.Clear
+    Application.Run nm & "ApplyView", True
+    wb.Saved = wasSaved                             ' the view switch changed nothing worth saving (the check step refuses an unsaved roster)
     On Error GoTo 0
     UpdBackup = (why = "")
 End Function
@@ -1268,6 +1285,11 @@ Public Sub InstallShowLog()
     en = Err.Number
     On Error GoTo Oops
     If en = 0 Then Exit Sub
+    If wb.ProtectStructure Then                     ' v4.1 review: the sheet can't be shown from outside under structure protection
+        MsgBox "The roster's own code couldn't show the Install Log (its macros aren't running right now). " & _
+               "It shows after the finish step has reopened the roster: ADMIN view lists the Install Log sheet.", vbInformation, INST_TITLE
+        Exit Sub
+    End If
     Dim lo As Object: Set lo = InstEnsureLog(wb, why)
     If lo Is Nothing Then MsgBox why, vbExclamation, INST_TITLE: Exit Sub
     wb.Activate

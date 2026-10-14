@@ -544,7 +544,7 @@ Private Sub CheckOrphans()
         nShown = nShown + 1
         If nShown <= 15 Then
             AddIssue SEV_WARN, "Not on roster", CStr(kk) & " has " & seen(kk) & " OT Log row(s) this year (" & hrs(kk) & _
-                     " h charged) but isn't on the roster", "If they left, put the roster row back and use Employee > Remove. If the name was typed over by hand, type the old name back and use Employee > Rename"
+                     " h charged) but isn't on the roster", "If they left, put the roster row back and use Employee > Remove. If the name was typed over by hand, type the old name back and use Employee > Rename" & ByHandHint(RosterSheet().Name)
         End If
     Next kk
     If nShown > 15 Then AddIssue SEV_WARN, "Not on roster", "... and " & (nShown - 15) & " more names in the OT Log", ""
@@ -753,7 +753,7 @@ Private Sub CheckPlannedMoves()
                     If Int(CDate(cv(i, CH_FROM))) > Date And Not perEmp.Exists(Trim$(SafeStr(cv(i, CH_EMP)))) Then
                         AddIssue SEV_WARN, "Planned moves", "Crew History: " & Trim$(SafeStr(cv(i, CH_EMP))) & " has a crew row dated " & _
                                  Format$(CDate(cv(i, CH_FROM)), "mmm d, yyyy") & " with no planned move behind it", _
-                                 "Remove that row on the Crew History sheet if it was typed by mistake"
+                                 "Remove that row on the Crew History sheet if it was typed by mistake" & ByHandHint(CH_SHEET)
                     End If
                 End If
             Next i

@@ -51,7 +51,7 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v24.3.1 (Oct 14)"
+    CodeVersion = "ThisWorkbook v25 (Oct 14)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the

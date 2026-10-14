@@ -152,10 +152,10 @@ Public Sub SmokeTest()
         head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
     Else
         head = "SMOKE TEST PASSED: all steps OK, totals unchanged."
-        rep = repShort                             ' 14 plain lines fit in one box; the notes are on the Error Log line
+        rep = repShort                             ' 18 plain lines fit in one box; the notes are on the Error Log line
     End If
     If Len(head) > 420 Then head = Left$(head, 400) & " ..." & vbNewLine
-    If Len(rep) > 820 - Len(head) Then rep = Left$(rep, 800 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters
+    If Len(rep) > 960 - Len(head) Then rep = Left$(rep, 940 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters
     MsgBox head & vbNewLine & vbNewLine & rep & vbNewLine & _
            "Saving is blocked in this copy. Close it WITHOUT saving; nothing is kept. " & _
            "Make the next practice copy from the real roster, not from this one.", _
@@ -184,7 +184,7 @@ Private Function SmkName(ByVal k As Long) As String
         Case 6: SmkName = "shift switch"
         Case 7: SmkName = "crew change from a date"
         Case 8: SmkName = "move to another unit"
-        Case 9: SmkName = "plan a unit move for tomorrow (+ crew, old-unit posting), cancel it through a filtered list, cancel the postings"
+        Case 9: SmkName = "plan a move for tomorrow (+ crew, old-unit posting), cancel it through a filtered list"
         Case 10: SmkName = "rename"
         Case 11: SmkName = "publish to a scratch file and read it back"
         Case 12: SmkName = "no takers, award out of dept, void, reopen"

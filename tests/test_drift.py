@@ -88,13 +88,35 @@ def test_every_suite_has_a_handler_and_no_dead_mirror():
 
 
 def test_only_unlocksheet_unprotects():
-    """v25 (R4): code opens a sheet through UnlockSheet only."""
+    """v25 (R4): code opens a roster sheet through UnlockSheet only (modPublish unprotects the MEMBERS' file)."""
     hits = []
-    for p in sorted(MODULES.glob("*.bas")):
-        for i, ln in enumerate(p.read_text(encoding="ascii").splitlines(), 1):
-            if "Unprotect Password:=SHEET_PASSWORD" in ln:
-                hits.append(f"{p.name}:{i}")
-    # UnlockSheet (a sheet) and UnlockStructure (the workbook's tabs) are the two allowed lines
-    assert len(hits) == 2 and all(h.startswith("modOvertimeEntry.bas:") for h in hits), hits
+    for folder in (MODULES, ROOT / "paste-in"):
+        for p in sorted(folder.glob("*.bas")) + sorted(folder.glob("*.txt")):
+            for i, ln in enumerate(p.read_text(encoding="ascii").splitlines(), 1):
+                code = ln.split("'")[0]
+                if re.search(r"\.Unprotect\b", code, re.I):
+                    hits.append((p.name, i, code.strip()))
+    roster = [h for h in hits if "SHEET_PASSWORD" in h[2]]
+    other = [h for h in hits if "SHEET_PASSWORD" not in h[2]]
+    # UnlockSheet (a sheet) and UnlockStructure (the workbook's tabs) are the two allowed roster lines
+    assert len(roster) == 2 and all(h[0] == "modOvertimeEntry.bas" for h in roster), roster
+    assert all(h[0] == "modPublish.bas" and "MEMBER_PASSWORD" in h[2] for h in other), other
     src = (MODULES / "modOvertimeEntry.bas").read_text(encoding="ascii")
     assert "Public Sub UnlockSheet(" in src and "Public Sub UnlockStructure(" in src
+
+
+def test_versions_agree():
+    """v25 review: SystemCheck's expectations equal what ThisWorkbook and the forms say about themselves."""
+    sysrc = vba("modSystem.bas")
+    thiswb = re.search(r'THISWB_RELEASE As String = "([^"]+)"', sysrc).group(1)
+    wbtxt = (ROOT / "paste-in" / "ThisWorkbook.txt").read_text(encoding="ascii")
+    assert re.search(r"^' @version " + re.escape(thiswb) + r" ", wbtxt, re.M), f"ThisWorkbook.txt @version is not {thiswb}"
+    cv = re.search(r'CodeVersion = "([^"]+)"', wbtxt).group(1)
+    assert thiswb in cv, f"ThisWorkbook.CodeVersion {cv!r} does not carry {thiswb} (SystemCheck would fail)"
+    forms = re.search(r'FORM_RELEASES As String = ((?:"[^"]*"\s*&\s*_\s*)*"[^"]*")', sysrc).group(1)
+    table = "".join(re.findall(r'"([^"]*)"', forms))
+    expected = dict(x.split("|") for x in table.split(","))
+    for name, rel_ in expected.items():
+        txt = (ROOT / "paste-in" / f"{name}.txt").read_text(encoding="ascii")
+        m = re.search(r"^' @version (\S+) ", txt, re.M)
+        assert m and m.group(1) == rel_, f"{name}: FORM_RELEASES says {rel_}, the paste-in says {m.group(1) if m else None}"

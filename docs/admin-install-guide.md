@@ -109,7 +109,7 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 | Line | Meaning | What to do |
 |---|---|---|
 | Modules: N of N on vNN | Every checked module carries this release's stamp (24 since v24.4). | Nothing. Both numbers must match the INSTALL note. |
-| Protection: n of N sheets protected, roster totals locked | v25: every sheet must be protected in both views and the roster's Total / period cells locked. | A short count or "unlocked" means a sheet was unprotected by hand: run `ProtectAll` (Alt+F8) or close without saving and reopen. |
+| Protection: n of N sheets protected; roster totals locked; tabs locked | v25: every sheet must be protected in both views, the roster's Total / period cells locked, the workbook's tabs protected. | A short count or "unlocked" means a sheet was unprotected by hand: run `ProtectAll` (Alt+F8) or close without saving and reopen. |
 | [module] is ...: remove it and import the vNN file | That module is from an older release. | Remove it and import the new file. |
 | ThisWorkbook code is older than vNN | ThisWorkbook was not re-pasted. | Re-paste `ThisWorkbook.txt`. |
 | [form] code is older than vNN | That form was not re-pasted. | Re-paste its `.txt` file. |
@@ -348,7 +348,7 @@ Restore the backup only if the reopened file is wrong.
 | `MakePracticeCopy`, `SmokeTest` (Alt+F8) | Section 3, step 14 |
 | `ShowErrorLog`, `ErrorLogTest` (Alt+F8) | The Error Log sheet (admin only, never published) |
 | `ReopenPosting` (Alt+F8) | Reopens a closed posting after its log rows are voided; refuses a shift before the roster year; names anyone it marks not chargeable (moved, left, no code now) |
-| Typing on the sheets (v25) | Every sheet stays protected in both views. In ADMIN view you can type into the roster's Home Unit (B), Crew (E), Phone (F), Plant Seniority (J), EMAIL (K) and the unit code columns (L:S), and the Holidays sheet's "Observed on"; everything else (totals, pay-period cells, every other sheet) is refused and goes through the buttons. Sheets can't be added, deleted or unhidden by hand. Copies made by the system (pre-change, practice, the updater's backup) are saved in the restricted view. |
+| Typing on the sheets (v25) | Every sheet stays protected in both views. In ADMIN view you can type into the roster's Home Unit (B), Crew (E), Phone (F), Worked (H, from the Kronos PDF until the daily import runs), Plant Seniority (J), EMAIL (K) and the unit code columns (L:S), and the Holidays sheet's "Observed on"; everything else (totals, pay-period cells, every other sheet) is refused and goes through the buttons; sorting a selected block by hand is refused too (the sort buttons sort in code). A message that asks you to fix a cell on a protected sheet says how (the VBA editor's Immediate window: `UnlockSheet Sheets("name")`, the fix, then `ProtectAll`). Sheets can't be added, deleted or unhidden by hand. Copies made by the system (pre-change, practice, the updater's backup) are saved in the restricted view. |
 | `ShowGradeLog` (Alt+F8) | Shows the log of grade code changes |
 | `SystemCheck`, `SelfTest` (Alt+F8) | See sections 4 and 5 |
 

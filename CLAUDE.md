@@ -1,6 +1,6 @@
 # Call Out Roster: CLAUDE.md
 
-Context for every coding session on this repo. Read this first, then the brief for the update you're building (`briefs/`). Reconciled on 2026-10-13 from the project's code kit (`docs/code-kit-2026-10/CLAUDE-kit.md`) and what is actually built through v24.3.3 (Oct 14, 2026).
+Context for every coding session on this repo. Read this first, then the brief for the update you're building (`briefs/`). Reconciled on 2026-10-13 from the project's code kit (`docs/code-kit-2026-10/CLAUDE-kit.md`) and what is actually built through v24.4 (Oct 14, 2026).
 
 ## What this is
 An Excel desktop `.xlsm` (VBA) overtime call-out system for Syensqo's Niagara Falls phosphine plant.
@@ -20,8 +20,8 @@ An Excel desktop `.xlsm` (VBA) overtime call-out system for Syensqo's Niagara Fa
 modules/     *.bas  standard modules (file name = VB_Name), imported via File > Import
 paste-in/    *.txt  code for ThisWorkbook and each UserForm (pasted with Ctrl+A); no Attribute lines
 member/      the members' workbook: modMember.bas + its ThisWorkbook.txt (a separate .xlsm, no master names)
-updater/     modUpdater.bas: the Roster Updater, imported into its OWN workbook (never into the roster)
-briefs/      one brief per update (v21.md, M1.md, v22.md ...)
+updater/     modUpdater.bas: the Roster Updater + Install panel (v4), imported into its OWN workbook (never into the roster)
+briefs/      one brief per update (v21.md, M1.md, v22.md ...); from v24.4 also steps-vNN.txt = groups 3-4 of that release's install-steps.txt
 docs/        planning docs, install notes (INSTALL-vNN.md), report-backs, the code kit as supplied
 tests/       Python mirrors of the pure rules + known-answer cases + static checks (see Tooling)
 dist/        built zips (gitignored)
@@ -29,8 +29,8 @@ CHANGELOG.md
 ```
 **Never commit data:** no `*.xls*`, Kronos exports, posting PDFs or plant CSVs (names, phones, emails, leave codes). Test fixtures use made-up names only.
 
-## Workbook map (as built, through v24.3.3)
-### Modules (23 checked by SystemCheck, plus 6 that carry no version stamp; the updater lives in its own workbook)
+## Workbook map (as built, through v24.4)
+### Modules (24 checked by SystemCheck, plus 6 that carry no version stamp; the updater lives in its own workbook)
 | Module | Holds |
 |---|---|
 | `modOvertimeEntry` | **All settings** at the top (`ADMIN_USERS`, folders, Kronos path, `KRONOS_STALE_DAYS`, `DST_USE_ACTUAL_HOURS`, `BACKUP_FOLDER`, member file names ...), roster column constants, `EmpRec`, `LoadEligible` (the one call order), `CalloutCharge`, provisional-OT formulas, OT Log access (`AppendLogRows`), protection, `ApplyView`. Every other module depends on it. |
@@ -42,11 +42,11 @@ CHANGELOG.md
 | `modShiftSwitch` | Shift switches, `SwitchPickList`, `PersonFlag` (returns a code), `SwitchWorkingOn` / `SwitchOffOn`, publish batch cache |
 | `modCalendar` | Absences / Coverage tables, eligibility (`NotFreeReason`, `RotationFreeReason`, `FilterNotFree`), `SlotsFor`, Calendar + Needs Attention drawing, CalMap change tracking, Import Old Cal. v24.3.2: `SetLineText` (with `RenameEverywhere` the only write to a need line's text after it is made; screened by `LeaveWordsIn` + `PrivateValueKind`; an Open source posting's Reason follows when the line's words were the Reason's) and `SetReasonText` (an Open posting's Reason; its lines with the same words follow), the line menu's "Change the text of this line" / "Change the Reason of posting", `CovCellOf`, `CovIdOfSource` |
 | `modHolidays` | 11 plant holidays for any year + Holidays sheet "Observed on" |
-| `modSystem` | `SystemCheck`, `OpenChecks`, daily backup (`BackupOnOpen`, `PruneBackups`). v24.3.1: pure `IsBackupCopyName` (a daily backup, the FINAL, a "Backup before ..." copy) and `IsLiveRoster` (writable, admin, not a practice or backup copy): the backup slot and Member View refuse a backup copy. v24.3.2: `MakePracticeCopy` refuses to run where saving is blocked (`NoSave`) or inside a copy |
+| `modSystem` | `SystemCheck` (v24.4: `SystemCheckBuild` + `SystemCheckOK` as a result for the Install panel; `IL_SHEET`), `OpenChecks`, daily backup (`BackupOnOpen`, `PruneBackups`). v24.3.1: pure `IsBackupCopyName` (a daily backup, the FINAL, a "Backup before ..." copy) and `IsLiveRoster` (writable, admin, not a practice or backup copy): the backup slot and Member View refuse a backup copy. v24.3.2: `MakePracticeCopy` refuses to run where saving is blocked (`NoSave`) or inside a copy |
 | `modUI` | Command bar (`BuildCommandBar`), status line, `ApplyRosterLayout`, `SetupHomeUnit`, form theme |
 | `ImportKronosData` | Kronos import (v24.3.1: `Employee Name`, `Grand Total` and `Payroll #` found by heading, `IsHeaderMatch`; refused when a heading is missing), Hours History snapshot (+ Data Through), `KronosDataThrough`, `EnsureDataThrough` |
 | `modGradeLog` | Grade change log (`tblGradeChange`, snapshot `GradeSnap`) |
-| `modSelfTest` | Alt+F8 > SelfTest: known-answer cases generated from `tests/cases.csv` |
+| `modSelfTest` | Alt+F8 > SelfTest: known-answer cases generated from `tests/cases.csv`. v24.4: `SelfTestRun` + `SelfTestOK` (a result for the Install panel) |
 | `modPublish` | `PublishMembers` (M1): builds the members' tables as values, privacy + order self-checks, fills the template, saves the members' file. v24.3.1: pure `LeaveWordsIn` screens every published free text (calendar Left / Right, posting Reason, log Note); sick calls and personal days go out as "Off" (`PublicType`, `PublicLeft`). v24.3.3: the members' file open in this Excel is closed (asked first) and rewritten; open elsewhere the publish is refused; never a dated copy |
 | `modLeave` | v22: sick calls (`SaveSickCall`, `SickBlocks`), leave going / returning (`ComputeLeaveReturn`, `TotalHoursAsOf`), convert imported calendar lines |
 | `modAttendance` | v22.1: the sick / personal day rule (`AttendanceCore`), `AttendanceFor`, Sick Call preview, past sick days, the Attendance sheet |
@@ -57,6 +57,7 @@ CHANGELOG.md
 | `modSignups` | v24.1: the electronic sign-up inbox (`ReadSignups`, pure `ReduceSignups`, `ApplySignups` for the Award pop-up, `ArchiveSignups`); off unless `SIGNUPS_ON` |
 | `modErrorLog` | v24.2: `LogError` (never raises), `ReportError` (the entry points' handler: logs, closes pop-ups, plain message), `ShowErrorLog`, `ErrorLogTest`; also writes `Roster error log.txt` beside the roster |
 | `modSmokeTest` | v24.2: `SmokeTest`, practice copies only, never saves: 14 steps through the pop-ups' own functions, totals must come back. v24.3.1: step 5 asserts one calendar line per sick call; step 8 checks the person is on every open posting list the move should have put them on; step 9 makes an open posting, plans a move (a list row is added), cancels it through a FILTERED list (the row comes off), changes the words on that posting's calendar line (a leave word refused; the Reason follows) and cancels the posting. Holds no rules |
+| `modSmoke` | v24.4: the Install panel's test-row openers `SmokeCallout(unit, d, shift)`, `SmokePosting(unit, d, shift)`, `SmokeSwitch(d)`: pop-ups pre-filled, nothing written. Holds no rules |
 | `Call_Out_Roster` | Printed call-out roster (`Call_Out`), redrawn from the data |
 | `Sort_Hours_Dept`, `OT_Posting`, `LoginFullAccess`, `modCleanup` | Sort buttons (v24.3.1: `SortForDept` has the error frame; the roster is re-protected on a failed sort), legacy posting print, admin, one-time cleanup. No stamp, not version-checked (with modLogLayout and modMigration: the 6) |
 
@@ -80,6 +81,7 @@ CHANGELOG.md
 | `Refusal Report` | v24.1: output-only, redrawn by `RefusalsReport` (admin) |
 | `Integrity` | v23: the last IntegrityCheck report (admin, drawn) |
 | `Error Log` (`tblErrorLog`) | v24.2: When, User, Procedure, Error, Detail, Release, Seen. Admin, never published |
+| `Install Log` (`tblInstallLog`) | v24.4: Version, Step, Kind, Status, When, User, Note; one row per Install-panel step, written by Roster Updater.xlsm from outside (plain cells), made on first use. Admin-only through `ApplyView`; **never protected** (`ProtectSheet` skips it). Never published |
 | `Year End` (`tblYearEnd`) | v23: each person's final G / H / I / C per closed year (admin) |
 | `OT Log 2026` ... (`tblOTLog2026`) | v23: one per closed year, the archived log rows; protected even in admin view |
 | `Crew History` (`tblCrewHistory`) | v24: Employee, Crew, Effective From (+ who, when). Admin. Roster column E shows the newest row |
@@ -184,7 +186,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 3. Build to the brief, one commit per item.
 4. **Independent review** of every changed file by a separate read-only agent that didn't write it: compile traps above, rule consistency with this file, filter/visible-row bugs, events/calc restored on every exit path, privacy, no new write paths to the roster or OT Log outside the existing ones. Fix, then re-review the fixes.
 5. Add SelfTest + `tests/` cases for every rule touched.
-6. Package `dist/Callout_Roster_vNN.zip` (full set) with `INSTALL-vNN.md`: Remove/Import list, re-paste list, new forms, Compile, macros to run once, SystemCheck expectation, smoke test. INSTALL lists only what changed.
+6. Package `dist/Callout_Roster_vNN.zip` (full set + `install-steps.txt`) with `INSTALL-vNN.md` and `briefs/steps-vNN.txt`. From v24.4 the step list IS the install (the Install panel in Roster Updater.xlsm runs it: backup, swap, compile, finish + reopen, the run-once macros, the hand checks as Pass / Fail rows); the INSTALL note is "what's new" plus "open the panel" and one line pointing at the panel's own by-hand fallback. A release that changes `updater/modUpdater.bas` says so: that one file is imported into Roster Updater.xlsm by hand.
 7. Update `CHANGELOG.md` and the affected `docs/`; tag `vNN`.
 
 **Install freezes:** no updates Dec 20 - Jan 4 except the rollover; none in the week before Jan 23, 2027.
@@ -247,7 +249,7 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 | v24.3.1 | before the December dry run; he installs it instead of re-installing v24.3 | Hotfix from the Oct 13 deep review: leave-word screen + "Off" for members, backup / live tests, paid sick days left, leave return after year end, Kronos by heading, ReportError restores + error frames, one sick line, orphan posting IDs, ask-first apply, cancel save block, SmokeTest list rows through a filter, every stamp (23 of 23) | built, tagged `v24.3.1`; brief `briefs/v24.3.1.md`, report-back `docs/v24.3.1-report-back.md`, review `docs/deep-review-2026-10-13.md` |
 | v24.3.2 | with v24.3.1, before the December dry run | Two findings from Graeme's Oct 13 test: "Change the text of this line" and "Change the Reason of posting" on the Calendar (a leave word in a posting's Reason survives the cancel), New Posting refuses one, MakePracticeCopy refuses to run inside a copy or where saving is blocked | built, tagged `v24.3.2`; `docs/v24.3.2-report-back.md` |
 | v24.3.3 | with v24.3.2 | Member View closes an open members' file here (asks) and refuses when it is open elsewhere; no dated copy (Graeme's Oct 14 test, C6) | built, tagged `v24.3.3`; results of the Oct 14 test run in `docs/v24.3.2-report-back.md` |
-| v24.4 | right after v24.3.3 has run (decided Oct 14, 2026) | Install panel: modUpdater v4 in the updater workbook draws an Install sheet from `install-steps.txt` (shipped in every zip, generated by build_zip), runs backup / swap / compile / macros, Pass-Fail rows for the hand checks, log in a hidden `Install Log` sheet in the roster; `modSmoke` openers; `SystemCheckOK` / `SelfTestOK`. The engine stays OUT of the roster (v1 crash) | brief `briefs/v24.4.md`; report-back + build when the v24.3.3 install report is in; v25 installs through it |
+| v24.4 | right after v24.3.3 has run (decided Oct 14, 2026) | Install panel: modUpdater v4 in the updater workbook draws an Install sheet from `install-steps.txt` (shipped in every zip, generated by build_zip), runs backup / swap / compile / macros, Pass-Fail rows for the hand checks, log in a hidden `Install Log` sheet in the roster; `modSmoke` openers; `SystemCheckOK` / `SelfTestOK`. The engine stays OUT of the roster (v1 crash) | built, tagged `v24.4`; brief `briefs/v24.4.md` (decisions + report-back answers inside); v25 installs through it |
 | v25 | before go-live (moved up Oct 12, 2026) | Pop-up rules into modules (SmokeTest covers them), protection without the VBA password (sheets stay protected; admins type only into unlocked columns), the admin-view copies saved restricted (`SaveRestrictedCopy`), one typed-date parser, one closing test, planned-move follow-ups H2-H9 | brief to write fresh from review section 4.4; after v24.4; installs through the panel |
 | v26 | before go-live (moved up) | Employee history report, "why was I charged", board print, payback aging | kit brief 07; minimum staffing waits for the minimums |
 | v25.2 | before go-live (moved up) | Calendar speed, alone | kit brief 06 item 3 |

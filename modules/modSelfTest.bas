@@ -145,6 +145,8 @@ Private Function RunCase(f() As String) As String
             Dim phH As Double, phW As String
             phW = PartialHoursValue(i1, CDbl(i2), phH)
             RunCase = IIf(phW <> "", "bad", IIf(phH = 0, "whole", NumText(phH)))
+        Case "postclosed"                          ' v25 (P6): closing date, as-of -> open / closed
+            RunCase = IIf(PostingClosed(ParseD(i1), ParseD(i2)), "closed", "open")
         Case "crewsoff"                            ' v25
             RunCase = CrewsOff(ParseD(i1))
         Case "shifthours"                          ' v25
@@ -343,7 +345,7 @@ Private Function CasePosting(ByVal mode As String, ByVal hours As Double, ByVal 
         lst(i).SignedUp = (CStr(p(2)) = "Y")
         lst(i).Awarded = (CStr(p(3)) = "Y")
         If UBound(p) >= 4 Then
-            If CStr(p(4)) = "X" Then lst(i).ExemptNote = "Exempt - test"      ' v24: moved unit or left
+            If CStr(p(4)) = "X" Then lst(i).ExemptNote = EXEMPT_TAG & "test"      ' v24: moved unit or left
         End If
     Next i
     Dim pr As PostRec: pr.Hours = hours
@@ -1258,5 +1260,8 @@ Private Sub LoadCases()
     AddCase "partialhrs,zero,0,12,,,,bad"
     AddCase "partialhrs,negative,-3,12,,,,bad"
     AddCase "calloffer,refusals-before-the-partial-keep-their-charge,12,Refused:0;Left Message:0;Accepted:4;Refused:0,,,,12=21;12=21;12=0;0=0"
+    AddCase "postclosed,day-before,2026-10-20,2026-10-19,,,,open"
+    AddCase "postclosed,closing-day-still-open,2026-10-20,2026-10-20,,,,open"
+    AddCase "postclosed,day-after,2026-10-20,2026-10-21,,,,closed"
 ' <<< CASES
 End Sub

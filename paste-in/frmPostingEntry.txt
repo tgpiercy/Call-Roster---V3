@@ -236,7 +236,7 @@ Private Sub btnLoad_Click()
         "Shift: " & mP.ShiftLbl & "   Crew: " & mP.Crew & "   Hours: " & mP.Hours & _
         "   Positions: " & mP.Positions & vbLf & _
         "Reason: " & mP.Reason & "   |   Posted " & Format$(mP.PostedOn, "mmm d") & _
-        ", closes " & Format$(mP.ClosesOn, "mmm d") & IIf(Now > PostingCloseAt(mP.ClosesOn), "  (closed)", "  (STILL OPEN)")
+        ", closes " & Format$(mP.ClosesOn, "mmm d") & IIf(PostingClosed(mP.ClosesOn), "  (closed)", "  (STILL OPEN)")     ' v25 (P6): the one closing test
 
     SetActionButtons True
     FillOutside
@@ -300,7 +300,7 @@ Private Sub RefreshList(ByVal keepIdx As Long)
             Case "Signed up": res = "not charged"
             Case Else
                 res = ""
-                If mL(i).ExemptNote <> "" Then res = LCase$(Mid$(mL(i).ExemptNote, 10))     ' "Exempt - moved Jan 12" -> "moved jan 12"
+                If mL(i).ExemptNote <> "" Then res = LCase$(Mid$(mL(i).ExemptNote, Len(EXEMPT_TAG) + 1))     ' "Exempt - moved Jan 12" -> "moved jan 12"
         End Select
         lstEmployees.List(i - 1, 5) = res
     Next i

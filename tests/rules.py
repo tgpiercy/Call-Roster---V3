@@ -1125,3 +1125,9 @@ def partial_hours_value(text: str, post_hours: float) -> str:
     if h >= post_hours:
         return "whole"
     return f"{h:g}"
+
+
+# ---------------------------------------------------------------- postings: the one closing test (v25, P6)
+def posting_closed(closes_on: date, as_of: date) -> bool:
+    """modPostings.PostingClosed: closed from the day AFTER the closing date."""
+    return as_of > closes_on

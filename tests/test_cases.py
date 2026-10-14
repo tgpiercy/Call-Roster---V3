@@ -125,6 +125,8 @@ def evaluate(row: dict) -> str:
         return rules.trim_kind(d(i1), d(i2), d(i3), d(i4)) or "none"
     if suite == "partialhrs":                    # typed hours, posting hours -> whole / hours / bad (v25)
         return rules.partial_hours_value(i1, float(i2))
+    if suite == "postclosed":                    # closing date, as-of -> open / closed (v25)
+        return "closed" if rules.posting_closed(d(i1), d(i2)) else "open"
     if suite == "crewsoff":                      # date -> the crews off that day, e.g. C/D (v25)
         return rules.crews_off(d(i1))
     if suite == "shifthours":                    # date, day|night -> the default hours (v25)

@@ -928,7 +928,7 @@ Public Function OpenPostingChoices(ByRef ids As Variant) As Variant
             idArr(k) = SafeStr(v(i, PS_ID))
             d(k) = idArr(k) & "   " & Format$(ToDate(v(i, PS_DATE)), "mmm d") & "   " & _
                    SafeStr(v(i, PS_UNIT)) & "   " & SafeStr(v(i, PS_CREW)) & "   - " & _
-                   IIf(Date > closes, "READY TO AWARD", "open until " & Format$(closes, "mmm d"))
+                   IIf(PostingClosed(closes), "READY TO AWARD", "open until " & Format$(closes, "mmm d"))
             k = k + 1
         End If
     Next i
@@ -978,7 +978,7 @@ Public Function AllPostingChoices(ByRef ids As Variant) As Variant
         idArr(i - 1) = SafeStr(v(r, PS_ID))
         st = SafeStr(v(r, PS_STATUS))
         If st = "Open" Then
-            If Date > ToDate(v(r, PS_CLOSES)) Then st = "Open - ready to award" Else st = "Open until " & Format$(ToDate(v(r, PS_CLOSES)), "mmm d")
+            If PostingClosed(ToDate(v(r, PS_CLOSES))) Then st = "Open - ready to award" Else st = "Open until " & Format$(ToDate(v(r, PS_CLOSES)), "mmm d")
         End If
         d(i - 1) = idArr(i - 1) & "   " & Format$(ToDate(v(r, PS_DATE)), "ddd mmm d") & "   " & _
                    SafeStr(v(r, PS_UNIT)) & "   " & SafeStr(v(r, PS_CREW)) & "   (" & st & ")"
@@ -1209,6 +1209,15 @@ Public Sub ComputeCancel(ByRef lst() As PListRec, ByVal n As Long)
 End Sub
 
 ' Checks shared by Award / No takers / Cancel
+' v25 (P6): THE closing test. A posting is closed from the day AFTER its closing date (the day
+' itself is still open; the sign-up inbox's "late" flag keeps its own 8 AM rule). Pure
+' (SelfTest postclosed). Every "ready to award" / "still open" / "can still sign up" asks this.
+Public Function PostingClosed(ByVal closesOn As Date, Optional ByVal asOf As Date = 0) As Boolean
+    If asOf = 0 Then asOf = Date
+    If closesOn = 0 Then Exit Function
+    PostingClosed = (Int(asOf) > Int(closesOn))
+End Function
+
 Private Function CanFinalize(ByRef p As PostRec) As Boolean
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
@@ -1226,7 +1235,7 @@ End Function
 
 Private Function EarlyOK(ByRef p As PostRec, ByVal what As String) As Boolean
     EarlyOK = True
-    If Date <= p.ClosesOn Then
+    If Not PostingClosed(p.ClosesOn) Then
         EarlyOK = (Ask(p.ID & " doesn't close until " & Format$(p.ClosesOn, "mmm d") & " @ " & POSTING_CLOSE_TIME & _
                    ". " & what & " it now anyway?", vbYesNo + vbExclamation, what, vbYes) = vbYes)
     End If
@@ -1358,9 +1367,9 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
         Exit Function
     End If
     If signedIn <> "" Then
-        If MsgBox("These in-department people signed up and would normally get it first:" & vbNewLine & vbNewLine & _
-                  signedIn & vbNewLine & "Award it out of department anyway? (They won't be charged.)", _
-                  vbYesNo + vbExclamation, "Out of department") = vbNo Then Exit Function
+        If Ask("These in-department people signed up and would normally get it first:" & vbNewLine & vbNewLine & _
+               signedIn & vbNewLine & "Award it out of department anyway? (They won't be charged.)", _
+               vbYesNo + vbExclamation, "Out of department", vbYes) = vbNo Then Exit Function
     End If
     If Not EarlyOK(p, "Award") Then Exit Function
 
@@ -1380,25 +1389,25 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
         inUnit = (UnitCodeOn(outName, p.Unit, p.ShiftDate, IIf(inUnit, "x", "")) <> "")
     End If
     If onRoster And Not inUnit Then
-        If MsgBox(outName & " isn't signed off in " & p.Unit & " (no code in that column on the OT Roster)." & vbNewLine & _
-                  "Award anyway?", vbYesNo + vbExclamation, "Out of department") = vbNo Then Exit Function
+        If Ask(outName & " isn't signed off in " & p.Unit & " (no code in that column on the OT Roster)." & vbNewLine & _
+               "Award anyway?", vbYesNo + vbExclamation, "Out of department", vbYes) = vbNo Then Exit Function
     End If
     If onRoster Then why = NotFreeReason(outName, crew, p.ShiftDate, p.ShiftLbl)
     If why <> "" Then
-        If MsgBox(outName & " isn't free that shift (" & why & ")." & vbNewLine & _
-                  "Award anyway?", vbYesNo + vbExclamation, "Out of department") = vbNo Then Exit Function
+        If Ask(outName & " isn't free that shift (" & why & ")." & vbNewLine & _
+               "Award anyway?", vbYesNo + vbExclamation, "Out of department", vbYes) = vbNo Then Exit Function
     End If
     If Not onRoster Then
-        If MsgBox(outName & " isn't on the OT Roster, so no email address or hours are on file." & vbNewLine & _
-                  "Award anyway?", vbYesNo + vbExclamation, "Out of department") = vbNo Then Exit Function
+        If Ask(outName & " isn't on the OT Roster, so no email address or hours are on file." & vbNewLine & _
+               "Award anyway?", vbYesNo + vbExclamation, "Out of department", vbYes) = vbNo Then Exit Function
     End If
 
-    If MsgBox(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
+    If Ask(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
               "Award OUT OF DEPARTMENT to: " & outName & IIf(code <> "", "  (" & code & ")", "") & _
               IIf(outPartial, "  for " & HoursText(outTake) & " of " & HoursText(p.Hours) & " h (the rest is not covered; nobody is charged for it)", "") & vbNewLine & _
               "Charged (in department, didn't sign up): " & nCh & " x " & HoursText(p.Hours * CHARGE_MULTIPLIER) & _
               " hrs = " & HoursText(tot) & " hrs" & IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "") & _
-              vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm out-of-department award") <> vbOK Then Exit Function
+              vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm out-of-department award", vbOK) <> vbOK Then Exit Function
 
     Dim awardTxt As String: awardTxt = outName & " (out of dept)"
     If Not WriteOutcome(p, lst, n, "Awarded", awardTxt, ps, 0, outName, IIf(code = "", "OD", code), hrs, outTake) Then Exit Function
@@ -1408,8 +1417,8 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
     Else
         calTxt = CalendarOutcome(p, CalName(outName))
     End If
-    EmailAward p, lst, n, awardTxt & IIf(outPartial, " (" & HoursText(outTake) & " h)", ""), outName
-    MsgBox p.ID & " awarded out of department to " & outName & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
+    If Not gSmokeRun Then EmailAward p, lst, n, awardTxt & IIf(outPartial, " (" & HoursText(outTake) & " h)", ""), outName
+    Tell p.ID & " awarded out of department to " & outName & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
     SubmitAwardOutside = True
 End Function
 
@@ -1495,13 +1504,13 @@ Public Function SubmitNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
     If nCh > 0 Then
         If Not ConfirmPeriod(ps) Then Exit Function
     End If
-    If MsgBox(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
+    If Ask(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
               "NO TAKERS: charge all " & nCh & " eligible operator(s) " & HoursText(p.Hours * CHARGE_MULTIPLIER) & _
               " hrs each (" & HoursText(tot) & " hrs total)" & vbNewLine & _
               "Pay period starting " & Format$(ps, "mmm d, yyyy") & vbNewLine & vbNewLine & "Submit?", _
-              vbOKCancel + vbExclamation, "Confirm no takers") <> vbOK Then Exit Function
+              vbOKCancel + vbExclamation, "Confirm no takers", vbOK) <> vbOK Then Exit Function
     If Not WriteOutcome(p, lst, n, "No takers", "", ps, 0) Then Exit Function
-    MsgBox p.ID & " closed - no takers." & vbNewLine & "Calendar: " & CalendarOutcome(p, "No takers"), vbInformation, "No takers"
+    Tell p.ID & " closed - no takers." & vbNewLine & "Calendar: " & CalendarOutcome(p, "No takers"), vbInformation, "No takers"
     SubmitNoTakers = True
 End Function
 
@@ -2031,9 +2040,7 @@ End Sub
 ' or the shift itself is in the past. (A name added after that could only be charged.)
 Private Function StillOpenForSignup(ByRef p As PostRec) As Boolean
     If Int(p.ShiftDate) < Date Then Exit Function
-    If p.ClosesOn > 0 Then
-        If Date > Int(p.ClosesOn) Then Exit Function
-    End If
+    If PostingClosed(p.ClosesOn) Then Exit Function     ' v25 (P6): the one closing test
     StillOpenForSignup = True
 End Function
 
@@ -2326,11 +2333,16 @@ Public Sub ReopenPosting()
         MsgBox id & " still has active OT Log rows. Void them first (Void Entry > " & id & "), then reopen.", vbExclamation
         Exit Sub
     End If
+    If Int(p.ShiftDate) < RosterYearFrom() Then     ' v25 (P4): a shift in a closed year is never reopened
+        MsgBox id & " is for " & Format$(p.ShiftDate, "mmm d, yyyy") & ", before this roster year (" & Format$(RosterYearFrom(), "mmm d, yyyy") & "): it can't be reopened.", vbExclamation
+        Exit Sub
+    End If
     If ArchiveHasActiveRef(CStr(id)) Then          ' v23: its rows left the live log at the year-end rollover
         MsgBox id & " belongs to a closed year, so it can't be reopened. Its OT Log rows are on the archive sheet and that year's file is frozen.", vbExclamation
         Exit Sub
     End If
-    If MsgBox("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion) = vbNo Then Exit Sub
+    If Ask("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion, "Reopen", vbYes) = vbNo Then Exit Sub
+    Dim newlyExempt As String                      ' v25 (P5): who is marked not chargeable by this reopen
     ' v24: the list is frozen, the people aren't. Someone who has left by the shift
     ' date, or no longer holds a code in this unit, must not be charged on the re-award.
     ' (These two marks stay until the posting is closed. If the roster was wrong and is
@@ -2349,8 +2361,10 @@ Public Sub ReopenPosting()
                 leftOn = FormerLeftOn(lst(j).EmpName)
                 If leftOn = 0 Then
                     lst(j).ExemptNote = EXEMPT_TAG & "not on the roster"
+                    newlyExempt = newlyExempt & IIf(newlyExempt = "", "", ", ") & lst(j).EmpName & " (" & Mid$(lst(j).ExemptNote, Len(EXEMPT_TAG) + 1) & ")"
                 ElseIf Int(leftOn) <= Int(p.ShiftDate) Then
                     lst(j).ExemptNote = EXEMPT_TAG & "left " & Format$(leftOn, "mmm d")
+                    newlyExempt = newlyExempt & IIf(newlyExempt = "", "", ", ") & lst(j).EmpName & " (" & Mid$(lst(j).ExemptNote, Len(EXEMPT_TAG) + 1) & ")"
                 End If
             ElseIf dc > 0 Then
                 ' v24.3: the code they hold on the SHIFT date (a waiting unit move counts from its date,
@@ -2359,9 +2373,11 @@ Public Sub ReopenPosting()
                 If UnitCodeOn(lst(j).EmpName, p.Unit, p.ShiftDate, codeNow) = "" Then
                     If codeNow = "" Then
                         lst(j).ExemptNote = EXEMPT_TAG & "no code in " & p.Unit & " now"
+                        newlyExempt = newlyExempt & IIf(newlyExempt = "", "", ", ") & lst(j).EmpName & " (" & Mid$(lst(j).ExemptNote, Len(EXEMPT_TAG) + 1) & ")"
                     Else
                         planId = PlannedFor(lst(j).EmpName, planOn, planUnit)
                         lst(j).ExemptNote = EXEMPT_TAG & "moves " & Format$(planOn, "mmm d") & " (" & planId & ")"
+                        newlyExempt = newlyExempt & IIf(newlyExempt = "", "", ", ") & lst(j).EmpName & " (" & Mid$(lst(j).ExemptNote, Len(EXEMPT_TAG) + 1) & ")"
                     End If
                 End If
             End If
@@ -2372,10 +2388,10 @@ Public Sub ReopenPosting()
     UpdateCoverageBySource p.ID, "POSTED " & p.ID
     RefreshCalendar
     On Error GoTo Oops
-    RestoreSignups CStr(id)             ' v24.1: its electronic sign-ups count again
+    If Not gSmokeRun Then RestoreSignups CStr(id)             ' v24.1: its electronic sign-ups count again (v25: never from SmokeTest)
     MarkMembersDirty
     SaveIfWritable
-    MsgBox id & " is open again.", vbInformation
+    Tell id & " is open again." & IIf(newlyExempt <> "", vbNewLine & vbNewLine & "Not chargeable on it (moved, left, or no code now): " & newlyExempt, ""), vbInformation, "Reopen"
     Exit Sub
 Oops:
     ReportError "ReopenPosting"

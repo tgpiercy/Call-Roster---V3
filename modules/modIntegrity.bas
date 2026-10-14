@@ -358,7 +358,12 @@ Private Sub CheckTypedValues()
             End If
             ' v25 (D-E1/E2): a seniority that isn't a date sorts last in the call order but not under the sort buttons
             ' (v25 review: a real date arrives as a Double through .Value2, so IsNumeric passes it; text fails both)
-            If Not IsEmpty(mVals(r, C_SENIORITY)) And Not IsDate(mVals(r, C_SENIORITY)) And Not IsNumeric(mVals(r, C_SENIORITY)) Then
+            If VarType(mVals(r, C_SENIORITY)) = vbString Then
+                If Trim$(CStr(mVals(r, C_SENIORITY))) <> "" Then
+                    AddIssue SEV_WARN, "Typed values", mNames(r) & ": Plant Seniority '" & SafeStr(mVals(r, C_SENIORITY)) & "' is text, not a date", _
+                             "Type it as a date (text sorts one way under the sort buttons and another in the call order)"
+                End If
+            ElseIf Not IsEmpty(mVals(r, C_SENIORITY)) And Not IsDate(mVals(r, C_SENIORITY)) And Not IsNumeric(mVals(r, C_SENIORITY)) Then
                 AddIssue SEV_WARN, "Typed values", mNames(r) & ": Plant Seniority '" & SafeStr(mVals(r, C_SENIORITY)) & "' isn't a date", _
                          "Type it as a date (the call order puts a non-date last; the sort buttons don't)"
             End If
@@ -714,8 +719,10 @@ End Sub
 ' exist, with no readable date, or more than 3 days past its date.
 Private Sub CheckPlannedMoves()
     Dim pv As Variant: pv = PlannedRows()
-    If Not IsArray(pv) Then Exit Sub
     Dim i As Long, id As String, emp As String, n As Long
+    Dim perEmp As Object: Set perEmp = CreateObject("Scripting.Dictionary")
+    perEmp.CompareMode = 1
+    If IsArray(pv) Then                               ' (v25 re-review: the cancelled-move check below runs either way)
     For i = 1 To UBound(pv, 1)
         n = n + 1
         id = Trim$(SafeStr(pv(i, PM_ID)))
@@ -734,8 +741,6 @@ Private Sub CheckPlannedMoves()
         End If
     Next i
     ' v25 (H9): two waiting moves for one person (a hand edit: the code reads them two ways)
-    Dim perEmp As Object: Set perEmp = CreateObject("Scripting.Dictionary")
-    perEmp.CompareMode = 1
     For i = 1 To UBound(pv, 1)
         emp = Trim$(SafeStr(pv(i, PM_EMP)))
         If emp <> "" Then perEmp(emp) = NumOr0(perEmp(emp)) + 1
@@ -744,19 +749,24 @@ Private Sub CheckPlannedMoves()
     For Each k In perEmp.Keys
         If perEmp(k) > 1 Then AddIssue SEV_WARN, "Planned moves", perEmp(k) & " waiting moves for " & k, "Cancel all but one: Needs Attention > Planned unit moves"
     Next k
+    End If
     ' v25 (H9): a future crew row that a CANCELLED planned move left behind (a cancel before v25 kept the
     ' crewTo row). A future-dated crew change typed in column E is allowed, so only rows that match a
     ' cancelled move's crew and date are flagged (v25 review).
     Dim canc As Object: Set canc = CreateObject("Scripting.Dictionary")
     canc.CompareMode = 1
+    Dim live As Object: Set live = CreateObject("Scripting.Dictionary")      ' the same key on a Planned / Applied move: the row is wanted
+    live.CompareMode = 1
     Dim pt As ListObject: Set pt = PlannedTable(False)
+    Dim key As String
     If Not pt Is Nothing Then
         If Not pt.DataBodyRange Is Nothing Then
             Dim av As Variant: av = RangeTo2D(pt.DataBodyRange)
             If UBound(av, 2) >= PM_STATUS Then
                 For i = 1 To UBound(av, 1)
-                    If StrComp(Trim$(SafeStr(av(i, PM_STATUS))), "Cancelled", vbTextCompare) = 0 And IsDate(av(i, PM_FROM)) Then
-                        canc(Trim$(SafeStr(av(i, PM_EMP))) & "|" & UCase$(Trim$(SafeStr(av(i, PM_CREW)))) & "|" & Format$(CDate(av(i, PM_FROM)), "yyyy-mm-dd")) = True
+                    If IsDate(av(i, PM_FROM)) Then
+                        key = Trim$(SafeStr(av(i, PM_EMP))) & "|" & UCase$(Trim$(SafeStr(av(i, PM_CREW)))) & "|" & Format$(CDate(av(i, PM_FROM)), "yyyy-mm-dd")
+                        If StrComp(Trim$(SafeStr(av(i, PM_STATUS))), "Cancelled", vbTextCompare) = 0 Then canc(key) = True Else live(key) = True
                     End If
                 Next i
             End If
@@ -769,7 +779,8 @@ Private Sub CheckPlannedMoves()
             For i = 1 To UBound(cv, 1)
                 If IsDate(cv(i, CH_FROM)) Then
                     If Int(CDate(cv(i, CH_FROM))) > Date Then
-                        If canc.Exists(Trim$(SafeStr(cv(i, CH_EMP))) & "|" & UCase$(Trim$(SafeStr(cv(i, CH_CREW)))) & "|" & Format$(CDate(cv(i, CH_FROM)), "yyyy-mm-dd")) Then
+                        key = Trim$(SafeStr(cv(i, CH_EMP))) & "|" & UCase$(Trim$(SafeStr(cv(i, CH_CREW)))) & "|" & Format$(CDate(cv(i, CH_FROM)), "yyyy-mm-dd")
+                        If canc.Exists(key) And Not live.Exists(key) Then
                             AddIssue SEV_WARN, "Planned moves", "Crew History: " & Trim$(SafeStr(cv(i, CH_EMP))) & " has a crew row dated " & _
                                      Format$(CDate(cv(i, CH_FROM)), "mmm d, yyyy") & " left by a cancelled planned move", _
                                      "Remove that row on the Crew History sheet (the move it came with was cancelled)" & ByHandHint(CH_SHEET)
@@ -779,7 +790,7 @@ Private Sub CheckPlannedMoves()
             Next i
         End If
     End If
-    AddIssue SEV_INFO, "Planned moves", n & " unit move(s) waiting for their date", "Listed on Needs Attention"
+    If n > 0 Then AddIssue SEV_INFO, "Planned moves", n & " unit move(s) waiting for their date", "Listed on Needs Attention"
 End Sub
 
 ' ---- 8. Kronos ----

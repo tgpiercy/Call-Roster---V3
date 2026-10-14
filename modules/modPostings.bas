@@ -2031,7 +2031,7 @@ Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal
     End If
 End Sub
 
-' Can someone still sign up for this posting? Not once its closing day has passed
+' Can someone still sign up for this posting? Not once its closing time has passed (PostingClosed)
 ' or the shift itself is in the past. (A name added after that could only be charged.)
 Private Function StillOpenForSignup(ByRef p As PostRec) As Boolean
     If Int(p.ShiftDate) < Date Then Exit Function

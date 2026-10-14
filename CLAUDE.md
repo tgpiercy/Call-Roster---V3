@@ -46,7 +46,7 @@ CHANGELOG.md
 | `modUI` | Command bar (`BuildCommandBar`), status line, `ApplyRosterLayout`, `SetupHomeUnit`, form theme |
 | `ImportKronosData` | Kronos import (v24.3.1: `Employee Name`, `Grand Total` and `Payroll #` found by heading, `IsHeaderMatch`; refused when a heading is missing; v25: the rule on its own, `KronosHeadingProblem`), Hours History snapshot (+ Data Through), `KronosDataThrough`, `EnsureDataThrough` |
 | `modGradeLog` | Grade change log (`tblGradeChange`, snapshot `GradeSnap`) |
-| `modSelfTest` | Alt+F8 > SelfTest: known-answer cases generated from `tests/cases.csv` (v25: 565 cases in 67 suites, compared case-sensitively). v24.4: `SelfTestRun` + `SelfTestOK` (a result for the Install panel) |
+| `modSelfTest` | Alt+F8 > SelfTest: known-answer cases generated from `tests/cases.csv` (v25: 568 cases in 67 suites, compared case-sensitively). v24.4: `SelfTestRun` + `SelfTestOK` (a result for the Install panel) |
 | `modPublish` | `PublishMembers` (M1): builds the members' tables as values, privacy + order self-checks, fills the template, saves the members' file. v24.3.1: pure `LeaveWordsIn` screens every published free text (calendar Left / Right, posting Reason, log Note); sick calls and personal days go out as "Off" (`PublicType`, `PublicLeft`). v24.3.3: the members' file open in this Excel is closed (asked first) and rewritten; open elsewhere the publish is refused; never a dated copy |
 | `modLeave` | v22: sick calls (`SaveSickCall`, `SickBlocks`), leave going / returning (`ComputeLeaveReturn`, `TotalHoursAsOf`), convert imported calendar lines |
 | `modAttendance` | v22.1: the sick / personal day rule (`AttendanceCore`), `AttendanceFor`, Sick Call preview, past sick days, the Attendance sheet |

@@ -1308,9 +1308,11 @@ End Function
 
 Public Sub ProtectAll()
     Dim ws As Worksheet
+    On Error Resume Next                            ' v25 re-review: one sheet that won't protect doesn't stop the rest (ReportError calls this)
     For Each ws In ThisWorkbook.Worksheets
         ProtectSheet ws
     Next ws
+    On Error GoTo 0
     RelockStructure                                 ' v25: and the tabs themselves
 End Sub
 

@@ -1209,14 +1209,16 @@ def _date_parts(text: str):
     """modPeople.TypedDateParts: (year or None, month, day) or None. Month-name forms, yyyy-mm-dd,
     m/d[/y] (month / day, as the boxes' hints say); a time after the date is dropped."""
     toks: list[str] = []
+    clock_seen = False
     for w in text.replace(",", " ").replace(".", " ").split():
         lw = w.lower()
         if ":" in w:
+            clock_seen = True
             continue
         if lw[:1].isdigit() and lw.endswith(("am", "pm")) and lw[:-2].isdigit():
             continue
         if lw in ("am", "pm"):
-            if toks and toks[-1].isdigit():
+            if toks and toks[-1].isdigit() and not clock_seen:
                 toks.pop()
             continue
         toks.append(w)
@@ -1283,9 +1285,9 @@ def typed_date(text: str, today: date) -> str:
     year, month, day = parts
     if year is None:
         year = today.year
-        if not _valid_ymd(year, month, day):
+        if not 1 <= month <= 12 or not 1 <= day <= 31:
             return "not a date"
-        d = date(year, month, day)
+        d = date(year, month, min(day, 28))                   # the year is chosen first ("Feb 29" before a leap February)
         if d < today - timedelta(days=90):
             year += 1
         elif d > today + timedelta(days=275):

@@ -360,6 +360,13 @@ Private Function UpdBackup(ByVal wb As Workbook, ByVal label As String, ByRef bk
         UpdBackup = True
         Exit Function
     End If
+    ' (v4.1 re-review) only "the macro isn't there" (a roster before v25) falls back; the roster's own refusal
+    ' ("the copy wasn't saved: ...") is the answer - a second try in the admin view is what it refused
+    If Not (Err.Number = 1004 And InStr(1, Err.Description, "macro", vbTextCompare) > 0) Then
+        why = Err.Description
+        On Error GoTo 0
+        Exit Function
+    End If
     Err.Clear
     Application.Run nm & "ApplyView", False
     If Err.Number <> 0 Then

@@ -13,7 +13,7 @@ Needs **v24.4 installed** on the roster (the Install Log sheet exists) and **Ros
 - **Switches:** inside the 24 h sick window a person can neither work nor give up a shift; a shift given up in a switch relieves the next day's rest rule (they did not work it).
 - **Small rules:** a 0-hour leave top-up still logs its LV- row; the past-sick save says how many days it skipped and why; a frozen FINAL / backup copy opened read-only says so; Book Time Off refuses a date before the roster year's Jan 1; IntegrityCheck "Check" lines for a non-date Plant Seniority and for mixed code letters in one unit column.
 - **Error frames** on the 18 CalMenu macros, CalendarCheck, ShowHolidays, GoToHoliday, SyncSwitchesToCalendar and the updater's run.
-- **Tests:** SelfTest compares case-sensitively; 565 cases in 67 suites (ten new suites for rules that had no known answer); SmokeTest 18 steps (no takers / out of dept / void / reopen, a leave going and returning, the Kronos heading rule on a made-up sheet, a planted leave word stopping the publish); three more static checks on the code.
+- **Tests:** SelfTest compares case-sensitively; 568 cases in 67 suites (ten new suites for rules that had no known answer); SmokeTest 18 steps (no takers / out of dept / void / reopen, a leave going and returning, the Kronos heading rule on a made-up sheet, a planted leave word stopping the publish); three more static checks on the code.
 - **From the v24.4 first run:** the panel's System check passes on the version lines (the untrusted-forms line no longer fails it).
 
 ## A. Once by hand: modUpdater v4.1 into Roster Updater.xlsm (3 minutes)
@@ -26,7 +26,7 @@ Needs **v24.4 installed** on the roster (the Install Log sheet exists) and **Ros
 2. Alt+F8 > `'Roster Updater.xlsm'!InstallPanel`. Pick the unzipped `Callout_Roster_v25` folder. The Install sheet fills: **1. Prepare** (backup, check), **2. Install code** (swap: every module, ThisWorkbook and every form are replaced - 40 files, of which 24 modules, ThisWorkbook and seven forms changed; compile; finish + reopen), **3. Run once** (System check, Self test, Kronos), **4. Checks** (practice copy + SmokeTest, typing on the sheets, the partial-acceptance close, typed dates, New Posting from the panel, the Install Log).
 3. Click the one blue button, read its box, click the next. A FAILED step blocks the rest: **Retry** or **Skip this step...** with a note.
    - **System check** should say **"Modules: 24 of 24 on v25"** and a **"Protection: N of N sheets protected (the Install Log open by design); roster totals locked; tabs locked"** line; the forms line says v25 for frmOvertimeEntry, frmNewPosting, frmPostingEntry, frmShiftSwitch, frmTimeOff, frmLeave, frmSickCall (frmConvert and frmEmployee stay v24.3.1).
-   - **Self test:** 565 passed, 67 suites.
+   - **Self test:** 568 passed, 67 suites.
    - **Smoke test** in the practice copy: SMOKE TEST PASSED, 18 steps. A step may say SKIPPED with its reason (8 or 9 when no second unit has people, 11 or 15 without the members' template, 13 when the leave rule declines on that copy); that is not a fail. CLOSE THE COPY WITHOUT SAVING, then click Done.
    - **Typing on the sheets** is the one new hand check that matters: the row says what must be refused and what must be allowed, in both views.
 4. **Show the log** opens the roster's Install Log sheet.

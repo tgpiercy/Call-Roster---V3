@@ -468,6 +468,9 @@ typeddate,day-then-month,12_Oct,2026-12-15,,,,2026-10-12
 typeddate,two-digit-year,Oct_12_26,2026-12-15,,,,2026-10-12
 typeddate,month-point,Oct._12,2026-12-15,,,,2026-10-12
 typeddate,number-only,12,2026-12-15,,,,not a date
+typeddate,feb-29-ahead-of-a-leap-february,Feb_29,2027-10-14,,,,2028-02-29
+typeddate,clock-then-pm,Oct_12_7:00_pm,2026-12-15,,,,2026-10-12
+typeddate,year-clock-pm,Oct_12_2026_7:00_pm,2026-12-15,,,,2026-10-12
 eligibility,rotation-rest-day-ot,C,2026-10-07,Days,,,rest
 eligibility,gave-up-night-relieves-rest,C,2026-10-07,Days,ssgaveup,,free
 eligibility,rotation-rest-night-ot,A,2026-10-06,Nights,,,rest

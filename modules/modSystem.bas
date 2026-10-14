@@ -323,13 +323,14 @@ Public Sub SaveRestrictedCopy(ByVal fullPath As String)
     Dim savedWas As Boolean: savedWas = ThisWorkbook.Saved
     Dim actWas As Object: Set actWas = ActiveSheet
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
-    Dim en As Long, em As String
+    Dim en As Long, em As String, copied As Boolean
     Application.ScreenUpdating = False
     On Error GoTo Failed
     ApplyViewCore False
     On Error Resume Next
     ThisWorkbook.SaveCopyAs fullPath
     en = Err.Number: em = Err.Description
+    copied = (en = 0)
     On Error GoTo Failed
     If wasAdmin Then ApplyViewCore True
     On Error Resume Next
@@ -347,7 +348,7 @@ Failed:
     Application.ScreenUpdating = scrWas
     ThisWorkbook.Saved = savedWas
     On Error GoTo 0
-    Err.Raise en, , "the copy wasn't saved: " & em
+    Err.Raise en, , IIf(copied, "the copy was saved, but the admin view didn't come back (close and reopen the roster): ", "the copy wasn't saved: ") & em
 End Sub
 
 ' ---------------- the Install Log sheet (v25) ----------------
@@ -379,6 +380,7 @@ Oops:
     LogError "EnsureInstallLog", Err.Number, Err.Description
     On Error Resume Next
     If Not ws Is Nothing Then                       ' v25 review: no half-made sheet left behind (the next admin open tries again)
+        UnlockStructure
         Application.DisplayAlerts = False
         ws.Delete
         Application.DisplayAlerts = True

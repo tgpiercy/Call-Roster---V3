@@ -669,8 +669,8 @@ Public Function TypedDateCore(ByVal t As String, ByVal today As Date, ByRef d As
     If Not TypedDateParts(t, y, m, dy, hasYear) Then TypedDateCore = "not a date": Exit Function
     If Not hasYear Then
         y = Year(today)
-        If Not ValidYmd(y, m, dy) Then TypedDateCore = "not a date": Exit Function     ' Feb 29 in a non-leap year
-        dd = DateSerial(y, m, dy)
+        If m < 1 Or m > 12 Or dy < 1 Or dy > 31 Then TypedDateCore = "not a date": Exit Function
+        dd = DateSerial(y, m, IIf(dy > 28, 28, dy))    ' the year is chosen first ("Feb 29" typed before a leap February)
         If dd < today - 90 Then
             y = y + 1
         ElseIf dd > today + 275 Then
@@ -687,16 +687,17 @@ End Function
 ' "2026-10-12", "10/12", "10/12/2026" (month / day, as the boxes' hints say). A time after it
 ' ("7:00", "7pm", "7 pm") is dropped. False = none of these.
 Private Function TypedDateParts(ByVal t As String, ByRef y As Long, ByRef m As Long, ByRef dy As Long, ByRef hasYear As Boolean) As Boolean
-    Dim raw As Variant, toks() As String, n As Long, w As String, i As Long
+    Dim raw As Variant, toks() As String, n As Long, w As String, i As Long, clockSeen As Boolean
     raw = Split(Trim$(Replace(Replace(t, ",", " "), ".", " ")), " ")
     ReDim toks(0 To UBound(raw) + 1)
     For i = 0 To UBound(raw)
         w = Trim$(CStr(raw(i)))
         If w = "" Then
         ElseIf InStr(w, ":") > 0 Then                               ' 7:00 - the time, dropped
+            clockSeen = True
         ElseIf LCase$(w) Like "#*[ap]m" Then                        ' 7pm
-        ElseIf LCase$(w) = "am" Or LCase$(w) = "pm" Then            ' "7 pm": the 7 goes too
-            If n > 0 Then
+        ElseIf LCase$(w) = "am" Or LCase$(w) = "pm" Then            ' "7 pm": the 7 goes too ("7:00 pm": nothing more to drop)
+            If n > 0 And Not clockSeen Then
                 If toks(n - 1) Like "#*" And Not (toks(n - 1) Like "*[-/]*") Then n = n - 1
             End If
         Else
@@ -2262,7 +2263,7 @@ Public Function SavePlannedMove(ByVal emp As String, ByVal newUnit As String, By
     End If
     If postTxt <> "" Then report = report & "Not chargeable on open posting(s): " & postTxt & vbNewLine
     If addTxt <> "" Then report = report & "Added to the list of open " & newUnit & " posting(s): " & addTxt & ". Print those sheets again." & vbNewLine
-    If lateTxt <> "" Then report = report & "NOT added to " & newUnit & " posting(s) " & lateTxt & ": their closing day has passed." & vbNewLine
+    If lateTxt <> "" Then report = report & "NOT added to " & newUnit & " posting(s) " & lateTxt & ": their closing time has passed." & vbNewLine
     report = report & "It is applied the first time an admin opens the file on or after that date." & vbNewLine & _
              "To cancel it: Needs Attention > Planned unit moves, double-click the line." & vbNewLine & "Backup: " & bk
     SavePlannedMove = True
@@ -2376,7 +2377,7 @@ Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, B
                  "(a sign-up or a result is on the row, or theirs is the only name): check those lists."
     End If
     If lateBack <> "" Then
-        didTxt = didTxt & vbNewLine & "NOT put back on posting(s) " & lateBack & ": their closing day has passed."
+        didTxt = didTxt & vbNewLine & "NOT put back on posting(s) " & lateBack & ": their closing time has passed."
     End If
     If syncPostings And eff > 0 And r > 0 And entered = 0 Then
         didTxt = didTxt & vbNewLine & "The day this move was entered can't be read, so posting lists made since then were left as they are: check the open postings."

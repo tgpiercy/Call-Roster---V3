@@ -431,6 +431,9 @@ End Function
 Private Function ShiftClosedByPartial() As Boolean
     Dim oc() As String, tk() As Double, i As Long
     If mCount < 1 Then Exit Function
+    If mCurrent >= 1 And mCurrent <= mCount Then
+        If mEntries(mCurrent).Outcome <> "" Then Exit Function      ' a row already logged (before the close) can be corrected
+    End If
     ReDim oc(1 To mCount): ReDim tk(1 To mCount)
     For i = 1 To mCount
         If i <> mCurrent Then oc(i) = mEntries(i).Outcome: tk(i) = mTaken(i)

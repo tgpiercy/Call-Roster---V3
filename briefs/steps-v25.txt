@@ -5,7 +5,7 @@
 
 [3. Run once]
 macro   | System check (expect 24 of 24 on v25, and the Protection line)   | SystemCheckOK
-macro   | Self test (expect 565 passed, 67 suites)                           | SelfTestOK
+macro   | Self test (expect 568 passed, 67 suites)                           | SelfTestOK
 manual  | Import Kronos when the next export arrives                         | Hours are entered from the Kronos PDF today; the Excel import waits for the daily export (SmokeTest step 14 proves the heading rule on a made-up sheet). Click Done.
 
 [4. Checks]

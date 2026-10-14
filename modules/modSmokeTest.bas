@@ -643,7 +643,7 @@ Private Function SmkListMismatch(ByVal emp As String, ByVal unit As String, ByVa
             id = Trim$(SafeStr(v(i, PS_ID)))
             ' the same postings SyncPersonOnPostings touches: Status exactly "Open", at least one list row,
             ' a shift from fromDate that can still be signed up for
-            If sd >= Int(fromDate) And sd >= Date And (cl = 0 Or Date <= cl) And SmkPostingRows(id) > 0 Then
+            If sd >= Int(fromDate) And sd >= Date And (cl = 0 Or Not PostingClosed(cl)) And SmkPostingRows(id) > 0 Then     ' v25: the one closing test
                 nOpen = nOpen + 1
                 onList = SmkOnPostingList(id, emp)
                 shouldBe = SmkFreeListed(emp, unit, sd, SafeStr(v(i, PS_SHIFT)), CrewFilter(SafeStr(v(i, PS_CREW))))
@@ -772,7 +772,7 @@ Private Function SmkOutcomes(ByRef st As SmkState, ByRef why As String) As Boole
     If Not HasActiveLogRows(st.PostId3) Then why = "no takers wrote no OT Log rows for " & st.PostId3: Exit Function
     If VoidRef(st.PostId3, SMK_WHY, calN) = 0 Then why = "VoidRef voided nothing for " & st.PostId3: Exit Function
     If HasActiveLogRows(st.PostId3) Then why = st.PostId3 & " still has active OT Log rows after the void": Exit Function
-    If Not ReopenPostingById(st.PostId3, report) Then why = st.PostId3 & " couldn't be reopened (a message above says why)": Exit Function
+    If Not ReopenPostingById(st.PostId3, report) Then why = st.PostId3 & " couldn't be reopened: " & report: Exit Function
     If PostingStatus(st.PostId3) <> "Open" Then why = st.PostId3 & " is " & PostingStatus(st.PostId3) & " after the reopen": Exit Function
     ' posting 4: out of department to the test person (only when step 8 moved them out of st.Unit)
     If st.Unit2 = "" Then

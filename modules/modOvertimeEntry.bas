@@ -159,6 +159,7 @@ Public gNoSaveOnClose As Boolean    ' set when a migration/verification fails - 
 Public gSmokeRun As Boolean
 Public gSmokeFolder As String       ' where the publish step writes its scratch members' file
 Public gSmokeSaved As String        ' ...and the file it wrote ("" = it didn't)
+Public gSmokeRefusal As String      ' v25: why the publish refused (the box it would have shown), for SmokeTest's planted-word step
 
 
 ' ====================================================================

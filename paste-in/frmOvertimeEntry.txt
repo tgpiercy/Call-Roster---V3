@@ -425,18 +425,20 @@ Private Function OfferFor(ByVal idx As Long) As Double
     OfferFor = offers(idx)
 End Function
 
-' v25 (D-E4): once someone took PART of the hours the shift is closed - no further Accepted
+' v25 (D-E4): once someone took PART of the hours the shift is closed - no further outcome of any
+' kind (review: a Refused recorded after the close would still be charged, since the charge goes by
+' list position). The partial taker's own row stays correctable (their entry is left out of the test).
 Private Function ShiftClosedByPartial() As Boolean
-    Dim oc() As String, i As Long
+    Dim oc() As String, tk() As Double, i As Long
     If mCount < 1 Then Exit Function
-    ReDim oc(1 To mCount)
+    ReDim oc(1 To mCount): ReDim tk(1 To mCount)
     For i = 1 To mCount
-        oc(i) = mEntries(i).Outcome
+        If i <> mCurrent Then oc(i) = mEntries(i).Outcome: tk(i) = mTaken(i)
     Next i
-    If CalloutClosed(oc, mTaken, mCount, mHours) Then
+    If CalloutClosed(oc, tk, mCount, mHours) Then
         ShiftClosedByPartial = True
-        MsgBox "A partial acceptance closed this shift: the remaining hours are dropped, uncharged, and nobody else is offered them." & vbNewLine & vbNewLine & _
-               "Log the rest of the calls as Refused, Left Message or Unavailable (none of them is charged).", vbExclamation, "Shift closed"
+        MsgBox "A partial acceptance closed this shift: the remaining hours are dropped, uncharged, and nobody else is called." & vbNewLine & vbNewLine & _
+               "Leave the rest of the list uncalled and click SUBMIT ALL ENTRIES.", vbExclamation, "Shift closed"
     End If
 End Function
 
@@ -474,10 +476,17 @@ Private Sub btnAccepted_Click()
     If ShiftClosedByPartial() Then Exit Sub              ' v25 (D-E4)
     RecordOutcome "Accepted", ""                         ' the whole of what is on offer
 End Sub
-Private Sub btnRefused_Click(): Call RecordOutcome("Refused", ""): End Sub
-Private Sub btnLeftMsg_Click(): Call RecordOutcome("Left Message", ""): End Sub
+Private Sub btnRefused_Click()
+    If ShiftClosedByPartial() Then Exit Sub              ' v25 (D-E4, review): nobody is called after the close
+    RecordOutcome "Refused", ""
+End Sub
+Private Sub btnLeftMsg_Click()
+    If ShiftClosedByPartial() Then Exit Sub
+    RecordOutcome "Left Message", ""
+End Sub
 
 Private Sub btnUnavailable_Click()
+    If ShiftClosedByPartial() Then Exit Sub
     If C("cmbReason").Value = "" Then
         MsgBox "Select a reason from the dropdown before marking" & vbNewLine & _
                "someone unavailable.", vbExclamation, "Reason Required"

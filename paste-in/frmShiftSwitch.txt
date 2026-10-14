@@ -422,7 +422,7 @@ Private Function PaybackProblem(ByVal d2 As Date, ByVal sh2 As String) As String
     If mOff.ListIndex < 0 Or mWorks.ListIndex < 0 Then Exit Function
     Dim d As Date
     If Not PickedDate(d) Then Exit Function
-    PaybackProblem = modShiftSwitch.PaybackProblem(mOff.Text, mWorks.Text, d, d2, sh2)
+    PaybackProblem = modShiftSwitch.PaybackProblem(mOff.Text, mWorks.Text, d, d2, sh2, mShift.Text)     ' v25 review: the shift given up here
 End Function
 
 ' first line of an EligibilityProblems list, without its "- "

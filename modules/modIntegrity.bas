@@ -357,7 +357,8 @@ Private Sub CheckTypedValues()
                          "Pay-period cells must be the log formula. Run RefreshRosterFormulas (it moves typed numbers into the OT Log)"
             End If
             ' v25 (D-E1/E2): a seniority that isn't a date sorts last in the call order but not under the sort buttons
-            If Not IsEmpty(mVals(r, C_SENIORITY)) And Not IsDate(mVals(r, C_SENIORITY)) Then
+            ' (v25 review: a real date arrives as a Double through .Value2, so IsNumeric passes it; text fails both)
+            If Not IsEmpty(mVals(r, C_SENIORITY)) And Not IsDate(mVals(r, C_SENIORITY)) And Not IsNumeric(mVals(r, C_SENIORITY)) Then
                 AddIssue SEV_WARN, "Typed values", mNames(r) & ": Plant Seniority '" & SafeStr(mVals(r, C_SENIORITY)) & "' isn't a date", _
                          "Type it as a date (the call order puts a non-date last; the sort buttons don't)"
             End If
@@ -743,17 +744,36 @@ Private Sub CheckPlannedMoves()
     For Each k In perEmp.Keys
         If perEmp(k) > 1 Then AddIssue SEV_WARN, "Planned moves", perEmp(k) & " waiting moves for " & k, "Cancel all but one: Needs Attention > Planned unit moves"
     Next k
-    ' v25 (H9): a crew row dated in the future with no planned move behind it (an orphan from a hand edit)
+    ' v25 (H9): a future crew row that a CANCELLED planned move left behind (a cancel before v25 kept the
+    ' crewTo row). A future-dated crew change typed in column E is allowed, so only rows that match a
+    ' cancelled move's crew and date are flagged (v25 review).
+    Dim canc As Object: Set canc = CreateObject("Scripting.Dictionary")
+    canc.CompareMode = 1
+    Dim pt As ListObject: Set pt = PlannedTable(False)
+    If Not pt Is Nothing Then
+        If Not pt.DataBodyRange Is Nothing Then
+            Dim av As Variant: av = RangeTo2D(pt.DataBodyRange)
+            If UBound(av, 2) >= PM_STATUS Then
+                For i = 1 To UBound(av, 1)
+                    If StrComp(Trim$(SafeStr(av(i, PM_STATUS))), "Cancelled", vbTextCompare) = 0 And IsDate(av(i, PM_FROM)) Then
+                        canc(Trim$(SafeStr(av(i, PM_EMP))) & "|" & UCase$(Trim$(SafeStr(av(i, PM_CREW)))) & "|" & Format$(CDate(av(i, PM_FROM)), "yyyy-mm-dd")) = True
+                    End If
+                Next i
+            End If
+        End If
+    End If
     Dim lo As ListObject: Set lo = CrewTable()
-    If Not lo Is Nothing Then
+    If Not lo Is Nothing And canc.Count > 0 Then
         If Not lo.DataBodyRange Is Nothing Then
             Dim cv As Variant: cv = lo.DataBodyRange.Value
             For i = 1 To UBound(cv, 1)
                 If IsDate(cv(i, CH_FROM)) Then
-                    If Int(CDate(cv(i, CH_FROM))) > Date And Not perEmp.Exists(Trim$(SafeStr(cv(i, CH_EMP)))) Then
-                        AddIssue SEV_WARN, "Planned moves", "Crew History: " & Trim$(SafeStr(cv(i, CH_EMP))) & " has a crew row dated " & _
-                                 Format$(CDate(cv(i, CH_FROM)), "mmm d, yyyy") & " with no planned move behind it", _
-                                 "Remove that row on the Crew History sheet if it was typed by mistake" & ByHandHint(CH_SHEET)
+                    If Int(CDate(cv(i, CH_FROM))) > Date Then
+                        If canc.Exists(Trim$(SafeStr(cv(i, CH_EMP))) & "|" & UCase$(Trim$(SafeStr(cv(i, CH_CREW)))) & "|" & Format$(CDate(cv(i, CH_FROM)), "yyyy-mm-dd")) Then
+                            AddIssue SEV_WARN, "Planned moves", "Crew History: " & Trim$(SafeStr(cv(i, CH_EMP))) & " has a crew row dated " & _
+                                     Format$(CDate(cv(i, CH_FROM)), "mmm d, yyyy") & " left by a cancelled planned move", _
+                                     "Remove that row on the Crew History sheet (the move it came with was cancelled)" & ByHandHint(CH_SHEET)
+                        End If
                     End If
                 End If
             Next i

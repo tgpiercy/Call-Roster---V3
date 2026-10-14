@@ -1209,13 +1209,15 @@ Public Sub ComputeCancel(ByRef lst() As PListRec, ByVal n As Long)
 End Sub
 
 ' Checks shared by Award / No takers / Cancel
-' v25 (P6): THE closing test. A posting is closed from the day AFTER its closing date (the day
-' itself is still open; the sign-up inbox's "late" flag keeps its own 8 AM rule). Pure
-' (SelfTest postclosed). Every "ready to award" / "still open" / "can still sign up" asks this.
+' v25 (P6): THE closing test. A posting closes at POSTING_CLOSE_TIME on its closing date - the moment
+' the printed sheet, the members' file and the sign-up inbox already used (v25 review: the master
+' said "the day after", so a mover could still be added to a list at 2 PM on the closing day).
+' asOf is a date-time (Now); SelfTest passes a date, which is that day's midnight. Pure (SelfTest
+' postclosed). Every "ready to award" / "still open" / "can still sign up" asks this.
 Public Function PostingClosed(ByVal closesOn As Date, Optional ByVal asOf As Date = 0) As Boolean
-    If asOf = 0 Then asOf = Date
+    If asOf = 0 Then asOf = Now
     If closesOn = 0 Then Exit Function
-    PostingClosed = (Int(asOf) > Int(closesOn))
+    PostingClosed = (asOf >= PostingCloseAt(closesOn))
 End Function
 
 Private Function CanFinalize(ByRef p As PostRec) As Boolean
@@ -2331,20 +2333,23 @@ Public Function ReopenPostingById(ByVal id As String, ByRef report As String) As
     If Not PostingTablesReady() Then Exit Function
     Dim p As PostRec, lst() As PListRec, n As Long
     n = LoadPosting(CStr(id), p, lst)
-    If n = 0 Then MsgBox "Posting " & id & " not found.", vbExclamation: Exit Function
-    If p.Status = "Open" Then MsgBox id & " is already open.", vbInformation: Exit Function
+    If n = 0 Then report = "Posting " & id & " not found.": Tell report, vbExclamation, "Reopen": Exit Function
+    If p.Status = "Open" Then report = id & " is already open.": Tell report, vbInformation, "Reopen": Exit Function
 
     ' its OT Log rows must be voided first so nothing is charged twice
     If HasActiveLogRows(CStr(id)) Then
-        MsgBox id & " still has active OT Log rows. Void them first (Void Entry > " & id & "), then reopen.", vbExclamation
+        report = id & " still has active OT Log rows. Void them first (Void Entry > " & id & "), then reopen."
+        Tell report, vbExclamation, "Reopen"
         Exit Function
     End If
     If Int(p.ShiftDate) < RosterYearFrom() Then     ' v25 (P4): a shift in a closed year is never reopened
-        MsgBox id & " is for " & Format$(p.ShiftDate, "mmm d, yyyy") & ", before this roster year (" & Format$(RosterYearFrom(), "mmm d, yyyy") & "): it can't be reopened.", vbExclamation
+        report = id & " is for " & Format$(p.ShiftDate, "mmm d, yyyy") & ", before this roster year (" & Format$(RosterYearFrom(), "mmm d, yyyy") & "): it can't be reopened."
+        Tell report, vbExclamation, "Reopen"
         Exit Function
     End If
     If ArchiveHasActiveRef(CStr(id)) Then          ' v23: its rows left the live log at the year-end rollover
-        MsgBox id & " belongs to a closed year, so it can't be reopened. Its OT Log rows are on the archive sheet and that year's file is frozen.", vbExclamation
+        report = id & " belongs to a closed year, so it can't be reopened. Its OT Log rows are on the archive sheet and that year's file is frozen."
+        Tell report, vbExclamation, "Reopen"
         Exit Function
     End If
     If Ask("Reopen " & id & " so it can be awarded again?", vbYesNo + vbQuestion, "Reopen", vbYes) = vbNo Then Exit Function

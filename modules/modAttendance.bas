@@ -459,6 +459,8 @@ Public Function SaveSickPast(ByVal emp As String, ByVal unit As String, ByVal d1
     If Not RequireWritable() Then Exit Function
     If d2 < d1 Then Exit Function
     If d1 < RosterYearFrom() Then Exit Function       ' v25: never a sick row before this roster year (the pop-up says why)
+    If d1 > Date Then Exit Function                   ' v25 review: PAST sick days only (a yearless date can land ahead)
+    If d2 > Date Then d2 = Date
     If Not AbsenceColumnsCurrent() Then
         MsgBox "The Absences table needs its v22 columns first: run Alt+F8 > UpgradeAbsenceColumns.", vbExclamation
         Exit Function

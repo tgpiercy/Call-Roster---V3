@@ -283,8 +283,8 @@ Private Sub SaveReturning()
     Dim msg As String
     msg = mCalc.Emp & " returns " & Format$(mCalc.ReturnDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & mCalc.Summary & vbNewLine
     If hrs <> mCalc.Average Then msg = msg & vbNewLine & "OVERRIDE: add " & Format$(hrs, "0.0") & " h instead (" & why & ")" & vbNewLine
-    msg = msg & vbNewLine & "This logs one Adjustment (" & IIf(hrs = 0, "none - nothing to add", "Ref LV-####, Reason 'Leave return'") & _
-          ") and closes the leave. Void Entry undoes the hours." & vbNewLine & vbNewLine & "Save?"
+    msg = msg & vbNewLine & "This logs one Adjustment (Ref LV-####, Reason 'Leave return'" & IIf(hrs = 0, ", 0 h: the return goes on record", "") & _
+          ") and closes the leave. Void Entry undoes it." & vbNewLine & vbNewLine & "Save?"
     If MsgBox(msg, vbOKCancel + vbQuestion, "Confirm leave return") <> vbOK Then Exit Sub
     Dim id As String: id = SaveLeaveReturn(mCalc, hrs, why)
     If id = "" Then Exit Sub

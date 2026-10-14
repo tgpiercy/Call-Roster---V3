@@ -613,6 +613,16 @@ Private Function SmkFreeCount(ByVal unit As String, ByVal d As Date, ByVal shift
     SmkFreeCount = n
 End Function
 
+' v25: ...of whom this many are chargeable (grade CHARGE_MAX_GRADE and below): a No takers needs one
+Private Function SmkChargeableFree(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String) As Long
+    Dim recs() As EmpRec, n As Long, i As Long, offTxt As String
+    n = LoadEligible(unit, CrewFilter(CREW_ALL), recs, DeptPostingMaxGrade(unit), True, d)
+    If n > 0 Then n = FilterNotFree(recs, n, d, shiftLbl, offTxt)
+    For i = 1 To n
+        If recs(i).Grade <= CHARGE_MAX_GRADE Then SmkChargeableFree = SmkChargeableFree + 1
+    Next i
+End Function
+
 ' For every Open posting in the unit for a shift from fromDate that can still be signed up for
 ' (closing day not passed): the person is on its list exactly when they are listed and free for
 ' that shift. "" when every posting agrees; otherwise the first disagreement. nOpen = how many
@@ -748,9 +758,9 @@ Private Function SmkOutcomes(ByRef st As SmkState, ByRef why As String) As Boole
     If RosterRowOf(st.Emp) = 0 Then why = st.Emp & " isn't on the roster": Exit Function
     For dd = 2 To 60
         d = Date + dd
-        If SmkFreeCount(st.Unit, d, "Days") >= 1 Then found = True: Exit For
+        If SmkChargeableFree(st.Unit, d, "Days") >= 1 Then found = True: Exit For
     Next dd
-    If Not found Then why = "no day shift in the next 60 days has anyone free in " & st.Unit: Exit Function
+    If Not found Then why = "no day shift in the next 60 days has anyone chargeable free in " & st.Unit: Exit Function
     p.Unit = st.Unit: p.ShiftDate = d: p.ShiftLbl = "Days": p.Crew = CREW_ALL
     p.Reason = "Unit Operator Support": p.Hours = USUAL_SHIFT_HOURS: p.Positions = 1: p.ClosesOn = d - 1
     If Not CreatePostingFrom(p, False, False) Then why = "posting 3 couldn't be created": Exit Function
@@ -764,7 +774,12 @@ Private Function SmkOutcomes(ByRef st As SmkState, ByRef why As String) As Boole
     If HasActiveLogRows(st.PostId3) Then why = st.PostId3 & " still has active OT Log rows after the void": Exit Function
     If Not ReopenPostingById(st.PostId3, report) Then why = st.PostId3 & " couldn't be reopened (a message above says why)": Exit Function
     If PostingStatus(st.PostId3) <> "Open" Then why = st.PostId3 & " is " & PostingStatus(st.PostId3) & " after the reopen": Exit Function
-    ' posting 4: out of department to the test person
+    ' posting 4: out of department to the test person (only when step 8 moved them out of st.Unit)
+    If st.Unit2 = "" Then
+        st.Note = st.PostId3 & " no takers -> voided -> open again; the out-of-department award skipped (no second unit with people)"
+        SmkOutcomes = True
+        Exit Function
+    End If
     Dim p4 As PostRec, lst4() As PListRec, n4 As Long
     p4.Unit = st.Unit: p4.ShiftDate = d: p4.ShiftLbl = "Days": p4.Crew = CREW_ALL
     p4.Reason = "Unit Operator Support": p4.Hours = USUAL_SHIFT_HOURS: p4.Positions = 1: p4.ClosesOn = d - 1
@@ -781,26 +796,32 @@ End Function
 
 ' ---- 13. leave going and returning (v25) ----
 ' A leave booked from 30 days ago, returned today through the leave rule; the LV- row is logged even
-' when the top-up is 0 h (L5), and the rule then refuses a second return. The rule can decline on this
-' copy (no peers, no history): then the step is recorded as skipped with its reason, never as a pass.
+' when the top-up is 0 h (L5; no peers or no history give 0 h with a warning, not a refusal), and the
+' rule then refuses a second return. The one refusal that is this copy's state, not a fault - a
+' return after the roster's last period (the year wasn't rolled over) - is recorded as skipped.
 Private Function SmkLeaveReturn(ByRef st As SmkState, ByRef why As String) As Boolean
-    Dim lc As LeaveCalc, grp As String, unit As String
+    Dim lc As LeaveCalc, grp As String, unit As String, avg As Double
     If RosterRowOf(st.Emp) = 0 Then why = st.Emp & " isn't on the roster": Exit Function
     unit = IIf(st.Unit2 <> "", st.Unit2, st.Unit)
     st.LeaveAbsId = SaveAbsence(st.Emp, unit, "LOA", Date - 30, Empty, Empty, "", SMK_WHY, "", "", "", "AB", True)
     If st.LeaveAbsId = "" Then why = "the leave couldn't be booked": Exit Function
     If Not ComputeLeaveReturn(st.LeaveAbsId, Date, lc) Then
-        st.Note = "SKIPPED: the leave rule declined on this copy - " & Left$(lc.Warnings, 160)
-        SmkLeaveReturn = True
+        If InStr(1, lc.Warnings, "after the last day", vbTextCompare) > 0 Then
+            st.Note = "SKIPPED: " & Left$(lc.Warnings, 160)
+            SmkLeaveReturn = True
+        Else
+            why = "the leave rule refused the return: " & Left$(lc.Warnings, 200)
+        End If
         Exit Function
     End If
+    avg = lc.Average
     grp = SaveLeaveReturn(lc, lc.Average, "")
     If grp = "" Then why = "the leave return wasn't saved": Exit Function
     st.LeaveRef = grp
     If Not HasActiveLogRows(grp) Then why = "the leave return logged no row (" & grp & ")": Exit Function
     If ComputeLeaveReturn(st.LeaveAbsId, Date, lc) Then why = "a second return on " & st.LeaveAbsId & " wasn't refused": Exit Function
     If InStr(1, lc.Warnings, "already been topped up", vbTextCompare) = 0 Then why = "the second return was refused for the wrong reason: " & lc.Warnings: Exit Function
-    st.Note = grp & ": " & Format$(lc.Average, "0.0") & " h logged; a second return refused"
+    st.Note = grp & ": " & Format$(avg, "0.0") & " h logged; a second return refused"
     SmkLeaveReturn = True
 End Function
 
@@ -823,8 +844,9 @@ Private Function SmkKronosHeadings(ByRef st As SmkState, ByRef why As String) As
 End Function
 
 ' ---- 15. a planted leave word stops the publish (v25) ----
-' The posting Reason first, then a calendar line's covered-by; each publish must write nothing. The
-' words are taken back and posting 3 is cancelled (step 16 cancels it if this step fails first).
+' The posting Reason first, then a calendar line's covered-by; each publish must write nothing and
+' must have refused for the planted word (gSmokeRefusal). The words are taken back and posting 3 is
+' cancelled (step 16 cancels it when this step is skipped; a FAILED step stops the run, saving blocked).
 Private Function SmkPlantedWords(ByRef st As SmkState, ByRef why As String) As Boolean
     If Not MemberTemplateExists() Then st.Note = "SKIPPED: no members' template beside this copy": SmkPlantedWords = True: Exit Function
     If st.PostId3 = "" Then st.Note = "SKIPPED: no open posting from step 12": SmkPlantedWords = True: Exit Function
@@ -838,17 +860,21 @@ Private Function SmkPlantedWords(ByRef st As SmkState, ByRef why As String) As B
     n = LoadPosting(st.PostId3, p, lst)
     reasonWas = p.Reason
     If Not SetPostingReason(st.PostId3, "Covering J. Smith STD") Then why = "the Reason couldn't be planted": Exit Function
-    gSmokeFolder = folder: gSmokeSaved = ""
+    gSmokeFolder = folder: gSmokeSaved = "": gSmokeRefusal = ""
     PublishMembers
     Application.ScreenUpdating = False             ' the publish switches it back on; restored by SmokeTest at its end
     SetPostingReason st.PostId3, reasonWas
     If gSmokeSaved <> "" Then why = "the publish wrote its file although a posting Reason said STD": GoTo Fail
+    If InStr(1, gSmokeRefusal, "STD", vbBinaryCompare) = 0 Or InStr(1, gSmokeRefusal, "Reason", vbTextCompare) = 0 Then
+        why = "the publish didn't refuse for the planted Reason: " & Left$(gSmokeRefusal, 200): GoTo Fail
+    End If
     If UpdateCoverageBySource(st.PostId3, "NCN STD") = 0 Then why = st.PostId3 & " has no calendar line to plant on": Exit Function
-    gSmokeSaved = ""
+    gSmokeSaved = "": gSmokeRefusal = ""
     PublishMembers
     Application.ScreenUpdating = False             ' restored by SmokeTest at its end
     UpdateCoverageBySource st.PostId3, "POSTED " & st.PostId3
     If gSmokeSaved <> "" Then why = "the publish wrote its file although a calendar line said STD": GoTo Fail
+    If InStr(1, gSmokeRefusal, "STD", vbBinaryCompare) = 0 Then why = "the publish didn't refuse for the planted calendar text: " & Left$(gSmokeRefusal, 200): GoTo Fail
     n = LoadPosting(st.PostId3, p, lst)
     If Not SubmitCancel(p, lst, n) Then why = st.PostId3 & " couldn't be cancelled": Exit Function
     st.Note = "Reason and calendar line each refused; " & st.PostId3 & " cancelled"
@@ -896,7 +922,7 @@ Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     If st.LeaveAbsId <> "" Then                      ' v25: step 13's leave (its LV- row went with the refs above)
         If Not VoidAbsence(st.LeaveAbsId, SMK_WHY) Then why = "VoidAbsence " & st.LeaveAbsId & " returned False": Exit Function
     End If
-    ' v25: a posting a failed step 12 / 15 left open is cancelled here, so nothing of the run stays Open
+    ' v25: posting 3 is still Open when step 15 was skipped (no template): cancelled here so nothing of the run stays Open
     Dim p As PostRec, lst() As PListRec
     If st.PostId3 <> "" Then
         If PostingStatus(st.PostId3) = "Open" Then

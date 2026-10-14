@@ -142,7 +142,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | The list | Made when the posting is created. It holds everyone free for that shift, in call order. |
 | Posted totals | Each person's Total Hours is frozen on the list at creation. Awards and charges use these posted totals, not later ones. |
 | Sign-up | On the printed sheet. The sheet has 3 blank lines for out-of-department sign-ups. |
-| Closing | Default is 14 days before the shift, at 8:00 AM. If that has passed, the day before the shift. The supervisor can type another date. A posting counts as closed from the day after its closing date; one test decides it everywhere (ready to award, still open, can still be signed up for). |
+| Closing | Default is 14 days before the shift, at 8:00 AM. If that has passed, the day before the shift. The supervisor can type another date. A posting is closed from 8:00 AM on its closing date (the time printed on the sheet); one test decides it everywhere (ready to award, still open, can still be signed up for, a mover added to the list). |
 | Awarding early | The system warns when a posting is awarded before it closes. |
 | Who is awarded | The supervisor marks who signed up and who is awarded. The system does not pick. |
 | Signed up, ahead, not awarded | The system warns. These people are not charged. |
@@ -169,7 +169,8 @@ Charged hours go into Refused, so they raise Total Hours.
 | Either person is booked off that day | The switch cannot be saved. |
 | The person giving up the shift is already on a switch that day | The switch cannot be saved. |
 | The person working the shift is already working a switch that day | The switch cannot be saved. |
-| Either person is inside the 24 h window after a sick shift | The switch cannot be saved (they may neither work nor give up a shift). |
+| Either person is inside the 24 h window after a sick shift | The switch cannot be saved (they may neither work nor give up a shift; in a same-day swap the shift each one would work is tested too). |
+| A two-way swap pays back on the adjoining shift (nights given up, days paid back next morning) | Allowed: the shift given up was not worked, so the rest rule does not apply. |
 | The rotation looks wrong, for example the person is not on that shift | A warning. The supervisor can still save. |
 
 Needs Attention lists every payback still owed.

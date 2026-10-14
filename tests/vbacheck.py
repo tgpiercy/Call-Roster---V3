@@ -76,6 +76,8 @@ for f in files:
         # single-line If ... Then <stmt>  (no block)
         if low.startswith("if ") and " then" in low and not low.endswith(" then") and not re.search(r"\bthen\s*$", low):
             # could be "If x Then stmt : Else stmt" one-liner
+            if re.search(r"\belseif\b", low):                    # v25 review: a one-line If with ElseIf is a compile error
+                problems.append(f"{f.name}:{n}: one-line If ... Then <stmt> ElseIf (compile error: use a block If)")
             continue
         # statements separated by ':' - only consider first token for openers
         m = re.match(r"(public |private |friend |static )?(\w+)", low)

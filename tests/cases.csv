@@ -455,6 +455,19 @@ typeddate,junk,junk,2026-12-15,,,,not a date
 typeddate,blank,,2026-12-15,,,,blank
 typeddate,decades-back,Mar_3_2011,2026-12-15,,,,check the year
 typeddate,too-far-ahead,2028-06-01,2026-12-15,,,,check the year
+typeddate,december-in-early-january-is-last-december,Dec_20,2027-01-03,,,,2026-12-20
+typeddate,july-in-october-is-next-july,Jul_1,2026-10-14,,,,2027-07-01
+typeddate,feb-29-in-a-non-leap-year,Feb_29,2026-10-14,,,,not a date
+typeddate,feb-29-leap-year,Feb_29_2028,2027-12-01,,,,2028-02-29
+typeddate,sep-31,Sep_31,2026-10-14,,,,not a date
+typeddate,am-pm-with-a-space,Jan_5_7_pm,2026-12-15,,,,2027-01-05
+typeddate,slash-month-day,10/12,2026-12-15,,,,2026-10-12
+typeddate,slash-with-year,12/10/2026,2026-12-15,,,,2026-12-10
+typeddate,full-month-name,October_12,2026-12-15,,,,2026-10-12
+typeddate,day-then-month,12_Oct,2026-12-15,,,,2026-10-12
+typeddate,two-digit-year,Oct_12_26,2026-12-15,,,,2026-10-12
+typeddate,month-point,Oct._12,2026-12-15,,,,2026-10-12
+typeddate,number-only,12,2026-12-15,,,,not a date
 eligibility,rotation-rest-day-ot,C,2026-10-07,Days,,,rest
 eligibility,gave-up-night-relieves-rest,C,2026-10-07,Days,ssgaveup,,free
 eligibility,rotation-rest-night-ot,A,2026-10-06,Nights,,,rest

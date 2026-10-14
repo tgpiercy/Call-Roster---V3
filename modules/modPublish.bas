@@ -246,8 +246,12 @@ Public Sub PublishMembers()
     If why <> "" Then
         Application.StatusBar = False
         Application.ScreenUpdating = True
-        MsgBox "NOT published. Something private would have gone into the members' file:" & vbNewLine & vbNewLine & why & _
-               vbNewLine & vbNewLine & "Fix that entry (or send me this message) and publish again.", vbCritical, "Member View"
+        If gSmokeRun Then                            ' v25: SmokeTest plants a word on purpose and reads the refusal
+            gSmokeRefusal = why
+        Else
+            MsgBox "NOT published. Something private would have gone into the members' file:" & vbNewLine & vbNewLine & why & _
+                   vbNewLine & vbNewLine & "Fix that entry (or send me this message) and publish again.", vbCritical, "Member View"
+        End If
         Exit Sub
     End If
     why = OrderSelfCheck(roster)

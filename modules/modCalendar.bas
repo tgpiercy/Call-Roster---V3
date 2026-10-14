@@ -668,6 +668,7 @@ Public Function SwitchPickList(ByVal unit As String, ByVal d As Variant, ByVal r
             ElseIf sisterSwap Then
                 keep = ((onD = "Days" Or onD = "Nights") And onD <> shiftLbl)
                 If keep Then keep = Not AbsentForShift(recs(i).EmpName, dd, onD, t)
+                If keep Then keep = Not AbsentForShift(recs(i).EmpName, dd, shiftLbl, t)      ' v25 review (D-L1): nor for the shift they would WORK
             Else
                 If shiftLbl = "" Then
                     why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, dd, "Days")
@@ -1017,7 +1018,13 @@ Public Function TrimKind(ByVal ds As Date, ByVal de As Date, ByVal dFirst As Dat
     Dim a As Boolean, b As Boolean
     a = (Int(dFirst) > Int(ds))
     b = (Int(dLast) < Int(de))
-    If a And b Then TrimKind = "both" ElseIf a Then TrimKind = "start" ElseIf b Then TrimKind = "end"
+    If a And b Then
+        TrimKind = "both"
+    ElseIf a Then
+        TrimKind = "start"
+    ElseIf b Then
+        TrimKind = "end"
+    End If
 End Function
 
 Public Function ShiftCount(ByVal emp As String, ByVal dStart As Date, ByVal dEnd As Date, _
@@ -2934,7 +2941,7 @@ Private Function PostingText(ByVal id As String) As String
     If st = "Open" Then
         If cl = 0 Then
             t = "Posting " & id & ": open (no closing date)"
-        ElseIf Date > Int(cl) Then
+        ElseIf PostingClosed(cl) Then                   ' v25 review: the one closing test
             t = "Posting " & id & ": closed - READY TO AWARD"
         ElseIf Int(cl) = Date Then
             t = "Posting " & id & ": closes TODAY " & POSTING_CLOSE_TIME
@@ -3316,7 +3323,7 @@ Public Sub DrawNeeds()
                 id = SafeStr(mPostV(i, PS_ID))
                 cl = AsDate(mPostV(i, PS_CLOSES))
                 sd = AsDate(mPostV(i, PS_DATE))
-                If cl > 0 And Date > Int(cl) Then
+                If cl > 0 And PostingClosed(cl) Then          ' v25 review: the one closing test
                     tier = 0: st = "READY TO AWARD": stC = thOpen(): stF = thOpenFill(): nReady = nReady + 1
                 ElseIf cl > 0 And Int(cl) = Date Then
                     tier = 1: st = "Closes today " & POSTING_CLOSE_TIME: stC = thPosted(): stF = thPostedFill()

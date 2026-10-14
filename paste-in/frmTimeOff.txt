@@ -355,6 +355,7 @@ Private Sub mSave_Click()
     If code = "PER" And mOpen.Value Then MsgBox "Personal days need an end date (each scheduled shift counts as one day).", vbExclamation: Exit Sub
     If code = "SIC" Then                          ' v22.1: past sick days, one row per scheduled shift
         If mOpen.Value Then MsgBox "Past sick days need an end date.", vbExclamation: Exit Sub
+        If ds > Date Then MsgBox "Past sick days are for days already gone (" & Format$(ds, "mmm d, yyyy") & " is ahead). For today or later use Sick Call.", vbExclamation: Exit Sub
         Dim nSick As Long, nUnsched As Long, nAlready As Long, skipped As String
         nSick = SaveSickPast(mEmp.Text, C("cboUnit").Text, ds, CDate(de), Trim$(C("txtNote").Text), HoursValue(), nUnsched, nAlready)
         If nUnsched > 0 Then skipped = nUnsched & " day(s) with no scheduled shift"

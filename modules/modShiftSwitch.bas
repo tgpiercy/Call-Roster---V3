@@ -398,8 +398,11 @@ End Function
 '  - the one paying back (today's "gives up") must be free for that shift:
 '    not scheduled, not under the rest rule, not booked off, not on another switch
 ' A same-day sister swap is exempt from the "scheduled" check (they trade shifts).
+' v25 review (D-C3): shiftLbl = the shift given up on d in THIS save; when the payback is the adjoining
+' shift (nights given up, days paid back next morning, or the mirror image) the rest rule is relieved
+' here too - the switch that relieves it isn't saved yet, so NotFreeReason can't see it.
 Public Function PaybackProblem(ByVal offName As String, ByVal worksName As String, ByVal d As Date, _
-                               ByVal d2 As Date, ByVal sh2 As String) As String
+                               ByVal d2 As Date, ByVal sh2 As String, Optional ByVal shiftLbl As String = "") As String
     If sh2 = "" Then PaybackProblem = SwitchShortName(worksName) & " isn't scheduled that day - no shift to pay back": Exit Function
     Dim who As String: who = SwitchShortName(offName)
     Dim t As String
@@ -409,6 +412,10 @@ Public Function PaybackProblem(ByVal offName As String, ByVal worksName As Strin
     End If
     Dim code As String: code = EmpCrewCode(offName, d2)          ' v24: their crew on the payback date
     Dim why As String: why = NotFreeReason(offName, code, d2, sh2)
+    If why = "rest" Then
+        If sh2 = "Days" And shiftLbl = "Nights" And Int(d2) = Int(d) + 1 Then why = ""
+        If sh2 = "Nights" And shiftLbl = "Days" And Int(d2) = Int(d) - 1 Then why = ""
+    End If
     Select Case why
         Case "", "S/S off"
         Case "scheduled": PaybackProblem = who & " is scheduled to work " & LCase$(CrewShiftOn(code, d2)) & " that day"
@@ -435,6 +442,9 @@ Public Function SwitchSaveStops(ByVal offName As String, ByVal worksName As Stri
             stops = ""
             If BookedOffShift(offName, d, shiftLbl, t2) Then stops = stops & "- " & offName & " is booked off (" & t2 & ")" & vbNewLine
             If BookedOffShift(worksName, d, sh2, t2) Then stops = stops & "- " & worksName & " is booked off (" & t2 & ")" & vbNewLine
+            ' v25 review (D-L1): the shift each one WORKS in the swap is inside no sick window either
+            If BookedOffShift(offName, d, sh2, t2) Then stops = stops & "- " & offName & " can't work the " & LCase$(sh2) & " shift (" & t2 & ")" & vbNewLine
+            If BookedOffShift(worksName, d, shiftLbl, t2) Then stops = stops & "- " & worksName & " can't work the " & LCase$(shiftLbl) & " shift (" & t2 & ")" & vbNewLine
             If SwitchOffOn(offName, d) <> "" Or SwitchWorkingOn(offName, d, "") <> "" Then stops = stops & "- " & offName & " is already on a switch that day" & vbNewLine
             If SwitchOffOn(worksName, d) <> "" Or SwitchWorkingOn(worksName, d, "") <> "" Then stops = stops & "- " & worksName & " is already on a switch that day" & vbNewLine
         Else

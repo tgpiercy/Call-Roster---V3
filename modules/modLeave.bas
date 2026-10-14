@@ -419,6 +419,7 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
     If Not IsLeaveCode(code) Then lc.Warnings = absId & " isn't a leave booking": Exit Function
     If LeaveToppedUp(grp) Then lc.Warnings = absId & " has already been topped up (" & grp & " in the OT Log). Void that entry first if it was wrong.": Exit Function
     If Int(returnDate) <= Int(dStart) Then lc.Warnings = "The return date must be after the first day off (" & Format$(dStart, "mmm d, yyyy") & ")": Exit Function
+    If Int(returnDate) > Date Then lc.Warnings = "The return date is after today: log the return on or after the first day back.": Exit Function    ' v25 (D-C7), in the rule itself (review)
     If home = "" Then home = HomeUnitOf(emp)
     If home = "" Then lc.Warnings = emp & " has no Home Unit (roster column B) and none was locked in on the booking - fill it in first": Exit Function
     lc.AbsId = absId: lc.Emp = emp: lc.HomeUnit = home: lc.FirstOff = Int(dStart): lc.ReturnDate = Int(returnDate)

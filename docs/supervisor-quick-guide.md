@@ -12,7 +12,7 @@ The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out**
 5. Every sheet is protected. Nothing is typed into cells: the buttons do the writing. (Admins can type into the roster's Home Unit, Crew, Phone, Worked, Seniority, EMAIL and unit code columns, and the Holidays sheet's "Observed on"; everything else, totals included, is refused, and so is sorting a block of cells by hand: the sort buttons do it.)
 
 ## Typing a date
-Every date box takes "Oct 12", "12 Oct" or "Oct 12, 2026", and shows the full date it understood. A date more than three months back with no year means next year ("Jan 5" typed in October is next January). A time typed after the date is ignored. The box tells you when it can't read what you typed.
+Every date box takes "Oct 12", "12 Oct", "Oct 12, 2026" or "10/12" (month then day), and shows the full date it understood. With no year typed, a date more than three months back means next year ("Jan 5" typed in October is next January) and a date more than nine months ahead means last year ("Dec 20" typed on January 3 is the December just gone). A time typed after the date is ignored. The box tells you when it can't read what you typed.
 
 ## If a red "This didn't finish" box appears
 Something stopped part-way. The box says "Error Log line N" and the name of what you were doing. Nothing you did before the error is lost; it is saved when you close (unless the box says this copy can't be saved). Check what you were doing (run it again if it was an import), and tell the admin the line number. If the same thing fails twice, stop and ask.
@@ -27,7 +27,7 @@ Something stopped part-way. The box says "Error Log line N" and the name of what
 Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. `~` means the hours are an estimate because the person has a unit move planned for a later date (the admin entered it ahead of time). If warned that Kronos data is old, No stops so the admin can import first.
 
 ## Part of a call-out
-If someone takes only part of the hours, select them and click **ACCEPTED PART OF THE HOURS**, then enter the hours. **That closes the shift:** nobody below them is offered the rest, nobody is charged for it, and the pop-up refuses another Accepted. Anyone who refused BEFORE the partial keeps their charge. Submit as usual.
+If someone takes only part of the hours, select them and click **ACCEPTED PART OF THE HOURS**, then enter the hours. **That closes the shift:** nobody else is called, nobody below is charged, and the pop-up refuses any further outcome (the partial taker's own entry can still be changed). Anyone who refused BEFORE the partial keeps their charge. Leave the rest of the list uncalled and click **SUBMIT ALL ENTRIES**.
 
 ## Postings
 **Post a shift**

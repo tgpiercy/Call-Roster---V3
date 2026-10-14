@@ -212,7 +212,7 @@ def seniority_key(s: date | None) -> float:
 def call_order(people: list[Emp]) -> list[Emp]:
     """modOvertimeEntry.SortEmpRecs / RecBefore:
     grade (low first) > total hours (low first) > seniority (earliest) > name."""
-    return sorted(people, key=lambda e: (e.grade, e.total_hrs, seniority_key(e.seniority), e.name.casefold()))
+    return sorted(people, key=lambda e: (e.grade, round(e.total_hrs, 2), seniority_key(e.seniority), e.name.casefold()))
 
 
 def list_insert_index(frozen: list[Emp], new: Emp) -> int:
@@ -1205,46 +1205,94 @@ def payroll_decision(roster_num: str, num_in_kronos: bool, names_agree: bool) ->
 _MONTH_INDEX = {m.lower(): i + 1 for i, m in enumerate(_MONTHS)}
 
 
-def _strip_time(text: str) -> str:
-    """modPeople.TypedHasYear drops a time typed after the date ('7:00', '7pm')."""
-    words = text.split()
-    if any(":" in w for w in words):
-        words = words[: next(i for i, w in enumerate(words) if ":" in w)]
-    return " ".join(w for w in words if not (w[0].isdigit() and w.lower().endswith(("am", "pm"))))
+def _date_parts(text: str):
+    """modPeople.TypedDateParts: (year or None, month, day) or None. Month-name forms, yyyy-mm-dd,
+    m/d[/y] (month / day, as the boxes' hints say); a time after the date is dropped."""
+    toks: list[str] = []
+    for w in text.replace(",", " ").replace(".", " ").split():
+        lw = w.lower()
+        if ":" in w:
+            continue
+        if lw[:1].isdigit() and lw.endswith(("am", "pm")) and lw[:-2].isdigit():
+            continue
+        if lw in ("am", "pm"):
+            if toks and toks[-1].isdigit():
+                toks.pop()
+            continue
+        toks.append(w)
+    if len(toks) == 1:
+        tok = toks[0]
+        parts = tok.split("-")
+        if len(parts) == 3 and len(parts[0]) == 4 and all(p.isdigit() for p in parts) and 1 <= len(parts[1]) <= 2 and 1 <= len(parts[2]) <= 2:
+            return int(parts[0]), int(parts[1]), int(parts[2])
+        parts = tok.split("/")
+        if len(parts) in (2, 3) and all(p.isdigit() for p in parts) and len(parts[0]) <= 2 and len(parts[1]) <= 2 \
+                and (len(parts) == 2 or len(parts[2]) in (1, 2, 4)):
+            year = None
+            if len(parts) == 3:
+                year = int(parts[2])
+                year = year + 2000 if year < 100 else year
+            return year, int(parts[0]), int(parts[1])
+        return None
+    if len(toks) not in (2, 3):
+        return None
+
+    def month_of(w: str):
+        lw = w.lower()
+        return _MONTH_INDEX.get(lw[:3]) if len(lw) >= 3 and lw.isalpha() else None
+
+    def digits(w: str) -> bool:
+        return w.isdigit() and len(w) <= 4
+
+    if month_of(toks[0]):
+        if not digits(toks[1]):
+            return None
+        month, day = month_of(toks[0]), int(toks[1])
+    elif month_of(toks[1]) and digits(toks[0]):
+        month, day = month_of(toks[1]), int(toks[0])
+    else:
+        return None
+    year = None
+    if len(toks) == 3:
+        if not digits(toks[2]):
+            return None
+        year = int(toks[2])
+        year = year + 2000 if year < 100 else year
+    return year, month, day
+
+
+def _valid_ymd(y: int, m: int, d: int) -> bool:
+    if y < 100 or y > 9999 or not 1 <= m <= 12 or not 1 <= d <= 31:
+        return False
+    try:
+        date(y, m, d)
+        return True
+    except ValueError:
+        return False
 
 
 def typed_date(text: str, today: date) -> str:
-    """modPeople.TypedDateCore for the forms the plant types: 'Oct 12', 'Oct 12 2026',
-    'Oct 12, 2026', '12 Oct', '2026-10-12', with or without a time after it.
-    Returns 'yyyy-mm-dd', or the hint word: blank / not a date / check the year."""
+    """modPeople.TypedDateCore: 'yyyy-mm-dd', or the hint word: blank / not a date / check the year.
+    A yearless date lands in the year that puts it inside today-90 .. today+275 (v25 review)."""
     t = text.strip()
     if not t:
         return "blank"
-    core = _strip_time(t).replace(",", " ")
-    words = core.split()
-    year = None
-    month = day = None
-    try:
-        if len(words) == 1 and words[0].count("-") == 2:
-            y, m, dd = (int(x) for x in words[0].split("-"))
-            year, month, day = y, m, dd
-        elif len(words) in (2, 3) and words[0][:3].lower() in _MONTH_INDEX:
-            month, day = _MONTH_INDEX[words[0][:3].lower()], int(words[1])
-            if len(words) == 3:
-                year = int(words[2])
-        elif len(words) in (2, 3) and words[1][:3].lower() in _MONTH_INDEX:
-            day, month = int(words[0]), _MONTH_INDEX[words[1][:3].lower()]
-            if len(words) == 3:
-                year = int(words[2])
-        else:
-            return "not a date"
-        if year is not None and year < 100:
-            year += 2000
-        d = date(year if year is not None else today.year, month, day)
-    except (ValueError, TypeError):
+    parts = _date_parts(t)
+    if parts is None:
         return "not a date"
-    if year is None and d < today - timedelta(days=90):
-        d = date(d.year + 1, d.month, d.day)
+    year, month, day = parts
+    if year is None:
+        year = today.year
+        if not _valid_ymd(year, month, day):
+            return "not a date"
+        d = date(year, month, day)
+        if d < today - timedelta(days=90):
+            year += 1
+        elif d > today + timedelta(days=275):
+            year -= 1
+    if not _valid_ymd(year, month, day):
+        return "not a date"
+    d = date(year, month, day)
     if abs((d - today).days) > 400:
         return "check the year"
     return d.isoformat()
@@ -1276,6 +1324,11 @@ def partial_hours_value(text: str, post_hours: float) -> str:
 
 
 # ---------------------------------------------------------------- postings: the one closing test (v25, P6)
-def posting_closed(closes_on: date, as_of: date) -> bool:
-    """modPostings.PostingClosed: closed from the day AFTER the closing date."""
-    return as_of > closes_on
+POSTING_CLOSE_HOUR = 8          # modPostings.POSTING_CLOSE_TIME "8:00 AM"
+
+
+def posting_closed(closes_on: date, as_of: date | datetime) -> bool:
+    """modPostings.PostingClosed: closed from POSTING_CLOSE_TIME on the closing date (v25 review: the one
+    moment the printed sheet and the members' file use). A date as-of is that day's midnight."""
+    at = as_of if isinstance(as_of, datetime) else datetime(as_of.year, as_of.month, as_of.day)
+    return at >= datetime(closes_on.year, closes_on.month, closes_on.day, POSTING_CLOSE_HOUR)

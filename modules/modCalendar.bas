@@ -1555,7 +1555,7 @@ Public Sub ShowCalDrawTimes()
     If b = "" Then b = "Needs Attention: not drawn since v25.1.2 went in."
     If c = "" Then c = "Open path: the Calendar button hasn't been clicked since v25.1.2 went in."
     MsgBox a & vbNewLine & vbNewLine & b & vbNewLine & vbNewLine & c & vbNewLine & vbNewLine & _
-           "Send me these lines (a photo is fine). The Calendar line's time is the draw alone: a stopwatch from the click to the screen settling is the number you feel.  (" & CAL_VERSION & ")", _
+           "Send me these lines (a photo is fine). The 'drawn in' number is the draw alone: a stopwatch from the click to the screen settling is the number you feel.  (" & CAL_VERSION & ")", _
            vbInformation, "Draw times"
     Exit Sub
 Oops:
@@ -2070,6 +2070,7 @@ Failed:
     Resume AfterFail                      ' leave the handler so the clean-up below can't be stopped by a 2nd error
 AfterFail:
     On Error Resume Next
+    tG = 0                                ' v25.1.2 re-review: no after-draw figure on a failed draw
     LogError "DrawCalendar", en, em       ' v24.3.1: the box below was the only record
     UnlockSheet ws
     ws.Cells(3, 6).Value = "Calendar couldn't finish drawing: " & em & "  - click This month to retry."
@@ -2086,8 +2087,8 @@ Done:
     Application.Calculation = calcWas
     Application.EnableEvents = evWas
     Application.ScreenUpdating = True
-    If tG > 0 Then                                  ' v25.1.2 (review): the recalculation and repaint after the draw, felt but outside "drawn in"
-        MapWrite "Z14", "'" & SafeStr(mp.Range("Z14").Value) & "; then recalc + repaint " & Format$(Secs(tG, Timer), "0.0")
+    If tG > 0 Then                                  ' v25.1.2 (review): the relock + recalculation after the draw, felt but outside "drawn in"
+        MapWrite "Z14", "'" & SafeStr(mp.Range("Z14").Value) & "; then relock + recalc " & Format$(Secs(tG, Timer), "0.0")
     End If
     mDrawing = False
 End Sub

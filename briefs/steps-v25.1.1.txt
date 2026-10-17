@@ -1,0 +1,13 @@
+# Groups 3 and 4 of install-steps.txt for v25.1.1 (groups 1 and 2 are standard; tests/build_zip.py adds them,
+# the VERSION / EXPECT / MEMBER header, and the members' template step when member/ changed).
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+# The Roster Updater (v4.1) does not change: nothing goes in by hand.
+
+[3. Run once]
+macro   | System check (expect 24 of 24 on v25.1.1, and the Protection line) | SystemCheckOK
+macro   | Self test (expect 568 passed, 67 suites; no rule changed)           | SelfTestOK
+
+[4. Checks]
+macro   | Make a practice copy (it opens; leave it for the next row)        | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY                                            | In the practice copy (its title says COPY): Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, 18 steps (Graeme's Oct 16 copy passed all 18 on this code). A step may say SKIPPED with its reason; FAILED is a fail. Then CLOSE THE COPY WITHOUT SAVING and come back to this sheet. Click Done.
+manual  | The Calendar's lists                                              | Calendar tab: pick another unit group in the unit list, then a month in the month list; click Prev, Next, This month: each redraws, no error box. Needs Attention (ADMIN view): change its unit list and its range list. Every tab keeps its colour.

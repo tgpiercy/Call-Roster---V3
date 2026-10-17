@@ -1,6 +1,6 @@
 # Call Out Roster: Supervisor Quick Guide
 
-How to do each everyday job in the roster. Current as of v25 (Oct 2026).
+How to do each everyday job in the roster. Current as of v25.1 (Oct 2026).
 
 The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out** and **Calendar** show for everyone. The other buttons show only for logins on the admin list. If a button is missing, ask the admin.
 

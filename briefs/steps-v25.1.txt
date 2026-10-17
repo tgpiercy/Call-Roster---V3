@@ -1,0 +1,14 @@
+# Groups 3 and 4 of install-steps.txt for v25.1 (groups 1 and 2 are standard; tests/build_zip.py adds them,
+# the VERSION / EXPECT / MEMBER header, and the members' template step when member/ changed).
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+# The Roster Updater (v4.1) does not change in v25.1: nothing goes in by hand.
+
+[3. Run once]
+macro   | System check (expect 24 of 24 on v25.1, and the Protection line)  | SystemCheckOK
+macro   | Self test (expect 568 passed, 67 suites; no rule changed)           | SelfTestOK
+
+[4. Checks]
+macro   | Make a practice copy (it opens; leave it for the next row)        | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY                                            | In the practice copy (its title says COPY): Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, 18 steps. Step 4 now reads "charged 21 h (0 h offered below the partial)" (the Oct 16 run failed here expecting 28). A step may say SKIPPED with its reason; FAILED is a fail. Then CLOSE THE COPY WITHOUT SAVING and come back to this sheet. Click Done.
+manual  | The Calendar's lists (the Oct 16 error)                           | Calendar tab: pick another unit group in the unit list (for example Phosphine, then Material Handler): it redraws, no error box. Pick a month in the month list; click Prev, Next, This month: each redraws. Needs Attention (ADMIN view): change its unit list and its range list: each redraws. Every tab keeps its colour.
+manual  | Error Log                                                         | ADMIN view, Alt+F8 > ShowErrorLog: no new row from any of the rows above (the Oct 16 rows are older and stay).

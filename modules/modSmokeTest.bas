@@ -31,7 +31,7 @@ Option Explicit
 '  check. Queued for v25.
 ' ====================================================================
 
-Public Const SMK_VERSION As String = "Smoke test v25.1 (Oct 16)"
+Public Const SMK_VERSION As String = "Smoke test v25.1.1 (Oct 16)"
 
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
@@ -465,7 +465,7 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     postWas = SmkTableRows(PT_TABLE)
     If SmkOnPostingList(st.PostId2, st.Emp) Then why = st.Emp & " is on " & st.PostId2 & "'s list before the move was planned": Exit Function
     ' after step 8 the person is in Unit2; the plan moves them back to Unit
-    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, "", eff, report) Then Exit Function
+    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, "", eff, report) Then why = "the plan for " & Format$(eff, "mmm d") & " was refused: see the box before this one": Exit Function
     id = PlannedFor(st.Emp)
     If id = "" Then why = "SavePlannedMove said yes but no Planned row was found": GoTo Fail
     If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "" Then why = "the roster's " & st.Unit & " code changed today": GoTo Fail
@@ -478,7 +478,7 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     If SmkPostingRows(st.PostId2) <> rowsWas + 1 Then why = st.PostId2 & " has " & SmkPostingRows(st.PostId2) & " list rows after the plan, expected " & (rowsWas + 1): GoTo Fail
     ' the filter goes on now: the row DELETE through a filtered list is the trap under test
     If Not SmkFilterList(True) Then why = "the filter on the posting list didn't take": GoTo Fail
-    If Not CancelPlannedMove(id, SMK_WHY, report) Then GoTo Fail
+    If Not CancelPlannedMove(id, SMK_WHY, report) Then why = "the plan's cancel was refused: see the box before this one": GoTo Fail
     If PlannedFor(st.Emp) <> "" Then why = "the move is still waiting after the cancel": GoTo Fail
     If SmkOnList(st.Emp, st.Unit, eff) Then why = "still listed in " & st.Unit & " for tomorrow after the cancel": GoTo Fail
     If Not SmkOnList(st.Emp, st.Unit2, eff) Then why = "not back on " & st.Unit2 & "'s list for tomorrow after the cancel": GoTo Fail
@@ -510,29 +510,36 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     If Not SubmitCancel(p, lst, n) Then why = st.PostId2 & " couldn't be cancelled": Exit Function
     If PostingStatus(st.PostId2) <> "Cancelled" Then why = st.PostId2 & " is " & PostingStatus(st.PostId2) & " after the cancel": Exit Function
     ' v25 (item 4c): a second plan, with a CREW change and an open OLD-unit posting. The crew row dated
-    ' tomorrow must appear at the plan and go at the cancel (H7: never a floor under a later typed date);
-    ' the old-unit posting's row must carry the "moves" mark at the plan and lose it at the cancel.
+    ' the move's day must appear at the plan and go at the cancel (H7: never a floor under a later typed
+    ' date); the old-unit posting's row must carry the "moves" mark at the plan and lose it at the cancel.
+    ' v25.1.1: the move is dated the day AFTER the newest Crew History row (step 7's, a week out), not
+    ' tomorrow: SavePlannedMove refuses a crew change dated before an existing later one (Graeme's Oct 16
+    ' run: "crew already has a change dated ... after this move's date", a box and a plain False).
     Dim crewWas As String, crewTo As String, crewFound As Boolean, sinceWas As Date, sinceNow As Date, crewNow As String
     crewWas = NewestCrew(st.Emp, crewFound, sinceWas)
     crewTo = IIf(NormCrew(crewWas) = "A", "C", "A")
+    Dim eff2 As Date: eff2 = Date + 1
+    If crewFound Then
+        If Int(sinceWas) >= eff2 Then eff2 = Int(sinceWas) + 1
+    End If
     Dim p3 As PostRec, lst3() As PListRec, n3 As Long, d3 As Date, found3 As Boolean
-    For dd = 2 To 40                                ' a Unit2 shift on or after the move's date they are listed for
+    For dd = CLng(eff2 - Date) To 60                ' a Unit2 shift on or after the move's date they are listed for
         d3 = Date + dd
         If SmkFreeListed(st.Emp, st.Unit2, d3, "Days", CrewFilter(CREW_ALL)) Then found3 = True: Exit For
     Next dd
-    If Not found3 Then why = "no " & st.Unit2 & " day shift in the next 40 days lists " & st.Emp: Exit Function
+    If Not found3 Then why = "no " & st.Unit2 & " day shift from " & Format$(eff2, "mmm d") & " to " & Format$(Date + 60, "mmm d") & " lists " & st.Emp: Exit Function
     p3.Unit = st.Unit2: p3.ShiftDate = d3: p3.ShiftLbl = "Days": p3.Crew = CREW_ALL
     p3.Reason = "Unit Operator Support": p3.Hours = USUAL_SHIFT_HOURS: p3.Positions = 1: p3.ClosesOn = d3 - 1
     If Not CreatePostingFrom(p3, False, False) Then why = "the old-unit posting couldn't be created": Exit Function
     If Not SmkOnPostingList(p3.ID, st.Emp) Then why = st.Emp & " isn't on the old-unit posting " & p3.ID: GoTo Fail3
     If SmkExemptNote(p3.ID, st.Emp) <> "" Then why = st.Emp & " is already marked on " & p3.ID & " before the plan": GoTo Fail3
-    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, crewTo, eff, report) Then GoTo Fail3
+    If Not SavePlannedMove(st.Emp, st.Unit, st.Code, st.Unit2, crewTo, eff2, report) Then why = "the second plan (crew " & crewTo & " from " & Format$(eff2, "mmm d") & ") was refused: see the box before this one": GoTo Fail3
     id = PlannedFor(st.Emp)
     If id = "" Then why = "the second plan left no Planned row": GoTo Fail3
     crewNow = NewestCrew(st.Emp, crewFound, sinceNow)
-    If NormCrew(crewNow) <> crewTo Or Int(sinceNow) <> Int(eff) Then why = "the planned crew " & crewTo & " from " & Format$(eff, "mmm d") & " isn't the newest Crew History row (" & crewNow & " from " & Format$(sinceNow, "mmm d") & ")": GoTo Fail3
+    If NormCrew(crewNow) <> crewTo Or Int(sinceNow) <> Int(eff2) Then why = "the planned crew " & crewTo & " from " & Format$(eff2, "mmm d") & " isn't the newest Crew History row (" & crewNow & " from " & Format$(sinceNow, "mmm d") & ")": GoTo Fail3
     If Left$(SmkExemptNote(p3.ID, st.Emp), Len(EXEMPT_TAG) + 5) <> EXEMPT_TAG & "moves" Then why = "the old-unit posting " & p3.ID & " didn't get the 'moves' mark (" & SmkExemptNote(p3.ID, st.Emp) & ")": GoTo Fail3
-    If Not CancelPlannedMove(id, SMK_WHY, report) Then GoTo Fail3
+    If Not CancelPlannedMove(id, SMK_WHY, report) Then why = "the second plan's cancel was refused: see the box before this one": GoTo Fail3
     crewNow = NewestCrew(st.Emp, crewFound, sinceNow)
     If NormCrew(crewNow) <> NormCrew(crewWas) Or Int(sinceNow) <> Int(sinceWas) Then why = "after the cancel the Crew History newest row is " & crewNow & " from " & Format$(sinceNow, "mmm d") & ", expected " & crewWas & " from " & Format$(sinceWas, "mmm d") & " (the planned row should be gone)": GoTo Fail3
     If SmkExemptNote(p3.ID, st.Emp) <> "" Then why = "the 'moves' mark is still on " & p3.ID & " after the cancel": GoTo Fail3
@@ -540,7 +547,7 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     If Not SubmitCancel(p3, lst3, n3) Then why = p3.ID & " couldn't be cancelled": Exit Function
     st.Note = id & ": " & st.Unit2 & " -> " & st.Unit & " from " & Format$(eff, "mmm d") & "; +1/-1 list row on " & st.PostId2 & _
               " (filtered); line " & covId & " text and the Reason changed each way, leave words refused; cancelled; " & _
-              "crew " & crewWas & "->" & crewTo & " row added and removed; 'moves' mark on " & p3.ID & " on and off; cancelled"
+              "crew " & crewWas & "->" & crewTo & " from " & Format$(eff2, "mmm d") & " row added and removed; 'moves' mark on " & p3.ID & " on and off; cancelled"
     SmkPlanned = True
     Exit Function
 Fail3:

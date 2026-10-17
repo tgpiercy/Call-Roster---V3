@@ -1586,8 +1586,8 @@ Private Sub MapWrite(ByVal addr As String, ByVal v As Variant)
     If en <> 0 Then Err.Raise en, , em
 End Sub
 
-' v25.1: the dirty counter as text, so SmokeTest can prove MarkCalDirty really wrote it; a roster that has
-' never drawn the Calendar has no map (MarkCalDirty does nothing there) and says so
+' v25.1: the dirty counter as text, so SmokeTest can prove MarkCalDirty really wrote it; a roster where
+' CalendarSheet() has never run has no map (MarkCalDirty does nothing there) and says so
 Public Function CalDirtyStamp() As String
     CalDirtyStamp = "(no CalMap)"
     If Not SheetExists(MAP_SHEET) Then Exit Function

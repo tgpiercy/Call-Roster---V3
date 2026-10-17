@@ -24,7 +24,11 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v25.1.1 (Oct 17)"
+Public Const CAL_VERSION As String = "Calendar v25.1.2 (Oct 17)"
+' v25.1.2: draw-time measurement (the v25.2 plan's step 1): seconds spent inside SlotsFor and AddNote
+' during the current draw, read by DrawCalendar / DrawNeeds for their breakdown lines
+Private mTimeSlots As Double
+Private mTimeNotes As Double
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -757,6 +761,7 @@ End Function
 Public Function SlotsFor(ByVal d As Date, ByVal shiftLbl As String, ByVal groupName As String, _
                          ByRef slots() As CalSlot, Optional ByVal useCache As Boolean = False) As Long
     If Not useCache Then LoadCache
+    Dim tS As Double: tS = Timer                     ' v25.1.2: measured
     Dim n As Long, r As Long, c As Long, used As String, rt As String, lt As String
     ReDim slots(1 To 20)
 
@@ -813,6 +818,7 @@ Public Function SlotsFor(ByVal d As Date, ByVal shiftLbl As String, ByVal groupN
         Next c
     End If
     SlotsFor = n
+    mTimeSlots = mTimeSlots + Secs(tS, Timer)
 End Function
 
 ' Which shift an absence row shows on: sick calls on their booked shift (v22),
@@ -1521,11 +1527,40 @@ Yes:
 End Function
 
 ' the toolbar hint depends on who's looking - cheap to fix without a redraw
+' v25.1.2: the hint text, with the last draw's time on the end (CalMap Z13 holds the seconds)
+Private Function CalHintText() As String
+    CalHintText = IIf(gAdminUnlocked, "Double-click any line or empty space for options.  Hover for details.", _
+                      "Hover over a line for details, or double-click it.  Print / PDF gives the copy to post.")
+    Dim s As String: s = SafeStr(MapSheet().Range("Z13").Value)
+    If s <> "" Then CalHintText = CalHintText & "  Drawn in " & s & " s."
+End Function
+
+' v25.1.2: seconds between two Timer readings (Timer restarts at midnight)
+Private Function Secs(ByVal t0 As Double, ByVal t1 As Double) As Double
+    Secs = t1 - t0
+    If Secs < 0 Then Secs = Secs + 86400
+End Function
+
+' v25.1.2: Alt+F8 (admin): the last draw's time per phase for the Calendar and Needs Attention tabs
+Public Sub ShowCalDrawTimes()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not SheetExists(MAP_SHEET) Then MsgBox "The calendar hasn't been drawn yet.", vbInformation, "Draw times": Exit Sub
+    Dim a As String: a = SafeStr(MapSheet().Range("Z14").Value)
+    Dim b As String: b = SafeStr(MapSheet().Range("Z15").Value)
+    If a = "" Then a = "Calendar: not drawn since v25.1.2 went in (open the Calendar tab, click Next month)."
+    If b = "" Then b = "Needs Attention: not drawn since v25.1.2 went in."
+    MsgBox a & vbNewLine & vbNewLine & b & vbNewLine & vbNewLine & "Send me these two lines (a photo is fine).  (" & CAL_VERSION & ")", _
+           vbInformation, "Draw times"
+    Exit Sub
+Oops:
+    ReportError "ShowCalDrawTimes"
+End Sub
+
 Private Sub SetCalHint(ByVal ws As Worksheet)
     On Error Resume Next
     Dim t As String
-    t = IIf(gAdminUnlocked, "Double-click any line or empty space for options.  Hover for details.", _
-                            "Hover over a line for details, or double-click it.  Print / PDF gives the copy to post.")
+    t = CalHintText()                                       ' v25.1.2: with the last draw's time
     If SafeStr(ws.Range("F3").Value) = t Then Exit Sub
     If Left$(SafeStr(ws.Range("F3").Value), 8) = "Calendar" Then Exit Sub   ' leave an error message showing
     UnlockSheet ws
@@ -1762,6 +1797,11 @@ Public Sub DrawCalendar()
     Dim m0 As Date: m0 = CalMonth()
     Dim grp As String: grp = CalGroup()
     Dim drawnFrom As String: drawnFrom = SafeStr(mp.Range("Z7").Value)
+    ' v25.1.2: draw-time measurement, one Timer reading per phase (kept in CalMap Z13 / Z14, shown in F3)
+    Dim t0 As Double, tA As Double, tB As Double, tC As Double, tD As Double, tE As Double, tF As Double, tG As Double
+    Dim nLines As Long
+    t0 = Timer
+    mTimeSlots = 0: mTimeNotes = 0
 
     mDrawing = True
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -1777,6 +1817,7 @@ Public Sub DrawCalendar()
     mp.Range("Z2").Value = grp
     LoadCache
     LoadPostCache
+    tA = Timer                                      ' caches loaded
 
     ' ---- wipe the grid and the click map (controls are rebuilt at the end) ----
     ws.Rows("3:1000").Delete
@@ -1793,6 +1834,7 @@ Public Sub DrawCalendar()
         ws.Columns(2 + k).ColumnWidth = COL_W
     Next k
     ws.Columns(16).ColumnWidth = 1
+    tB = Timer                                      ' grid wiped
 
     ' ---- row 1: title band (controls sit on it) ----
     ws.Rows(1).RowHeight = 38
@@ -1851,6 +1893,8 @@ Public Sub DrawCalendar()
         End With
     Next k
     r = r + 1
+    tC = Timer                                      ' header rows written
+    mTimeSlots = 0: mTimeNotes = 0                  ' the weeks' share starts here
 
     ' ---- weeks ----
     Dim mEnd As Date: mEnd = DateSerial(Year(m0), Month(m0) + 1, 0)
@@ -1903,6 +1947,7 @@ Public Sub DrawCalendar()
                 sv = CLng(Int(d))
                 nD = SlotsFor(d, "Days", grp, slotsD, True)
                 nN = SlotsFor(d, "Nights", grp, slotsN, True)
+                nLines = nLines + nD + nN
                 ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r + mxD - 1, 3 + 2 * k)).Interior.Color = thDayFill()
                 ws.Range(ws.Cells(r + mxD, 2 + 2 * k), ws.Cells(r + mxD + mxN - 1, 3 + 2 * k)).Interior.Color = thNightFill()
                 For i = 1 To mxD
@@ -1961,6 +2006,9 @@ Public Sub DrawCalendar()
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, 15)).Borders(xlEdgeTop)
         .LineStyle = xlContinuous: .Weight = xlThick: .Color = thBand()
     End With
+    tD = Timer                                      ' weeks written
+    Dim wkSlots As Double, wkNotes As Double
+    wkSlots = mTimeSlots: wkNotes = mTimeNotes      ' the weeks' share (OpenAhead's SlotsFor calls count under controls)
 
     ' ---- page ----
     On Error Resume Next
@@ -1993,11 +2041,22 @@ Public Sub DrawCalendar()
         End With
     End If
     On Error GoTo Failed
+    tE = Timer                                      ' page set up
 
     BuildCalControls ws, m0, grp
+    tF = Timer                                      ' controls rebuilt
     mp.Range("Z8").Value = drawnFrom
     mp.Range("Z10").Value = "'" & DrawContext()
     mp.Range("Z12").Value = "'" & RosterSig()
+    ' v25.1.2: the breakdown (the before numbers for the v25.2 rewrite); F3 says the total
+    tG = Timer
+    mp.Range("Z13").Value = "'" & Format$(Secs(t0, tG), "0.0")
+    mp.Range("Z14").Value = "'" & "Calendar " & Format$(m0, "mmmm yyyy") & " (" & grp & ", " & nLines & " lines): drawn in " & _
+        Format$(Secs(t0, tG), "0.0") & " s = caches " & Format$(Secs(t0, tA), "0.0") & ", wipe " & Format$(Secs(tA, tB), "0.0") & _
+        ", header " & Format$(Secs(tB, tC), "0.0") & ", weeks " & Format$(Secs(tC, tD), "0.0") & " (slots " & Format$(wkSlots, "0.0") & _
+        ", notes " & Format$(wkNotes, "0.0") & ", cells " & Format$(Secs(tC, tD) - wkSlots - wkNotes, "0.0") & "), page " & _
+        Format$(Secs(tD, tE), "0.0") & ", controls " & Format$(Secs(tE, tF), "0.0") & "  [" & CAL_VERSION & "]"
+    ws.Range("F3").Value = CalHintText()
     GoTo Done
 
 Failed:
@@ -3087,6 +3146,7 @@ End Function
 ' a hover note on a cell (screen only - notes don't print)
 Private Sub AddNote(ByVal c As Range, ByVal txt As String)
     If txt = "" Then Exit Sub
+    Dim tN As Double: tN = Timer                     ' v25.1.2: measured
     On Error Resume Next
     c.ClearComments
     c.AddComment txt
@@ -3100,6 +3160,7 @@ Private Sub AddNote(ByVal c As Range, ByVal txt As String)
         .Fill.ForeColor.RGB = RGB(255, 253, 240)
         .Line.ForeColor.RGB = RGB(150, 150, 150)
     End With
+    mTimeNotes = mTimeNotes + Secs(tN, Timer)
 End Sub
 
 ' the line's left / right text, straight from the data
@@ -3325,6 +3386,9 @@ Public Sub DrawNeeds()
     Dim grp As String: grp = NAGroup()
     Dim nDays As Long: nDays = NADays()
     Dim drawnFrom As String: drawnFrom = SafeStr(MapSheet().Range("Z7").Value)
+    Dim t0 As Double, tA As Double, tB As Double, tC As Double    ' v25.1.2: draw-time measurement (CalMap Z15)
+    t0 = Timer
+    mTimeSlots = 0
     mDrawing = True
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim calcWas As Long: calcWas = Application.Calculation
@@ -3557,6 +3621,7 @@ Public Sub DrawNeeds()
     End If
     On Error GoTo Failed
 
+    tA = Timer                                      ' gathered
     ' ---- draw ----
     ws.Rows("1:3000").Delete
     With ws.Cells.Font
@@ -3652,6 +3717,7 @@ Public Sub DrawNeeds()
         r = NARows(ws, r, tr, nT, "")
     End If
 
+    tB = Timer                                      ' rows drawn
     ' ---- summary tiles (double-click one to jump to its list) ----
     NATile ws, 2, 3, nL, "OPEN LINES", thOpen(), rowL
     NATile ws, 4, 5, nReady, "READY TO AWARD", thPosted(), rowP
@@ -3676,6 +3742,10 @@ Public Sub DrawNeeds()
     On Error GoTo Failed
     MapWrite "Z9", drawnFrom                        ' v25.1: through the pair
     MapWrite "Z11", "'" & DrawContext()
+    tC = Timer                                      ' v25.1.2: tiles drawn
+    MapWrite "Z15", "'" & "Needs Attention " & grp & ", " & nDays & " days (" & (nP + nL + nS + nB) & " rows): drawn in " & _
+        Format$(Secs(t0, tC), "0.0") & " s = gather " & Format$(Secs(t0, tA), "0.0") & " (slots " & Format$(mTimeSlots, "0.0") & _
+        "), rows " & Format$(Secs(tA, tB), "0.0") & ", tiles " & Format$(Secs(tB, tC), "0.0") & "  [" & CAL_VERSION & "]"
     GoTo Done
 
 Failed:

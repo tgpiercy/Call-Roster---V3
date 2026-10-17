@@ -1423,7 +1423,9 @@ Public Sub ShowCalendar()
     Dim ws As Worksheet: Set ws = CalendarSheet()
     If gAdminUnlocked Then
         On Error Resume Next
+        Dim tSync As Double: tSync = Timer
         SyncSwitchesToCalendar           ' switches logged before the calendar existed
+        MapWrite "Z16", "'" & "Open path: the switch sync before the draw took " & Format$(Secs(tSync, Timer), "0.0") & " s"   ' v25.1.2 (review: outside the draw's own time)
         On Error GoTo Oops
     End If
     SetSheetVisible ws, xlSheetVisible
@@ -1548,9 +1550,12 @@ Public Sub ShowCalDrawTimes()
     If Not SheetExists(MAP_SHEET) Then MsgBox "The calendar hasn't been drawn yet.", vbInformation, "Draw times": Exit Sub
     Dim a As String: a = SafeStr(MapSheet().Range("Z14").Value)
     Dim b As String: b = SafeStr(MapSheet().Range("Z15").Value)
+    Dim c As String: c = SafeStr(MapSheet().Range("Z16").Value)
     If a = "" Then a = "Calendar: not drawn since v25.1.2 went in (open the Calendar tab, click Next month)."
     If b = "" Then b = "Needs Attention: not drawn since v25.1.2 went in."
-    MsgBox a & vbNewLine & vbNewLine & b & vbNewLine & vbNewLine & "Send me these two lines (a photo is fine).  (" & CAL_VERSION & ")", _
+    If c = "" Then c = "Open path: the Calendar button hasn't been clicked since v25.1.2 went in."
+    MsgBox a & vbNewLine & vbNewLine & b & vbNewLine & vbNewLine & c & vbNewLine & vbNewLine & _
+           "Send me these lines (a photo is fine). The Calendar line's time is the draw alone: a stopwatch from the click to the screen settling is the number you feel.  (" & CAL_VERSION & ")", _
            vbInformation, "Draw times"
     Exit Sub
 Oops:
@@ -2081,6 +2086,9 @@ Done:
     Application.Calculation = calcWas
     Application.EnableEvents = evWas
     Application.ScreenUpdating = True
+    If tG > 0 Then                                  ' v25.1.2 (review): the recalculation and repaint after the draw, felt but outside "drawn in"
+        MapWrite "Z14", "'" & SafeStr(mp.Range("Z14").Value) & "; then recalc + repaint " & Format$(Secs(tG, Timer), "0.0")
+    End If
     mDrawing = False
 End Sub
 
@@ -2201,7 +2209,10 @@ Private Sub WriteSlot(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal rr As 
     Dim keyTxt As String: keyTxt = s.Key & "|" & CLng(Int(d)) & "|" & shiftLbl
     mp.Cells(rr, 2 + 2 * k).Value = keyTxt
     mp.Cells(rr, 3 + 2 * k).Value = keyTxt
-    AddNote b, LineDetails(keyTxt, True)      ' hover for the details
+    Dim tL As Double: tL = Timer              ' v25.1.2 review: the details text counts under notes, not cells
+    Dim det As String: det = LineDetails(keyTxt, True)
+    mTimeNotes = mTimeNotes + Secs(tL, Timer)
+    AddNote b, det                            ' hover for the details
 End Sub
 
 Private Sub BuildCalControls(ByVal ws As Worksheet, ByVal m0 As Date, ByVal grp As String)
@@ -3743,7 +3754,7 @@ Public Sub DrawNeeds()
     MapWrite "Z9", drawnFrom                        ' v25.1: through the pair
     MapWrite "Z11", "'" & DrawContext()
     tC = Timer                                      ' v25.1.2: tiles drawn
-    MapWrite "Z15", "'" & "Needs Attention " & grp & ", " & nDays & " days (" & (nP + nL + nS + nB) & " rows): drawn in " & _
+    MapWrite "Z15", "'" & "Needs Attention " & grp & ", " & nDays & " days (" & (nP + nL + nS + nB + nH + nU + nE + nM + nI + nV + nT) & " rows): drawn in " & _
         Format$(Secs(t0, tC), "0.0") & " s = gather " & Format$(Secs(t0, tA), "0.0") & " (slots " & Format$(mTimeSlots, "0.0") & _
         "), rows " & Format$(Secs(tA, tB), "0.0") & ", tiles " & Format$(Secs(tB, tC), "0.0") & "  [" & CAL_VERSION & "]"
     GoTo Done

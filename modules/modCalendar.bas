@@ -1572,16 +1572,25 @@ End Function
 ' v25.1: CalMap is protected like every sheet (v25), and a bare write to it raised "Application-defined
 ' or object-defined error" from the Calendar's unit list on Graeme's Oct 16 test. Every other sheet is
 ' written between UnlockSheet / ProtectSheet; the map now is too (DrawCalendar unlocks it for the whole
-' draw). A write that raises leaves the map unlocked: ReportError's ProtectAll relocks it.
+' draw). The map is relocked whatever happened and the error re-raised after (v25.1 review: MarkCalDirty,
+' CalOnOpen and DrawNeeds never reach ReportError, so nothing else would relock it).
 Private Sub MapWrite(ByVal addr As String, ByVal v As Variant)
     Dim mp As Worksheet: Set mp = MapSheet()
+    Dim en As Long, em As String
     UnlockSheet mp
+    On Error Resume Next
     mp.Range(addr).Value = v
+    en = Err.Number: em = Err.Description
+    On Error GoTo 0
     ProtectSheet mp
+    If en <> 0 Then Err.Raise en, , em
 End Sub
 
-' v25.1: the dirty counter as text, so SmokeTest can prove MarkCalDirty really wrote it
+' v25.1: the dirty counter as text, so SmokeTest can prove MarkCalDirty really wrote it; a roster that has
+' never drawn the Calendar has no map (MarkCalDirty does nothing there) and says so
 Public Function CalDirtyStamp() As String
+    CalDirtyStamp = "(no CalMap)"
+    If Not SheetExists(MAP_SHEET) Then Exit Function
     On Error Resume Next
     CalDirtyStamp = SafeStr(MapSheet().Range("Z7").Value)
 End Function
@@ -1752,9 +1761,6 @@ Public Sub DrawCalendar()
     Dim mp As Worksheet: Set mp = MapSheet()
     Dim m0 As Date: m0 = CalMonth()
     Dim grp As String: grp = CalGroup()
-    UnlockSheet mp                                  ' v25.1: written all through the draw; relocked at Done
-    mp.Range("Z1").Value = m0
-    mp.Range("Z2").Value = grp
     Dim drawnFrom As String: drawnFrom = SafeStr(mp.Range("Z7").Value)
 
     mDrawing = True
@@ -1766,6 +1772,9 @@ Public Sub DrawCalendar()
     Application.DisplayAlerts = False
     On Error GoTo Failed
     UnlockSheet ws
+    UnlockSheet mp                                  ' v25.1: written all through the draw; relocked at Done (under the handler, review)
+    mp.Range("Z1").Value = m0
+    mp.Range("Z2").Value = grp
     LoadCache
     LoadPostCache
 
@@ -3139,8 +3148,9 @@ End Function
 Private Function NeedsSheet() As Worksheet
     If Not SheetExists(NA_SHEET) Then
         Dim ws As Worksheet
+        Dim cs As Worksheet: Set cs = CalendarSheet()  ' v25.1 review: before the unlock (its SetTabColor relocks the tabs)
         UnlockStructure                                 ' v25: structure protection
-        Set ws = ThisWorkbook.Worksheets.Add(After:=CalendarSheet())
+        Set ws = ThisWorkbook.Worksheets.Add(After:=cs)
         ws.Name = NA_SHEET
         RelockStructure
     End If

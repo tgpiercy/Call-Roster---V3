@@ -354,7 +354,7 @@ Private Function SmkTimeOff(ByRef st As SmkState, ByRef why As String) As Boolea
     If st.AbsId = "" Then why = "SaveAbsence returned no ID": Exit Function
     Dim dirty0 As String: dirty0 = CalDirtyStamp()           ' v25.1: the mark is written on a protected sheet - prove it took
     MarkCalDirty
-    If CalDirtyStamp() = dirty0 Then why = "MarkCalDirty didn't write the calendar's dirty mark (CalMap Z7 still '" & dirty0 & "')": Exit Function
+    If dirty0 <> "(no CalMap)" And CalDirtyStamp() = dirty0 Then why = "MarkCalDirty didn't write the calendar's dirty mark (CalMap Z7 still '" & dirty0 & "')": Exit Function
     Dim sd As Date: sd = SmkWeekday(Date + 20)
     st.SickId = SaveSickCall(st.Emp, sd, "Days", st.Unit, Empty, SMK_WHY)
     If st.SickId = "" Then why = "SaveSickCall returned no ID": Exit Function

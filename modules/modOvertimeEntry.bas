@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v25 (Oct 14)"
+Public Const CORE_VERSION As String = "Core v25.1 (Oct 16)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -1343,6 +1343,19 @@ Public Sub SetSheetVisible(ByVal ws As Worksheet, ByVal state As Long)
     On Error GoTo 0
     RelockStructure                                 ' v25 review: relocked whatever happened
     If en <> 0 Then Err.Raise en, , em
+End Sub
+
+' v25.1: a tab colour is a change to the workbook's structure, which v25 keeps protected, so it is set
+' between the UnlockStructure / RelockStructure pair like a sheet add. Cosmetic: it never raises, it
+' writes only when the colour differs, and the tabs are relocked whatever happened. Every Tab.Color
+' write in the roster goes through here (the Calendar and Needs Attention accessors set theirs on
+' every call).
+Public Sub SetTabColor(ByVal ws As Worksheet, ByVal colour As Long)
+    On Error Resume Next
+    If CStr(ws.Tab.Color) = CStr(colour) Then Exit Sub
+    UnlockStructure
+    ws.Tab.Color = colour
+    RelockStructure
 End Sub
 
 ' Admin view shows the admin sheets and phone numbers; everyone else doesn't see them.

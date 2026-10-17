@@ -22,7 +22,7 @@ Option Explicit
 '  SplitTotals.
 ' ====================================================================
 
-Public Const REP_VERSION As String = "Reports v25 (Oct 14)"
+Public Const REP_VERSION As String = "Reports v25.1 (Oct 16)"
 
 ' what SplitTotals keeps per person: a Variant array with these indexes
 Public Const SP_CALLOUT As Long = 0     ' hours
@@ -438,7 +438,7 @@ Private Function ReportSheet() As Worksheet
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = REFUSAL_SHEET
         RelockStructure
-        ws.Tab.Color = RGB(30, 56, 100)
+        SetTabColor ws, RGB(30, 56, 100)                ' v25.1
         On Error Resume Next
         If Not was Is Nothing Then was.Activate
         On Error GoTo 0

@@ -26,7 +26,7 @@ Option Explicit
 '  SelfTest can hand them a planted bad cell / duplicate ID in memory.
 ' ====================================================================
 
-Public Const IC_VERSION As String = "Integrity v25 (Oct 14)"
+Public Const IC_VERSION As String = "Integrity v25.1 (Oct 16)"
 Public Const IC_SHEET As String = "Integrity"
 
 Private Const SEV_ERR As String = "PROBLEM"
@@ -868,7 +868,7 @@ Public Sub DrawIntegritySheet(Optional ByVal fromCode As Boolean = True)
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = IC_SHEET
         RelockStructure
-        ws.Tab.Color = RGB(176, 0, 32)
+        SetTabColor ws, RGB(176, 0, 32)                 ' v25.1
     End If
     SetSheetVisible ws, xlSheetVisible
     UnlockSheet ws

@@ -43,7 +43,7 @@ Option Explicit
 '  admin open on or after the date applies it through SaveUnitMove.
 ' ====================================================================
 
-Public Const PPL_VERSION As String = "People v25 (Oct 14)"
+Public Const PPL_VERSION As String = "People v25.1 (Oct 16)"
 Public Const CH_SHEET As String = "Crew History"
 Public Const CH_TABLE As String = "tblCrewHistory"
 Public Const CH_EMP As Long = 1
@@ -310,7 +310,7 @@ Public Function CrewTable(Optional ByVal create As Boolean = False) As ListObjec
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = CH_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(96, 125, 139)
+            SetTabColor ws, RGB(96, 125, 139)           ' v25.1
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0
@@ -1157,7 +1157,7 @@ Public Function FormerTable(Optional ByVal create As Boolean = False) As ListObj
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = FM_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(96, 125, 139)
+            SetTabColor ws, RGB(96, 125, 139)           ' v25.1
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0
@@ -1980,7 +1980,7 @@ Public Function PlannedTable(Optional ByVal create As Boolean = False) As ListOb
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = PM_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(96, 125, 139)
+            SetTabColor ws, RGB(96, 125, 139)           ' v25.1
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0

@@ -22,7 +22,7 @@ Option Explicit
 '  An Observed on date also overrides a weekday holiday if ever needed.
 ' ====================================================================
 
-Public Const HOL_VERSION As String = "Holidays v25 (Oct 14)"
+Public Const HOL_VERSION As String = "Holidays v25.1 (Oct 16)"
 Public Const HOL_SHEET As String = "Holidays"
 Public Const HOL_TABLE As String = "tblHoliday"
 Public Const HOL_CONFIRM_DAYS As Long = 90     ' look-ahead for weekend holidays still to confirm
@@ -247,7 +247,7 @@ Public Function HolidayTable(Optional ByVal create As Boolean = False) As ListOb
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = HOL_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(176, 0, 32)
+            SetTabColor ws, RGB(176, 0, 32)             ' v25.1
         End If
         UnlockSheet ws
         ws.Range("A1").Resize(1, HC_N).Value = Array("Year", "Holiday", "Date", "Day", "Observed on", "Note")

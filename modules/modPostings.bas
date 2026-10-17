@@ -16,7 +16,7 @@ Option Explicit
 ' ====================================================================
 
 ' ---------------- configuration ----------------
-Public Const POST_VERSION As String = "Postings v25 (Oct 14)"
+Public Const POST_VERSION As String = "Postings v25.1 (Oct 16)"
 Public Const POSTINGS_SHEET As String = "Postings"
 Public Const PT_TABLE As String = "tblPostings"
 Public Const PL_TABLE As String = "tblPostingList"
@@ -132,7 +132,7 @@ Private Sub CreatePostingTables()
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(LOG_SHEET))
         ws.Name = POSTINGS_SHEET
         RelockStructure
-        ws.Tab.Color = RGB(0, 128, 70)
+        SetTabColor ws, RGB(0, 128, 70)                 ' v25.1
     End If
     UnlockSheet ws
 

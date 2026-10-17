@@ -31,7 +31,7 @@ Option Explicit
 '  contains COPY or DRY RUN (the December practice on a copy).
 ' ====================================================================
 
-Public Const RO_VERSION As String = "Rollover v25 (Oct 14)"
+Public Const RO_VERSION As String = "Rollover v25.1 (Oct 16)"
 Public Const YE_SHEET As String = "Year End"
 Public Const YE_TABLE As String = "tblYearEnd"
 
@@ -434,7 +434,7 @@ Private Function YearEndTable(ByVal create As Boolean) As ListObject
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = YE_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(96, 125, 139)
+            SetTabColor ws, RGB(96, 125, 139)           ' v25.1
         End If
         UnlockSheet ws
         ws.Range("A1").Resize(1, YE_NCOLS).Value = Array("Year", "Employee", "Home Unit", "Total Hours", "Worked", "Refused", _
@@ -655,7 +655,7 @@ Private Sub MakeArchiveSheet(ByVal lo As ListObject, ByVal arcName As String, By
     Set wa = ThisWorkbook.Worksheets.Add(After:=lo.Parent)
     wa.Name = arcName
     RelockStructure
-    wa.Tab.Color = RGB(120, 130, 140)
+    SetTabColor wa, RGB(120, 130, 140)                  ' v25.1
     wa.Range("A1").Resize(1, L_NCOLS).Value = LogHeaders()
     If nArc > 0 Then
         wa.Range("A2").Resize(nArc, L_NCOLS).Value = arc

@@ -15,7 +15,7 @@ Option Explicit
 '  made with macros off is still recorded (login marked "on open").
 ' ====================================================================
 
-Public Const GL_VERSION As String = "Grade log v25 (Oct 14)"
+Public Const GL_VERSION As String = "Grade log v25.1 (Oct 16)"
 Public Const GL_SHEET As String = "Grade Log"
 Public Const GL_TABLE As String = "tblGradeChange"
 Public Const GS_SHEET As String = "GradeSnap"
@@ -254,7 +254,7 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = GL_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(96, 125, 139)
+            SetTabColor ws, RGB(96, 125, 139)           ' v25.1
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0

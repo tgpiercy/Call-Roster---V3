@@ -28,7 +28,7 @@ Option Explicit
 '  published.
 ' ====================================================================
 
-Public Const EL_VERSION As String = "Error log v25 (Oct 14)"
+Public Const EL_VERSION As String = "Error log v25.1 (Oct 16)"
 Public Const EL_SHEET As String = "Error Log"
 Public Const EL_TABLE As String = "tblErrorLog"
 Private Const EL_N As Long = 7
@@ -57,7 +57,7 @@ Public Function ErrorLogTable(Optional ByVal create As Boolean = False) As ListO
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = EL_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(176, 0, 32)
+            SetTabColor ws, RGB(176, 0, 32)             ' v25.1
             On Error Resume Next
             If Not was Is Nothing Then was.Activate
             On Error GoTo 0

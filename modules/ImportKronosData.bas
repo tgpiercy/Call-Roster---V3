@@ -23,7 +23,7 @@ Option Explicit
 '     that have ended by that date are in Kronos, so they stop counting.
 ' ====================================================================
 
-Public Const KR_VERSION As String = "Kronos import v25 (Oct 14)"
+Public Const KR_VERSION As String = "Kronos import v25.1 (Oct 16)"
 Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
 Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)
@@ -482,7 +482,7 @@ Public Function HoursHistoryTable(Optional ByVal create As Boolean = False) As L
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = HH_SHEET
             RelockStructure
-            ws.Tab.Color = RGB(96, 125, 139)
+            SetTabColor ws, RGB(96, 125, 139)           ' v25.1
         End If
         UnlockSheet ws
         ws.Range("A1:H1").Value = Array("Import ID", "Imported At", "Kronos File Date", "Employee", "Worked Hours", "Imported By", "Data Through", "Year")

@@ -10,7 +10,7 @@ Option Explicit
 '  anyone who is working a switch on that date / shift.
 ' ====================================================================
 
-Public Const SS_VERSION As String = "Shift switches v25 (Oct 14)"
+Public Const SS_VERSION As String = "Shift switches v25.1 (Oct 16)"
 Public Const SS_SHEET As String = "Shift Switches"
 Public Const SS_TABLE As String = "tblShiftSwitch"
 
@@ -97,7 +97,7 @@ Private Function CreateSwitchTable() As ListObject
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = SS_SHEET
         RelockStructure
-        ws.Tab.Color = RGB(180, 100, 0)
+        SetTabColor ws, RGB(180, 100, 0)                ' v25.1
     End If
     UnlockSheet ws
     ws.Range("A1").Resize(1, SW_N).Value = Array("SS ID", "Shift Date", "Shift", "Unit", "Gives Up", "Off Crew", _

@@ -31,7 +31,7 @@ Option Explicit
 '  check. Queued for v25.
 ' ====================================================================
 
-Public Const SMK_VERSION As String = "Smoke test v25 (Oct 14)"
+Public Const SMK_VERSION As String = "Smoke test v25.1 (Oct 16)"
 
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
@@ -317,27 +317,33 @@ Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolea
     If n < 2 Then why = "no day shift in the five weeks after the posting has two people free in " & st.Unit: Exit Function
     ReDim taken(1 To n)
     recs(1).Outcome = "Refused"
-    recs(2).Outcome = "Accepted": taken(2) = 8                  ' takes 8 of the 12 on offer
-    If n >= 3 Then recs(3).Outcome = "Left Message"             ' offered the 4 that are left
+    recs(2).Outcome = "Accepted": taken(2) = 8                  ' takes 8 of the 12 on offer: the shift closes (v25, D-E4)
+    If n >= 3 Then recs(3).Outcome = "Left Message"             ' below the partial: offered nothing, never charged
     If Not SubmitCalloutSession(st.Unit, "Days", CREW_ALL, d, USUAL_SHIFT_HOURS, recs, taken, n, st.SessionId, summary) Then Exit Function
 
-    ' the rows must carry the rule: the first refusal on 12 h, the acceptance 8 h, the third on the 4 h left
+    ' the rows must carry the v25 rule (v25.1: this step still expected v24.1's "the rest offered down the
+    ' list" and failed on Graeme's Oct 16 test): the first refusal charged on 12 h, the acceptance 8 h, the
+    ' third offered 0 h and charged nothing, its row saying why
     Dim lo As ListObject: Set lo = LogTable()
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
-    Dim want As Double, got As Double, nRows As Long, accH As Double
-    want = CalloutCharge("Refused", recs(1).Grade, USUAL_SHIFT_HOURS)
-    If n >= 3 Then want = want + CalloutCharge("Left Message", recs(3).Grade, USUAL_SHIFT_HOURS - 8)
+    Dim want As Double, got As Double, nRows As Long, accH As Double, belowH As Double, belowWhy As String
+    want = CalloutCharge("Refused", recs(1).Grade, USUAL_SHIFT_HOURS)        ' the person below the partial adds nothing
     For i = 1 To UBound(v, 1)
         If StrComp(SafeStr(v(i, L_REF)), st.SessionId, vbTextCompare) = 0 Then
             nRows = nRows + 1
             got = got + NumOr0(v(i, L_CHARGED))
             If SafeStr(v(i, L_OUTCOME)) = "Accepted" Then accH = NumOr0(v(i, L_BASEHRS))
+            If SafeStr(v(i, L_OUTCOME)) = "Left Message" Then belowH = NumOr0(v(i, L_BASEHRS)): belowWhy = SafeStr(v(i, L_REASON))
         End If
     Next i
     If nRows <> IIf(n >= 3, 3, 2) Then why = st.SessionId & " has " & nRows & " rows": Exit Function
-    If Abs(got - want) > 0.0001 Then why = st.SessionId & " charged " & got & ", expected " & want: Exit Function
+    If Abs(got - want) > 0.0001 Then why = st.SessionId & " charged " & got & ", expected " & want & " (only the refusal above the partial)": Exit Function
     If Abs(accH - 8) > 0.0001 Then why = "the acceptance shows " & accH & " h, expected 8": Exit Function
-    st.Note = st.SessionId & ", charged " & HoursText(got)
+    If n >= 3 Then
+        If Abs(belowH) > 0.0001 Then why = "the person below the partial was offered " & belowH & " h, expected 0 (the shift closed)": Exit Function
+        If InStr(1, belowWhy, "Not offered", vbTextCompare) = 0 Then why = "the row below the partial should say 'Not offered ...'; it says '" & belowWhy & "'": Exit Function
+    End If
+    st.Note = st.SessionId & ", charged " & HoursText(got) & IIf(n >= 3, " (0 h offered below the partial)", "")
     SmkCallout = True
 End Function
 
@@ -346,7 +352,9 @@ Private Function SmkTimeOff(ByRef st As SmkState, ByRef why As String) As Boolea
     Dim d As Date: d = SmkWeekday(Date + 10)
     st.AbsId = SaveAbsence(st.Emp, st.Unit, "Vacation", d, d + 1, Empty, "", SMK_WHY, "", "", "", "AB", True)
     If st.AbsId = "" Then why = "SaveAbsence returned no ID": Exit Function
+    Dim dirty0 As String: dirty0 = CalDirtyStamp()           ' v25.1: the mark is written on a protected sheet - prove it took
     MarkCalDirty
+    If CalDirtyStamp() = dirty0 Then why = "MarkCalDirty didn't write the calendar's dirty mark (CalMap Z7 still '" & dirty0 & "')": Exit Function
     Dim sd As Date: sd = SmkWeekday(Date + 20)
     st.SickId = SaveSickCall(st.Emp, sd, "Days", st.Unit, Empty, SMK_WHY)
     If st.SickId = "" Then why = "SaveSickCall returned no ID": Exit Function

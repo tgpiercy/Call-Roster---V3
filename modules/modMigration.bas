@@ -159,7 +159,7 @@ Private Sub CreateLogSheet()
     ActiveWindow.FreezePanes = False
     ws.Range("A2").Select
     ActiveWindow.FreezePanes = True
-    ws.Tab.Color = RGB(31, 73, 125)
+    SetTabColor ws, RGB(31, 73, 125)                    ' v25.1
 End Sub
 
 Private Sub AddValueCF(ByVal rng As Range, ByVal txt As String, ByVal fill As Long, ByVal fontCol As Long)

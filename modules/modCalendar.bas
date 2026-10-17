@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v25 (Oct 14)"
+Public Const CAL_VERSION As String = "Calendar v25.1 (Oct 16)"
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -377,7 +377,7 @@ Private Function GetOrMakeTable(ByVal sh As String, ByVal tn As String, ByVal cr
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = sh
             RelockStructure
-            ws.Tab.Color = tabCol
+            SetTabColor ws, tabCol                      ' v25.1
         End If
         UnlockSheet ws
         Dim n As Long: n = UBound(hdr) + 1
@@ -1460,9 +1460,7 @@ End Sub
 Public Sub MarkCalDirty()
     On Error Resume Next
     If Not SheetExists(MAP_SHEET) Then Exit Sub
-    With MapSheet().Range("Z7")
-        .Value = CLng(Val(.Value)) + 1
-    End With
+    MapWrite "Z7", CLng(Val(MapSheet().Range("Z7").Value)) + 1     ' v25.1: through the pair
 End Sub
 
 ' called from ThisWorkbook on every sheet change - cheap name check only
@@ -1564,11 +1562,28 @@ Private Function CalendarSheet() As Worksheet
         SetSheetVisible m, xlSheetVeryHidden
     End If
     Set CalendarSheet = ThisWorkbook.Worksheets(CAL_SHEET)
-    CalendarSheet.Tab.Color = thGreen()
+    SetTabColor CalendarSheet, thGreen()            ' v25.1: a structure change under v25's tab protection
 End Function
 
 Private Function MapSheet() As Worksheet
     Set MapSheet = ThisWorkbook.Worksheets(MAP_SHEET)
+End Function
+
+' v25.1: CalMap is protected like every sheet (v25), and a bare write to it raised "Application-defined
+' or object-defined error" from the Calendar's unit list on Graeme's Oct 16 test. Every other sheet is
+' written between UnlockSheet / ProtectSheet; the map now is too (DrawCalendar unlocks it for the whole
+' draw). A write that raises leaves the map unlocked: ReportError's ProtectAll relocks it.
+Private Sub MapWrite(ByVal addr As String, ByVal v As Variant)
+    Dim mp As Worksheet: Set mp = MapSheet()
+    UnlockSheet mp
+    mp.Range(addr).Value = v
+    ProtectSheet mp
+End Sub
+
+' v25.1: the dirty counter as text, so SmokeTest can prove MarkCalDirty really wrote it
+Public Function CalDirtyStamp() As String
+    On Error Resume Next
+    CalDirtyStamp = SafeStr(MapSheet().Range("Z7").Value)
 End Function
 
 Private Function CalMonth() As Date
@@ -1597,7 +1612,7 @@ End Function
 Public Sub CalPrev()
     On Error GoTo Oops
     CalendarSheet
-    MapSheet().Range("Z1").Value = DateAdd("m", -1, CalMonth())
+    MapWrite "Z1", DateAdd("m", -1, CalMonth())
     DrawCalendar
     Exit Sub
 Oops:
@@ -1607,7 +1622,7 @@ End Sub
 Public Sub CalNext()
     On Error GoTo Oops
     CalendarSheet
-    MapSheet().Range("Z1").Value = DateAdd("m", 1, CalMonth())
+    MapWrite "Z1", DateAdd("m", 1, CalMonth())
     DrawCalendar
     Exit Sub
 Oops:
@@ -1617,7 +1632,7 @@ End Sub
 Public Sub CalToday()
     On Error GoTo Oops
     CalendarSheet
-    MapSheet().Range("Z1").Value = DateSerial(Year(Date), Month(Date), 1)
+    MapWrite "Z1", DateSerial(Year(Date), Month(Date), 1)
     DrawCalendar
     Exit Sub
 Oops:
@@ -1633,7 +1648,7 @@ Public Sub CalUnitChanged()
     On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
-    MapSheet().Range("Z2").Value = dd.List(dd.ListIndex)
+    MapWrite "Z2", dd.List(dd.ListIndex)
     DrawCalendar
     Exit Sub
 Oops:
@@ -1649,7 +1664,7 @@ Public Sub CalMonthChanged()
     On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
-    MapSheet().Range("Z1").Value = DateSerial(Year(Date) - 1, dd.ListIndex, 1)   ' list starts January last year
+    MapWrite "Z1", DateSerial(Year(Date) - 1, dd.ListIndex, 1)   ' list starts January last year
     DrawCalendar
     Exit Sub
 Oops:
@@ -1737,6 +1752,7 @@ Public Sub DrawCalendar()
     Dim mp As Worksheet: Set mp = MapSheet()
     Dim m0 As Date: m0 = CalMonth()
     Dim grp As String: grp = CalGroup()
+    UnlockSheet mp                                  ' v25.1: written all through the draw; relocked at Done
     mp.Range("Z1").Value = m0
     mp.Range("Z2").Value = grp
     Dim drawnFrom As String: drawnFrom = SafeStr(mp.Range("Z7").Value)
@@ -1993,6 +2009,7 @@ Done:
     On Error Resume Next
     Application.DisplayAlerts = True
     ProtectSheet ws
+    ProtectSheet mp                                 ' v25.1
     Application.Calculation = calcWas
     Application.EnableEvents = evWas
     Application.ScreenUpdating = True
@@ -3128,7 +3145,7 @@ Private Function NeedsSheet() As Worksheet
         RelockStructure
     End If
     Set NeedsSheet = ThisWorkbook.Worksheets(NA_SHEET)
-    NeedsSheet.Tab.Color = thOpen()
+    SetTabColor NeedsSheet, thOpen()                ' v25.1
 End Function
 
 Public Sub ShowNeedsAttention()
@@ -3166,7 +3183,7 @@ Public Sub NAUnitChanged()
     On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
-    MapSheet().Range("Z5").Value = dd.List(dd.ListIndex)
+    MapWrite "Z5", dd.List(dd.ListIndex)
     DrawNeeds
     Exit Sub
 Oops:
@@ -3181,7 +3198,7 @@ Public Sub NARangeChanged()
     On Error GoTo Oops
     If dd Is Nothing Then Exit Sub
     If dd.ListIndex < 1 Then Exit Sub
-    MapSheet().Range("Z6").Value = NARanges()(dd.ListIndex - 1)
+    MapWrite "Z6", NARanges()(dd.ListIndex - 1)
     DrawNeeds
     Exit Sub
 Oops:
@@ -3647,8 +3664,8 @@ Public Sub DrawNeeds()
         End With
     End If
     On Error GoTo Failed
-    MapSheet().Range("Z9").Value = drawnFrom
-    MapSheet().Range("Z11").Value = "'" & DrawContext()
+    MapWrite "Z9", drawnFrom                        ' v25.1: through the pair
+    MapWrite "Z11", "'" & DrawContext()
     GoTo Done
 
 Failed:
@@ -4480,11 +4497,11 @@ Public Sub CalMenuGoto()
     Dim d As Date: d = KeyDate(keyTxt)
     If d = 0 Then Exit Sub
     CalendarSheet
-    MapSheet().Range("Z1").Value = DateSerial(Year(d), Month(d), 1)
+    MapWrite "Z1", DateSerial(Year(d), Month(d), 1)
     LoadCache
     Dim u As String: u = SlotUnit(keyTxt)
     If u <> "" Then
-        If Not UnitInGroup(u, CalGroup()) Then MapSheet().Range("Z2").Value = GroupOfUnit(u)
+        If Not UnitInGroup(u, CalGroup()) Then MapWrite "Z2", GroupOfUnit(u)
     End If
     ShowCalendar
     On Error Resume Next
@@ -4512,7 +4529,7 @@ Public Sub CalOnOpen()
     CalendarSheet
     Dim m0 As Date: m0 = DateSerial(Year(Date), Month(Date), 1)
     If CalMonth() <> m0 Then
-        MapSheet().Range("Z1").Value = m0
+        MapWrite "Z1", m0
         DrawCalendar
     ElseIf CalStale() Then
         DrawCalendar

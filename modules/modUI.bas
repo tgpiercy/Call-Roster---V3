@@ -18,7 +18,7 @@ Option Explicit
 ' ====================================================================
 
 Private Const STATUS_CELL As String = "D3"      ' status (3 lines, plain text) - in the frozen names column
-Public Const UI_VERSION As String = "Roster UI v25 (Oct 14)"
+Public Const UI_VERSION As String = "Roster UI v25.1 (Oct 16)"
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
 Private Const LIGHT As Long = 15787486          ' RGB(222, 229, 240)
@@ -573,7 +573,7 @@ Private Sub FormatRoster(ByVal ws As Worksheet, ByVal lastRow As Long)
     ws.Cells(R_FIRST, C_SHIFT).Select
     ActiveWindow.FreezePanes = True
     ActiveWindow.DisplayGridlines = False
-    ws.Tab.Color = NAVY
+    SetTabColor ws, NAVY                                ' v25.1
 End Sub
 
 

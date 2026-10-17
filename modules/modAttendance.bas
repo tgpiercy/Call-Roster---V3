@@ -27,7 +27,7 @@ Option Explicit
 '  hidden in saved copies and never published).
 ' ====================================================================
 
-Public Const AT_VERSION As String = "Attendance v25 (Oct 14)"
+Public Const AT_VERSION As String = "Attendance v25.1 (Oct 16)"
 Public Const AT_SHEET As String = "Attendance"
 
 Public Const PAID_SICK_DAYS As Long = 5
@@ -517,7 +517,7 @@ Private Function AttendanceSheet(ByVal create As Boolean) As Worksheet
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
         ws.Name = AT_SHEET
         RelockStructure
-        ws.Tab.Color = RGB(230, 81, 0)
+        SetTabColor ws, RGB(230, 81, 0)                 ' v25.1
         Set AttendanceSheet = ws
     End If
 End Function

@@ -11,13 +11,14 @@ Private mRestoreDesk As Boolean        ' v25.3: the Desk view was on before the 
 Private Sub Workbook_Open()
     Dim k As Long
     Application.ScreenUpdating = False
-    For k = 1 To 10                    ' v24.2: a step that fails is written to the Error Log; the rest still run
+    For k = 1 To 11                    ' v24.2: a step that fails is written to the Error Log; the rest still run
         OpenStep k
     Next k
     On Error Resume Next
     Application.ScreenUpdating = True
     ThisWorkbook.Saved = True
     OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
+    SetShortcuts True                  ' v25.5: Ctrl+Shift+S / C / K / D while this workbook is active (modUI)
     On Error GoTo 0
 End Sub
 
@@ -34,6 +35,7 @@ Private Sub OpenStep(ByVal k As Long)
         Case 8: CalOnOpen              ' calendar: this month, fresh needs-attention box
         Case 9: IntegrityOnOpen        ' v23: quiet integrity check for admins (result on the status line)
         Case 10: DeskOpenLanding          ' v25.3: a Desk user lands on the Desk, everyone else on the roster (modDesk)
+        Case 11: WhatsNewOnOpen           ' v25.5: the what's-new box once per login per release (modSystem)
     End Select
     Exit Sub
 Oops:
@@ -94,6 +96,7 @@ End Sub
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
     ReleaseStatusBar                       ' v24.1: Excel's status bar belongs to every open workbook
+    SetShortcuts False                     ' v25.5: the keys go with the workbook
     If NoSave() Or ThisWorkbook.ReadOnly Then
         ThisWorkbook.Saved = True
         Exit Sub
@@ -122,10 +125,17 @@ Oops:
     Quietly "Workbook_SheetActivate"
 End Sub
 
-' v24.1: switching to another workbook gives Excel's status bar back
+' v24.1: switching to another workbook gives Excel's status bar back; v25.5: and the shortcut keys
 Private Sub Workbook_Deactivate()
     On Error Resume Next
     ReleaseStatusBar
+    SetShortcuts False
+End Sub
+
+' v25.5: the shortcut keys are this workbook's only while it is the active one
+Private Sub Workbook_Activate()
+    On Error Resume Next
+    SetShortcuts True
 End Sub
 
 ' v24.1: selecting a roster row shows that person's Refused hours by kind

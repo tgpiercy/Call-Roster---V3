@@ -819,3 +819,62 @@ End Function
 Public Function UiPx(ByVal v As Double) As Double
     UiPx = v * UI_SCALE
 End Function
+
+' --------------------------------------------------------------------
+'  KEYBOARD SHORTCUTS (v25.5, A5): Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar,
+'  Ctrl+Shift+D the Desk. On while this workbook is active (open / activate), off on deactivate and close -
+'  OnKey is Excel-wide, so another workbook must never see them. Each key runs the macro its button runs
+'  (the gates inside refuse as they do for a click). Listed on the Desk's HELP group and the Help tab.
+' --------------------------------------------------------------------
+Public Sub SetShortcuts(ByVal on_ As Boolean)
+    On Error Resume Next
+    Dim keys As Variant, macs As Variant, i As Long
+    keys = Array("^+s", "^+S", "^+c", "^+C", "^+k", "^+K", "^+d", "^+D")
+    macs = Array("modUI.KeySick", "modUI.KeySick", "modUI.KeyCallout", "modUI.KeyCallout", _
+                 "modUI.KeyCalendar", "modUI.KeyCalendar", "modUI.KeyDesk", "modUI.KeyDesk")
+    For i = LBound(keys) To UBound(keys)
+        If on_ Then
+            Application.OnKey CStr(keys(i)), CStr(macs(i))
+        Else
+            Application.OnKey CStr(keys(i))
+        End If
+    Next i
+End Sub
+
+Public Sub KeySick()
+    On Error GoTo Oops
+    ShowSickCallForm
+    Exit Sub
+Oops:
+    ReportError "KeySick"
+End Sub
+
+Public Sub KeyCallout()
+    On Error GoTo Oops
+    ShowOvertimeForm
+    Exit Sub
+Oops:
+    ReportError "KeyCallout"
+End Sub
+
+Public Sub KeyCalendar()
+    On Error GoTo Oops
+    ShowCalendar
+    Exit Sub
+Oops:
+    ReportError "KeyCalendar"
+End Sub
+
+' the Desk: the "< Desk" switch for an admin on the full layout; the Desk sheet for a Desk admin or a
+' supervisor; nothing for a plain user (no Desk)
+Public Sub KeyDesk()
+    On Error GoTo Oops
+    If gAdminUnlocked And Not gDeskMode Then
+        ShowDesk
+    ElseIf SheetExists(DESK_SHEET) Then
+        If ThisWorkbook.Worksheets(DESK_SHEET).Visible = xlSheetVisible Then ShowDeskSheet
+    End If
+    Exit Sub
+Oops:
+    ReportError "KeyDesk"
+End Sub

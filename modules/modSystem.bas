@@ -25,6 +25,10 @@ Option Explicit
 
 Public Const SYS_VERSION As String = "System v25.3 (Oct 17)"
 Public Const EXPECTED_RELEASE As String = "v25.3"
+' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
+Public Const WHATS_NEW As String = "The call-out pop-up: the person being called is the screen, one key per outcome (A R L U P), Call back for the left-message pile.|" & _
+                                   "Supervisors by login (the Desk, sick call, posting, award, print, Member View); Help tab from How do I ...; click a calendar line for its details.|" & _
+                                   "Keys: Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar, Ctrl+Shift+D the Desk."
 Private Const N_MODULES As Long = 25           ' v24.4: + modSmoke; v25.3: + modDesk
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v25.5"
@@ -559,6 +563,48 @@ Public Function IsLiveRoster() As Boolean
     If IsBackupCopyName(ThisWorkbook.Name) Then Exit Function
     IsLiveRoster = True
 End Function
+
+' ---------------- what's new (v25.5, A6) ----------------
+' ThisWorkbook's open step 11: the WHATS_NEW box once per login per release. A hidden name per login
+' ("WhatsNewSeen_<login>") holds the last release seen; it is written here and saved with the next save, so a
+' read-only open sees the box again. Never raises (the open step logs an error, the box is not worth one).
+Private Function WhatsNewName() As String
+    Dim u As String, i As Long, ch As String, s As String
+    u = LCase$(CurrentUser())
+    For i = 1 To Len(u)
+        ch = Mid$(u, i, 1)
+        If ch Like "[a-z0-9]" Then s = s & ch Else s = s & "_"
+    Next i
+    WhatsNewName = "WhatsNewSeen_" & s
+End Function
+
+Public Sub WhatsNewOnOpen()
+    On Error Resume Next
+    If CurrentUser() = "" Then Exit Sub
+    Dim nmObj As Name
+    Set nmObj = ThisWorkbook.Names(WhatsNewName())
+    If Not nmObj Is Nothing Then
+        If InStr(nmObj.RefersTo, EXPECTED_RELEASE) > 0 Then Exit Sub
+    End If
+    ShowWhatsNew
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=WhatsNewName(), RefersTo:="=""" & EXPECTED_RELEASE & """", Visible:=False
+    Else
+        nmObj.RefersTo = "=""" & EXPECTED_RELEASE & """"
+    End If
+End Sub
+
+' Alt+F8, or the Help sheet: the box itself
+Public Sub ShowWhatsNew()
+    On Error GoTo Oops
+    MsgBox "What's new in " & EXPECTED_RELEASE & ":" & vbNewLine & vbNewLine & _
+           "- " & Replace(WHATS_NEW, "|", vbNewLine & vbNewLine & "- ") & vbNewLine & vbNewLine & _
+           "The Help tab (How do I ... on the Desk) has every job. This box shows once; Alt+F8 > ShowWhatsNew brings it back.", _
+           vbInformation, "Call Out Roster " & EXPECTED_RELEASE
+    Exit Sub
+Oops:
+    ReportError "ShowWhatsNew"
+End Sub
 
 ' True when the backup should be skipped without a word
 Private Function BackupOff() As Boolean

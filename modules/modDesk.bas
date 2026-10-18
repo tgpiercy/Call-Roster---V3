@@ -235,6 +235,11 @@ Public Sub DrawDesk()
     yL = yL + 16
     DeskBtn ws, "dk_btn_guide", "How do I ...", "modDesk.DeskGuide", x0, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
     DeskBtn ws, "dk_btn_report", "Something went wrong", "modDesk.DeskReport", x0 + (BTN_W + GAP) / 2, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
+    ' v25.5 (A5): the shortcut keys, under the help buttons
+    yL = yL + BTN_H + 6
+    DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yL
+    ws.Shapes("dk_lbl_keys").Width = 440
+    yL = yL + 14 - BTN_H                            ' the footer adds BTN_H below the taller column
 
     ' ---- PLAN AHEAD / WHEN YOU ARE DONE (right column) ----
     Dim yR As Double: yR = yy
@@ -868,6 +873,10 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "blank), SAVE LEAVE. Returning: pick who is back, type the first day back, click Work out the top-up, read the peers, " & _
         "the average and the hours before and after, then SAVE TOP-UP. A return date in the future, or after the roster's last " & _
         "pay period, is refused."
+    HelpAdd h, n, "Keyboard shortcuts", _
+        "While the roster is the active workbook: Ctrl+Shift+S opens Sick Call, Ctrl+Shift+C the call-out, Ctrl+Shift+K the " & _
+        "calendar, Ctrl+Shift+D the Desk. In the call-out pop-up the letters A R L U P record the outcome, K skips, B goes back, " & _
+        "Enter submits, Esc closes. Alt+F8 > ShowWhatsNew brings back the what's-new box that shows once after an install."
     HelpAdd h, n, "Typing a date", _
         "Every date box takes Oct 12, 12 Oct, Oct 12, 2026 or 10/12 (month then day) and shows the full date it understood. With " & _
         "no year, a date more than three months back means next year and one more than nine months ahead means last year. A " & _

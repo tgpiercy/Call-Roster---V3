@@ -1,0 +1,15 @@
+# Groups 3 and 4 of install-steps.txt for v25.2 (groups 1 and 2 are standard; tests/build_zip.py adds them,
+# the VERSION / EXPECT / MEMBER header, and the members' template step when member/ changed).
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+# The Roster Updater (v4.1) does not change: nothing goes in by hand.
+
+[3. Run once]
+macro   | System check (expect 24 of 24 on v25.2, and the Protection line)   | SystemCheckOK
+macro   | Self test (expect 568 passed, 67 suites; no rule changed)           | SelfTestOK
+
+[4. Checks]
+macro   | Make a practice copy (it opens; leave it for the next row)        | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY (20 steps; about two minutes)              | In the practice copy (its title says COPY): Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, 20 steps. Steps 19 and 20 are new: they draw the Calendar and Needs Attention both ways (the new array writer and the old cell-by-cell one) and compare every cell; their lines carry both draw times - type those into this row's note. FAILED at 19 or 20 names the first cell that differs: photograph the box. Then CLOSE THE COPY WITHOUT SAVING and come back to this sheet. Click Done.
+manual  | Draw times after: the Calendar                                    | ADMIN view, OT Roster tab, click the roster's Calendar BUTTON. Pick the same busiest month as on Oct 17 (October 2026, Phosphine & Derivatives), click Next and Prev so it is drawn fresh. The hint under the title ends "Drawn in N s." (was 4.6). Alt+F8 > ShowCalDrawTimes: type the Calendar line into this row's note, or photograph the box. Hover an OPEN or POSTED line: the details box still appears; hover a covered line: none (double-click > Details... has them).
+manual  | Draw times after: Needs Attention                                 | ADMIN view, Needs Attention tab, the same range as on Oct 17 (14 days, all units): it redraws. Alt+F8 > ShowCalDrawTimes: type the Needs Attention line into the note (was 1.4 s).
+manual  | Print / PDF of the month                                          | Calendar tab, Print / PDF on the busiest month: the page looks as it did (one page, landscape, the same grid). If anything looks different from before (a colour, a missing border, a wrong width), photograph it; Alt+F8 > DrawCalendarLegacy redraws the month the old way for a side-by-side.

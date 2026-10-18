@@ -65,7 +65,7 @@ Size: S = under a day, M = a few days, L = a release of its own. Risk: data (tou
 ## 4. What this plan does not do
 No rule changes (charging, call order, who is free, the year, privacy) ride on an ease-of-use release; each stays its own decision with its own known-answer cases. Nothing here needs a new platform before the Q2 2027 gate. Every pop-up change is a form re-paste, so A2-A4 ship together and are checked on the plant PC through the panel's hand-check rows.
 
-## 5. Decisions to take
-1. The bundle's extras: A5 (shortcuts), A6 (what's new), A7 (Help sheet) in v25.3.5, or hold them for v25.5?
-2. v25.5's order: the pop-up scale (A2) first, or the call-out session rework (A3) first? (A3 is the bigger win and the bigger change.)
-3. D1: the sit-with sessions before the A3 brief is written, or write it from the proposal and adjust after?
+## 5. Decisions taken (Graeme, Oct 18, 2026)
+1. The bundle takes A7 (the Help sheet) only; A5 (shortcuts) and A6 (what's new) go to v25.5.
+2. v25.5 starts with A3, the call-out session rework, then the scale pass (A2) on the other pop-ups.
+3. No sit-with first: the A3 brief is written from the code and the proposal (`briefs/v25.5.md`), corrected by Graeme, and adjusted after the first week.

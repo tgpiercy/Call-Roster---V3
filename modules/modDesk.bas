@@ -804,9 +804,11 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "call-outs and look at the calendar."
     HelpAdd h, n, "Log a call-out (fill a shift now)", _
         "Click Fill a shift now (or Log Call-Out on the roster's bar). Pick the Department, Shift and Date, type the Hours and " & _
-        "click LOAD LIST: the list is in call order and holds only the people free for that shift. Call the name shown at Now " & _
-        "calling and click ACCEPTED, REFUSED, LEFT MSG or UNAVAIL. (pick the reason first for Unavailable). When the shift is " & _
-        "filled click SUBMIT ALL ENTRIES and note the session number (S-0012). Refused and Left Message are charged for grade 2 " & _
+        "click LOAD LIST: the list is in call order and holds only the people free for that shift. The card shows who to call " & _
+        "and their phone; press A (accepted), R (refused), L (left message) or U (unavailable: pick the reason, Enter records " & _
+        "it) - or click the button - and the next person comes up. K skips for now, B goes back one, P is part of the hours, " & _
+        "Call back goes down the left-message pile. When the shift is filled press Enter or click SUBMIT ALL ENTRIES and note " & _
+        "the session number (S-0012). Refused and Left Message are charged for grade 2 " & _
         "and below; >> means above grade 2 (called, never charged); * means the total includes accepted overtime not yet in " & _
         "Kronos; ~ means an estimate because a unit move is planned for the person."
     HelpAdd h, n, "Someone takes only part of the hours", _

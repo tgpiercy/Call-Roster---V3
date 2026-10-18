@@ -34,6 +34,9 @@ Public Const PRIMARY_ADMIN_NAME As String = "Graeme"                       ' nam
 Public Const PRIMARY_ADMIN_EMAIL As String = "graeme.piercy@syensqo.com"   ' "Something went wrong" writes to this address
 Public Const GUIDE_PATH As String = ""                                    ' the quick guide as a PDF on the plant PC; "" until go-live
 Public Const SUPERVISOR_DESK As Boolean = True                            ' every supervisor (non-admin) lands on the supervisor Desk (Graeme, Oct 17)
+' v25.5 (briefs/v25.5.md item 2, D1 taken by default Oct 18): every pop-up's positions, sizes and point sizes are
+' multiplied by this, for everyone. 1 = the sizes as written (500 x 600 call-out fits 1366 x 768); 1.2 fits 1920 x 1080.
+Public Const UI_SCALE As Double = 1
 
 Public Const CHARGE_MULTIPLIER As Double = 1.75   ' refused / passed OT is charged at this rate
 Public Const CHARGE_MAX_GRADE As Double = 2       ' grades above this are called but never charged
@@ -1058,7 +1061,8 @@ End Function
 Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As String, ByVal crewSel As String, _
                                      ByVal entryDate As Date, ByVal hours As Double, ByRef entries() As EmpRec, _
                                      ByRef taken() As Double, ByVal n As Long, ByRef sessionID As String, _
-                                     ByRef summary As String) As Boolean
+                                     ByRef summary As String, Optional ByRef shortSummary As String = "") As Boolean
+    ' v25.5: shortSummary = the four-line box the call-out pop-up shows; summary = the full detail (status bar, SmokeTest)
     Dim i As Long, k As Long, logged As Long
     For i = 1 To n
         If entries(i).Outcome <> "" Then logged = logged + 1
@@ -1129,14 +1133,22 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     SaveIfWritable
 
     ' accepted -> onto the calendar
-    Dim calTxt As String
+    Dim calTxt As String, accShort As String
     For i = 1 To n
         If entries(i).Outcome = "Accepted" Then
             worked = AcceptedHours(offers(i), taken(i))
             accTxt = accTxt & vbNewLine & "      " & entries(i).EmpName & ": " & HoursText(worked) & " h"
+            accShort = accShort & IIf(accShort = "", "", ", ") & entries(i).EmpName & " " & HoursText(worked) & " h"
             calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, shiftLbl, entries(i).EmpName, worked, sessionID)
         End If
     Next i
+
+    ' v25.5: the four lines the pop-up shows (the detail below stays on the status bar and in the OT Log)
+    shortSummary = "Session " & sessionID & " submitted: " & nAcc & " accepted" & IIf(accShort <> "", " (" & accShort & ")", "") & _
+                   ", " & nRef & " refused, " & nMsg & " left message, " & nUna & " unavailable." & vbNewLine & _
+                   "Charged " & HoursText(totalCharged) & " h (Refused and Left Message, grade " & CHARGE_MAX_GRADE & " and below, x " & CHARGE_MULTIPLIER & ")." & vbNewLine & _
+                   dept & "  |  " & shiftLbl & "  |  crew " & crewSel & "  |  " & Format$(entryDate, "ddd mmm d") & "  |  " & HoursText(hours) & " h" & _
+                   IIf(calTxt <> "", vbNewLine & "Calendar:" & Replace(calTxt, vbNewLine & "  ", " "), "")
 
     summary = "Session " & sessionID & " submitted!" & vbNewLine & vbNewLine & _
               dept & " | " & shiftLbl & " | Crew: " & crewSel & " | " & Format$(entryDate, "MM/DD/YYYY") & vbNewLine & _

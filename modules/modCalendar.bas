@@ -2015,9 +2015,13 @@ Public Sub DrawCalendar()
 
     ' ---- page ----
     On Error Resume Next
+    ' v25.2 (item 2): the same page setup every draw cost 0.6 s of 4.6; it is redone only when the print area
+    ' moved (a new sheet, a month with more rows) or the release changed (CalMap Z17), else left as it is
+    Dim pageAddr As String: pageAddr = ws.Range(ws.Cells(1, 1), ws.Cells(r, 16)).Address
+    If ws.PageSetup.PrintArea <> pageAddr Or SafeStr(mp.Range("Z17").Value) <> CAL_VERSION Then
     Application.PrintCommunication = False
     With ws.PageSetup
-        .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, 16)).Address
+        .PrintArea = pageAddr
         .PrintTitleRows = ""
         .Orientation = xlLandscape
         .Zoom = False
@@ -2032,6 +2036,8 @@ Public Sub DrawCalendar()
         .PrintComments = xlPrintNoComments
     End With
     Application.PrintCommunication = True
+    mp.Range("Z17").Value = "'" & CAL_VERSION
+    End If
     If ActiveSheet Is ws Then
         With ActiveWindow
             .DisplayGridlines = False

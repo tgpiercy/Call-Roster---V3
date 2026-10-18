@@ -97,6 +97,7 @@ Public Sub SmokeTest()
 
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
     Dim repShort As String, repNotes As String     ' v24.3.1: the step lines without their notes (the PASSED box), and the notes alone (the Error Log line)
+    Dim repSkips As String, repDraw As String       ' v25.2: the skipped steps and the two draw-compare lines (the PASSED box shows these; 20 names no longer fit)
     Dim before As Object, logBefore As Double, nErr0 As Long, nWarn0 As Long, diff As String
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -117,6 +118,8 @@ Public Sub SmokeTest()
         If ok Then
             repShort = repShort & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & vbNewLine
             If st.Note <> "" Then repNotes = repNotes & k & ": " & st.Note & "; "
+            If Left$(st.Note, 7) = "SKIPPED" Then repSkips = repSkips & Format$(k, "00") & "  skip  " & SmkName(k) & "  (" & st.Note & ")" & vbNewLine
+            If k >= 19 Then repDraw = repDraw & SmkName(k) & ": " & st.Note & vbNewLine
             rep = rep & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & _
                   IIf(st.Note <> "", "  (" & st.Note & ")", "") & vbNewLine
         Else
@@ -141,7 +144,7 @@ Public Sub SmokeTest()
     On Error Resume Next
     LogError "SmokeTest", 0, IIf(failedAt = 0 And diff = "", "all steps OK, totals unchanged", _
                                  IIf(failedAt > 0, "FAILED at step " & failedAt & " (" & SmkName(failedAt) & ")", "totals changed")), _
-             IIf(failedAt = 0 And diff = "", Left$(repNotes, 500), Left$(why & diff, 400))
+             IIf(failedAt = 0 And diff = "", Left$(repDraw & repNotes, 500), Left$(why & diff, 400))
     On Error GoTo 0
 
     Dim head As String
@@ -151,11 +154,13 @@ Public Sub SmokeTest()
     ElseIf diff <> "" Then
         head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
     Else
-        head = "SMOKE TEST PASSED: all steps OK, totals unchanged."
-        rep = repShort                             ' 18 plain lines fit in one box; the notes are on the Error Log line
+        head = "SMOKE TEST PASSED: all " & SMK_STEPS & " steps OK, totals unchanged." & IIf(repDraw <> "", vbNewLine & repDraw, "")
+        ' v25.2: 20 step names no longer fit a MsgBox with the closing text; the box shows the skipped steps and the
+        ' two draw-compare lines, the full step list is on the Error Log line (repShort stays for the FAILED box)
+        rep = IIf(repSkips = "", "No step skipped." & vbNewLine, repSkips)
     End If
     If Len(head) > 420 Then head = Left$(head, 400) & " ..." & vbNewLine
-    If Len(rep) > 960 - Len(head) Then rep = Left$(rep, 940 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters
+    If Len(rep) > 820 - Len(head) Then rep = Left$(rep, 800 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters; the closing text is 150
     MsgBox head & vbNewLine & vbNewLine & rep & vbNewLine & _
            "Saving is blocked in this copy. Close it WITHOUT saving; nothing is kept. " & _
            "Make the next practice copy from the real roster, not from this one.", _
@@ -194,8 +199,8 @@ Private Function SmkName(ByVal k As Long) As String
         Case 16: SmkName = "void everything it logged"
         Case 17: SmkName = "remove the test employee"
         Case 18: SmkName = "integrity check"
-        Case 19: SmkName = "Calendar: the array draw equals the cell-by-cell draw"
-        Case 20: SmkName = "Needs Attention: the array draw equals the row-by-row draw"
+        Case 19: SmkName = "Calendar drawn both ways, compared"
+        Case 20: SmkName = "Needs Attention drawn both ways, compared"
     End Select
 End Function
 
@@ -1010,12 +1015,12 @@ End Function
 ' ---- 20. Needs Attention drawn both ways: DrawNeeds against DrawNeedsLegacy, the tab's current group and range
 Private Function SmkNeedsCompare(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim secNew As String, secOld As String, snapNew As String, snapOld As String
-    CalClearDrawTimes
+    NAClearDrawTime
     DrawNeeds
     secNew = NADrawSeconds()
     If secNew = "" Then why = "the array draw didn't finish (see the Error Log)": Exit Function
     snapNew = DrawSnapshot(NA_SHEET)
-    CalClearDrawTimes
+    NAClearDrawTime
     DrawNeedsLegacy
     secOld = NADrawSeconds()
     If secOld = "" Then why = "the row-by-row draw didn't finish (see the Error Log)": Exit Function
@@ -1034,9 +1039,9 @@ Private Function SmkFirstDiff(ByVal snapNew As String, ByVal snapOld As String, 
     For i = 0 To UBound(a)
         If i > UBound(b) Then Exit For
         If a(i) <> b(i) Then
-            SmkFirstDiff = what & ": first difference at '" & Left$(CStr(a(i)), 160) & "' (new) vs '" & Left$(CStr(b(i)), 160) & "' (cell by cell)"
+            SmkFirstDiff = what & ": first difference at '" & Left$(CStr(a(i)), 160) & "' (new) vs '" & Left$(CStr(b(i)), 160) & "' (legacy)"
             Exit Function
         End If
     Next i
-    If UBound(a) <> UBound(b) Then SmkFirstDiff = what & ": " & (UBound(a) + 1) & " lines in the new draw, " & (UBound(b) + 1) & " cell by cell"
+    If UBound(a) <> UBound(b) Then SmkFirstDiff = what & ": " & (UBound(a) + 1) & " lines in the new draw, " & (UBound(b) + 1) & " in the legacy draw"
 End Function

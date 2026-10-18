@@ -502,7 +502,7 @@ Private Sub LoadCache()
         nm = Trim$(SafeStr(v(i, C_NAME - C_HOME + 1)))
         If nm <> "" Then
             mShiftMap(nm) = UCase$(Trim$(SafeStr(v(i, C_SHIFT - C_HOME + 1))))
-            mHomeMap(nm) = Trim$(SafeStr(v(i, 1)))
+            If Not mHomeMap.Exists(nm) Then mHomeMap(nm) = Trim$(SafeStr(v(i, 1)))     ' the first row wins, as HomeUnitOf (review)
         End If
     Next i
 End Sub
@@ -1643,10 +1643,14 @@ Public Sub CalShowMonth(ByVal m0 As Date, ByVal grp As String)
     MapWrite "Z2", grp
 End Sub
 
-Public Sub CalClearDrawTimes()
+Public Sub CalClearDrawTimes()                   ' the Calendar's (Z13 / Z14)
     CalendarSheet
     MapWrite "Z13", ""
     MapWrite "Z14", ""
+End Sub
+
+Public Sub NAClearDrawTime()                     ' Needs Attention's (Z15) on its own, so step 20 leaves step 19's time in place (review)
+    CalendarSheet
     MapWrite "Z15", ""
 End Sub
 
@@ -1676,20 +1680,33 @@ Public Function DrawSnapshot(ByVal sheetName As String) As String
     Dim lastRow As Long: lastRow = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
     Dim lastCol As Long: lastCol = IIf(isCal, 16, NA_KEY)
     Dim skipRow As Long: skipRow = IIf(isCal, 3, 2)
-    Dim out() As String, n As Long, r As Long, c As Long, cel As Range, cm As String
-    ReDim out(1 To (lastRow + 1) * (lastCol + 2))
+    Dim out() As String, n As Long, r As Long, c As Long, cel As Range, cm As String, runs As String, txt As String, p1 As Long
+    ' review: one height line + lastCol cell lines per row, plus up to lastRow x 16 map lines for the Calendar
+    ReDim out(1 To lastRow * (lastCol + 1) + IIf(isCal, lastRow * 16, 0) + 1)
     For r = 1 To lastRow
         n = n + 1: out(n) = "h" & r & "|" & ws.Rows(r).RowHeight
         If r <> skipRow Then
             For c = 1 To lastCol
                 Set cel = ws.Cells(r, c)
                 cm = ""
-                If Not cel.Comment Is Nothing Then cm = cel.Comment.Text
+                If Not cel.Comment Is Nothing Then cm = Replace(cel.Comment.Text, vbLf, "~")
+                txt = Replace(SafeStr(cel.Value), vbLf, "~")         ' one line per cell (the date cells hold line feeds)
+                ' a cell with mixed runs (the date cells' rich text) reads Null for the whole-cell font: sample the first
+                ' character, the last of its first line and the last character, so a wrong run in DateRich is seen (review)
+                runs = ""
+                If IsNull(cel.Font.Size) Or IsNull(cel.Font.Color) Then
+                    If Len(txt) > 0 Then
+                        runs = cel.Characters(1, 1).Font.Size & "/" & cel.Characters(1, 1).Font.Color
+                        p1 = InStr(txt, "~")
+                        If p1 > 1 Then runs = runs & " " & cel.Characters(p1 - 1, 1).Font.Size & "/" & cel.Characters(p1 - 1, 1).Font.Color
+                        runs = runs & " " & cel.Characters(Len(txt), 1).Font.Size & "/" & cel.Characters(Len(txt), 1).Font.Color
+                    End If
+                End If
                 n = n + 1
-                out(n) = r & "," & c & "|" & SafeStr(cel.Value) & "|" & cel.Interior.Color & "|" & cel.Font.Name & "|" & _
+                out(n) = r & "," & c & "|" & txt & "|" & cel.Interior.Color & "|" & cel.Font.Name & "|" & _
                          cel.Font.Size & "|" & cel.Font.Color & "|" & cel.Font.Bold & "|" & cel.Font.Italic & "|" & _
                          cel.HorizontalAlignment & "|" & cel.VerticalAlignment & "|" & cel.IndentLevel & "|" & _
-                         cel.WrapText & "|" & cel.ShrinkToFit & "|" & IIf(cel.MergeCells, cel.MergeArea.Address, "") & "|" & cm
+                         cel.WrapText & "|" & cel.ShrinkToFit & "|" & IIf(cel.MergeCells, cel.MergeArea.Address, "") & "|" & cm & "|" & runs
             Next c
         End If
     Next r

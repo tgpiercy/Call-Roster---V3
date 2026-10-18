@@ -130,9 +130,11 @@ End Sub
 
 ' v24.1: selecting a roster row shows that person's Refused hours by kind
 ' (call-out / posting) on Excel's status bar. Nothing is written to a cell.
+' v25.5: a click on a Calendar line shows its details in the Calendar's hint row and on the status bar.
 Private Sub Workbook_SheetSelectionChange(ByVal Sh As Object, ByVal Target As Range)
     On Error GoTo Oops
     RosterSelectionChanged Sh, Target
+    CalSelectionChanged Sh, Target         ' v25.5 (modCalendar): row 3 of the Calendar only
     Exit Sub
 Oops:
     Quietly "Workbook_SheetSelectionChange"

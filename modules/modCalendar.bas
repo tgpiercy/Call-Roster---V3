@@ -25,8 +25,9 @@ Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
 Public Const CAL_VERSION As String = "Calendar v25.3 (Oct 17)"
-' v25.1.2: draw-time measurement (the v25.2 plan's step 1): seconds spent inside SlotsFor and AddNote
-' during the current draw, read by DrawCalendar / DrawNeeds for their breakdown lines
+' v25.1.2: draw-time measurement (the v25.2 plan's step 1): seconds spent inside SlotsFor during the current
+' draw, read by DrawCalendar / DrawNeeds for their breakdown lines (v25.5: the notes share is always 0 - no
+' hover notes are made; the figure stays in the line so the numbers read the same)
 Private mTimeSlots As Double
 Private mTimeNotes As Double
 Private mHomeMap As Object               ' v25.2 (item 4): name -> Home Unit, filled by LoadCache
@@ -35,6 +36,7 @@ Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Att
 Private Const CAL_FONT As String = "Segoe UI"
 Private Const CAL_FONT_B As String = "Segoe UI Semibold"
 Private Const COL_W As Double = 22          ' width of each half of a day
+Private Const CAL_HINT_ROW_H As Double = 40 ' v25.5: row 3 holds the hint or a clicked line's details, wrapped (was 28)
 
 ' tblAbsence
 Public Const AB_ID As Long = 1
@@ -90,6 +92,7 @@ Private mPostV As Variant           ' tblPostings snapshot for notes and the att
 Private mMenuKey As String          ' line (or "P:P-0001") the double-click menu is for
 Private mDrawing As Boolean
 Private mEventsSeen As Boolean      ' True once ThisWorkbook's tab-switch / change events have fired
+Private mDetailStamp As String      ' v25.5: the change counter + draw context the caches were loaded under for a click's details
 Private Const MENU_NAME As String = "CalLineMenu"
 
 ' one row on the Needs Attention tab
@@ -1539,8 +1542,9 @@ End Function
 ' the toolbar hint depends on who's looking - cheap to fix without a redraw
 ' v25.1.2: the hint text, with the last draw's time on the end (CalMap Z13 holds the seconds)
 Private Function CalHintText() As String
-    CalHintText = IIf(gAdminUnlocked, "Double-click any line or empty space for options.  Hover an open or posted line for details.", _
-                      "Double-click a line for its details; hover an open or posted line.  Print / PDF gives the copy to post.")
+    ' v25.5 (bundle item 0): a click shows the line's details here, no hover boxes
+    CalHintText = IIf(gAdminUnlocked, "Click a line: its details show here.  Double-click any line or empty space for options.", _
+                      "Click a line: its details show here.  Double-click a line for options.  Print / PDF gives the copy to post.")
     Dim s As String: s = SafeStr(MapSheet().Range("Z13").Value)
     If s <> "" Then CalHintText = CalHintText & "  Drawn in " & s & " s."
 End Function
@@ -1579,6 +1583,46 @@ Private Sub SetCalHint(ByVal ws As Worksheet)
     UnlockSheet ws
     ws.Range("F3").Value = t
     ProtectSheet ws
+End Sub
+
+' v25.5 (bundle item 0, Graeme Oct 17): from ThisWorkbook's SheetSelectionChange. One click on a calendar
+' line writes its LineDetails text into the hint row (F3:K3, wrapped) and onto the status bar; a click on an
+' empty cell puts the hint back. Row 3 only - the click map and the grid are not touched, and a draw in
+' progress, a failed draw's red line (SetCalHint's rule) and any other sheet are left alone. The caches are
+' reloaded only when the calendar's change counter or the draw context moved since the last click, so a
+' second click costs one map read and the text. Never raises.
+Public Sub CalSelectionChanged(ByVal Sh As Object, ByVal Target As Range)
+    On Error GoTo Quit
+    If mDrawing Then Exit Sub
+    If Target Is Nothing Then Exit Sub
+    If Sh.Name <> CAL_SHEET Then Exit Sub
+    If Not SheetExists(MAP_SHEET) Then Exit Sub
+    Dim ws As Worksheet: Set ws = Sh
+    Dim keyTxt As String: keyTxt = SafeStr(MapSheet().Range(Target.Cells(1, 1).Address).Value)
+    Dim txt As String
+    If keyTxt <> "" Then
+        Dim st As String: st = CalDirtyStamp() & "|" & DrawContext()
+        If st <> mDetailStamp Or Not IsArray(mAbs) Then
+            LoadCache
+            LoadPostCache
+            mDetailStamp = st
+        End If
+        txt = LineDetails(keyTxt, True)
+    End If
+    If txt = "" Then
+        SetCalHint ws                                   ' the hint back (nothing written when it is showing already)
+        ShowBarText ""
+        Exit Sub
+    End If
+    txt = Replace(txt, vbLf, "   |   ")
+    If Left$(SafeStr(ws.Range("F3").Value), 8) = "Calendar" Then Exit Sub   ' a failed draw's message stays
+    If SafeStr(ws.Range("F3").Value) <> txt Then
+        UnlockSheet ws
+        ws.Range("F3").Value = txt
+        ProtectSheet ws
+    End If
+    ShowBarText txt
+Quit:
 End Sub
 
 ' True if a live coverage line came from this source (SS- / P- / S- id)
@@ -1959,14 +2003,15 @@ Public Sub DrawCalendar()
     LegendChip ws.Cells(2, 11), "Name = covered", thInk(), RGB(245, 245, 245)
     LegendChip ws.Cells(2, 12), "NCN  no cover needed", thMuted(), RGB(245, 245, 245)
 
-    ' ---- row 3: admin toolbar (buttons added in BuildCalControls) ----
-    ws.Rows(3).RowHeight = 28
+    ' ---- row 3: admin toolbar (buttons added in BuildCalControls); the hint / a clicked line's details ----
+    ws.Rows(3).RowHeight = CAL_HINT_ROW_H               ' v25.5: taller, wrapped - a clicked line's details show here
     With ws.Range("F3:K3")
         .Merge
         .Value = CalHintText()                  ' v25.2: one text (rewritten with this draw's time at the end)
         .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
         .VerticalAlignment = xlCenter
         .IndentLevel = 1
+        .WrapText = True
     End With
     With ws.Range("M3:O3")
         .Merge
@@ -2027,7 +2072,7 @@ Public Sub DrawCalendar()
         Next k
         nRows = 1 + mxD + mxN                       ' the date row, then the day slots, then the night slots
         ReDim vals(1 To nRows, 1 To 14): ReDim keys(1 To nRows, 1 To 14)
-        ws.Rows(r).RowHeight = 38                   ' the heights first (review): a hover note made in SlotIntoArrays sits where its cell is NOW
+        ws.Rows(r).RowHeight = 38                   ' the heights first (review), then the block
         ws.Range(ws.Rows(r + 1), ws.Rows(r + nRows - 1)).RowHeight = 17
         Set rgDay = Nothing: Set rgNight = Nothing: Set rgOut = Nothing: Set rgLine = Nothing
         Set rgOpen = Nothing: Set rgPosted = Nothing: Set rgNcn = Nothing: Set rgCov = Nothing
@@ -2326,8 +2371,9 @@ Private Sub AddToRange(ByRef rg As Range, ByVal part As Range)
 End Sub
 
 ' v25.2 (item 3): one calendar line into the block's arrays (its texts and its click-map key) and its two
-' cells into the class ranges the block formats in one go; the hover note (OPEN / NO TAKERS / POSTED only,
-' item 1) is added here, before the block is written - a value write keeps a cell's comment.
+' cells into the class ranges the block formats in one go. v25.5 (bundle item 0, Graeme Oct 17): no hover
+' note on any line - a click shows the line's details in row 3 (CalSelectionChanged); the v25.2 numbers put
+' the OPEN / POSTED boxes at 1.6 of the 2.5 s.
 Private Sub SlotIntoArrays(ByVal ws As Worksheet, ByRef vals() As Variant, ByRef keys() As Variant, ByVal ar As Long, _
                            ByVal k As Long, ByVal c As Long, ByVal sheetRow As Long, ByRef s As CalSlot, ByVal sv As Long, _
                            ByVal shiftLbl As String, ByRef rgLine As Range, ByRef rgOpen As Range, ByRef rgPosted As Range, _
@@ -2336,15 +2382,12 @@ Private Sub SlotIntoArrays(ByVal ws As Worksheet, ByRef vals() As Variant, ByRef
     Dim b As Range: Set b = ws.Cells(sheetRow, c + 1)
     vals(ar, 2 * k + 1) = "'" & s.LeftText
     Dim t As String: t = s.RightText
-    Dim noteIt As Boolean
     If t = "" Or UCase$(t) Like "NO TAKERS*" Then
         vals(ar, 2 * k + 2) = IIf(t = "", "OPEN", "NO TAKERS")
         AddToRange rgOpen, b
-        noteIt = True
     ElseIf UCase$(t) Like "POSTED*" Then
         vals(ar, 2 * k + 2) = "'" & t
         AddToRange rgPosted, b
-        noteIt = True
     ElseIf UCase$(t) = "NCN" Then
         vals(ar, 2 * k + 2) = "'" & t
         AddToRange rgNcn, b
@@ -2361,12 +2404,6 @@ Private Sub SlotIntoArrays(ByVal ws As Worksheet, ByRef vals() As Variant, ByRef
     End If
     Dim keyTxt As String: keyTxt = s.Key & "|" & sv & "|" & shiftLbl
     keys(ar, 2 * k + 1) = keyTxt: keys(ar, 2 * k + 2) = keyTxt
-    If noteIt Then
-        Dim tL As Double: tL = Timer              ' v25.1.2 review: the details text counts under notes, not cells
-        Dim det As String: det = LineDetails(keyTxt, True)
-        mTimeNotes = mTimeNotes + Secs(tL, Timer)
-        AddNote b, det                            ' hover for the details
-    End If
 End Sub
 
 ' DAYS / NIGHTS tab in column A for each section of a week
@@ -3177,7 +3214,7 @@ Private Function GuessType(ByVal t As String) As String
 End Function
 
 ' ====================================================================
-'  LINE DETAILS  (hover notes + Details in the menu)
+'  LINE DETAILS  (a click's details in row 3 + Details in the menu)
 ' ====================================================================
 Private Sub LoadPostCache()
     mPostV = Empty
@@ -3348,25 +3385,7 @@ Private Function PostingDetails(ByVal id As String) As String
                      " by " & SafeStr(mPostV(r, PS_POSTEDBY))
 End Function
 
-' a hover note on a cell (screen only - notes don't print)
-Private Sub AddNote(ByVal c As Range, ByVal txt As String)
-    If txt = "" Then Exit Sub
-    Dim tN As Double: tN = Timer                     ' v25.1.2: measured
-    On Error Resume Next
-    If Not c.Comment Is Nothing Then c.ClearComments      ' v25.2 (item 1): fresh rows have none
-    c.AddComment txt
-    With c.Comment.Shape
-        With .TextFrame.Characters.Font
-            .Name = CAL_FONT: .Size = 9: .Bold = False
-        End With
-        Dim p As Long: p = InStr(txt, vbLf)
-        If p > 1 Then .TextFrame.Characters(1, p - 1).Font.Bold = True
-        .TextFrame.AutoSize = True
-        .Fill.ForeColor.RGB = RGB(255, 253, 240)
-        .Line.ForeColor.RGB = RGB(150, 150, 150)
-    End With
-    mTimeNotes = mTimeNotes + Secs(tN, Timer)
-End Sub
+' (v25.5: AddNote, the hover note on a cell, is gone - bundle items 0 and 1; a click shows the details in row 3)
 
 ' the line's left / right text, straight from the data
 Private Function SlotTexts(ByVal keyTxt As String, ByRef lt As String, ByRef rt As String) As Boolean
@@ -4019,7 +4038,7 @@ Private Function NASection(ByVal ws As Worksheet, ByVal r As Long, ByVal title A
     NASection = r + 2
 End Function
 
-' the rows of one section (zebra, status pill, hover notes); returns the next free row
+' the rows of one section (zebra, status pill); returns the next free row
 Private Function NARows(ByVal ws As Worksheet, ByVal r As Long, ByRef recs() As NARow, ByVal n As Long, _
                         ByVal emptyMsg As String) As Long
     Dim i As Long, c As Long
@@ -4092,9 +4111,7 @@ Private Function NARows(ByVal ws As Worksheet, ByVal r As Long, ByRef recs() As 
             .LineStyle = xlContinuous: .Weight = xlHairline: .Color = thGrid()
         End With
     End With
-    For i = 1 To n
-        If Left$(recs(i).Key, 2) = "A:" Or Left$(recs(i).Key, 2) = "C:" Then AddNote ws.Cells(r + i - 1, 6), LineDetails(recs(i).Key, True)
-    Next i
+    ' v25.5 (bundle item 1, Graeme Oct 17): no hover notes - the row already shows what the note carried
     r = r + n
     ws.Rows(r).RowHeight = 14
     NARows = r + 1
@@ -4972,14 +4989,15 @@ Public Sub DrawCalendarLegacy()
     LegendChip ws.Cells(2, 11), "Name = covered", thInk(), RGB(245, 245, 245)
     LegendChip ws.Cells(2, 12), "NCN  no cover needed", thMuted(), RGB(245, 245, 245)
 
-    ' ---- row 3: admin toolbar (buttons added in BuildCalControls) ----
-    ws.Rows(3).RowHeight = 28
+    ' ---- row 3: admin toolbar (buttons added in BuildCalControls); the hint / a clicked line's details ----
+    ws.Rows(3).RowHeight = CAL_HINT_ROW_H               ' v25.5: taller, wrapped - a clicked line's details show here
     With ws.Range("F3:K3")
         .Merge
         .Value = CalHintText()                  ' v25.2: one text (rewritten with this draw's time at the end)
         .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
         .VerticalAlignment = xlCenter
         .IndentLevel = 1
+        .WrapText = True
     End With
     With ws.Range("M3:O3")
         .Merge
@@ -5215,7 +5233,6 @@ Private Sub WriteSlotLegacy(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal 
     a.ShrinkToFit = True                  ' long names shrink instead of spilling into the next day
     a.VerticalAlignment = xlCenter
     Dim t As String: t = s.RightText
-    Dim noteIt As Boolean                     ' v25.2 (item 1): a hover note only where action is needed
     b.Font.Name = CAL_FONT: b.Font.Size = 9: b.Font.Bold = False: b.Font.Italic = False
     b.IndentLevel = 1
     b.ShrinkToFit = True
@@ -5224,12 +5241,10 @@ Private Sub WriteSlotLegacy(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal 
         b.Value = IIf(t = "", "OPEN", "NO TAKERS")
         b.Font.Name = CAL_FONT_B: b.Font.Color = thOpen()
         b.Interior.Color = thOpenFill()
-        noteIt = True
     ElseIf UCase$(t) Like "POSTED*" Then
         b.Value = "'" & t
         b.Font.Name = CAL_FONT_B: b.Font.Color = thPosted()
         b.Interior.Color = thPostedFill()
-        noteIt = True
     ElseIf UCase$(t) = "NCN" Then
         b.Value = "'" & t: b.Font.Italic = True: b.Font.Color = thMuted()
     Else
@@ -5238,14 +5253,7 @@ Private Sub WriteSlotLegacy(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal 
     Dim keyTxt As String: keyTxt = s.Key & "|" & CLng(Int(d)) & "|" & shiftLbl
     mp.Cells(rr, 2 + 2 * k).Value = keyTxt
     mp.Cells(rr, 3 + 2 * k).Value = keyTxt
-    ' v25.2 (item 1, D-C4 revisited on the v25.1.2 numbers: 85 notes were 2.8 of 4.6 s): OPEN, NO TAKERS and
-    ' POSTED lines keep the hover box; a covered line's details are on double-click > Details...
-    If noteIt Then
-        Dim tL As Double: tL = Timer          ' v25.1.2 review: the details text counts under notes, not cells
-        Dim det As String: det = LineDetails(keyTxt, True)
-        mTimeNotes = mTimeNotes + Secs(tL, Timer)
-        AddNote b, det                        ' hover for the details
-    End If
+    ' v25.5 (bundle item 0): no hover note here either, so step 19's compare sees what the array writer makes
 End Sub
 
 Private Sub DateCellsLegacy(ByVal a As Range, ByVal b As Range, ByVal d As Date, ByVal nOpen As Long)
@@ -5740,7 +5748,6 @@ Private Function NARowsLegacy(ByVal ws As Worksheet, ByVal r As Long, ByRef recs
             .LineStyle = xlContinuous: .Weight = xlHairline: .Color = thGrid()
         End With
         ws.Cells(r, NA_KEY).Value = recs(i).Key
-        If Left$(recs(i).Key, 2) = "A:" Or Left$(recs(i).Key, 2) = "C:" Then AddNote ws.Cells(r, 6), LineDetails(recs(i).Key, True)
         r = r + 1
     Next i
     ws.Rows(r).RowHeight = 14

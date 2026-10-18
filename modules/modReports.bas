@@ -251,11 +251,25 @@ Public Sub ReleaseStatusBar(Optional ByVal fromCode As Boolean = True)     ' the
     If mBarShown Then Application.StatusBar = False: mBarShown = False
 End Sub
 
-' Leaving the roster tab: give the status bar back
+' v25.5: a selection's text on the status bar from another module (the Calendar's click details), under the
+' same flag, so it is given back the same way; "" gives it back
+Public Sub ShowBarText(ByVal txt As String)
+    On Error Resume Next
+    If txt <> "" Then
+        Application.StatusBar = Left$(txt, 250)
+        mBarShown = True
+    ElseIf mBarShown Then
+        Application.StatusBar = False
+        mBarShown = False
+    End If
+End Sub
+
+' Leaving a tab: give the status bar back (the text was about a selection on the tab just left; v25.5: the
+' Calendar's too)
 Public Sub ReportsSheetActivated(ByVal Sh As Object)
     On Error Resume Next
     If Not mBarShown Then Exit Sub
-    If Sh.Name <> RosterSheet().Name Then Application.StatusBar = False: mBarShown = False
+    Application.StatusBar = False: mBarShown = False
 End Sub
 
 

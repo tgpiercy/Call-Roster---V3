@@ -4,7 +4,7 @@
 # The Roster Updater (v4.1) does not change: nothing goes in by hand. ThisWorkbook AND EVERY FORM are re-pasted (v25.5).
 
 [3. Run once]
-macro   | Rebuild the roster's bar (supervisor buttons, Undo last, Find a person) | ApplyRosterLayout
+macro   | Rebuild the roster's bar (supervisor buttons, Undo last entry, Find a person) | ApplyRosterLayout
 macro   | System check (expect 25 of 25 on v25.5, ThisWorkbook v25.5, every form v25.5) | SystemCheckOK
 macro   | Self test (expect 581 passed, 68 suites)                           | SelfTestOK
 manual  | SUPERVISOR_USERS                                                  | In the VBA editor (Alt+F11), modOvertimeEntry near the top: SUPERVISOR_USERS = "mihaychukc,sheltond,campeauc" (Chris Mihaychuk, David Shelton, Claude Campeau). Add or correct a login if one is wrong (comma separated, any case), Debug > Compile, Ctrl+S. If the three are right, click Done.

@@ -38,7 +38,7 @@ Private mDept As String, mShift As String, mDate As Date, mHours As Double, mShi
 Private mKronosOk As Boolean     ' v20: stale-Kronos warning answered once per session
 Private mAutoHours As String     ' v21: hours we filled in for a DST night ("" = none / typed by hand)
 Private mStarted As Date         ' v25.5: when LOAD LIST was clicked (the progress line's "started N min ago")
-Private mKeyHeld As Boolean      ' v25.5: a key is down in the list (KeyDown repeats while held: one outcome per press)
+Private mKeyHeld As Integer      ' v25.5: the key of ours still down in the list (KeyDown repeats while held: one outcome per press); 0 = none
 
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const MUTED As Long = 9211020           ' RGB(140, 140, 140)
@@ -139,7 +139,7 @@ Private Sub UserForm_Initialize()
     With lstEmployees
         .Left = Px(10): .Top = Px(132): .Width = Px(472): .Height = Px(140)
         .ColumnCount = 4
-        .ColumnWidths = Replace(CStr(Px(195)) & ";" & CStr(Px(95)) & ";" & CStr(Px(42)) & ";" & CStr(Px(124)), ",", ".")   ' a point, whatever the locale (review)
+        .ColumnWidths = CStr(CLng(Px(195))) & ";" & CStr(CLng(Px(95))) & ";" & CStr(CLng(Px(42))) & ";" & CStr(CLng(Px(124)))   ' whole points: no decimal separator, whatever the locale (re-review)
         .Font.Size = Px(11)
     End With
 
@@ -181,8 +181,8 @@ Private Sub UserForm_Initialize()
         .Enabled = False
     End With
 
-    MakeLabel "lblKeys", "Keys: A R L U P as on the buttons.  K = skip for now, B = back one, Enter = submit when all are logged, Esc = close.", 10, 464, 376, 9
-    C("lblKeys").Height = Px(22)                     ' two lines (review: 15 pt cut it)
+    MakeLabel "lblKeys", "Keys: A R L U P as on the buttons.  K = skip for now, B = back one, Enter = submit when all are logged, Esc = close.", 10, 463, 376, 9
+    C("lblKeys").Height = Px(24)                     ' two lines of 9 pt (re-review: 22 clipped the descenders)
     C("lblKeys").WordWrap = True
     C("lblKeys").ForeColor = MUTED
     Set mCallBack = Me.Controls.Add("Forms.CommandButton.1", "cmdCallBack", True)
@@ -509,9 +509,11 @@ End Sub
 ' A held key repeats KeyDown (review): one outcome per press - the flag clears on KeyUp.
 Private Sub lstEmployees_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
     If Shift <> 0 Then Exit Sub                      ' Ctrl / Alt / Shift combinations are not ours
-    If mKeyHeld Then KeyCode.Value = 0: Exit Sub
-    mKeyHeld = True
+    If mKeyHeld <> 0 And KeyCode = mKeyHeld Then KeyCode.Value = 0: Exit Sub   ' a repeat of the key still down
     Dim handled As Boolean: handled = True
+    Select Case KeyCode
+        Case vbKeyA, vbKeyR, vbKeyL, vbKeyU, vbKeyP, vbKeyK, vbKeyB, vbKeyReturn, vbKeyEscape: mKeyHeld = KeyCode   ' ours: one press, one outcome (re-review: arrows and Tab keep repeating)
+    End Select
     Select Case KeyCode
         Case vbKeyA: If btnAccepted.Enabled Then btnAccepted_Click
         Case vbKeyR: If btnRefused.Enabled Then btnRefused_Click
@@ -528,7 +530,7 @@ Private Sub lstEmployees_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal S
 End Sub
 
 Private Sub lstEmployees_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
-    mKeyHeld = False
+    mKeyHeld = 0
 End Sub
 
 ' Enter in the reason list records Unavailable for the person on the card; Esc goes back to the list

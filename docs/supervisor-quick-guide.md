@@ -27,7 +27,7 @@ Something stopped part-way. The box says "Error Log line N" and the name of what
 Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. `~` means the hours are an estimate because the person has a unit move planned for a later date (the admin entered it ahead of time). If warned that Kronos data is old, No stops so the admin can import first.
 
 ## Part of a call-out
-If someone takes only part of the hours, select them and press **P** (Part of the hours), then enter the hours. **That closes the shift:** nobody else is called, nobody below is charged, and the pop-up refuses a further Accepted (the partial taker's own entry can still be changed; a refusal or message logged before the close can be corrected to another refusal or message). Anyone who refused BEFORE the partial keeps their charge. Leave the rest of the list uncalled and click **SUBMIT ALL ENTRIES**.
+If someone takes only part of the hours, select them and press **P** (Part of the hours), then enter the hours. **That closes the shift:** nobody else is called, nobody below is charged, and the pop-up refuses a further Accepted (the partial taker's own entry can still be changed; a refusal or message logged before the close can be corrected to a refusal, a message or unavailable). Anyone who refused BEFORE the partial keeps their charge. Leave the rest of the list uncalled and click **SUBMIT ALL ENTRIES**.
 
 ## Postings
 **Post a shift**
@@ -70,7 +70,7 @@ If someone takes only part of the hours, select them and press **P** (Part of th
 3. Vacation and personal days go on scheduled shifts only. A range with no scheduled shift is refused.
 4. If the range starts or ends on days off, you are asked to trim it. Yes trims. No saves as typed. Cancel goes back.
 5. No return date yet: tick "Open-ended". Part of a shift: set "Hours / shift".
-6. Click **SAVE**. To fix a booking, select it under BOOKED TIME OFF. Click **Change end date** or **Void**.
+6. Click **SAVE**. To fix a booking, select it under BOOKED TIME OFF. Click **Change end date** or **Void this booking**.
 
 ## Sick call
 1. Click **Sick Call**. Pick who called in. Check the Shift date, Shift, Unit to cover and Hours.

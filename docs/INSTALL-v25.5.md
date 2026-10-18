@@ -4,7 +4,7 @@ The ALPHA BUILD (`docs/timeline-2026-10-18.md`): the v25.3.5 bundle (`briefs/v25
 
 Needs **v25.3 installed** and **Roster Updater.xlsm v4.1**. **The updater does not change.** The panel's swap replaces every module (all 25 stamps on v25.5; no new module), **re-pastes ThisWorkbook and EVERY FORM** (the call-out pop-up is rebuilt; the other eight gain `UI_SCALE`), and leaves the members' template alone. No rule changed; SelfTest's `viewmode` suite gains 6 cases: 581 cases, 68 suites. SmokeTest is 19 steps (the two v25.2 draw-compare steps went with the legacy writers).
 
-**Back up first. Do it on a copy before the real roster.** The panel's group 3 runs `ApplyRosterLayout` once (the bar is rebuilt: the supervisor buttons under their new names, Undo last, Find a person) and asks you to confirm `SUPERVISOR_USERS` and `UI_SCALE`.
+**Back up first. Do it on a copy before the real roster.** The panel's group 3 runs `ApplyRosterLayout` once (the bar is rebuilt: the supervisor buttons under their new names, Undo last entry, Find a person) and asks you to confirm `SUPERVISOR_USERS` and `UI_SCALE`.
 
 ## What's new
 - **Supervisors by login (bundle item 9).** `SUPERVISOR_USERS = "mihaychukc,sheltond,campeauc"` beside `ADMIN_USERS`. A login on it (or an admin) gets the supervisor's jobs - sick call, new posting, award to the list, print, and now **Member View (item 8)** - and lands on the supervisor Desk; anyone else is a plain user (log a call-out, the calendar, the sorts) and lands on the roster. `RequireSupervisor` refuses by name. The close-time "publish the members' file?" question asks supervisors too.

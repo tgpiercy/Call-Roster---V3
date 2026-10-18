@@ -35,7 +35,8 @@ Public Const PRIMARY_ADMIN_EMAIL As String = "graeme.piercy@syensqo.com"   ' "So
 Public Const GUIDE_PATH As String = ""                                    ' the quick guide as a PDF on the plant PC; "" until go-live
 Public Const SUPERVISOR_DESK As Boolean = True                            ' a login on SUPERVISOR_USERS lands on the supervisor Desk (Graeme, Oct 17 / v25.5); False = the roster
 ' v25.5 (briefs/v25.5.md item 2, D1 taken by default Oct 18): every pop-up's positions, sizes and point sizes are
-' multiplied by this, for everyone. 1 = the sizes as written (500 x 600 call-out fits 1366 x 768); 1.2 fits 1920 x 1080.
+' multiplied by this, for everyone. 1 = the sizes as written (the call-out pop-up is 500 x 615 pt = 820 px tall at 96 dpi:
+' a 1920 x 1080 screen; a 1366 x 768 screen cuts its bottom - Graeme's call, Oct 18); 1.2 on a 1080p screen only.
 Public Const UI_SCALE As Double = 1                                       ' (ScaleForm / UiPx in modUI apply it)
 
 Public Const CHARGE_MULTIPLIER As Double = 1.75   ' refused / passed OT is charged at this rate

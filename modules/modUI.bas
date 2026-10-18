@@ -816,7 +816,7 @@ Public Function ScaleWidths(ByVal widths As String) As String
     parts = Split(widths, ";")
     For i = LBound(parts) To UBound(parts)
         v = Val(Replace(Trim$(CStr(parts(i))), ",", "."))      ' a comma-decimal locale reads back "22,5 pt" (review)
-        If v > 0 Then parts(i) = Replace(HoursText(v * UI_SCALE), ",", ".") & " pt" Else parts(i) = Trim$(CStr(parts(i)))   ' no trailing point, a point as the separator
+        If v > 0 Then parts(i) = CStr(CLng(v * UI_SCALE)) & " pt" Else parts(i) = Trim$(CStr(parts(i)))   ' whole points: no decimal separator, whatever the locale (re-review)
     Next i
     ScaleWidths = Join(parts, ";")
 End Function

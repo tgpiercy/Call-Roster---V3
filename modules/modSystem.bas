@@ -565,7 +565,7 @@ Public Function IsLiveRoster() As Boolean
 End Function
 
 ' ---------------- what's new (v25.5, A6) ----------------
-' ThisWorkbook's open step 11: the WHATS_NEW box once per login per release. A hidden name per login
+' Run by Workbook_Open after OpenChecks (re-review: on a painted screen): the WHATS_NEW box once per login per release. A hidden name per login
 ' ("WhatsNewSeen_<login>") holds the last release seen; it is written here and saved with the next save, so a
 ' read-only open sees the box again. Never raises (the open step logs an error, the box is not worth one).
 Private Function WhatsNewName() As String
@@ -597,7 +597,7 @@ End Sub
 ' Alt+F8 (the Help tab names it): the box itself
 Public Sub ShowWhatsNew()
     On Error GoTo Oops
-    Application.ScreenUpdating = True                ' open step 11 runs with it off: the box must not sit on an unpainted window (review)
+    Application.ScreenUpdating = True                ' Workbook_Open has it back on by then; belt and braces for an Alt+F8 run with it off
     MsgBox "What's new in " & EXPECTED_RELEASE & ":" & vbNewLine & vbNewLine & _
            "- " & Replace(WHATS_NEW, "|", vbNewLine & vbNewLine & "- ") & vbNewLine & vbNewLine & _
            "The Help tab (How do I ... on the Desk) has every job. This box shows once; Alt+F8 > ShowWhatsNew brings it back.", _

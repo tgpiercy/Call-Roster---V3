@@ -624,7 +624,7 @@ Oops:
     ReportError "DeskRoster"
 End Sub
 
-' v25.5 (A9) "Undo the last thing I did": the admin Desk; voids this login's newest entry of today through Void Entry's path
+' v25.5 (A9) "Undo my last log entry": the admin Desk; voids this login's newest entry of today through Void Entry's path
 Public Sub DeskUndo()
     On Error GoTo Oops
     UndoLast
@@ -704,10 +704,10 @@ End Sub
 ' "< Back": the Desk when this login has one, else the roster
 Public Sub HelpBack()
     On Error GoTo Oops
-    If SheetExists(DESK_SHEET) Then
+    If SheetExists(DESK_SHEET) And (gAdminUnlocked Or IsSupervisor()) Then
         If ThisWorkbook.Worksheets(DESK_SHEET).Visible = xlSheetVisible Then ShowDeskSheet: Exit Sub
     End If
-    RosterSheet().Activate
+    RosterSheet().Activate                              ' re-review: never leaves anyone on the Help sheet
     Exit Sub
 Oops:
     ReportError "HelpBack"
@@ -861,7 +861,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Someone takes only part of the hours", _
         "Select them and press P (Part of the hours), then enter the hours. That closes the shift: nobody else is called, " & _
         "nobody below is charged, and the pop-up refuses a further Accepted (a refusal or a message already logged can still be " & _
-        "corrected to another refusal or message). Anyone who refused before the partial keeps their " & _
+        "corrected to a refusal, a message or unavailable). Anyone who refused before the partial keeps their " & _
         "charge. Click SUBMIT ALL ENTRIES."
     HelpAdd h, n, "Someone called in sick", _
         "Click Someone called in sick (Sick Call on the bar). Pick who called, check the Shift date, Shift, Unit to cover and " & _

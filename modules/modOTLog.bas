@@ -373,7 +373,7 @@ Private Sub VoidEntryFor(ByVal k As String, ByVal lead As String)
            IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation
 End Sub
 
-' v25.5 (A9) "Undo the last thing I did" (the admin Desk, the bar): the newest non-void OT Log entry THIS login
+' v25.5 (A9) "Undo my last log entry" (the admin Desk; "Undo last entry" on the bar): the newest non-void OT Log entry THIS login
 ' made TODAY - by its Logged By and Timestamp, the log newest first - is voided through Void Entry's own confirm
 ' and reason (every row of that Ref ID, as Void Entry does). Nothing new is written. Admin: void is an admin's job.
 Public Sub UndoLast()
@@ -382,7 +382,7 @@ Public Sub UndoLast()
     If Not RequireWritable() Then Exit Sub
     Dim lo As ListObject: Set lo = LogTable()
     If lo Is Nothing Then Exit Sub
-    If lo.DataBodyRange Is Nothing Then MsgBox "The OT Log is empty.", vbInformation, "Undo last": Exit Sub
+    If lo.DataBodyRange Is Nothing Then MsgBox "The OT Log is empty.", vbInformation, "Undo last entry": Exit Sub
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
     Dim u As String: u = LCase$(Trim$(CurrentUser()))
     Dim i As Long, best As Long, bestAt As Date, st As Variant
@@ -396,16 +396,16 @@ Public Sub UndoLast()
     Next i
     If best = 0 Then
         MsgBox "Nothing to undo: no entry logged by " & CurrentUser() & " today is still active." & vbNewLine & vbNewLine & _
-               "Void Entry voids any entry by its number.", vbInformation, "Undo last"
+               "Void Entry voids any entry by its number.", vbInformation, "Undo last entry"
         Exit Sub
     End If
     Dim k As String: k = UCase$(SafeStr(v(best, L_REF)))
-    If k = "" Then MsgBox "Your newest entry today has no Ref ID (row #" & SafeStr(v(best, L_ENTRY)) & "): void it by its Entry ID with Void Entry.", vbInformation, "Undo last": Exit Sub
+    If k = "" Then MsgBox "Your newest entry today has no Ref ID (row #" & SafeStr(v(best, L_ENTRY)) & "): void it by its Entry ID with Void Entry.", vbInformation, "Undo last entry": Exit Sub
     ' review: an undo voids the OT LOG rows only, as Void Entry does; what a P- / LV- / UM- / NH- ref leaves behind is named
     Dim lead As String
     lead = "Your last OT Log entry today: " & k & " (" & SafeStr(v(best, L_TYPE)) & ", " & SafeStr(v(best, L_EMP)) & ", " & Format$(bestAt, "h:mm AM/PM") & ")."
     If Left$(k, 2) = "P-" Then
-        lead = lead & vbNewLine & "The posting stays awarded: reopen it afterwards (its calendar line > Reopen) to award it again."
+        lead = lead & vbNewLine & "The posting stays awarded: reopen it afterwards (Alt+F8 > ReopenPosting, " & k & ") to award it again."
     ElseIf Left$(k, 3) = "LV-" Then
         lead = lead & vbNewLine & "The leave stays closed: book it again with Leave if they are still away."
     ElseIf Left$(k, 3) = "UM-" Or Left$(k, 3) = "NH-" Then

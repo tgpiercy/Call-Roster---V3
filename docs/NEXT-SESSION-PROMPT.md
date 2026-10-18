@@ -11,12 +11,11 @@ the fixes), tagged and zipped (dist/Callout_Roster_v25.5.zip, built from the tag
 v25.3. The push of main + the tag to origin, and the install of v25.5 on a copy, are Graeme's; tell me
 what the install's group 3-4 rows said (SmokeTest 19 steps, the call-out pop-up's keys, the screen fit).
 
-Open with Graeme (asked Oct 18, answers may be in the first message of this session):
- - the plant PCs' screen size: the call-out pop-up is 500 x 615 pt (820 px tall at 96 dpi) - fits 1920 x 1080,
-   is cut at the bottom on 1366 x 768. If 768-px screens: shrink it to about 540 pt (list 115 tall, the
-   card tighter) in v25.5.5. UI_SCALE ships at 1.
- - whether he wants the FIND group somewhere other than the bar's right end (it moves into the ADMIN slot
-   when that group is hidden).
+Answered by Graeme Oct 18 (late): the plant screens are MIXED / not sure - v25.5 ships as built (the call-out
+pop-up 500 x 615 pt = 820 px tall: fits 1920 x 1080, cut at the bottom on 1366 x 768; UI_SCALE 1); the
+install's hand check reports whether the bottom is cut off, and v25.5.5 shrinks the form to about 540 pt
+(list 115 tall, the card tighter) if it is. The FIND group stays at the bar's right end (it moves into the
+ADMIN slot when that group is hidden); move it only if the install shows it off-screen.
 
 Next work, in order (one commit per item, the four checkers after each, read-only reviewers before a tag):
  1. v25.5.5 = whatever alpha testing (Nov 1-15) turns up, batched; the screen-fit change above if needed.

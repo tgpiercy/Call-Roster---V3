@@ -2009,6 +2009,8 @@ Public Sub DrawCalendar()
         Next k
         nRows = 1 + mxD + mxN                       ' the date row, then the day slots, then the night slots
         ReDim vals(1 To nRows, 1 To 14): ReDim keys(1 To nRows, 1 To 14)
+        ws.Rows(r).RowHeight = 38                   ' the heights first (review): a hover note made in SlotIntoArrays sits where its cell is NOW
+        ws.Range(ws.Rows(r + 1), ws.Rows(r + nRows - 1)).RowHeight = 17
         Set rgDay = Nothing: Set rgNight = Nothing: Set rgOut = Nothing: Set rgLine = Nothing
         Set rgOpen = Nothing: Set rgPosted = Nothing: Set rgNcn = Nothing: Set rgCov = Nothing
         Set rgDateA = Nothing: Set rgDateB = Nothing: Set rgHol = Nothing
@@ -2071,11 +2073,9 @@ Public Sub DrawCalendar()
             End If
         Next k
 
-        ' one write for the texts, one for the click map, two for the row heights
+        ' one write for the texts, one for the click map
         ws.Range(ws.Cells(r, 2), ws.Cells(r + nRows - 1, 15)).Value = vals
         mp.Range(mp.Cells(r, 2), mp.Cells(r + nRows - 1, 15)).Value = keys
-        ws.Rows(r).RowHeight = 38
-        ws.Range(ws.Rows(r + 1), ws.Rows(r + nRows - 1)).RowHeight = 17
 
         ' fills by class (the date row, the day and night areas, days outside the month), then the lines' formats
         For bgIx = 0 To 3
@@ -2172,10 +2172,11 @@ Public Sub DrawCalendar()
 
     ' ---- page ----
     On Error Resume Next
-    ' v25.2 (item 2): the same page setup every draw cost 0.6 s of 4.6; it is redone only when the print area
-    ' moved (a new sheet, a month with more rows) or the release changed (CalMap Z17), else left as it is
+    ' v25.2 (item 2): the same page setup every draw cost 0.6 s of 4.6. The fixed properties are set once per
+    ' release (CalMap Z17 remembers); the PRINT AREA is set on every draw regardless - the wipe's Rows.Delete
+    ' shrinks the Print_Area name to rows 1-2, so a draw that skipped it would print two rows (review).
     Dim pageAddr As String: pageAddr = ws.Range(ws.Cells(1, 1), ws.Cells(r, 16)).Address
-    If ws.PageSetup.PrintArea <> pageAddr Or SafeStr(mp.Range("Z17").Value) <> CAL_VERSION Then
+    If SafeStr(mp.Range("Z17").Value) <> CAL_VERSION Then
     Application.PrintCommunication = False
     With ws.PageSetup
         .PrintArea = pageAddr
@@ -2194,6 +2195,8 @@ Public Sub DrawCalendar()
     End With
     Application.PrintCommunication = True
     mp.Range("Z17").Value = "'" & CAL_VERSION
+    Else
+        ws.PageSetup.PrintArea = pageAddr               ' the one property that must follow the rows
     End If
     If ActiveSheet Is ws Then
         With ActiveWindow

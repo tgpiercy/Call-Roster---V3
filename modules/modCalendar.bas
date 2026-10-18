@@ -4678,3 +4678,417 @@ Public Sub CalSheetRightClick(ByVal Sh As Object, ByVal Target As Range, ByRef C
         NARightClick Target, Cancel
     End If
 End Sub
+
+
+' ====================================================================
+'  LEGACY DRAW (v25.2, item 5): the v25.1.2 cell-by-cell writer, kept for ONE release so SmokeTest's
+'  calendar-compare step can draw the same month both ways on the practice copy and prove the new
+'  array writer identical (values, fills, fonts, merges, row heights, CalMap keys, the notes on
+'  OPEN / NO TAKERS / POSTED lines). Alt+F8 > DrawCalendarLegacy is also the hand fallback if the
+'  new draw ever looks wrong. Shares LegendChip, BuildCalControls, OpenAhead, AddNote, LineDetails.
+'  Removed, with the step, in the release after v25.2.
+' ====================================================================
+Public Sub DrawCalendarLegacy()
+    Dim ws As Worksheet: Set ws = CalendarSheet()
+    Dim mp As Worksheet: Set mp = MapSheet()
+    Dim m0 As Date: m0 = CalMonth()
+    Dim grp As String: grp = CalGroup()
+    Dim drawnFrom As String: drawnFrom = SafeStr(mp.Range("Z7").Value)
+    ' v25.1.2: draw-time measurement, one Timer reading per phase (kept in CalMap Z13 / Z14, shown in F3)
+    Dim t0 As Double, tA As Double, tB As Double, tC As Double, tD As Double, tE As Double, tF As Double, tG As Double
+    Dim nLines As Long
+    t0 = Timer
+    mTimeSlots = 0: mTimeNotes = 0
+
+    mDrawing = True
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim calcWas As Long: calcWas = Application.Calculation
+    Application.EnableEvents = False            ' no change events for every cell we write
+    Application.Calculation = xlCalculationManual
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    On Error GoTo Failed
+    UnlockSheet ws
+    UnlockSheet mp                                  ' v25.1: written all through the draw; relocked at Done (under the handler, review)
+    mp.Range("Z1").Value = m0
+    mp.Range("Z2").Value = grp
+    LoadCache
+    LoadPostCache
+    tA = Timer                                      ' caches loaded
+
+    ' ---- wipe the grid and the click map (controls are rebuilt at the end) ----
+    ws.Rows("3:1000").Delete
+    ws.Range("A1:P2").UnMerge
+    ws.Range("A1:P2").Clear
+    mp.Range("A1:P1000").ClearContents
+    With ws.Cells.Font
+        .Name = CAL_FONT
+        .Size = 9
+    End With
+    ws.Columns(1).ColumnWidth = 4
+    Dim k As Long
+    For k = 0 To 13
+        ws.Columns(2 + k).ColumnWidth = COL_W
+    Next k
+    ws.Columns(16).ColumnWidth = 1
+    tB = Timer                                      ' grid wiped
+
+    ' ---- row 1: title band (controls sit on it) ----
+    ws.Rows(1).RowHeight = 38
+    ws.Range("A1:P1").Interior.Color = thBand()
+    With ws.Range("B1:C1")
+        .Merge
+        .Value = "COVERAGE CALENDAR"
+        .Font.Name = CAL_FONT_B: .Font.Size = 15: .Font.Color = vbWhite
+        .VerticalAlignment = xlCenter
+    End With
+
+    ' ---- row 2: legend chips ----
+    ws.Rows(2).RowHeight = 24
+    Dim lg As Variant, i As Long, parts() As String
+    lg = Array("VAC|Vacation", "LOA|Leave", "TRN|Training", "PHA|PHA", "SUP|Support op", "SS|Shift switch")
+    For i = 0 To UBound(lg)
+        parts = Split(lg(i), "|")
+        LegendChip ws.Cells(2, 2 + i), parts(1), TypeColor(parts(0)), Tint(TypeColor(parts(0)), 0.88)
+    Next i
+    LegendChip ws.Cells(2, 9), "OPEN  needs cover", thOpen(), thOpenFill()
+    LegendChip ws.Cells(2, 10), "POSTED  posting out", thPosted(), thPostedFill()
+    LegendChip ws.Cells(2, 11), "Name = covered", thInk(), RGB(245, 245, 245)
+    LegendChip ws.Cells(2, 12), "NCN  no cover needed", thMuted(), RGB(245, 245, 245)
+
+    ' ---- row 3: admin toolbar (buttons added in BuildCalControls) ----
+    ws.Rows(3).RowHeight = 28
+    With ws.Range("F3:K3")
+        .Merge
+        .Value = CalHintText()                  ' v25.2: one text (rewritten with this draw's time at the end)
+        .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
+        .VerticalAlignment = xlCenter
+        .IndentLevel = 1
+    End With
+    With ws.Range("M3:O3")
+        .Merge
+        .Value = CAL_VERSION
+        .HorizontalAlignment = xlRight: .VerticalAlignment = xlCenter
+        .Font.Size = 7: .Font.Color = RGB(176, 190, 197)
+    End With
+    mp.Range("Z4").Value = 3                         ' rows 3..Z4 are screen-only (hidden when printing)
+
+    ' ---- row 4: weekday header ----
+    Dim r As Long: r = 4
+    ws.Rows(r).RowHeight = 20
+    ws.Cells(r, 1).Interior.Color = thHead()
+    Dim dn As Variant: dn = Array("SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")
+    For k = 0 To 6
+        With ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r, 3 + 2 * k))
+            .Merge
+            .Value = dn(k)
+            .Font.Name = CAL_FONT_B: .Font.Size = 9: .Font.Color = vbWhite
+            .Interior.Color = thHead()
+            .HorizontalAlignment = xlCenter: .VerticalAlignment = xlCenter
+        End With
+    Next k
+    r = r + 1
+    tC = Timer                                      ' header rows written
+    mTimeSlots = 0: mTimeNotes = 0                  ' the weeks' share starts here
+
+    ' ---- weeks ----
+    Dim mEnd As Date: mEnd = DateSerial(Year(m0), Month(m0) + 1, 0)
+    Dim wk As Date: wk = m0 - (Weekday(m0, vbSunday) - 1)
+    Dim slotsD() As CalSlot, slotsN() As CalSlot
+    Dim d As Date, nD As Long, nN As Long, mxD As Long, mxN As Long, rr As Long, inMonth As Boolean
+    Dim bg As Long, nOpen(0 To 6) As Long, sv As Long
+    Do While wk <= mEnd
+        mxD = 1: mxN = 1
+        For k = 0 To 6
+            d = wk + k
+            nOpen(k) = 0
+            If Month(d) = Month(m0) Then
+                nD = SlotsFor(d, "Days", grp, slotsD, True)
+                nN = SlotsFor(d, "Nights", grp, slotsN, True)
+                If nD > mxD Then mxD = nD
+                If nN > mxN Then mxN = nN
+                nOpen(k) = OpenCount(slotsD, nD) + OpenCount(slotsN, nN)
+            End If
+        Next k
+
+        ' date row: number over "Days: B Shift" | "Nights: A Shift" in the pair column
+        ws.Rows(r).RowHeight = 38
+        For k = 0 To 6
+            d = wk + k
+            inMonth = (Month(d) = Month(m0))
+            If Not inMonth Then
+                bg = thOutFill()
+            ElseIf Int(d) = Int(Date) Then
+                bg = thToday()
+            ElseIf k = 0 Or k = 6 Then
+                bg = thWeekend()
+            Else
+                bg = vbWhite
+            End If
+            ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r, 3 + 2 * k)).Interior.Color = bg
+            If inMonth Then
+                DateCellsLegacy ws.Cells(r, 2 + 2 * k), ws.Cells(r, 3 + 2 * k), d, nOpen(k)
+                sv = CLng(Int(d))
+                mp.Cells(r, 2 + 2 * k).Value = "D:DAY|" & sv & "|"
+                mp.Cells(r, 3 + 2 * k).Value = "D:DAY|" & sv & "|"
+            End If
+        Next k
+        r = r + 1
+
+        ' day slots, then night slots (empty rows are clickable too)
+        For k = 0 To 6
+            d = wk + k
+            If Month(d) = Month(m0) Then
+                sv = CLng(Int(d))
+                nD = SlotsFor(d, "Days", grp, slotsD, True)
+                nN = SlotsFor(d, "Nights", grp, slotsN, True)
+                nLines = nLines + nD + nN
+                ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r + mxD - 1, 3 + 2 * k)).Interior.Color = thDayFill()
+                ws.Range(ws.Cells(r + mxD, 2 + 2 * k), ws.Cells(r + mxD + mxN - 1, 3 + 2 * k)).Interior.Color = thNightFill()
+                For i = 1 To mxD
+                    If i <= nD Then
+                        WriteSlotLegacy ws, mp, r + i - 1, k, slotsD(i), d, "Days"
+                    Else
+                        mp.Cells(r + i - 1, 2 + 2 * k).Value = "E:NEW|" & sv & "|Days"
+                        mp.Cells(r + i - 1, 3 + 2 * k).Value = "E:NEW|" & sv & "|Days"
+                    End If
+                Next i
+                For i = 1 To mxN
+                    If i <= nN Then
+                        WriteSlotLegacy ws, mp, r + mxD + i - 1, k, slotsN(i), d, "Nights"
+                    Else
+                        mp.Cells(r + mxD + i - 1, 2 + 2 * k).Value = "E:NEW|" & sv & "|Nights"
+                        mp.Cells(r + mxD + i - 1, 3 + 2 * k).Value = "E:NEW|" & sv & "|Nights"
+                    End If
+                Next i
+            Else
+                ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r + mxD + mxN - 1, 3 + 2 * k)).Interior.Color = thOutFill()
+            End If
+        Next k
+        For rr = r To r + mxD + mxN - 1
+            ws.Rows(rr).RowHeight = 17
+        Next rr
+        SectionLabelLegacy ws, r, mxD, "DAYS", thDayTab(), thDayText()
+        SectionLabelLegacy ws, r + mxD, mxN, "NIGHTS", thNightTab(), thNightText()
+
+        ' borders: thick around each day, thin day/night split, dotted inside the pair
+        Dim blockTop As Long: blockTop = r - 1
+        Dim blockBot As Long: blockBot = r + mxD + mxN - 1
+        With ws.Range(ws.Cells(blockTop, 1), ws.Cells(blockTop, 15)).Borders(xlEdgeTop)
+            .LineStyle = xlContinuous: .Weight = xlMedium: .Color = thBand()
+        End With
+        With ws.Range(ws.Cells(blockTop, 2), ws.Cells(blockTop, 15)).Borders(xlEdgeBottom)
+            .LineStyle = xlContinuous: .Weight = xlThin: .Color = thGrid()
+        End With
+        With ws.Range(ws.Cells(r + mxD - 1, 1), ws.Cells(r + mxD - 1, 15)).Borders(xlEdgeBottom)
+            .LineStyle = xlContinuous: .Weight = xlThin: .Color = thGrid()
+        End With
+        For k = 0 To 6
+            With ws.Range(ws.Cells(blockTop, 2 + 2 * k), ws.Cells(blockBot, 2 + 2 * k)).Borders(xlEdgeLeft)
+                .LineStyle = xlContinuous: .Weight = xlThick: .Color = thBand()
+            End With
+            With ws.Range(ws.Cells(blockTop + 1, 3 + 2 * k), ws.Cells(blockBot, 3 + 2 * k)).Borders(xlEdgeLeft)
+                .LineStyle = xlDot: .Weight = xlThin: .Color = RGB(190, 190, 190)
+            End With
+        Next k
+        With ws.Range(ws.Cells(blockTop, 15), ws.Cells(blockBot, 15)).Borders(xlEdgeRight)
+            .LineStyle = xlContinuous: .Weight = xlThick: .Color = thBand()
+        End With
+
+        r = r + mxD + mxN
+        wk = wk + 7
+    Loop
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r, 15)).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous: .Weight = xlThick: .Color = thBand()
+    End With
+    tD = Timer                                      ' weeks written
+    Dim wkSlots As Double, wkNotes As Double
+    wkSlots = mTimeSlots: wkNotes = mTimeNotes      ' the weeks' share (OpenAhead's SlotsFor calls count under controls)
+
+    ' ---- page ----
+    On Error Resume Next
+    ' v25.2 (item 2): the same page setup every draw cost 0.6 s of 4.6; it is redone only when the print area
+    ' moved (a new sheet, a month with more rows) or the release changed (CalMap Z17), else left as it is
+    Dim pageAddr As String: pageAddr = ws.Range(ws.Cells(1, 1), ws.Cells(r, 16)).Address
+    If ws.PageSetup.PrintArea <> pageAddr Or SafeStr(mp.Range("Z17").Value) <> CAL_VERSION Then
+    Application.PrintCommunication = False
+    With ws.PageSetup
+        .PrintArea = pageAddr
+        .PrintTitleRows = ""
+        .Orientation = xlLandscape
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = 1
+        .CenterHorizontally = True
+        .LeftMargin = Application.InchesToPoints(0.25)
+        .RightMargin = Application.InchesToPoints(0.25)
+        .TopMargin = Application.InchesToPoints(0.3)
+        .BottomMargin = Application.InchesToPoints(0.3)
+        .PrintGridlines = False
+        .PrintComments = xlPrintNoComments
+    End With
+    Application.PrintCommunication = True
+    mp.Range("Z17").Value = "'" & CAL_VERSION
+    End If
+    If ActiveSheet Is ws Then
+        With ActiveWindow
+            .DisplayGridlines = False
+            .DisplayHeadings = False
+            .FreezePanes = False
+            .ScrollRow = 1
+            .SplitColumn = 0
+            .SplitRow = 4                ' title, legend, toolbar and weekdays stay put
+            .FreezePanes = True
+        End With
+    End If
+    On Error GoTo Failed
+    tE = Timer                                      ' page set up
+
+    BuildCalControls ws, m0, grp
+    tF = Timer                                      ' controls rebuilt
+    mp.Range("Z8").Value = drawnFrom
+    mp.Range("Z10").Value = "'" & DrawContext()
+    mp.Range("Z12").Value = "'" & RosterSig()
+    ' v25.1.2: the breakdown (the before numbers for the v25.2 rewrite); F3 says the total
+    tG = Timer
+    mp.Range("Z13").Value = "'" & Format$(Secs(t0, tG), "0.0")
+    mp.Range("Z14").Value = "'" & "Calendar LEGACY " & Format$(m0, "mmmm yyyy") & " (" & grp & ", " & nLines & " lines): drawn in " & _
+        Format$(Secs(t0, tG), "0.0") & " s = caches " & Format$(Secs(t0, tA), "0.0") & ", wipe " & Format$(Secs(tA, tB), "0.0") & _
+        ", header " & Format$(Secs(tB, tC), "0.0") & ", weeks " & Format$(Secs(tC, tD), "0.0") & " (slots " & Format$(wkSlots, "0.0") & _
+        ", notes " & Format$(wkNotes, "0.0") & ", cells " & Format$(Secs(tC, tD) - wkSlots - wkNotes, "0.0") & "), page " & _
+        Format$(Secs(tD, tE), "0.0") & ", controls " & Format$(Secs(tE, tF), "0.0") & "  [" & CAL_VERSION & "]"
+    ws.Range("F3").Value = CalHintText()
+    GoTo Done
+
+Failed:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description & " (error " & Err.Number & ")"
+    Resume AfterFail                      ' leave the handler so the clean-up below can't be stopped by a 2nd error
+AfterFail:
+    On Error Resume Next
+    tG = 0                                ' v25.1.2 re-review: no after-draw figure on a failed draw
+    LogError "DrawCalendarLegacy", en, em       ' v24.3.1: the box below was the only record
+    UnlockSheet ws
+    ws.Cells(3, 6).Value = "Calendar couldn't finish drawing: " & em & "  - click This month to retry."
+    ws.Cells(3, 6).Font.Color = thOpen()
+    BuildCalControls ws, m0, grp          ' never leave the sheet without its buttons
+    Application.ScreenUpdating = True
+    MsgBox "The calendar couldn't finish drawing:" & vbNewLine & vbNewLine & em & vbNewLine & vbNewLine & _
+           "Send a screenshot of this message.  (" & CAL_VERSION & ")", vbExclamation, "Calendar"
+Done:
+    On Error Resume Next
+    Application.DisplayAlerts = True
+    ProtectSheet ws
+    ProtectSheet mp                                 ' v25.1
+    Application.Calculation = calcWas
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = True
+    If tG > 0 Then                                  ' v25.1.2 (review): the relock + recalculation after the draw, felt but outside "drawn in"
+        MapWrite "Z14", "'" & SafeStr(mp.Range("Z14").Value) & "; then relock + recalc " & Format$(Secs(tG, Timer), "0.0")
+    End If
+    mDrawing = False
+End Sub
+
+Private Sub WriteSlotLegacy(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal rr As Long, ByVal k As Long, _
+                      ByRef s As CalSlot, ByVal d As Date, ByVal shiftLbl As String)
+    Dim a As Range: Set a = ws.Cells(rr, 2 + 2 * k)
+    Dim b As Range: Set b = ws.Cells(rr, 3 + 2 * k)
+    a.Value = "'" & s.LeftText
+    a.Font.Name = CAL_FONT_B: a.Font.Size = 9: a.Font.Color = TypeColor(s.TypeCode)
+    a.IndentLevel = 1
+    a.ShrinkToFit = True                  ' long names shrink instead of spilling into the next day
+    a.VerticalAlignment = xlCenter
+    Dim t As String: t = s.RightText
+    Dim noteIt As Boolean                     ' v25.2 (item 1): a hover note only where action is needed
+    b.Font.Name = CAL_FONT: b.Font.Size = 9: b.Font.Bold = False: b.Font.Italic = False
+    b.IndentLevel = 1
+    b.ShrinkToFit = True
+    b.VerticalAlignment = xlCenter
+    If t = "" Or UCase$(t) Like "NO TAKERS*" Then
+        b.Value = IIf(t = "", "OPEN", "NO TAKERS")
+        b.Font.Name = CAL_FONT_B: b.Font.Color = thOpen()
+        b.Interior.Color = thOpenFill()
+        noteIt = True
+    ElseIf UCase$(t) Like "POSTED*" Then
+        b.Value = "'" & t
+        b.Font.Name = CAL_FONT_B: b.Font.Color = thPosted()
+        b.Interior.Color = thPostedFill()
+        noteIt = True
+    ElseIf UCase$(t) = "NCN" Then
+        b.Value = "'" & t: b.Font.Italic = True: b.Font.Color = thMuted()
+    Else
+        b.Value = "'" & t: b.Font.Name = CAL_FONT_B: b.Font.Color = thInk()
+    End If
+    Dim keyTxt As String: keyTxt = s.Key & "|" & CLng(Int(d)) & "|" & shiftLbl
+    mp.Cells(rr, 2 + 2 * k).Value = keyTxt
+    mp.Cells(rr, 3 + 2 * k).Value = keyTxt
+    ' v25.2 (item 1, D-C4 revisited on the v25.1.2 numbers: 85 notes were 2.8 of 4.6 s): OPEN, NO TAKERS and
+    ' POSTED lines keep the hover box; a covered line's details are on double-click > Details...
+    If noteIt Then
+        Dim tL As Double: tL = Timer          ' v25.1.2 review: the details text counts under notes, not cells
+        Dim det As String: det = LineDetails(keyTxt, True)
+        mTimeNotes = mTimeNotes + Secs(tL, Timer)
+        AddNote b, det                        ' hover for the details
+    End If
+End Sub
+
+Private Sub DateCellsLegacy(ByVal a As Range, ByVal b As Range, ByVal d As Date, ByVal nOpen As Long)
+    Dim num As String: num = CStr(Day(d))
+    Dim flag As String
+    If nOpen > 0 Then flag = "   " & ChrW(9679) & " " & nOpen & " open"
+    Dim t1 As String: t1 = "Days: " & DaysCrew(d) & " Shift"
+    Dim past As Boolean: past = (Int(d) < Int(Date))
+    a.Value = num & flag & vbLf & t1
+    a.WrapText = True
+    a.HorizontalAlignment = xlLeft: a.VerticalAlignment = xlBottom
+    a.IndentLevel = 1
+    a.Font.Name = CAL_FONT_B: a.Font.Size = 8: a.Font.Bold = False: a.Font.Color = thDayText()
+    With a.Characters(1, Len(num)).Font
+        .Size = 15
+        .Color = IIf(past, RGB(158, 158, 158), thBand())
+    End With
+    If flag <> "" Then
+        With a.Characters(Len(num) + 1, Len(flag)).Font
+            .Size = 8
+            .Color = IIf(past, RGB(158, 158, 158), thOpen())
+        End With
+    End If
+
+    ' plant holiday name top-right (v20), "Nights: A Shift" under it
+    Dim hol As String: hol = HolidayLabel(d)
+    Dim t2 As String: t2 = "Nights: " & NightsCrew(d) & " Shift"
+    If hol <> "" Then
+        b.Value = hol & vbLf & t2
+        b.WrapText = True
+    Else
+        b.Value = t2
+    End If
+    b.HorizontalAlignment = xlRight: b.VerticalAlignment = xlBottom
+    b.IndentLevel = 1
+    b.Font.Name = CAL_FONT_B: b.Font.Size = 8: b.Font.Color = thNightText()
+    If hol <> "" Then
+        With b.Characters(1, Len(hol)).Font
+            .Color = IIf(past, RGB(158, 158, 158), RGB(176, 0, 32))
+        End With
+    End If
+End Sub
+
+Private Sub SectionLabelLegacy(ByVal ws As Worksheet, ByVal r As Long, ByVal n As Long, ByVal txt As String, _
+                         ByVal fillCol As Long, ByVal fontCol As Long)
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r + n - 1, 1))
+        If n > 1 Then .Merge
+        .Interior.Color = fillCol
+        .Font.Name = CAL_FONT_B: .Font.Size = 7: .Font.Color = fontCol
+        .HorizontalAlignment = xlCenter: .VerticalAlignment = xlCenter
+        If n >= 3 Then
+            .Orientation = 90
+            .Cells(1, 1).Value = txt
+        ElseIf n = 2 Then
+            .Orientation = 90
+            .Cells(1, 1).Value = IIf(txt = "DAYS", "DAY", "NGT")
+        Else
+            .Orientation = 0
+            .Cells(1, 1).Value = Left$(txt, 1)
+        End If
+    End With
+End Sub

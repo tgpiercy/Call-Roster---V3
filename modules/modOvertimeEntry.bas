@@ -29,6 +29,7 @@ Public Const DESK_USERS As String = "lanthierr"
 Public Const PRIMARY_ADMIN_NAME As String = "Graeme"                       ' named by the Desk's help buttons
 Public Const PRIMARY_ADMIN_EMAIL As String = "graeme.piercy@syensqo.com"   ' "Something went wrong" writes to this address
 Public Const GUIDE_PATH As String = ""                                    ' the quick guide as a PDF on the plant PC; "" until go-live
+Public Const SUPERVISOR_DESK As Boolean = True                            ' every supervisor (non-admin) lands on the supervisor Desk (Graeme, Oct 17)
 
 Public Const CHARGE_MULTIPLIER As Double = 1.75   ' refused / passed OT is charged at this rate
 Public Const CHARGE_MAX_GRADE As Double = 2       ' grades above this are called but never charged
@@ -185,7 +186,7 @@ End Sub
 ' Award Posting pop-up (admin)
 Sub ShowPostingForm()
     On Error GoTo Oops
-    If Not RequireAdmin() Then Exit Sub
+    If Not RequireSupervisor() Then Exit Sub     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
@@ -1169,6 +1170,15 @@ Public Function RequireAdmin() As Boolean
     End If
 End Function
 
+' v25.3 (Graeme, Oct 17, 2026): SUPERVISOR rights - the jobs every supervisor with the file open may do: log a
+' call-out, sick call (books the sick shift, can start the call-out), new posting, award posting, print the
+' call-out roster. Everything else (time off, switches, leave, void, adjustments, people, Kronos, publish, the
+' reopen / no-takers / out-of-department awards) stays behind RequireAdmin. A supervisor is anyone with edit
+' access; a read-only copy refuses as before.
+Public Function RequireSupervisor() As Boolean
+    RequireSupervisor = RequireWritable()
+End Function
+
 Public Function RequireWritable() As Boolean
     If ThisWorkbook.ReadOnly Then
         MsgBox "This copy is open read-only, so nothing can be logged or saved." & vbNewLine & _
@@ -1392,7 +1402,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
             SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(showIt, xlSheetVisible, xlSheetVeryHidden)
         End If
     Next nm
-    If SheetExists(DESK_SHEET) Then SetSheetVisible ThisWorkbook.Worksheets(DESK_SHEET), IIf(adminView, xlSheetVisible, xlSheetVeryHidden)   ' v25.3
+    If SheetExists(DESK_SHEET) Then SetSheetVisible ThisWorkbook.Worksheets(DESK_SHEET), IIf(adminView Or SUPERVISOR_DESK, xlSheetVisible, xlSheetVeryHidden)   ' v25.3: admins' and supervisors' Desk
     Dim rs As Worksheet: Set rs = RosterSheet()
     UnlockSheet rs
     LockRosterCells rs, adminView                   ' v25 (R4)

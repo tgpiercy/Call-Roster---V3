@@ -5,17 +5,23 @@ Option Explicit
 '  DESK (v25.3): the landing screen for the second admin
 '
 '  One sheet, "Desk", drawn by code like the Calendar: a header (today, the
-'  pay period, how old the Kronos data is), four TODAY tiles (shifts needing
+'  pay period, how old the Kronos data is), TODAY tiles (shifts needing
 '  cover, postings ready to award, paybacks owed, the members' file's age) and
-'  fourteen plain-language buttons grouped by when he reaches for them. Every
-'  button calls the macro the roster's bar calls; no rule lives here.
+'  plain-language buttons grouped by when he reaches for them. Every button
+'  calls the macro the roster's bar calls; no rule lives here.
 '
-'  Who sees it: a login on BOTH ADMIN_USERS and DESK_USERS (modOvertimeEntry
-'  settings) has every admin right and lands on the Desk; "Show everything"
-'  gives the full master layout for the session; "< Desk" on the master bar
-'  comes back. The primary admin keeps today's layout and can look at the
-'  Desk through that button. ViewModeFor is the one pure decision (SelfTest
-'  suite "viewmode"). The view itself is ApplyViewCore's desk mode.
+'  Two Desks from one drawing (Graeme, Oct 17, 2026):
+'   - the ADMIN Desk: a login on BOTH ADMIN_USERS and DESK_USERS (settings) has
+'     every admin right and lands on it (14 buttons); "Show everything" gives
+'     the full master layout for the session; "< Desk" on the bar comes back.
+'     The primary admin keeps today's layout and looks at it through that button.
+'   - the SUPERVISOR Desk: every other login lands on it (SUPERVISOR_DESK): the
+'     jobs a supervisor may do - sick call, call-out, calendar, new posting,
+'     award posting, print the call-out roster - plus the help buttons. The
+'     admin-only jobs are not on it (and the roster's gates refuse them anyway).
+'  ViewModeFor is the one pure decision (SelfTest suite "viewmode"). The admin
+'  Desk's view is ApplyViewCore's desk mode; the supervisor Desk is the
+'  ordinary view with the Desk sheet in front.
 ' ====================================================================
 
 Public Const DESK_VERSION As String = "Desk v25.3 (Oct 17)"
@@ -23,6 +29,7 @@ Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
 
 Public gDeskMode As Boolean                         ' the Desk view is on (set by ApplyViewCore)
+Private mZoomChecked As String                      ' sheets whose left-behind 120 % was put back this session (review)
 
 Private Const DK_FONT As String = "Segoe UI"
 Private Const DK_FONT_B As String = "Segoe UI Semibold"
@@ -171,15 +178,24 @@ Public Sub DrawDesk()
     Dim y0 As Double: y0 = ws.Cells(3, 1).Top + 6
     Dim yy As Double
 
-    ' ---- TODAY: four tiles ----
+    ' ---- the layout: the admin Desk (every job) or the supervisor Desk (a supervisor's jobs) ----
+    Dim sup As Boolean: sup = Not gAdminUnlocked
+    Dim tileX As Double: tileX = x0
+
+    ' ---- TODAY: the tiles ----
     DeskLabel ws, "dk_lbl_today", "TODAY", x0, y0
     yy = y0 + 16
     DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover"), "modDesk.DeskNeeds", _
-             x0, yy, IIf(nCover > 0, dkOrange(), 0)
+             tileX, yy, IIf(nCover > 0, dkOrange(), 0)
+    tileX = tileX + TILE_W + GAP
     DeskTile ws, "dk_tile_award", nReady, IIf(nReady = 1, "posting ready to award", "postings ready to award"), "modDesk.DeskAward", _
-             x0 + (TILE_W + GAP), yy, IIf(nReady > 0, dkOrange(), 0)
-    DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed"), "modDesk.DeskSwitch", _
-             x0 + 2 * (TILE_W + GAP), yy, IIf(nOwed > 0, dkSwitch(), 0)
+             tileX, yy, IIf(nReady > 0, dkOrange(), 0)
+    tileX = tileX + TILE_W + GAP
+    If Not sup Then
+        DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed"), "modDesk.DeskSwitch", _
+                 tileX, yy, IIf(nOwed > 0, dkSwitch(), 0)
+        tileX = tileX + TILE_W + GAP
+    End If
     Dim pubTxt As String, pubCol As Long
     If pubAt = 0 Then
         pubTxt = "never published": pubCol = dkBlue()
@@ -188,7 +204,7 @@ Public Sub DrawDesk()
     Else
         pubTxt = "updated today " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
     End If
-    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, "modDesk.DeskPublish", x0 + 3 * (TILE_W + GAP), yy, pubCol
+    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, IIf(sup, "", "modDesk.DeskPublish"), tileX, yy, pubCol   ' a supervisor can't publish: information only
 
     ' ---- RIGHT NOW (left column) ----
     yy = yy + TILE_H + 18
@@ -201,10 +217,12 @@ Public Sub DrawDesk()
     yL = yL + BTN_H + GAP
     DeskBtn ws, "dk_btn_cal", "What needs cover (calendar)", "modDesk.DeskCalendar", x0, yL, dkNavy()
     yL = yL + BTN_H + 18
-    DeskLabel ws, "dk_lbl_people", "PEOPLE", x0, yL
-    yL = yL + 16
-    DeskBtn ws, "dk_btn_leave", "Leave: going or returning", "modDesk.DeskLeave", x0, yL, dkLeave()
-    yL = yL + BTN_H + 18
+    If Not sup Then
+        DeskLabel ws, "dk_lbl_people", "PEOPLE", x0, yL
+        yL = yL + 16
+        DeskBtn ws, "dk_btn_leave", "Leave: going or returning", "modDesk.DeskLeave", x0, yL, dkLeave()
+        yL = yL + BTN_H + 18
+    End If
     DeskLabel ws, "dk_lbl_help", "HELP", x0, yL
     yL = yL + 16
     DeskBtn ws, "dk_btn_guide", "How do I ...", "modDesk.DeskGuide", x0, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
@@ -219,20 +237,25 @@ Public Sub DrawDesk()
     yR = yR + BTN_H + GAP
     DeskBtn ws, "dk_btn_award", "Award a posting", "modDesk.DeskAward", xR, yR, dkGreen()
     yR = yR + BTN_H + GAP
-    DeskBtn ws, "dk_btn_timeoff", "Book time off", "modDesk.DeskTimeOff", xR, yR, dkNavy()
-    yR = yR + BTN_H + GAP
-    DeskBtn ws, "dk_btn_switch", "Shift switch or payback", "modDesk.DeskSwitch", xR, yR, dkSwitch()
-    yR = yR + BTN_H + 18
+    If Not sup Then
+        DeskBtn ws, "dk_btn_timeoff", "Book time off", "modDesk.DeskTimeOff", xR, yR, dkNavy()
+        yR = yR + BTN_H + GAP
+        DeskBtn ws, "dk_btn_switch", "Shift switch or payback", "modDesk.DeskSwitch", xR, yR, dkSwitch()
+        yR = yR + BTN_H + GAP
+    End If
+    yR = yR + 10
     DeskLabel ws, "dk_lbl_done", "WHEN YOU ARE DONE", xR, yR
     yR = yR + 16
-    DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xR, yR, dkBlue()
-    yR = yR + BTN_H + GAP
+    If Not sup Then
+        DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xR, yR, dkBlue()
+        yR = yR + BTN_H + GAP
+    End If
     DeskBtn ws, "dk_btn_print", "Print the call-out roster", "modDesk.DeskPrint", xR, yR, dkNavy()
 
     ' ---- footer links ----
     Dim yF As Double: yF = IIf(yL > yR, yL, yR) + BTN_H + 22
     DeskLink ws, "dk_lnk_roster", "Full roster  >", "modDesk.DeskRoster", x0, yF, 140
-    DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", xR, yF, 260
+    If Not sup Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", xR, yF, 260
     With ws.Cells(1, 9)
         .Value = DESK_VERSION
         .Font.Size = 7: .Font.Color = RGB(176, 190, 197)
@@ -342,7 +365,7 @@ Private Sub DeskTile(ByVal ws As Worksheet, ByVal nm As String, ByVal n As Long,
     End With
 End Sub
 
-' the members'-file tile: a caption and a text instead of a figure
+' the members'-file tile: a caption and a text instead of a figure (mac "" = information only)
 Private Sub DeskTileText(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal txt As String, ByVal mac As String, _
                          ByVal l As Double, ByVal t As Double, ByVal col As Long)
     Dim active As Boolean: active = (col <> 0)
@@ -393,11 +416,12 @@ Public Sub ShowDeskSheet()
     ws.Range("A1").Select
 End Sub
 
-' ThisWorkbook's open step 10: a Desk user lands on the Desk, everyone else on the roster; a Desk that can't
-' draw still leaves the user on the roster (review), and a 120 % left behind is put back
+' ThisWorkbook's open step 10: an admin Desk user and (SUPERVISOR_DESK) every supervisor land on the Desk, the
+' primary admin on the roster; a Desk that can't be made or brought to the front leaves the user on the roster
+' (DrawDesk never raises: it writes its own red line on the sheet), and a 120 % left behind is put back
 Public Sub DeskOpenLanding()
     On Error Resume Next
-    If gDeskMode Then
+    If gDeskMode Or (SUPERVISOR_DESK And Not gAdminUnlocked) Then
         ShowDeskSheet
         If Err.Number <> 0 Then
             LogError "DeskOpenLanding", Err.Number, Err.Description
@@ -443,20 +467,22 @@ Oops:
     ReportError "DeskShowAll"
 End Sub
 
-' Called from ThisWorkbook's SheetActivate: the Desk is refreshed every time an admin looks at it (in the
-' full view too - its figures must never be stale); a Desk user sees the roster and the Calendar at 120 %;
-' anyone else landing on those sheets at a left-behind 120 % gets 100 % (review).
+' Called from ThisWorkbook's SheetActivate: the Desk is refreshed every time anyone looks at it (its figures
+' must never be stale); an admin Desk user sees the roster and the Calendar at 120 %; anyone else landing on
+' those sheets at a left-behind 120 % gets 100 % back ONCE per sheet per session (re-review: a user who picks
+' 120 % himself afterwards is left alone).
 Public Sub DeskSheetActivated(ByVal Sh As Object)
     On Error Resume Next
     Select Case Sh.Name
         Case DESK_SHEET
-            If gAdminUnlocked Then DrawDesk
+            DrawDesk
             If ActiveWindow.Zoom <> 100 Then ActiveWindow.Zoom = 100
         Case ROSTER_SHEET, CAL_SHEET
             If gDeskMode Then
                 If ActiveWindow.Zoom <> 120 Then ActiveWindow.Zoom = 120
-            ElseIf ActiveWindow.Zoom = 120 Then
-                ActiveWindow.Zoom = 100
+            ElseIf InStr(mZoomChecked, "|" & Sh.Name & "|") = 0 Then
+                mZoomChecked = mZoomChecked & "|" & Sh.Name & "|"
+                If ActiveWindow.Zoom = 120 Then ActiveWindow.Zoom = 100
             End If
     End Select
 End Sub

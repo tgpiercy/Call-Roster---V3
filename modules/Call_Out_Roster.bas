@@ -21,7 +21,7 @@ Private Const HDR_ROWS As Long = 4            ' title block repeated on every pr
 
 ' Button: draw, show, offer to print
 Sub Call_Out()
-    If Not RequireAdmin() Then Exit Sub
+    If Not RequireSupervisor() Then Exit Sub     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not SheetExists(CALLOUT_SHEET) Then
         MsgBox "Sheet '" & CALLOUT_SHEET & "' not found. Add a blank sheet with that name and try again.", vbCritical
         Exit Sub

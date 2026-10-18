@@ -553,7 +553,7 @@ End Sub
 ' ====================================================================
 Public Sub ShowSickCallForm()
     On Error GoTo Oops
-    If Not RequireAdmin() Then Exit Sub
+    If Not RequireSupervisor() Then Exit Sub     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     If Not AbsenceColumnsCurrent() Then

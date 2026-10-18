@@ -863,7 +863,7 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
                             Optional ByVal quiet As Boolean = False, Optional ByVal skipOnClash As Boolean = False) As String
     ' quiet: no overlap prompt (saves anyway) and no save-to-disk; skipOnClash: an
     ' overlapping booking wins and nothing is saved (Convert imports only)
-    If Not RequireAdmin() Then Exit Function
+    If Not RequireSupervisor() Then Exit Function     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Function
     Dim lo As ListObject: Set lo = AbsTable(True)
     If lo Is Nothing Then Exit Function
@@ -1063,7 +1063,7 @@ End Function
 Public Function SaveNeed(ByVal unit As String, ByVal needText As String, ByVal typ As String, _
                          ByVal dStart As Date, ByVal dEnd As Date, ByVal shiftSel As String, _
                          ByVal hrs As Variant) As Long
-    If Not RequireAdmin() Then Exit Function
+    If Not RequireSupervisor() Then Exit Function     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Function
     Dim lo As ListObject: Set lo = CovTable(True)
     If lo Is Nothing Then Exit Function

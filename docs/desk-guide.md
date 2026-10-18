@@ -1,6 +1,8 @@
 # The Desk - one page (v25.3)
 
-The Desk is the first tab you see when you open the roster. It has four tiles that say what is waiting today, and fourteen buttons grouped by when you need them. Every button opens the same pop-up the full roster uses; nothing is different underneath.
+The Desk is the first tab you see when you open the roster. It has tiles that say what is waiting today, and buttons grouped by when you need them. Every button opens the same pop-up the full roster uses; nothing is different underneath.
+
+There are two Desks from the same screen. **A supervisor's Desk** has the jobs every supervisor may do: Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Print the call-out roster, and the two help buttons. **The admin Desk** (for a login on the Desk list) has those plus Book time off, Shift switch or payback, Leave, Update the members' file, the paybacks-owed tile and "Show everything".
 
 ## The tiles (TODAY)
 | Tile | Means | Click it for |

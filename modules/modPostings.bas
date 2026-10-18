@@ -250,7 +250,7 @@ End Sub
 ' ====================================================================
 Public Sub ShowNewPostingForm()
     On Error GoTo Oops
-    If Not RequireAdmin() Then Exit Sub
+    If Not RequireSupervisor() Then Exit Sub     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
@@ -316,7 +316,7 @@ End Function
 ' p needs Unit, ShiftDate, ShiftLbl, Reason, Crew, Hours, Positions, ClosesOn.
 Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As Boolean = True, _
                                   Optional ByVal doPdf As Boolean = True) As Boolean
-    If Not RequireAdmin() Then Exit Function
+    If Not RequireSupervisor() Then Exit Function     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Function
     If Not PostingTablesReady() Then Exit Function
 
@@ -1221,7 +1221,7 @@ Public Function PostingClosed(ByVal closesOn As Date, Optional ByVal asOf As Dat
 End Function
 
 Private Function CanFinalize(ByRef p As PostRec) As Boolean
-    If Not RequireAdmin() Then Exit Function
+    If Not RequireSupervisor() Then Exit Function     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Function
     If PostingStatus(p.ID) <> "Open" Then
         MsgBox p.ID & " is no longer open (" & PostingStatus(p.ID) & ").", vbExclamation

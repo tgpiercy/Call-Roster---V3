@@ -324,6 +324,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     ' v25.3: the Desk (the second admin's screen), under Calendar so it is in view in every layout. ui_adm_ so
     ' non-admins never see it; ApplyViewCore keeps it visible in the Desk view, where the other admin buttons hide
     Btn ws, "ui_adm_Desk", "< Desk", "modDesk.ShowDesk", x, y(3), wP, NAVY, vbWhite, False
+    Btn ws, "ui_adm_Undo", "Undo last", "modOTLog.UndoLast", x + wP + G, y(3), wP, RGB(236, 239, 243), INK, False   ' v25.5 (A9): the free slot beside "< Desk" (the ADMIN group is full; gry is set below)
     x = x + 2 * wP + G + GG
 
     ' --- Admin ---

@@ -233,6 +233,8 @@ Public Sub DrawDesk()
         DeskLabel ws, "dk_lbl_people", "PEOPLE", x0, yL
         yL = yL + 16
         DeskBtn ws, "dk_btn_leave", "Leave: going or returning", "modDesk.DeskLeave", x0, yL, dkLeave()
+        yL = yL + BTN_H + GAP
+        DeskBtn ws, "dk_btn_undo", "Undo the last thing I did", "modDesk.DeskUndo", x0, yL, dkGrey(), BTN_W, dkInk()   ' v25.5 (A9): admin only (void)
         yL = yL + BTN_H + 18
     End If
     DeskLabel ws, "dk_lbl_help", "HELP", x0, yL
@@ -619,6 +621,16 @@ Oops:
     ReportError "DeskRoster"
 End Sub
 
+' v25.5 (A9) "Undo the last thing I did": the admin Desk; voids this login's newest entry of today through Void Entry's path
+Public Sub DeskUndo()
+    On Error GoTo Oops
+    UndoLast
+    DeskRefreshIfShown
+    Exit Sub
+Oops:
+    ReportError "DeskUndo"
+End Sub
+
 ' v25.5 (A8) "Suggest an improvement": the same email draft as a fault report, with its own subject and no error line
 Public Sub DeskSuggest()
     On Error GoTo Oops
@@ -907,7 +919,9 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "time typed after the date is ignored. The box says when it can't read what you typed."
     HelpAdd h, n, "Asking for a void", _
         "Void Entry is an admin button. To correct a logged call-out or award, tell the admin the number (S-0012, P-0003) and " & _
-        "what was wrong: the admin voids it (the entry stays in the log, marked VOID) and you log the correct entry."
+        "what was wrong: the admin voids it (the entry stays in the log, marked VOID) and you log the correct entry. An admin " & _
+        "who just logged something wrong clicks Undo the last thing I did (the admin Desk, or Undo last on the bar): it offers " & _
+        "to void their own newest entry of today, with the same confirm and reason."
     HelpAdd h, n, "If a red box appears", _
         "This didn't finish means something stopped part-way. The box names what you were doing and an Error Log line. Nothing " & _
         "you did before it is lost. Try once more; if it fails again, click Something went wrong on the Desk: an email to " & _

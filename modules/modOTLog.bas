@@ -340,7 +340,16 @@ Public Sub VoidEntry()
     If VarType(kIn) = vbBoolean Then Exit Sub
     Dim k As String: k = UCase$(Trim$(CStr(kIn)))
     If k = "" Then Exit Sub
+    VoidEntryFor k, ""
+    Exit Sub
+Oops:
+    ReportError "VoidEntry"
+End Sub
 
+' v25.5 (A9): the confirm, the reason and the void for one key - Void Entry's own path, shared with Undo last.
+' lead = a line put before the question ("" for Void Entry)
+Private Sub VoidEntryFor(ByVal k As String, ByVal lead As String)
+    Dim lo As ListObject: Set lo = LogTable()
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
     Dim cnt As Long, hrs As Double, nameList As String
     Dim hit() As Boolean
@@ -351,7 +360,7 @@ Public Sub VoidEntry()
     Dim warn As String
     If Left$(k, 3) = "OB-" Then warn = vbNewLine & "WARNING: this is the opening balance carried over from the old roster." & vbNewLine
 
-    If MsgBox("Void " & cnt & " row(s) for " & k & "?" & vbNewLine & vbNewLine & nameList & vbNewLine & _
+    If MsgBox(IIf(lead <> "", lead & vbNewLine & vbNewLine, "") & "Void " & cnt & " row(s) for " & k & "?" & vbNewLine & vbNewLine & nameList & vbNewLine & _
               "Total hours charged coming off the roster: " & HoursText(hrs) & vbNewLine & warn & vbNewLine & _
               "The rows stay in the log, marked VOID.", vbOKCancel + vbExclamation, "Confirm void") <> vbOK Then Exit Sub
 
@@ -362,9 +371,40 @@ Public Sub VoidEntry()
     cnt = VoidRef(k, why, calN)
     MsgBox cnt & " row(s) voided. Roster totals updated." & _
            IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation
+End Sub
+
+' v25.5 (A9) "Undo the last thing I did" (the admin Desk, the bar): the newest non-void OT Log entry THIS login
+' made TODAY - by its Logged By and Timestamp, the log newest first - is voided through Void Entry's own confirm
+' and reason (every row of that Ref ID, as Void Entry does). Nothing new is written. Admin: void is an admin's job.
+Public Sub UndoLast()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim lo As ListObject: Set lo = LogTable()
+    If lo Is Nothing Then Exit Sub
+    If lo.DataBodyRange Is Nothing Then MsgBox "The OT Log is empty.", vbInformation, "Undo last": Exit Sub
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim u As String: u = LCase$(Trim$(CurrentUser()))
+    Dim i As Long, best As Long, bestAt As Date, st As Variant
+    For i = 1 To UBound(v, 1)
+        If UCase$(SafeStr(v(i, L_STATUS))) <> "VOID" And LCase$(Trim$(SafeStr(v(i, L_USER)))) = u Then
+            st = v(i, L_STAMP)
+            If IsDate(st) Then
+                If Int(CDate(st)) = Date And CDate(st) > bestAt Then best = i: bestAt = CDate(st)
+            End If
+        End If
+    Next i
+    If best = 0 Then
+        MsgBox "Nothing to undo: no entry logged by " & CurrentUser() & " today is still active." & vbNewLine & vbNewLine & _
+               "Void Entry voids any entry by its number.", vbInformation, "Undo last"
+        Exit Sub
+    End If
+    Dim k As String: k = UCase$(SafeStr(v(best, L_REF)))
+    VoidEntryFor k, "Your last entry today: " & k & " (" & SafeStr(v(best, L_TYPE)) & ", " & SafeStr(v(best, L_EMP)) & ", " & _
+                    Format$(bestAt, "h:mm AM/PM") & ")."
     Exit Sub
 Oops:
-    ReportError "VoidEntry"
+    ReportError "UndoLast"
 End Sub
 
 ' Which non-void rows a key means: "S-0012" = every row of that Ref ID, "#245" = one

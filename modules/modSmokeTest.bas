@@ -36,7 +36,7 @@ Public Const SMK_VERSION As String = "Smoke test v25.2 (Oct 17)"
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
 Private Const SMK_WHY As String = "SmokeTest"
-Private Const SMK_STEPS As Long = 20          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words; v25.2: + the two draw compares
+Private Const SMK_STEPS As Long = 21          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words; v25.2: + the two draw compares; v25.3: + the Desk
 
 Private Type SmkState
     Emp As String           ' the test person's current name
@@ -200,6 +200,7 @@ Private Function SmkName(ByVal k As Long) As String
         Case 18: SmkName = "integrity check"
         Case 19: SmkName = "Calendar drawn both ways, compared"
         Case 20: SmkName = "Needs Attention drawn both ways, compared"
+        Case 21: SmkName = "the Desk's figures follow the data"
     End Select
 End Function
 
@@ -227,6 +228,7 @@ Private Function SmkStep(ByVal k As Long, ByRef st As SmkState, ByVal nErr0 As L
         Case 18: SmkStep = SmkIntegrity(st, nErr0, why)
         Case 19: SmkStep = SmkCalCompare(st, why)
         Case 20: SmkStep = SmkNeedsCompare(st, why)
+        Case 21: SmkStep = SmkDesk(st, why)
     End Select
     If Not SmkStep And why = "" Then why = "the function returned False (a message above says why)"
     Exit Function
@@ -1029,6 +1031,47 @@ Private Function SmkNeedsCompare(ByRef st As SmkState, ByRef why As String) As B
     If why <> "" Then Exit Function
     st.Note = "identical; drawn in " & secNew & " s (row by row " & secOld & " s)"
     SmkNeedsCompare = True
+End Function
+
+' ---- 21. the Desk (v25.3): its four figures come from the roster's own functions. A vacation for the peer on
+' a day shift inside the window adds at least one open line; a posting closing today adds one ready to award
+' once the closing moment has passed; both are taken back and the figures return; ViewModeFor on three logins.
+Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
+    If ViewModeFor("boss", "ann,boss", "boss") <> "desk" Or ViewModeFor("ann", "ann,boss", "boss") <> "admin" Or _
+       ViewModeFor("boss", "ann", "boss") <> "user" Then why = "ViewModeFor gives the wrong view for a made-up login": Exit Function
+    Dim c0 As Long, r0 As Long, o0 As Long, c1 As Long, r1 As Long, o1 As Long, c2 As Long, r2 As Long, o2 As Long, pubAt As Date
+    DeskCounts c0, r0, o0, pubAt
+    Dim d As Date, dd As Long, found As Boolean
+    For dd = 1 To DESK_AHEAD_DAYS - 1                ' a day inside the tile's window the peer works days on
+        d = Date + dd
+        If EmpShiftOn(st.Peer, d) = "Days" Then found = True: Exit For
+    Next dd
+    If Not found Then st.Note = "SKIPPED: " & st.Peer & " has no day shift in the next " & DESK_AHEAD_DAYS & " days": SmkDesk = True: Exit Function
+    Dim absId As String: absId = SaveAbsence(st.Peer, st.Unit, "Vacation", d, d, Empty, "", SMK_WHY, "", "", "", "AB", True)
+    If absId = "" Then why = "SaveAbsence returned no ID": Exit Function
+    MarkCalDirty
+    Dim p As PostRec, lst() As PListRec, n As Long, readyAdd As Long
+    p.Unit = st.Unit: p.ShiftDate = Date + 20: p.ShiftLbl = "Days": p.Crew = CREW_ALL
+    p.Reason = "Unit Operator Support": p.Hours = USUAL_SHIFT_HOURS: p.Positions = 1: p.ClosesOn = Date
+    If Not CreatePostingFrom(p, False, False) Then why = "a posting closing today couldn't be created": GoTo Undo
+    readyAdd = IIf(PostingClosed(Date), 1, 0)       ' closed from the closing time on the closing date
+    DeskCounts c1, r1, o1, pubAt
+    If c1 < c0 + 1 Then why = "shifts needing cover read " & c1 & " after a vacation in the window; expected at least " & (c0 + 1): GoTo Undo
+    If r1 <> r0 + readyAdd Then why = "postings ready to award read " & r1 & " with a posting closing today; expected " & (r0 + readyAdd): GoTo Undo
+    n = LoadPosting(p.ID, p, lst)
+    If Not SubmitCancel(p, lst, n) Then why = p.ID & " couldn't be cancelled": Exit Function
+    If Not VoidAbsence(absId, SMK_WHY) Then why = "VoidAbsence " & absId & " returned False": Exit Function
+    MarkCalDirty
+    DeskCounts c2, r2, o2, pubAt
+    If c2 <> c0 Or r2 <> r0 Or o2 <> o0 Then why = "after the cancel and the void the figures read " & c2 & " / " & r2 & " / " & o2 & "; expected " & c0 & " / " & r0 & " / " & o0: Exit Function
+    st.Note = "cover " & c0 & " -> " & c1 & " -> " & c2 & ", ready " & r0 & " -> " & r1 & " -> " & r2 & ", owed " & o0 & "; ViewModeFor desk / admin / user"
+    SmkDesk = True
+    Exit Function
+Undo:
+    On Error Resume Next
+    If p.ID <> "" Then n = LoadPosting(p.ID, p, lst): SubmitCancel p, lst, n
+    VoidAbsence absId, SMK_WHY
+    MarkCalDirty
 End Function
 
 ' the first line where two snapshots differ ("" when none); a line is one cell, one row height or one map key

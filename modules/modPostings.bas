@@ -2576,6 +2576,18 @@ Private Sub MailtoFallback(ByVal toList As String, ByVal ccList As String, ByVal
     End If
 End Sub
 
+' v25.3 (the Desk's "Something went wrong"): a plain email in the default mail app through mailto:; False
+' when no mail app opened (the caller shows the text instead). The body is cut to what a mailto: link carries.
+Public Function OpenMailTo(ByVal toList As String, ByVal subj As String, ByVal plain As String) As Boolean
+    Dim url As String
+    url = "mailto:" & UrlEnc(Replace(Replace(toList, " ", ""), ";", ",")) & "?subject=" & UrlEnc(subj) & "&body=" & UrlEnc(Left$(plain, 700))
+    If Len(url) >= 2000 Then Exit Function
+    On Error Resume Next
+    ThisWorkbook.FollowHyperlink Address:=url
+    OpenMailTo = (Err.Number = 0)
+    On Error GoTo 0
+End Function
+
 ' percent-encodes text for a mailto: link (UTF-8)
 Private Function UrlEnc(ByVal t As String) As String
     Dim i As Long, ch As String, c As Long, out As String

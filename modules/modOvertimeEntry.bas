@@ -22,6 +22,13 @@ Public Const REFUSAL_SHEET As String = "Refusal Report"
 Public Const SHEET_PASSWORD As String = "mytest"
 ' Windows usernames allowed to run admin macros (comma separated, any case)
 Public Const ADMIN_USERS As String = "piercyg,lanthierr"
+' v25.3: the logins that land on the Desk (the second admin's screen, modDesk). A login on BOTH lists has
+' every admin right and lands on the Desk; on ADMIN_USERS alone it gets today's layout; on DESK_USERS alone
+' it is an ordinary user. Set at install (Graeme, Oct 17: a placeholder ships).
+Public Const DESK_USERS As String = "lanthierr"
+Public Const PRIMARY_ADMIN_NAME As String = "Graeme"                       ' named by the Desk's help buttons
+Public Const PRIMARY_ADMIN_EMAIL As String = "graeme.piercy@syensqo.com"   ' "Something went wrong" writes to this address
+Public Const GUIDE_PATH As String = ""                                    ' the quick guide as a PDF on the plant PC; "" until go-live
 
 Public Const CHARGE_MULTIPLIER As Double = 1.75   ' refused / passed OT is charged at this rate
 Public Const CHARGE_MAX_GRADE As Double = 2       ' grades above this are called but never charged
@@ -1360,9 +1367,9 @@ End Sub
 
 ' Admin view shows the admin sheets and phone numbers; everyone else doesn't see them.
 ' v25: and unlocks the typed-into roster cells for admins (LockRosterCells); error frame (E4).
-Public Sub ApplyView(ByVal adminView As Boolean)
+Public Sub ApplyView(ByVal adminView As Boolean, Optional ByVal deskMode As Boolean = False)
     On Error GoTo Oops
-    ApplyViewCore adminView
+    ApplyViewCore adminView, deskMode
     Exit Sub
 Oops:
     ReportError "ApplyView"
@@ -1370,29 +1377,36 @@ End Sub
 
 ' v25 review: the work itself, raising to its caller (SaveRestrictedCopy refuses the copy on an error;
 ' the updater's "did the new code run" probe sees a real error). Buttons and the open use ApplyView.
-Public Sub ApplyViewCore(ByVal adminView As Boolean)
+Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As Boolean = False)
     gAdminUnlocked = adminView
+    ' v25.3: the Desk view = an admin (every right, the unlocked cells) who sees a supervisor's tabs plus the Desk
+    ' and Needs Attention, no admin groups on the bar, Phone shown, Email / Payroll # hidden (modDesk)
+    gDeskMode = adminView And deskMode
     If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4
         If SheetExists(CStr(nm)) Then
-            SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(adminView, xlSheetVisible, xlSheetVeryHidden)
+            Dim showIt As Boolean
+            showIt = adminView And Not gDeskMode
+            If gDeskMode Then showIt = (CStr(nm) = NA_SHEET)          ' v25.3: the Desk's five tabs
+            SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(showIt, xlSheetVisible, xlSheetVeryHidden)
         End If
     Next nm
+    If SheetExists(DESK_SHEET) Then SetSheetVisible ThisWorkbook.Worksheets(DESK_SHEET), IIf(adminView, xlSheetVisible, xlSheetVeryHidden)   ' v25.3
     Dim rs As Worksheet: Set rs = RosterSheet()
     UnlockSheet rs
     LockRosterCells rs, adminView                   ' v25 (R4)
     If SheetExists(HOL_SHEET) Then LockHolidayCells adminView
     Dim leftWas As Double: leftWas = rs.Cells(1, C_SHIFT).Left
     rs.Columns(C_PHONE).Hidden = Not adminView
-    rs.Columns(C_EMAIL).Hidden = Not adminView
-    rs.Columns(C_PAYROLL).Hidden = Not adminView       ' v24.2: a personal identifier, like phone and email
+    rs.Columns(C_EMAIL).Hidden = Not adminView Or gDeskMode          ' v25.3: a Desk user keeps Phone, not these two
+    rs.Columns(C_PAYROLL).Hidden = Not adminView Or gDeskMode        ' v24.2: a personal identifier, like phone and email
     ' column A is LEFT of the command bar, and the bar's shapes don't move with cells: carry them along
     Dim dx As Double: dx = rs.Cells(1, C_SHIFT).Left - leftWas
     Dim shp As Shape
     For Each shp In rs.Shapes
         If Left$(shp.Name, 3) = "ui_" And Abs(dx) > 0.01 Then shp.Left = shp.Left + dx
-        If Left$(shp.Name, 7) = "ui_adm_" Then shp.Visible = IIf(adminView, msoTrue, msoFalse)
+        If Left$(shp.Name, 7) = "ui_adm_" Then shp.Visible = IIf(adminView And (Not gDeskMode Or shp.Name = "ui_adm_Desk"), msoTrue, msoFalse)   ' v25.3: the Desk hides the admin groups, keeps "< Desk"
     Next shp
     If SheetExists(CALLOUT_SHEET) Then
         ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView

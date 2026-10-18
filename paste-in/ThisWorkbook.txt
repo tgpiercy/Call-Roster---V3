@@ -1,9 +1,10 @@
 Option Explicit
-' @version v25 (Oct 14)
+' @version v25.3 (Oct 17)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object
 Private mQuietSeen As String           ' v24.2: background events already logged once this session
+Private mRestoreDesk As Boolean        ' v25.3: the Desk view was on before the save's view switch
 
 ' Opening: protect every sheet (macros can still edit), then show the
 ' admin view only to people on ADMIN_USERS. No password prompt.
@@ -25,14 +26,14 @@ Private Sub OpenStep(ByVal k As Long)
     Select Case k
         Case 1: BackupOnOpen           ' v21: first admin open of the day saves a dated copy (never blocks)
         Case 2: ProtectAll
-        Case 3: ApplyView IsAdmin()
+        Case 3: ApplyView IsAdmin(), IsDeskUser()      ' v25.3: a Desk user gets the Desk view (modDesk)
         Case 4: EnsureDataThrough      ' v21: the provisional-OT formulas need the data-through name
         Case 5: GradeLogOnOpen         ' v21: grade-change snapshot (and anything changed with macros off)
         Case 6: PeopleOnOpen           ' v24: crew history (new names, a crew changed with macros off)
         Case 7: HolidaysOnOpen         ' v20: this year's and next year's holidays listed (admins)
         Case 8: CalOnOpen              ' calendar: this month, fresh needs-attention box
         Case 9: IntegrityOnOpen        ' v23: quiet integrity check for admins (result on the status line)
-        Case 10: RosterSheet().Activate
+        Case 10: If gDeskMode Then ShowDeskSheet Else RosterSheet().Activate      ' v25.3: a Desk user lands on the Desk
     End Select
     Exit Sub
 Oops:
@@ -51,7 +52,7 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v25 (Oct 14)"
+    CodeVersion = "ThisWorkbook v25.3 (Oct 17)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the
@@ -66,6 +67,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     End If
     On Error Resume Next
     mRestoreAdmin = gAdminUnlocked
+    mRestoreDesk = gDeskMode                       ' v25.3
     If mRestoreAdmin Then
         Set mWasActive = ActiveSheet
         Application.ScreenUpdating = False          ' restored by Workbook_AfterSave (the admin view comes back there)
@@ -78,7 +80,7 @@ Private Sub Workbook_AfterSave(ByVal Success As Boolean)
     On Error Resume Next
     If mRestoreAdmin Then
         mRestoreAdmin = False
-        ApplyView True
+        ApplyView True, mRestoreDesk               ' v25.3: the Desk view comes back as it was
         If Not mWasActive Is Nothing Then mWasActive.Activate
         Set mWasActive = Nothing
         If Success Then ThisWorkbook.Saved = True      ' v23: a failed save stays "not saved"
@@ -111,6 +113,7 @@ End Sub
 Private Sub Workbook_SheetActivate(ByVal Sh As Object)
     If mRestoreAdmin And Not gAdminUnlocked Then Exit Sub   ' mid-save / closing view switch
     On Error GoTo Oops
+    DeskSheetActivated Sh              ' v25.3: a Desk user's zoom; the Desk refreshed when looked at
     CalSheetActivated Sh
     ReportsSheetActivated Sh           ' v24.1: the status bar goes back when you leave the roster
     Exit Sub

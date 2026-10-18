@@ -25,9 +25,9 @@ Option Explicit
 
 Public Const SYS_VERSION As String = "System v25.2 (Oct 17)"
 Public Const EXPECTED_RELEASE As String = "v25.2"
-Private Const N_MODULES As Long = 24           ' v24.4: + modSmoke
+Private Const N_MODULES As Long = 25           ' v24.4: + modSmoke; v25.3: + modDesk
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v25"
+Private Const THISWB_RELEASE As String = "v25.3"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v25,frmNewPosting|v25,frmPostingEntry|v25,frmShiftSwitch|v25," & _
                                         "frmTimeOff|v25,frmLeave|v25,frmSickCall|v25,frmConvert|v24.3.1,frmEmployee|v24.3.1"
@@ -69,6 +69,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     VerCheck "modSmokeTest", SMK_VERSION, warn, nOk
     VerCheck "modOTLog", OTL_VERSION, warn, nOk               ' v24.3.1: live code (Void Entry, Add Adjustment, Rename), stamped at last
     VerCheck "modSmoke", SMO_VERSION, warn, nOk               ' v24.4: the Install panel's pop-up openers
+    VerCheck "modDesk", DESK_VERSION, warn, nOk               ' v25.3: the second admin's Desk
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If nOk <> N_MODULES Then verOk = False
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
@@ -320,6 +321,7 @@ Public Sub SaveRestrictedCopy(ByVal fullPath As String)
     Dim rs As Worksheet: Set rs = RosterSheet()
     Dim wasAdmin As Boolean: wasAdmin = gAdminUnlocked
     If Not rs Is Nothing Then wasAdmin = wasAdmin Or Not rs.Columns(C_PHONE).Hidden
+    Dim wasDesk As Boolean: wasDesk = gDeskMode               ' v25.3: a Desk user gets the Desk back, not the full layout
     Dim savedWas As Boolean: savedWas = ThisWorkbook.Saved
     Dim actWas As Object: Set actWas = ActiveSheet
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
@@ -332,7 +334,7 @@ Public Sub SaveRestrictedCopy(ByVal fullPath As String)
     en = Err.Number: em = Err.Description
     copied = (en = 0)
     On Error GoTo Failed
-    If wasAdmin Then ApplyViewCore True
+    If wasAdmin Then ApplyViewCore True, wasDesk
     On Error Resume Next
     actWas.Activate
     Application.ScreenUpdating = scrWas
@@ -343,7 +345,7 @@ Public Sub SaveRestrictedCopy(ByVal fullPath As String)
 Failed:
     en = Err.Number: em = Err.Description
     On Error Resume Next
-    If wasAdmin Then ApplyViewCore True
+    If wasAdmin Then ApplyViewCore True, wasDesk
     actWas.Activate
     Application.ScreenUpdating = scrWas
     ThisWorkbook.Saved = savedWas

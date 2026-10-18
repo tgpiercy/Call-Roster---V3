@@ -194,6 +194,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "backupname"                          ' v24.3.1: a backup, FINAL or pre-change copy by its name
             RunCase = IIf(IsBackupCopyName(i1), "yes", "no")
+        Case "viewmode"                            ' v25.3: login, ADMIN_USERS, DESK_USERS (; for ,) -> desk / admin / user
+            RunCase = ViewModeFor(i1, Replace(i2, ";", ","), Replace(i3, ";", ","))
         Case "backupdate"                          ' v25: file name -> the date a daily backup carries / none
             Dim bdD As Date: bdD = BackupFileDate(i1)
             RunCase = IIf(bdD = 0, "none", FmtD(bdD))
@@ -1407,5 +1409,12 @@ Private Sub LoadCases()
     AddCase "totalsdiff,quarter-hours-shown-plain,Smith=12.75|21|21,Smith=12.5|21|21,,,,Smith: was Total 12.75/Refused 21/periods 21/now Total 12.5/Refused 21/periods 21"
     AddCase "totalsdiff,two-lines,Smith=12|21|21;Jones=8|0|0,Smith=13|21|21,,,,Smith: was Total 12/Refused 21/periods 21/now Total 13/Refused 21/periods 21;Jones: no longer on the roster"
     AddCase "totalsdiff,capped-at-ten-lines,A=1|0|0;B=1|0|0;C=1|0|0;D=1|0|0;E=1|0|0;F=1|0|0;G=1|0|0;H=1|0|0;I=1|0|0;J=1|0|0;K=1|0|0;L=1|0|0,,,,,A: no longer on the roster;B: no longer on the roster;C: no longer on the roster;D: no longer on the roster;E: no longer on the roster;F: no longer on the roster;G: no longer on the roster;H: no longer on the roster;I: no longer on the roster;J: no longer on the roster;...and 2 more"
+    AddCase "viewmode,both-lists,boss,ann;boss,boss,,,desk"
+    AddCase "viewmode,admin-only,ann,ann;boss,boss,,,admin"
+    AddCase "viewmode,desk-only-is-a-user,boss,ann,boss,,,user"
+    AddCase "viewmode,neither,sam,ann;boss,boss,,,user"
+    AddCase "viewmode,case-and-spaces,BOSS,ann ;Boss,boss ,,,desk"
+    AddCase "viewmode,empty-login,,ann;boss,boss,,,user"
+    AddCase "viewmode,empty-lists,boss,,,,,user"
 ' <<< CASES
 End Sub

@@ -331,6 +331,11 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_Employee", "Employee", "modPeople.ShowEmployeeForm", x + wA + G, y(2), wA, gry, INK, False   ' v24: add / move / rename / remove
     Btn ws, "ui_adm_Access", "Full Access", "LoginFullAccess.LoginFullAccess", x, y(3), wA, gry, INK, False
     Btn ws, "ui_adm_Attend", "Attendance", "modAttendance.ShowAttendance", x + wA + G, y(3), wA, gry, INK, False   ' v22.1
+    x = x + 2 * wA + G + GG
+
+    ' --- v25.3: the Desk (the second admin's screen). ui_adm_ so non-admins never see it; ApplyViewCore keeps
+    '     it visible in the Desk view, where every other admin button is hidden ---
+    Btn ws, "ui_adm_Desk", "< Desk", "modDesk.ShowDesk", x, y(1), 56, NAVY, vbWhite, False
     ' Refresh Formulas is a repair tool now (roster totals are live formulas): Alt+F8 > RefreshRosterFormulas
 End Sub
 

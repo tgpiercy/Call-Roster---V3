@@ -180,6 +180,24 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
            Left$(em, 200), vbExclamation, "Call Out Roster"
 End Sub
 
+' v25.3 (the Desk's "Something went wrong"): the newest row as one line of text (rows are appended)
+Public Function NewestErrorLine() As String
+    On Error Resume Next
+    NewestErrorLine = "(the Error Log is empty)"
+    Dim lo As ListObject: Set lo = ErrorLogTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long
+    For i = UBound(v, 1) To 1 Step -1
+        If SafeStr(v(i, 1)) <> "" Then
+            NewestErrorLine = "Line " & i & ": " & Format$(v(i, 1), "mmm d, yyyy h:mm AM/PM") & " - " & SafeStr(v(i, 3)) & _
+                              " - " & SafeStr(v(i, 4)) & IIf(SafeStr(v(i, 5)) <> "", " - " & Left$(SafeStr(v(i, 5)), 200), "")
+            Exit Function
+        End If
+    Next i
+End Function
+
 ' Rows nobody has looked at yet
 Public Function UnseenErrorCount() As Long
     Dim lo As ListObject, v As Variant, i As Long

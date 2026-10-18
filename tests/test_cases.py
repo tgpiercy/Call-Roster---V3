@@ -240,6 +240,8 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "backupname":                    # v24.3.1: file name -> yes / no (a backup, FINAL or pre-change copy)
         return "yes" if rules.is_backup_copy_name(i1) else "no"
+    if suite == "viewmode":                      # v25.3: login, ADMIN_USERS, DESK_USERS (; for ,) -> desk / admin / user
+        return rules.view_mode_for(i1, i2.replace(";", ","), i3.replace(";", ","))
     if suite == "backupdate":                    # v25: file name -> the date a daily backup carries / none
         bd = rules.backup_file_date(i1)
         return iso(bd) if bd else "none"

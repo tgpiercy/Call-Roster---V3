@@ -2459,6 +2459,28 @@ Private Function OpenAhead(ByVal grp As String, ByVal nDays As Long) As Long
     Next i
 End Function
 
+' v25.3 (the Desk's tiles): open lines over the next n days in EVERY unit ("" is every unit to UnitInGroup),
+' and the open postings whose closing moment has passed (the Needs Attention "READY TO AWARD" test)
+Public Function OpenLinesAhead(ByVal nDays As Long) As Long
+    LoadCache
+    LoadPostCache
+    OpenLinesAhead = OpenAhead("", nDays)
+End Function
+
+Public Function ReadyToAwardCount() As Long
+    LoadPostCache
+    If Not IsArray(mPostV) Then Exit Function
+    Dim i As Long, cl As Date
+    For i = 1 To UBound(mPostV, 1)
+        If SafeStr(mPostV(i, PS_STATUS)) = "Open" Then
+            cl = AsDate(mPostV(i, PS_CLOSES))
+            If cl > 0 Then
+                If PostingClosed(cl) Then ReadyToAwardCount = ReadyToAwardCount + 1
+            End If
+        End If
+    Next i
+End Function
+
 ' button centred in its cell(s), fixed height so the text never clips
 Private Sub CalBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
                    ByVal cel As Range, ByVal col As Long)

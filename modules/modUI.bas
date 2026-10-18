@@ -251,7 +251,8 @@ End Function
 
 ' --------------------------------------------------------------------
 '  COMMAND BAR - fits inside the frozen columns (D:S) so it never moves.
-'  Names starting "ui_adm_" are admin-only (ApplyView hides them).
+'  Names starting "ui_adm_" are admin-only (ApplyView hides them); "ui_sup_" (v25.5) go to the logins on
+'  SUPERVISOR_USERS and admins; "ui_btn_" and "ui_srt_" to everyone.
 ' --------------------------------------------------------------------
 Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Dim i As Long
@@ -301,7 +302,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
 
     ' --- People (v22; v25.3: Sick Call for every supervisor, the rest admin) ---
     GroupLabel ws, "ui_lbl_people", "PEOPLE", x, y0, wE                     ' v25.3: Sick Call is a supervisor's job
-    Btn ws, "ui_btn_Sick", "Sick Call", "modLeave.ShowSickCallForm", x, y(1), wE, RGB(230, 81, 0), vbWhite, True   ' v25.3: every supervisor
+    Btn ws, "ui_sup_Sick", "Sick Call", "modLeave.ShowSickCallForm", x, y(1), wE, RGB(230, 81, 0), vbWhite, True   ' v25.3: every supervisor; v25.5: ui_sup_ = the logins on SUPERVISOR_USERS + admins
     Btn ws, "ui_adm_Leave", "Leave", "modLeave.ShowLeaveForm", x, y(2), wE, RGB(106, 27, 154), vbWhite, True
     Btn ws, "ui_adm_Convert", "Convert imports", "modLeave.ShowConvertForm", x, y(3), wE, RGB(21, 101, 192), vbWhite, False
     x = x + wE + GG
@@ -309,14 +310,14 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     ' --- Postings (v25.3: New Posting and Award Posting for every supervisor; Load Posting admin) ---
     Dim grn As Long: grn = RGB(0, 128, 70)
     GroupLabel ws, "ui_lbl_post", "POSTINGS", x, y0, wL                      ' v25.3: New Posting and Award Posting are a supervisor's jobs
-    Btn ws, "ui_btn_NewPost", "New Posting", "modPostings.ShowNewPostingForm", x, y(1), wL, grn, vbWhite, True   ' v25.3: every supervisor
+    Btn ws, "ui_sup_NewPost", "New Posting", "modPostings.ShowNewPostingForm", x, y(1), wL, grn, vbWhite, True   ' v25.3: every supervisor; v25.5: ui_sup_
     Btn ws, "ui_adm_LoadPost", "Load Posting", "modPostings.ShowLoadPostingForm", x, y(2), wL, grn, vbWhite, True
-    Btn ws, "ui_btn_Award", "Award Posting", "modOvertimeEntry.ShowPostingForm", x, y(3), wL, grn, vbWhite, True   ' v25.3: every supervisor
+    Btn ws, "ui_sup_Award", "Award Posting", "modOvertimeEntry.ShowPostingForm", x, y(3), wL, grn, vbWhite, True   ' v25.3: every supervisor; v25.5: ui_sup_
     x = x + wL + GG
 
     ' --- Print / publish (v25.3: Call Out Roster and Calendar for everyone; Member View and the report admin) ---
     GroupLabel ws, "ui_lbl_print", "PRINT / PUBLISH", x, y0, 2 * wP + G      ' v25.3: Call Out Roster and Calendar are everyone's
-    Btn ws, "ui_btn_CallOut", "Call Out Roster", "Call_Out", x, y(1), wP, NAVY, vbWhite, False   ' v25.3: every supervisor
+    Btn ws, "ui_sup_CallOut", "Call Out Roster", "Call_Out", x, y(1), wP, NAVY, vbWhite, False   ' v25.3: every supervisor; v25.5: ui_sup_
     Btn ws, "ui_adm_Member", "Member View", "PublishMemberView", x + wP + G, y(1), wP, NAVY, vbWhite, False
     Btn ws, "ui_btn_Calendar", "Calendar", "modCalendar.ShowCalendar", x, y(2), wP, RGB(0, 128, 70), vbWhite, True
     Btn ws, "ui_adm_Refusals", "Refusals Report", "modReports.RefusalsReport", x + wP + G, y(2), wP, NAVY, vbWhite, False   ' v24.1

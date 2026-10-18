@@ -26,6 +26,10 @@ Public Const ADMIN_USERS As String = "piercyg,lanthierr"
 ' every admin right and lands on the Desk; on ADMIN_USERS alone it gets today's layout; on DESK_USERS alone
 ' it is an ordinary user. Set at install (Graeme, Oct 17: a placeholder ships).
 Public Const DESK_USERS As String = "lanthierr"
+' v25.5 (Graeme, Oct 18, 2026): the SUPERVISORS by login. A login on this list (or on ADMIN_USERS) may do the
+' supervisor's jobs (sick call, new posting, award to the list, print, publish) and lands on the supervisor Desk
+' (SUPERVISOR_DESK); every other login is a plain user (log a call-out, the calendar, the sorts) on the roster.
+Public Const SUPERVISOR_USERS As String = "mihaychukc,sheltond,campeauc"
 Public Const PRIMARY_ADMIN_NAME As String = "Graeme"                       ' named by the Desk's help buttons
 Public Const PRIMARY_ADMIN_EMAIL As String = "graeme.piercy@syensqo.com"   ' "Something went wrong" writes to this address
 Public Const GUIDE_PATH As String = ""                                    ' the quick guide as a PDF on the plant PC; "" until go-live
@@ -1174,8 +1178,18 @@ End Function
 ' call-out, sick call (books the sick shift, can start the call-out), new posting, award posting, print the
 ' call-out roster. Everything else (time off, switches, leave, void, adjustments, people, Kronos, publish, the
 ' reopen / no-takers / out-of-department / cancel of a posting - the three Submit* carry RequireAdmin before
-' CanFinalize) stays behind RequireAdmin. A supervisor is anyone with edit access; a read-only copy refuses as before.
+' CanFinalize) stays behind RequireAdmin. v25.5 (Graeme, Oct 18): a supervisor is a login on SUPERVISOR_USERS or
+' an admin (ViewModeFor, modDesk), with edit access; anyone else is refused by name, a read-only copy as before.
+Public Function IsSupervisor() As Boolean
+    IsSupervisor = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS) <> "user")
+End Function
+
 Public Function RequireSupervisor() As Boolean
+    If Not IsSupervisor() Then
+        MsgBox "Access denied. Your Windows login (" & CurrentUser() & ") is not on the supervisor list for this workbook." & _
+               vbNewLine & vbNewLine & "Ask " & PRIMARY_ADMIN_NAME & " to add it (SUPERVISOR_USERS).", vbCritical, "Authorization"
+        Exit Function
+    End If
     RequireSupervisor = RequireWritable()
 End Function
 
@@ -1402,7 +1416,11 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
             SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(showIt, xlSheetVisible, xlSheetVeryHidden)
         End If
     Next nm
-    If SheetExists(DESK_SHEET) Then SetSheetVisible ThisWorkbook.Worksheets(DESK_SHEET), IIf(adminView Or SUPERVISOR_DESK, xlSheetVisible, xlSheetVeryHidden)   ' v25.3: admins' and supervisors' Desk
+    ' v25.5: the supervisor's buttons (ui_sup_) and the Desk sheet go to admins and the logins on SUPERVISOR_USERS;
+    ' a plain user sees neither. Decided by the login, whatever view is being applied (the close-time save by a
+    ' supervisor keeps them; the next open applies the opener's own view)
+    Dim supView As Boolean: supView = adminView Or IsSupervisor()
+    If SheetExists(DESK_SHEET) Then SetSheetVisible ThisWorkbook.Worksheets(DESK_SHEET), IIf(adminView Or (SUPERVISOR_DESK And supView), xlSheetVisible, xlSheetVeryHidden)   ' v25.3: admins' and supervisors' Desk
     Dim rs As Worksheet: Set rs = RosterSheet()
     UnlockSheet rs
     LockRosterCells rs, adminView                   ' v25 (R4)
@@ -1417,6 +1435,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     For Each shp In rs.Shapes
         If Left$(shp.Name, 3) = "ui_" And Abs(dx) > 0.01 Then shp.Left = shp.Left + dx
         If Left$(shp.Name, 7) = "ui_adm_" Then shp.Visible = IIf(adminView And (Not gDeskMode Or shp.Name = "ui_adm_Desk"), msoTrue, msoFalse)   ' v25.3: the Desk hides the admin groups, keeps "< Desk"
+        If Left$(shp.Name, 7) = "ui_sup_" Then shp.Visible = IIf(supView, msoTrue, msoFalse)   ' v25.5: the supervisor's jobs
     Next shp
     If SheetExists(CALLOUT_SHEET) Then
         ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView

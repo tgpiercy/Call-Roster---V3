@@ -574,3 +574,9 @@ viewmode,neither,sam,ann;boss,boss,,,user
 viewmode,case-and-spaces,BOSS,ann ;Boss,boss ,,,desk
 viewmode,empty-login,,ann;boss,boss,,,user
 viewmode,empty-lists,boss,,,,,user
+viewmode,supervisor-on-list,sue,ann;boss,boss,sue;tom,,supervisor
+viewmode,supervisor-case-and-spaces,SUE,ann;boss,boss, Sue ;tom,,supervisor
+viewmode,supervisor-who-is-admin,ann,ann;boss,boss,ann;sue,,admin
+viewmode,supervisor-who-is-desk-admin,boss,ann;boss,boss,boss;sue,,desk
+viewmode,not-a-supervisor,sam,ann;boss,boss,sue;tom,,user
+viewmode,empty-supervisor-list,sue,ann;boss,boss,,,user

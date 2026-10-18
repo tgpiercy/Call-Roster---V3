@@ -194,8 +194,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "backupname"                          ' v24.3.1: a backup, FINAL or pre-change copy by its name
             RunCase = IIf(IsBackupCopyName(i1), "yes", "no")
-        Case "viewmode"                            ' v25.3: login, ADMIN_USERS, DESK_USERS (; for ,) -> desk / admin / user
-            RunCase = ViewModeFor(i1, Replace(i2, ";", ","), Replace(i3, ";", ","))
+        Case "viewmode"                            ' v25.3: login, ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS (v25.5; ; for ,) -> desk / admin / supervisor / user
+            RunCase = ViewModeFor(i1, Replace(i2, ";", ","), Replace(i3, ";", ","), Replace(i4, ";", ","))
         Case "backupdate"                          ' v25: file name -> the date a daily backup carries / none
             Dim bdD As Date: bdD = BackupFileDate(i1)
             RunCase = IIf(bdD = 0, "none", FmtD(bdD))
@@ -1416,5 +1416,11 @@ Private Sub LoadCases()
     AddCase "viewmode,case-and-spaces,BOSS,ann ;Boss,boss ,,,desk"
     AddCase "viewmode,empty-login,,ann;boss,boss,,,user"
     AddCase "viewmode,empty-lists,boss,,,,,user"
+    AddCase "viewmode,supervisor-on-list,sue,ann;boss,boss,sue;tom,,supervisor"
+    AddCase "viewmode,supervisor-case-and-spaces,SUE,ann;boss,boss, Sue ;tom,,supervisor"
+    AddCase "viewmode,supervisor-who-is-admin,ann,ann;boss,boss,ann;sue,,admin"
+    AddCase "viewmode,supervisor-who-is-desk-admin,boss,ann;boss,boss,boss;sue,,desk"
+    AddCase "viewmode,not-a-supervisor,sam,ann;boss,boss,sue;tom,,user"
+    AddCase "viewmode,empty-supervisor-list,sue,ann;boss,boss,,,user"
 ' <<< CASES
 End Sub

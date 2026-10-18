@@ -1336,9 +1336,10 @@ def posting_closed(closes_on: date, as_of: date | datetime) -> bool:
     return at >= datetime(closes_on.year, closes_on.month, closes_on.day, POSTING_CLOSE_HOUR)
 
 
-def view_mode_for(login: str, admin_list: str, desk_list: str) -> str:
-    """v25.3 modDesk.ViewModeFor: 'desk' = on both lists, 'admin' = ADMIN_USERS only, 'user' = neither
-    (a desk-only login has no admin rights). Lists comma separated, any case, spaces ignored."""
+def view_mode_for(login: str, admin_list: str, desk_list: str, sup_list: str = "") -> str:
+    """v25.3 modDesk.ViewModeFor: 'desk' = on ADMIN_USERS and DESK_USERS, 'admin' = ADMIN_USERS only,
+    'supervisor' (v25.5) = on SUPERVISOR_USERS and not an admin, 'user' = none of them (a desk-only login
+    has no admin rights). Lists comma separated, any case, spaces ignored."""
     u = login.strip().lower()
     if not u:
         return "user"
@@ -1346,5 +1347,5 @@ def view_mode_for(login: str, admin_list: str, desk_list: str) -> str:
     def in_list(lst: str) -> bool:
         return u in [x for x in lst.replace(" ", "").lower().split(",") if x]
 
-    a, d = in_list(admin_list), in_list(desk_list)
-    return "desk" if a and d else "admin" if a else "user"
+    a, d, s = in_list(admin_list), in_list(desk_list), in_list(sup_list)
+    return "desk" if a and d else "admin" if a else "supervisor" if s else "user"

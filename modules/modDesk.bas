@@ -15,10 +15,12 @@ Option Explicit
 '     every admin right and lands on it (14 buttons); "Show everything" gives
 '     the full master layout for the session; "< Desk" on the bar comes back.
 '     The primary admin keeps today's layout and looks at it through that button.
-'   - the SUPERVISOR Desk: every other login lands on it (SUPERVISOR_DESK): the
-'     jobs a supervisor may do - sick call, call-out, calendar, new posting,
-'     award posting, print the call-out roster - plus the help buttons. The
-'     admin-only jobs are not on it (and the roster's gates refuse them anyway).
+'   - the SUPERVISOR Desk: a login on SUPERVISOR_USERS lands on it (SUPERVISOR_DESK;
+'     v25.5 - until then every non-admin did): the jobs a supervisor may do - sick
+'     call, call-out, calendar, new posting, award posting, print the call-out
+'     roster - plus the help buttons. The admin-only
+'     jobs are not on it (and the roster's gates refuse them anyway). Anyone on
+'     neither list is a plain user and lands on the roster.
 '  ViewModeFor is the one pure decision (SelfTest suite "viewmode"). The admin
 '  Desk's view is ApplyViewCore's desk mode; the supervisor Desk is the
 '  ordinary view with the Desk sheet in front.
@@ -75,25 +77,30 @@ End Function
 ' ====================================================================
 '  WHO
 ' ====================================================================
-' The one pure decision: "desk" = on both lists (admin rights, lands on the Desk), "admin" = on
-' ADMIN_USERS only (today's layout), "user" = neither (a desk-only login has no admin rights).
-' Lists are comma separated, any case, spaces ignored. Mirrored in tests/rules.py (suite viewmode).
-Public Function ViewModeFor(ByVal login As String, ByVal adminList As String, ByVal deskList As String) As String
+' The one pure decision: "desk" = on both ADMIN_USERS and DESK_USERS (admin rights, lands on the Desk), "admin" = on
+' ADMIN_USERS only (today's layout), "supervisor" (v25.5) = on SUPERVISOR_USERS and not an admin (the supervisor's
+' jobs, the supervisor Desk), "user" = none of them (a desk-only login has no admin rights; a plain user logs
+' call-outs and looks at the calendar). Lists are comma separated, any case, spaces ignored. Mirrored in
+' tests/rules.py (suite viewmode).
+Public Function ViewModeFor(ByVal login As String, ByVal adminList As String, ByVal deskList As String, ByVal supList As String) As String
     Dim u As String: u = LCase$(Trim$(login))
     ViewModeFor = "user"
     If u = "" Then Exit Function
-    Dim inA As Boolean, inD As Boolean
+    Dim inA As Boolean, inD As Boolean, inS As Boolean
     inA = (InStr(1, "," & LCase$(Replace(adminList, " ", "")) & ",", "," & u & ",", vbBinaryCompare) > 0)
     inD = (InStr(1, "," & LCase$(Replace(deskList, " ", "")) & ",", "," & u & ",", vbBinaryCompare) > 0)
+    inS = (InStr(1, "," & LCase$(Replace(supList, " ", "")) & ",", "," & u & ",", vbBinaryCompare) > 0)
     If inA And inD Then
         ViewModeFor = "desk"
     ElseIf inA Then
         ViewModeFor = "admin"
+    ElseIf inS Then
+        ViewModeFor = "supervisor"
     End If
 End Function
 
 Public Function IsDeskUser() As Boolean
-    IsDeskUser = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS) = "desk")
+    IsDeskUser = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS) = "desk")
 End Function
 
 ' ====================================================================
@@ -417,12 +424,13 @@ Public Sub ShowDeskSheet()
     ws.Range("A1").Select
 End Sub
 
-' ThisWorkbook's open step 10: an admin Desk user and (SUPERVISOR_DESK) every supervisor land on the Desk, the
-' primary admin on the roster; a Desk that can't be made or brought to the front leaves the user on the roster
-' (DrawDesk never raises: it writes its own red line on the sheet), and a 120 % left behind is put back
+' ThisWorkbook's open step 10: an admin Desk user and (SUPERVISOR_DESK) every supervisor on SUPERVISOR_USERS land on
+' the Desk (v25.5: a plain user lands on the roster), the primary admin on the roster; a Desk that can't be made or
+' brought to the front leaves the user on the roster (DrawDesk never raises: it writes its own red line on the
+' sheet), and a 120 % left behind is put back
 Public Sub DeskOpenLanding()
     On Error Resume Next
-    If gDeskMode Or (SUPERVISOR_DESK And Not gAdminUnlocked) Then
+    If gDeskMode Or (SUPERVISOR_DESK And Not gAdminUnlocked And IsSupervisor()) Then
         ShowDeskSheet
         If Err.Number <> 0 Then
             LogError "DeskOpenLanding", Err.Number, Err.Description

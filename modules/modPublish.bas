@@ -93,7 +93,7 @@ End Function
 ' whether to publish. Never blocks the close; a failed publish reports itself.
 Public Sub PublishReminderOnClose()
     On Error GoTo Quit
-    If Not IsLiveRoster() Then Exit Sub         ' v24.3.1: read-only, non-admin, a practice copy, a backup or frozen copy
+    If Not MayPublishHere() Then Exit Sub       ' v25.5: read-only, not a supervisor or admin, a practice copy, a backup or frozen copy
     If NoSave() Then Exit Sub
     If Not MembersDirty() Then Exit Sub
     If Not MemberTemplateExists() Then Exit Sub
@@ -103,6 +103,16 @@ Public Sub PublishReminderOnClose()
               vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMembers
 Quit:
 End Sub
+
+' v25.5: the close-time reminder's own test (IsLiveRoster keeps its admin test for the backup slot): the live
+' roster open for editing by a supervisor or an admin - not a practice copy, not a backup or frozen copy
+Private Function MayPublishHere() As Boolean
+    If ThisWorkbook.ReadOnly Then Exit Function
+    If Not IsSupervisor() Then Exit Function
+    If IsDryRunName(ThisWorkbook.Name) Then Exit Function
+    If IsBackupCopyName(ThisWorkbook.Name) Then Exit Function
+    MayPublishHere = True
+End Function
 
 ' v24.3.3: the open workbook with that file name in this Excel, or Nothing
 Private Function OpenWorkbookNamed(ByVal fileName As String) As Workbook
@@ -156,7 +166,10 @@ End Function
 '  PUBLISH
 ' ====================================================================
 Public Sub PublishMembers()
-    If Not RequireAdmin() Then Exit Sub
+    ' v25.5 (Graeme, Oct 18, bundle item 8): a supervisor's job - whoever posts or awards must not leave the
+    ' members' file behind until an admin publishes. The leave-word screens and the privacy checks are the
+    ' same code; a read-only members' folder refuses the save with the existing message.
+    If Not RequireSupervisor() Then Exit Sub
     ' v24.3.1 (review M2): yesterday's backup sits beside the template; opened to look something up,
     ' Member View from it would overwrite the live members' file with old hours stamped today.
     ' A practice copy is NOT refused (its name may also carry FINAL or Backup if it was copied by hand

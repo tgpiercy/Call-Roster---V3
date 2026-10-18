@@ -318,7 +318,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     ' --- Print / publish (v25.3: Call Out Roster and Calendar for everyone; Member View and the report admin) ---
     GroupLabel ws, "ui_lbl_print", "PRINT / PUBLISH", x, y0, 2 * wP + G      ' v25.3: Call Out Roster and Calendar are everyone's
     Btn ws, "ui_sup_CallOut", "Call Out Roster", "Call_Out", x, y(1), wP, NAVY, vbWhite, False   ' v25.3: every supervisor; v25.5: ui_sup_
-    Btn ws, "ui_adm_Member", "Member View", "PublishMemberView", x + wP + G, y(1), wP, NAVY, vbWhite, False
+    Btn ws, "ui_sup_Member", "Member View", "PublishMemberView", x + wP + G, y(1), wP, NAVY, vbWhite, False   ' v25.5: supervisors publish too (bundle item 8)
     Btn ws, "ui_btn_Calendar", "Calendar", "modCalendar.ShowCalendar", x, y(2), wP, RGB(0, 128, 70), vbWhite, True
     Btn ws, "ui_adm_Refusals", "Refusals Report", "modReports.RefusalsReport", x + wP + G, y(2), wP, NAVY, vbWhite, False   ' v24.1
     ' v25.3: the Desk (the second admin's screen), under Calendar so it is in view in every layout. ui_adm_ so

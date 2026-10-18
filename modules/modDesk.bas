@@ -18,7 +18,7 @@ Option Explicit
 '   - the SUPERVISOR Desk: a login on SUPERVISOR_USERS lands on it (SUPERVISOR_DESK;
 '     v25.5 - until then every non-admin did): the jobs a supervisor may do - sick
 '     call, call-out, calendar, new posting, award posting, print the call-out
-'     roster - plus the help buttons. The admin-only
+'     roster, publish the members' file (v25.5) - plus the help buttons. The admin-only
 '     jobs are not on it (and the roster's gates refuse them anyway). Anyone on
 '     neither list is a plain user and lands on the roster.
 '  ViewModeFor is the one pure decision (SelfTest suite "viewmode"). The admin
@@ -211,8 +211,8 @@ Public Sub DrawDesk()
     Else
         pubTxt = "updated today " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
     End If
-    If sup Then pubCol = 0                          ' information only for a supervisor: never coloured (coloured = work to do)
-    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, IIf(sup, "", "modDesk.DeskPublish"), tileX, yy, pubCol
+    ' v25.5 (bundle item 8): the tile is live for a supervisor too - they publish (coloured = work to do)
+    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, "modDesk.DeskPublish", tileX, yy, pubCol
 
     ' ---- RIGHT NOW (left column) ----
     yy = yy + TILE_H + 18
@@ -254,10 +254,8 @@ Public Sub DrawDesk()
     yR = yR + 10
     DeskLabel ws, "dk_lbl_done", "WHEN YOU ARE DONE", xR, yR
     yR = yR + 16
-    If Not sup Then
-        DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xR, yR, dkBlue()
-        yR = yR + BTN_H + GAP
-    End If
+    DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xR, yR, dkBlue()   ' v25.5: on the supervisor Desk too (bundle item 8)
+    yR = yR + BTN_H + GAP
     DeskBtn ws, "dk_btn_print", "Print the call-out roster", "modDesk.DeskPrint", xR, yR, dkNavy()
 
     ' ---- footer links ----

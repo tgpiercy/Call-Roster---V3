@@ -883,6 +883,14 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Close the file", _
         "Saving is automatic after each entry and again when you close. Just close the file. The members' file question on " & _
         "close: Yes publishes before closing."
+    HelpAdd h, n, "Words you will see", _
+        "Call order: grade code first, then the lowest Total Hours, then plant seniority - the order everyone is called in. " & _
+        "Total Hours: worked (Kronos) + refused + accepted overtime not yet in Kronos (*). Charged: refused or left-message " & _
+        "hours x 1.75 added to Total Hours, grade 2 and below only (>> = above grade 2, called but never charged). ~ = an " & _
+        "estimate because a unit move is planned for the person. ? = left a message. S/S = working a shift switch that " & _
+        "shift. NCN = no cover needed. PHA = hazard-analysis coverage. OPEN = the line still needs cover; POSTED = a " & _
+        "posting is out for it. DAYS = the Monday-to-Friday day crew. A sick call or a personal day is Off to the " & _
+        "members, never why."
 End Sub
 
 ' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it

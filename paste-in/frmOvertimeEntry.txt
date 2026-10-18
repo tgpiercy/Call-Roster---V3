@@ -118,7 +118,7 @@ Private Sub UserForm_Initialize()
 
     MakeLabel "lblLegend", _
         ">> = above Grade " & CHARGE_MAX_GRADE & " (called, not charged)  |  charged at " & _
-        CHARGE_MULTIPLIER & "x  |  * = total includes accepted OT not yet in Kronos  |  ~ = hours after a planned unit move  |  ? = left a message", _
+        CHARGE_MULTIPLIER & "x  |  * = total includes accepted OT not yet in Kronos  |  ~ = hours after a planned unit move  |  ? = left a message  |  S/S = working a shift switch", _
         10, 90, 472, 9.5
     C("lblLegend").Height = Px(26)
     C("lblLegend").WordWrap = True

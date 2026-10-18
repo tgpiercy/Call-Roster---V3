@@ -115,6 +115,14 @@ A person who moves into a unit (today, or on a date the admin entered ahead of t
 ## The status line
 The three lines above the roster show the pay period, the Kronos date and the log size. If it says "Integrity: n PROBLEMS" in red, tell the admin before logging.
 
+## Words you will see
+- **Call order:** grade code first, then the lowest Total Hours, then plant seniority. Everyone is called in that order.
+- **Total Hours:** worked hours (Kronos) + refused hours + accepted overtime not yet in Kronos (shown with `*`).
+- **Charged:** refused or left-message hours x 1.75, added to Total Hours; grade 2 and below only. `>>` = above grade 2: called, never charged.
+- `~` = an estimate, because the admin has entered a unit move for the person for a later date. `?` = left a message (the call-back pile). `S/S` = working a shift switch that shift.
+- **NCN** = no cover needed. **PHA** = hazard-analysis coverage. **OPEN** = the line still needs cover. **POSTED** = a posting is out for it. **DAYS** = the Monday-to-Friday day crew.
+- A sick call or a personal day shows to members as **Off**, never why.
+
 ## Close the file
 - Saving is automatic after each entry, and again when you close. Just close the file.
 - If a red "Saving is blocked" message appeared, close WITHOUT saving. Reopen the file. Check your last entry and redo it if it is missing. Tell the admin.

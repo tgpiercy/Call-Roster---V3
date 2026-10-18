@@ -262,8 +262,8 @@ Private Sub SaveGoing()
     id = SaveLeaveGoing(mEmp.Text, C("cboType").Text, d1, d2, Trim$(C("txtNote").Text), hu)
     If id = "" Then Exit Sub
     RefreshCalendar
-    C("status").Caption = id & " saved - " & mEmp.Text & " on leave from " & Format$(d1, "mmm d") & _
-                          IIf(IsDate(d2), ", back " & Format$(d2, "mmm d"), ", open-ended") & ". Home unit " & IIf(hu = "", "(none)", hu) & "."
+    C("status").Caption = "Saved: " & mEmp.Text & " on leave from " & Format$(d1, "mmm d") & _
+                          IIf(IsDate(d2), ", back " & Format$(d2, "mmm d"), ", open-ended") & ". Home unit " & IIf(hu = "", "(none)", hu) & ".  (" & id & ")"
     LoadLeaves
     MsgBox C("status").Caption, vbInformation, "Leave"
 End Sub
@@ -290,7 +290,7 @@ Private Sub SaveReturning()
     Dim id As String: id = SaveLeaveReturn(mCalc, hrs, why)
     If id = "" Then Exit Sub
     RefreshCalendar
-    C("status").Caption = id & " saved: " & Format$(hrs, "0.0") & " h added to " & mCalc.Emp & "; leave closed."
+    C("status").Caption = "Saved: " & Format$(hrs, "0.0") & " h added to " & mCalc.Emp & "; leave closed.  (" & id & ")"
     mCalcOk = False
     LoadLeaves
     MsgBox C("status").Caption, vbInformation, "Leave"

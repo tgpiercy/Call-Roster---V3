@@ -103,7 +103,7 @@ Private Sub UserForm_Initialize()
     mSave.Caption = "SAVE + START CALL-OUT"
     mSave.Font.Bold = True: mSave.Font.Size = 10
     Set mSaveOnly = AddCtl("Forms.CommandButton.1", "cmdSaveOnly", LBL_L + 206, RowT(10) + 2, 86, 30)
-    mSaveOnly.Caption = "Save only"
+    mSaveOnly.Caption = "Save, no call-out"
     Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 298, RowT(10) + 2, 74, 30)
     mClose.Caption = "Close"
     mClose.Cancel = True
@@ -207,8 +207,8 @@ Private Sub mSaveOnly_Click()
     Dim id As String: id = SaveIt()
     If id = "" Then Exit Sub
     Dim d0 As Date: PickedDate d0
-    MsgBox id & " saved: " & mEmp.Text & " off " & Format$(d0, "ddd mmm d") & " " & mShift.Text & _
-           " and the 24 h after it. The line is OPEN on the calendar.", vbInformation, "Sick Call"
+    MsgBox "Saved: " & mEmp.Text & " is off " & Format$(d0, "ddd mmm d") & " " & mShift.Text & _
+           " and the 24 h after it. The line is OPEN on the calendar.  (" & id & ")", vbInformation, "Sick Call"
     Unload Me
 End Sub
 

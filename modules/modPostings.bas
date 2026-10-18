@@ -325,7 +325,7 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     p.Status = "Open"
 
     If p.ClosesOn > p.ShiftDate Then
-        If Ask("The posting closes after the shift date. Continue anyway?", vbYesNo + vbExclamation, "Microsoft Excel", vbYes) = vbNo Then Exit Function
+        If Ask("The posting closes after the shift date. Create it anyway?", vbYesNo + vbExclamation, "New Posting", vbYes) = vbNo Then Exit Function
     End If
 
     ' eligible list = same rules and order as before (call order, posting grade cutoffs)

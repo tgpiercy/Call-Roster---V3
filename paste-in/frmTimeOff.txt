@@ -172,7 +172,7 @@ Private Sub UserForm_Initialize()
     Set mSetEnd = AddCtl("Forms.CommandButton.1", "cmdEnd", LBL_L, t + 116, 120, 22, "P")
     mSetEnd.Caption = "Change end date"
     Set mVoid = AddCtl("Forms.CommandButton.1", "cmdVoid", LBL_L + 126, t + 116, 90, 22, "P")
-    mVoid.Caption = "Void"
+    mVoid.Caption = "Void this booking"
     AddLabel "status", "", LBL_L, t + 144, 372
     C("status").Font.Size = 8
 
@@ -396,8 +396,8 @@ Private Sub mSave_Click()
                      Trim$(C("txtTimes").Text), Trim$(C("txtNote").Text))
     If id = "" Then Exit Sub
     LoadList
-    C("status").Caption = id & " saved - " & mEmp.Text & ", " & Left$(C("cboType").Text, 3) & ", " & _
-                          Format$(ds, "mmm d") & " to " & IIf(mOpen.Value, "open", Format$(de, "mmm d")) & "."
+    C("status").Caption = "Saved: " & mEmp.Text & ", " & Left$(C("cboType").Text, 3) & ", " & _
+                          Format$(ds, "mmm d") & " to " & IIf(mOpen.Value, "open", Format$(de, "mmm d")) & "  (" & id & ")."
     ' ready for the next booking
     mStart.Text = "": mEnd.Text = "": C("txtTimes").Text = "": C("txtNote").Text = ""
     mOpen.Value = False
@@ -412,13 +412,13 @@ End Function
 Private Sub mSetEnd_Click()
     Dim id As String: id = PickedId()
     If id = "" Then Exit Sub
-    If SetAbsenceEnd(id) Then LoadList: C("status").Caption = id & " end date changed."
+    If SetAbsenceEnd(id) Then LoadList: C("status").Caption = "End date changed (" & id & ")."
 End Sub
 
 Private Sub mVoid_Click()
     Dim id As String: id = PickedId()
     If id = "" Then Exit Sub
-    If VoidAbsence(id) Then LoadList: C("status").Caption = id & " voided."
+    If VoidAbsence(id) Then LoadList: C("status").Caption = "Voided (" & id & ")."
 End Sub
 
 ' First and last scheduled shift of emp inside d1..d2 (False when none)

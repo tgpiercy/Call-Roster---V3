@@ -179,7 +179,7 @@ Private Sub UserForm_Initialize()
     mList.Font.Size = 9
     t = t + 156
     Set mVoid = AddCtl("Forms.CommandButton.1", "cmdVoid", LBL_L, t, 110, 22)
-    mVoid.Caption = "Void selected"
+    mVoid.Caption = "Void the selected switch"
     AddLabel "status", "", LBL_L + 120, t + 4, INNER_W - 120
     C("status").Font.Size = 8
     Me.Height = t + 22 + 36
@@ -553,8 +553,8 @@ Private Sub mList_Click()
 
     mDate.Text = ""
     C("txtNote").Text = ""
-    C("status").Caption = id & " selected: " & ShortName(worksN) & " pays back " & ShortName(offN) & _
-                          ". Enter the payback date and save."
+    C("status").Caption = ShortName(worksN) & " pays back " & ShortName(offN) & " (" & id & ")" & _
+                          ": enter the payback date and save."
     mDate.SetFocus
 End Sub
 
@@ -636,7 +636,7 @@ Private Sub mSave_Click()
     If id = "" Then Exit Sub
     If twoWay Then
         id2 = SaveSwitch(d2, sh2, C("cboUnit").Text, mWorks.Text, mOff.Text, id, Trim$(C("txtNote").Text))
-        If id2 = "" Then MsgBox id & " was saved but its payback wasn't - it stays on the owed list.", vbExclamation
+        If id2 = "" Then MsgBox "The switch was saved (" & id & ") but its payback wasn't - it stays on the owed list.", vbExclamation
         payFor = ""
     End If
 
@@ -649,10 +649,10 @@ Private Sub mSave_Click()
     LoadPayback
     LoadList
     If twoWay And id2 <> "" Then
-        C("status").Caption = id & " and payback " & id2 & " saved."
+        C("status").Caption = "Saved: the switch and its payback (" & id & ", " & id2 & ")."
         mTwoWay.Value = False
     Else
-        C("status").Caption = id & " saved" & IIf(payFor <> "", " - " & payFor & " is paid back.", " - owed until paid back.")
+        C("status").Caption = "Saved (" & id & ")" & IIf(payFor <> "", " - " & payFor & " is paid back.", " - owed until paid back.")
     End If
 End Sub
 
@@ -665,7 +665,7 @@ Private Sub mVoid_Click()
         If mShowAll.Value Then RefillPeople Else mClear_Click
         LoadPayback
         LoadList
-        C("status").Caption = id & " voided."
+        C("status").Caption = "Voided (" & id & ")."
     End If
 End Sub
 

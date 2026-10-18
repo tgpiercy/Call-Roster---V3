@@ -607,11 +607,70 @@ Oops:
     ReportError "DeskRoster"
 End Sub
 
-' "How do I ...": the quick guide (GUIDE_PATH, a PDF on the plant PC; empty until go-live)
+' ====================================================================
+'  HELP (v25.5, bundle item 7, Graeme Oct 18): a read-only Help sheet inside the file, drawn from the quick
+'  guide - one heading and one paragraph per job at 11 pt - so help is never "not on this PC yet". The
+'  Desk's "How do I ..." opens it; "< Back" returns to the Desk (or the roster); the printable guide
+'  (GUIDE_PATH, a PDF) stays optional behind its own button. Drawn on first use and again after an install
+'  (the version in D1 differs). Protected like every sheet; nothing is typed into it. Holds no rule.
+' ====================================================================
+Public Const HELP_SHEET As String = "Help"
+Private Const HELP_COL_W As Double = 118            ' column B: one wide wrapped column (characters)
+
+' "How do I ...": the Help sheet (the name stays: the Desk button calls it)
 Public Sub DeskGuide()
     On Error GoTo Oops
+    ShowHelp
+    Exit Sub
+Oops:
+    ReportError "DeskGuide"
+End Sub
+
+Private Function HelpSheet() As Worksheet
+    If Not SheetExists(HELP_SHEET) Then
+        Dim ws As Worksheet
+        UnlockStructure
+        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        ws.Name = HELP_SHEET
+        RelockStructure
+    End If
+    Set HelpSheet = ThisWorkbook.Worksheets(HELP_SHEET)
+    SetTabColor HelpSheet, dkMuted()
+End Function
+
+' The sheet drawn (when missing or from an older release) and brought to the front
+Public Sub ShowHelp()
+    Dim ws As Worksheet: Set ws = HelpSheet()
+    If SafeStr(ws.Cells(1, 4).Value) <> DESK_VERSION Then DrawHelp ws
+    SetSheetVisible ws, xlSheetVisible
+    ws.Activate
+    On Error Resume Next
+    With ActiveWindow
+        .DisplayGridlines = False
+        .DisplayHeadings = False
+        If .Zoom <> 100 Then .Zoom = 100
+        .ScrollRow = 1
+    End With
+    ws.Range("B1").Select
+End Sub
+
+' "< Back": the Desk when this login has one, else the roster
+Public Sub HelpBack()
+    On Error GoTo Oops
+    If SheetExists(DESK_SHEET) Then
+        If ThisWorkbook.Worksheets(DESK_SHEET).Visible = xlSheetVisible Then ShowDeskSheet: Exit Sub
+    End If
+    RosterSheet().Activate
+    Exit Sub
+Oops:
+    ReportError "HelpBack"
+End Sub
+
+' the printable guide (GUIDE_PATH, a PDF on the plant PC; the button shows only when it is set)
+Public Sub DeskGuidePdf()
+    On Error GoTo Oops
     If Trim$(GUIDE_PATH) = "" Then
-        MsgBox "The quick guide isn't on this PC yet. Ask " & PRIMARY_ADMIN_NAME & " for it, or for the job you're stuck on.", _
+        MsgBox "The printable guide isn't on this PC yet. Ask " & PRIMARY_ADMIN_NAME & " for it; the Help tab has the same jobs.", _
                vbInformation, "How do I ..."
         Exit Sub
     End If
@@ -624,7 +683,204 @@ Public Sub DeskGuide()
     End If
     Exit Sub
 Oops:
-    ReportError "DeskGuide"
+    ReportError "DeskGuidePdf"
+End Sub
+
+' Draws (or redraws) the Help sheet: a title band, the two buttons, then the sections. Never raises: a
+' draw that fails writes its own red line (like DrawDesk) and the sheet is protected again whatever happened.
+Public Sub DrawHelp(ByVal ws As Worksheet)
+    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    On Error GoTo Failed
+    UnlockSheet ws
+    Dim i As Long
+    For i = ws.Shapes.Count To 1 Step -1
+        If Left$(ws.Shapes(i).Name, 3) = "hp_" Then ws.Shapes(i).Delete
+    Next i
+    ws.Cells.ClearContents
+    ws.Cells.ClearFormats
+    ws.Cells.Interior.Color = vbWhite
+    With ws.Cells.Font
+        .Name = DK_FONT
+        .Size = 11
+        .Color = dkInk()
+    End With
+    ws.Columns(1).ColumnWidth = 2
+    ws.Columns(2).ColumnWidth = HELP_COL_W
+    ws.Columns(3).ColumnWidth = 2
+
+    ' ---- row 1: the title band; row 2: what this is; row 3: the buttons ----
+    ws.Rows(1).RowHeight = 34
+    ws.Range("A1:C1").Interior.Color = dkNavy()
+    With ws.Cells(1, 2)
+        .Value = "HOW DO I ..."
+        .Font.Name = DK_FONT_B: .Font.Size = 18: .Font.Color = vbWhite
+        .VerticalAlignment = xlCenter
+    End With
+    With ws.Cells(1, 4)                                  ' the version this sheet was drawn from (ShowHelp redraws on a change)
+        .NumberFormat = "@"
+        .Value = DESK_VERSION
+        .Font.Size = 7: .Font.Color = RGB(176, 190, 197)
+    End With
+    ws.Rows(2).RowHeight = 20
+    With ws.Cells(2, 2)
+        .Value = "Each job in the roster, in plain words: what to click and what happens. Scroll down, or Ctrl+F for a word. " & _
+                 "Nothing on this tab can be typed into."
+        .Font.Size = 10: .Font.Color = dkMuted()
+        .VerticalAlignment = xlCenter
+    End With
+    ws.Rows(3).RowHeight = 30
+    Dim x0 As Double: x0 = ws.Cells(3, 2).Left
+    Dim y0 As Double: y0 = ws.Cells(3, 2).Top + 3
+    DeskBtn ws, "hp_btn_back", "<  Back", "modDesk.HelpBack", x0, y0, dkNavy(), 110
+    If Trim$(GUIDE_PATH) <> "" Then DeskBtn ws, "hp_btn_pdf", "Open the printable guide (PDF)", "modDesk.DeskGuidePdf", x0 + 110 + GAP, y0, dkGrey(), 230, dkInk()
+    ws.Rows(4).RowHeight = 10
+
+    ' ---- the sections ----
+    Dim h() As String, n As Long
+    HelpSections h, n
+    Dim r As Long: r = 5
+    For i = 1 To n
+        With ws.Cells(r, 2)
+            .Value = h(1, i)
+            .Font.Name = DK_FONT_B: .Font.Size = 12: .Font.Color = dkNavy()
+            .VerticalAlignment = xlBottom
+        End With
+        ws.Rows(r).RowHeight = 24
+        With ws.Cells(r + 1, 2)
+            .NumberFormat = "@"
+            .Value = h(2, i)
+            .WrapText = True
+            .VerticalAlignment = xlTop
+        End With
+        ws.Rows(r + 1).AutoFit
+        ws.Rows(r + 1).RowHeight = ws.Rows(r + 1).RowHeight + 2
+        ws.Rows(r + 2).RowHeight = 8
+        r = r + 3
+    Next i
+    With ws.Cells(r, 2)
+        .Value = "Call Out Roster  -  " & DESK_VERSION & ".  Something not here? Ask " & PRIMARY_ADMIN_NAME & ", or click Something went wrong on the Desk."
+        .Font.Size = 9: .Font.Color = dkMuted()
+    End With
+    GoTo Done
+Failed:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    Resume AfterFail
+AfterFail:
+    On Error Resume Next
+    LogError "DrawHelp", en, em
+    UnlockSheet ws
+    ws.Cells(1, 4).Value = ""                            ' so the next "How do I ..." draws again
+    ws.Cells(2, 2).Value = "The Help tab couldn't finish drawing: " & em & "  (" & DESK_VERSION & ")"
+    ws.Cells(2, 2).Font.Color = dkRed()
+Done:
+    On Error Resume Next
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+End Sub
+
+Private Sub HelpAdd(ByRef h() As String, ByRef n As Long, ByVal head As String, ByVal body As String)
+    n = n + 1
+    ReDim Preserve h(1 To 2, 1 To n)
+    h(1, n) = head
+    h(2, n) = body
+End Sub
+
+' The text, one heading and one paragraph per job (from docs/supervisor-quick-guide.md; keep the two in step)
+Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
+    HelpAdd h, n, "Open the file", _
+        "Open the roster from its usual folder and click Enable Content if Excel asks. A notice that someone has it open for " & _
+        "editing means you can look but not log: close it and come back when they are out. Every sheet is protected: the " & _
+        "buttons do the writing, nothing is typed into cells. Close the file as soon as you are done so the next supervisor can get in."
+    HelpAdd h, n, "The Desk", _
+        "Supervisors and admins open on the Desk tab: the tiles say what is waiting today (shifts needing cover, postings ready " & _
+        "to award, the members' file's age) and the buttons are the jobs - Someone called in sick, Fill a shift now, What needs " & _
+        "cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster. Full roster > at the bottom " & _
+        "goes to the roster; the Desk tab brings it back. Anyone not on the supervisor list opens on the roster and can log " & _
+        "call-outs and look at the calendar."
+    HelpAdd h, n, "Log a call-out (fill a shift now)", _
+        "Click Fill a shift now (or Log Call-Out on the roster's bar). Pick the Department, Shift and Date, type the Hours and " & _
+        "click LOAD LIST: the list is in call order and holds only the people free for that shift. Call the name shown at Now " & _
+        "calling and click ACCEPTED, REFUSED, LEFT MSG or UNAVAIL. (pick the reason first for Unavailable). When the shift is " & _
+        "filled click SUBMIT ALL ENTRIES and note the session number (S-0012). Refused and Left Message are charged for grade 2 " & _
+        "and below; >> means above grade 2 (called, never charged); * means the total includes accepted overtime not yet in " & _
+        "Kronos; ~ means an estimate because a unit move is planned for the person."
+    HelpAdd h, n, "Someone takes only part of the hours", _
+        "Select them and click ACCEPTED PART OF THE HOURS, then enter the hours. That closes the shift: nobody else is called, " & _
+        "nobody below is charged, and the pop-up refuses any further outcome. Anyone who refused before the partial keeps their " & _
+        "charge. Click SUBMIT ALL ENTRIES."
+    HelpAdd h, n, "Someone called in sick", _
+        "Click Someone called in sick (Sick Call on the bar). Pick who called, check the Shift date, Shift, Unit to cover and " & _
+        "Hours, and read the line under the Note box: it gives their sick-day counts and whether this shift is a paid sick day. " & _
+        "SAVE + START CALL-OUT books the sick shift and opens the call-out filled in; Save only books it without a call-out. " & _
+        "The person is off every call list for that shift and any shift starting within 24 hours after it ends. Log each sick " & _
+        "shift as its own sick call. Members see it as Off, never why."
+    HelpAdd h, n, "Post a shift", _
+        "Click Post a shift (New Posting on the bar). Fill in Unit, Shift date, Shift, Reason, Hours and Positions; Crew and " & _
+        "Posting closes fill in. Leave Print it and Save PDF ticked, click CREATE POSTING, then put up the printed sheet. Sign-up " & _
+        "is on paper. The Reason must not say what kind of leave anyone is on: a leave word is refused. Load Posting (admin) " & _
+        "shows, prints or saves a posting again."
+    HelpAdd h, n, "Award a posting", _
+        "Click Award a posting (Award Posting on the bar), pick the posting and click LOAD. Double-click each name that signed " & _
+        "up. Someone who signed up for only part of the shift: select the name, click PARTIAL HOURS and enter the hours. Select " & _
+        "who gets it and click AWARD (on / off) - anyone who signed up for the whole shift comes before a partial sign-up. Read " & _
+        "the charge summary, click SUBMIT AWARD, then send the email draft that opens. People ahead of the last awarded person " & _
+        "who did not sign up are charged the posting's full hours x 1.75. NO TAKERS, AWARD OUT OF DEPT and CANCEL REQUEST are " & _
+        "an admin's buttons (greyed for a supervisor): ask the admin when nobody took it, when someone from another department " & _
+        "signed a blank line, or when the overtime is no longer needed. Awarded wrong: ask the admin to void and reopen it."
+    HelpAdd h, n, "Print the call-out roster", _
+        "Click Print the call-out roster (Call Out Roster on the bar). It is redrawn in call order from the roster; answer Yes " & _
+        "to print."
+    HelpAdd h, n, "Update the members' file", _
+        "Click Update the members' file (Member View on the bar) after you post, award or book, so the members see it. Wait for " & _
+        "Members' file published. If it asks to close the members' file open in this Excel, Yes closes it and publishes. If it " & _
+        "says the file couldn't be written it is open on a plant PC: have it closed there and publish again (nothing was " & _
+        "written). NOT published - something private: a calendar line or a posting reason names a kind of leave, sick or " & _
+        "personal; change the words (Change the text of this line / Change the Reason of posting on the calendar) and publish " & _
+        "again. You are also asked when you close the file with changes not yet published."
+    HelpAdd h, n, "The calendar", _
+        "Click What needs cover (Calendar on the bar). Pick the month and the unit at the top. OPEN means the line still needs " & _
+        "cover; POSTED means a posting is out; a name means covered; NCN means no cover needed. Click a line: its details show " & _
+        "in the row under the title. Double-click a line for its options (an admin: set coverage, change the text, start a " & _
+        "call-out, post it). Print / PDF prints the month or saves it as a PDF."
+    HelpAdd h, n, "Needs Attention (admin)", _
+        "From the calendar's Needs attention > button or the tab. It lists open lines, postings ready to award, paybacks owed, " & _
+        "leaves to watch, planned unit moves and other items; double-click a row for its options. A due planned move asks " & _
+        "Apply it now?: Yes applies that one move, No asks whether to cancel it."
+    HelpAdd h, n, "Book time off (admin)", _
+        "Click Book time off. Pick Employee, Unit and Type (VAC vacation, PER personal day, TRN training; for a leave use the " & _
+        "Leave button), type From and To (last day). Vacation and personal days go on scheduled shifts only: a range that " & _
+        "starts or ends on days off asks to be trimmed. Open-ended for no return date yet; Hours / shift for part of a shift. " & _
+        "SAVE. To fix a booking select it under BOOKED TIME OFF and click Change end date or Void."
+    HelpAdd h, n, "Shift switch and payback (admin)", _
+        "Click Shift switch or payback. Type the Shift date, pick the Unit, then Gives up shift and Works the shift. Read the hint " & _
+        "lines: NOT ELIGIBLE stops the save, check is a warning. SAVE SWITCH. It stays on the OWED list until paid back: click " & _
+        "the switch in the list, type the payback date and save. Tick Two-way swap when both dates are known now. A wrong " & _
+        "switch: select it and click Void selected."
+    HelpAdd h, n, "Leave: going and returning (admin)", _
+        "Click Leave. Going on leave: pick Employee and Type, type the first day off and the expected return (or leave it " & _
+        "blank), SAVE LEAVE. Returning: pick who is back, type the first day back, click Work out the top-up, read the peers, " & _
+        "the average and the hours before and after, then SAVE TOP-UP. A return date in the future, or after the roster's last " & _
+        "pay period, is refused."
+    HelpAdd h, n, "Typing a date", _
+        "Every date box takes Oct 12, 12 Oct, Oct 12, 2026 or 10/12 (month then day) and shows the full date it understood. With " & _
+        "no year, a date more than three months back means next year and one more than nine months ahead means last year. A " & _
+        "time typed after the date is ignored. The box says when it can't read what you typed."
+    HelpAdd h, n, "Asking for a void", _
+        "Void Entry is an admin button. To correct a logged call-out or award, tell the admin the number (S-0012, P-0003) and " & _
+        "what was wrong: the admin voids it (the entry stays in the log, marked VOID) and you log the correct entry."
+    HelpAdd h, n, "If a red box appears", _
+        "This didn't finish means something stopped part-way. The box names what you were doing and an Error Log line. Nothing " & _
+        "you did before it is lost. Try once more; if it fails again, click Something went wrong on the Desk: an email to " & _
+        PRIMARY_ADMIN_NAME & " opens with the error line in it (or a box to photograph). Saving is blocked in red means close " & _
+        "WITHOUT saving, reopen, check your last entry, and tell the admin."
+    HelpAdd h, n, "Close the file", _
+        "Saving is automatic after each entry and again when you close. Just close the file. The members' file question on " & _
+        "close: Yes publishes before closing."
 End Sub
 
 ' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it

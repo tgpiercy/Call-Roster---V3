@@ -266,8 +266,9 @@ Private Sub FillOutside()
         End If
     End With
     C("lblOutside").Caption = "Out of department (signed a blank line):   " & _
+        IIf(Not IsAdmin(), "an admin awards out of department (" & cnt & " free)", _
         IIf(cnt = 0, "nobody else signed off in " & mP.Unit & " is free that shift", _
-                     cnt & " signed off in " & mP.Unit & " and free - lowest hours first")
+                     cnt & " signed off in " & mP.Unit & " and free - lowest hours first"))
 End Sub
 
 
@@ -423,15 +424,18 @@ Private Sub Finished(ByVal msg As String)
 End Sub
 
 Private Sub SetActionButtons(ByVal on_ As Boolean)
+    ' v25.5 (bundle item 6): a supervisor awards to the list only; No Takers, Award Out of Dept and Cancel
+    ' Request are greyed for a non-admin login (the three Submit* carry RequireAdmin as well)
+    Dim adm As Boolean: adm = on_ And IsAdmin()
     btnSignedUp.Enabled = on_
     btnPassed.Enabled = on_
     mPartial.Enabled = on_
     btnSubmit.Enabled = on_
-    mNoTakers.Enabled = on_
-    mCancelReq.Enabled = on_
-    mOutside.Enabled = on_
-    C("cmbOutside").Enabled = on_
-    C("txtOutHrs").Enabled = on_
+    mNoTakers.Enabled = adm
+    mCancelReq.Enabled = adm
+    mOutside.Enabled = adm
+    C("cmbOutside").Enabled = adm
+    C("txtOutHrs").Enabled = adm
     If Not on_ Then C("cmbOutside").Text = "": C("txtOutHrs").Text = ""
 End Sub
 

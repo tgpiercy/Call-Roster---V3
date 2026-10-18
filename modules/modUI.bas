@@ -781,3 +781,41 @@ Public Sub ApplyFormTheme(ByVal frm As Object)
     Next ctl
     On Error GoTo 0
 End Sub
+
+' v25.5 (briefs/v25.5.md item 2, A2): every pop-up's layout x UI_SCALE, once, as the LAST line of its Initialize:
+' each control's position, size and point size (the designer controls too), a list's column widths, and the
+' form itself. A size a form writes later (Load Posting's short layout, Add a Need's height) goes through UiPx.
+' The call-out pop-up scales itself (Px in its paste-in) and does not call this.
+Public Sub ScaleForm(ByVal frm As Object)
+    If UI_SCALE = 1 Then Exit Sub
+    Dim ctl As Object
+    On Error Resume Next
+    For Each ctl In frm.Controls
+        ctl.Left = ctl.Left * UI_SCALE
+        ctl.Top = ctl.Top * UI_SCALE
+        ctl.Width = ctl.Width * UI_SCALE
+        ctl.Height = ctl.Height * UI_SCALE
+        ctl.Font.Size = ctl.Font.Size * UI_SCALE
+        If TypeName(ctl) = "ListBox" Or TypeName(ctl) = "ComboBox" Then ctl.ColumnWidths = ScaleWidths(CStr(ctl.ColumnWidths))
+    Next ctl
+    frm.Width = frm.Width * UI_SCALE
+    frm.Height = frm.Height * UI_SCALE
+    On Error GoTo 0
+End Sub
+
+' "22 pt;182 pt;-1 pt" (as a list reads its ColumnWidths back) -> each width x UI_SCALE; -1 (automatic) and "" stay
+Public Function ScaleWidths(ByVal widths As String) As String
+    If Trim$(widths) = "" Then Exit Function
+    Dim parts As Variant, i As Long, v As Double
+    parts = Split(widths, ";")
+    For i = LBound(parts) To UBound(parts)
+        v = Val(Trim$(CStr(parts(i))))
+        If v > 0 Then parts(i) = Format$(v * UI_SCALE, "0.##") & " pt" Else parts(i) = Trim$(CStr(parts(i)))
+    Next i
+    ScaleWidths = Join(parts, ";")
+End Function
+
+' a size written AFTER ScaleForm ran goes through this
+Public Function UiPx(ByVal v As Double) As Double
+    UiPx = v * UI_SCALE
+End Function

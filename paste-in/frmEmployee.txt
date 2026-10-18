@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24.3.1 (Oct 14)
+' @version v25.5 (Oct 18)
 
 ' ================================================================
 ' EMPLOYEE (v24, admin) - five jobs in one pop-up
@@ -251,6 +251,7 @@ Private Sub UserForm_Initialize()
     Next k
     mOptAdd.Value = True
     SetMode
+    ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
 End Sub
 
 ' RenameEmployee (the old macro name) opens straight on Rename for one person

@@ -42,6 +42,30 @@ Oops:
     ReportError "SmokePosting"
 End Sub
 
+' v25.5: Sick Call, as the Desk opens it (the pop-up picks its own person and date; d goes on the status line)
+Public Sub SmokeSick(ByVal d As Date)
+    On Error GoTo Oops
+    Application.StatusBar = "Install panel: Sick Call for " & Format$(Int(d), "ddd mmm d") & " - look at the pop-up at scale, then Close"
+    ShowSickCallForm
+    Application.StatusBar = False
+    Exit Sub
+Oops:
+    Application.StatusBar = False
+    ReportError "SmokeSick"
+End Sub
+
+' v25.5: Award Posting, as the Desk opens it (pick any open posting, LOAD, look, then close without submitting)
+Public Sub SmokeAward(ByVal d As Date)
+    On Error GoTo Oops
+    Application.StatusBar = "Install panel: Award Posting (" & Format$(Int(d), "ddd mmm d") & ") - LOAD any posting, look at the pop-up at scale, then close it"
+    ShowPostingForm
+    Application.StatusBar = False
+    Exit Sub
+Oops:
+    Application.StatusBar = False
+    ReportError "SmokeAward"
+End Sub
+
 ' Shift Switch (the pop-up takes its dates by hand; d is shown in the title bar's status line only)
 Public Sub SmokeSwitch(ByVal d As Date)
     On Error GoTo Oops

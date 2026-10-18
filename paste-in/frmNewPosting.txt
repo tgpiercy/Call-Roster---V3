@@ -1,5 +1,5 @@
 Option Explicit
-' @version v25 (Oct 14)
+' @version v25.5 (Oct 18)
 
 ' ================================================================
 ' NEW OVERTIME POSTING  /  LOAD POSTING
@@ -211,6 +211,7 @@ Private Sub UserForm_Initialize()
     C("hintHours").Font.Size = 8
     C("hintHours").Font.Bold = True
     mCreate.Default = True
+    ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
 End Sub
 
 ' Called before .Show for the Load Posting button: hide the new-posting part
@@ -241,9 +242,9 @@ Public Sub LoadOnly()
     For Each o In mNewCtls
         o.Visible = False
     Next o
-    C("lblExistInfo").Width = 245
-    mCancel.Top = 84: mCancel.Left = LBL_L + 252: mCancel.Width = 120: mCancel.Height = 22
-    Me.Height = 146
+    C("lblExistInfo").Width = UiPx(245)          ' v25.5: written after ScaleForm, so x UI_SCALE here
+    mCancel.Top = UiPx(84): mCancel.Left = UiPx(LBL_L + 252): mCancel.Width = UiPx(120): mCancel.Height = UiPx(22)
+    Me.Height = UiPx(146)
     Me.Caption = "Load Posting"
     mCreate.Default = False
 End Sub

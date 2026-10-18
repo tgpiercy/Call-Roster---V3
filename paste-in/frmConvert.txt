@@ -1,5 +1,5 @@
 Option Explicit
-' @version v24.3.1 (Oct 14)
+' @version v25.5 (Oct 18)
 
 ' ================================================================
 ' CONVERT IMPORTED LINES (v22)
@@ -110,6 +110,7 @@ Private Sub UserForm_Initialize()
     ApplyFormTheme Me
     mConvert.BackColor = RGB(21, 101, 192): mConvert.ForeColor = vbWhite
     LoadLines
+    ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
 End Sub
 
 Private Sub LoadLines()

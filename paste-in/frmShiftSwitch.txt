@@ -1,5 +1,5 @@
 Option Explicit
-' @version v25 (Oct 14)
+' @version v25.5 (Oct 18)
 
 ' ================================================================
 ' SHIFT SWITCH (S/S)
@@ -199,6 +199,7 @@ Private Sub UserForm_Initialize()
     For Each h In Array("hDate", "hOff", "hWorks", "hShift", "hPay")
         C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
     Next h
+    ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
 End Sub
 
 

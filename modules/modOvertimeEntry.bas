@@ -36,7 +36,7 @@ Public Const GUIDE_PATH As String = ""                                    ' the 
 Public Const SUPERVISOR_DESK As Boolean = True                            ' every supervisor (non-admin) lands on the supervisor Desk (Graeme, Oct 17)
 ' v25.5 (briefs/v25.5.md item 2, D1 taken by default Oct 18): every pop-up's positions, sizes and point sizes are
 ' multiplied by this, for everyone. 1 = the sizes as written (500 x 600 call-out fits 1366 x 768); 1.2 fits 1920 x 1080.
-Public Const UI_SCALE As Double = 1
+Public Const UI_SCALE As Double = 1                                       ' (ScaleForm / UiPx in modUI apply it)
 
 Public Const CHARGE_MULTIPLIER As Double = 1.75   ' refused / passed OT is charged at this rate
 Public Const CHARGE_MAX_GRADE As Double = 2       ' grades above this are called but never charged

@@ -1,5 +1,5 @@
 Option Explicit
-' @version v25 (Oct 14)
+' @version v25.5 (Oct 18)
 
 ' ================================================================
 ' SICK CALL (v22)
@@ -114,6 +114,7 @@ Private Sub UserForm_Initialize()
     For Each h In Array("hDate", "hShift", "hHrs")
         C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
     Next h
+    ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
     mDate.Text = DateText(Date)                  ' last: its Change handler needs every control above
 End Sub
 

@@ -200,6 +200,7 @@ Private Sub UserForm_Initialize()
     mPartial.BackColor = RGB(0, 110, 90): mPartial.ForeColor = vbWhite
     mOutside.BackColor = RGB(93, 64, 55): mOutside.ForeColor = vbWhite
     mCancelReq.BackColor = RGB(236, 239, 243): mCancelReq.ForeColor = RGB(40, 40, 40)
+    ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
 End Sub
 
 Private Sub LoadChoices()

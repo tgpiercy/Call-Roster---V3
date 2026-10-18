@@ -1,5 +1,5 @@
 Option Explicit
-' @version v25 (Oct 14)
+' @version v25.5 (Oct 18)
 
 ' ================================================================
 ' BOOK TIME OFF  /  ADD A NEED
@@ -186,6 +186,7 @@ Private Sub UserForm_Initialize()
         C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
     Next h
     mOpen.BackStyle = 0: mOptPerson.BackStyle = 0: mOptNeed.BackStyle = 0
+    ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI); SetMode's height goes through UiPx
 
     mOptPerson.Value = True
     SetMode True
@@ -201,7 +202,7 @@ Private Sub SetMode(ByVal person As Boolean)
         o.Visible = Not person
     Next o
     Me.Caption = IIf(person, "Book Time Off", "Add a Need")
-    Me.Height = IIf(person, 560, RowT(11) + 74)
+    Me.Height = UiPx(IIf(person, 560, RowT(11) + 74))     ' v25.5: after ScaleForm, so x UI_SCALE here
     UpdateInfo
 End Sub
 

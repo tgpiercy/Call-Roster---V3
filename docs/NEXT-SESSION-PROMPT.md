@@ -6,10 +6,11 @@ docs/ease-of-use-plan-2026-10.md, briefs/v25.2.5.md (the bundle list) and briefs
 Confirm the four checkers and pytest are green on main and the tree is clean (two docs about the Desk
 proposal are committed; nothing should be untracked).
 
-Where things stand: the real roster is on v25.2 (installed Oct 17; Calendar 4.6 -> 2.5 s). v25.3 (the two
-Desks + supervisor rights) is tagged and its zip is built; its install is pending, including one hand-check
-row that needs a practice copy opened under a real supervisor's login (the gates). Everything is pushed to
-origin (https://github.com/tgpiercy/Call-Roster---V3).
+Where things stand: the real roster is on v25.3 (installed Oct 18: the two Desks + supervisor rights; v25.2's
+calendar speed-up 4.6 -> 2.5 s is in it). The hand-check row that needs a practice copy opened under a
+supervisor's login (the gates) is ON HOLD by Graeme's choice. The supervisor logins are known
+(briefs/v25.2.5.md item 9: mihaychukc, sheltond, campeauc) and the bundle makes supervisors a named list.
+Everything is pushed to origin (https://github.com/tgpiercy/Call-Roster---V3).
 
 The numbering rule (Oct 17): features x.y as one install; smaller changes and fixes batched into x.y.5;
 fixes to a bundle count up from it; never a single-fix install unless the roster is broken.

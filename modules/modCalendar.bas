@@ -5138,3 +5138,441 @@ Private Sub SectionLabelLegacy(ByVal ws As Worksheet, ByVal r As Long, ByVal n A
         End If
     End With
 End Sub
+
+' ---- Needs Attention, the same way (v25.2 item 5): DrawNeedsLegacy + NARowsLegacy = the v25.1.2 row-by-row
+' writer, one release, for SmokeTest step 20. Shares NASection, NATile, BuildNAControls, AddNote, LineDetails.
+Public Sub DrawNeedsLegacy()
+    Dim ws As Worksheet: Set ws = NeedsSheet()
+    Dim grp As String: grp = NAGroup()
+    Dim nDays As Long: nDays = NADays()
+    Dim drawnFrom As String: drawnFrom = SafeStr(MapSheet().Range("Z7").Value)
+    Dim t0 As Double, tA As Double, tB As Double, tC As Double    ' v25.1.2: draw-time measurement (CalMap Z15)
+    t0 = Timer
+    mTimeSlots = 0
+    mDrawing = True
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim calcWas As Long: calcWas = Application.Calculation
+    Application.EnableEvents = False
+    Application.Calculation = xlCalculationManual
+    Application.ScreenUpdating = False
+    On Error GoTo Failed
+    UnlockSheet ws
+    LoadCache
+    LoadPostCache
+    Dim plV As Variant: plV = PostListData()
+
+    ' ---- gather ----
+    Dim pr() As NARow, nP As Long, lr() As NARow, nL As Long, sr() As NARow, nS As Long, br() As NARow, nB As Long
+    ReDim pr(1 To 50): ReDim lr(1 To 50): ReDim sr(1 To 50): ReDim br(1 To 50)
+    Dim i As Long, j As Long, m As Long, cl As Date, sd As Date, d As Date, sh As Variant, rt As String
+    Dim nReady As Long, tier As Long, st As String, stC As Long, stF As Long, id As String, txt As String
+
+    ' A. postings still open
+    If IsArray(mPostV) Then
+        For i = 1 To UBound(mPostV, 1)
+            If SafeStr(mPostV(i, PS_STATUS)) = "Open" And UnitInGroup(SafeStr(mPostV(i, PS_UNIT)), grp) Then
+                id = SafeStr(mPostV(i, PS_ID))
+                cl = AsDate(mPostV(i, PS_CLOSES))
+                sd = AsDate(mPostV(i, PS_DATE))
+                If cl > 0 And PostingClosed(cl) Then          ' v25 review: the one closing test
+                    tier = 0: st = "READY TO AWARD": stC = thOpen(): stF = thOpenFill(): nReady = nReady + 1
+                ElseIf cl > 0 And Int(cl) = Date Then
+                    tier = 1: st = "Closes today " & POSTING_CLOSE_TIME: stC = thPosted(): stF = thPostedFill()
+                ElseIf cl > 0 Then
+                    tier = 2: st = "Open until " & Format$(cl, "ddd mmm d"): stC = thMuted(): stF = -1
+                Else
+                    tier = 3: st = "Open (no closing date)": stC = thMuted(): stF = -1
+                End If
+                txt = id & "  " & SafeStr(mPostV(i, PS_REASON)) & "   (" & SafeStr(mPostV(i, PS_HOURS)) & "h, " & _
+                      SafeStr(mPostV(i, PS_POS)) & " pos, " & SignedCount(plV, id) & " signed up)"
+                If Not CovHasSourceCached(id) Then
+                    txt = txt & "   - NOT ON CALENDAR"
+                    If tier > 0 Then stC = thOpen()
+                End If
+                NAAdd pr, nP, Format$(sd, "ddd mmm d"), SafeStr(mPostV(i, PS_SHIFT)), SafeStr(mPostV(i, PS_CREW)), _
+                      SafeStr(mPostV(i, PS_UNIT)), txt, TypeLong(ReasonType(SafeStr(mPostV(i, PS_REASON)))), st, _
+                      IIf(cl > 0, WhenText(cl), ""), "P:" & id, tier * 1000000# + CDbl(Int(cl)), thPosted(), stC, stF, _
+                      IIf(cl > 0, WhenColor(cl), thMuted())
+            End If
+        Next i
+        NASort pr, nP
+    End If
+
+    ' B. open lines in the window
+    Dim slots() As CalSlot, unit As String
+    For i = 0 To nDays - 1
+        d = Date + i
+        For Each sh In Array("Days", "Nights")
+            m = SlotsFor(d, CStr(sh), grp, slots, True)
+            For j = 1 To m
+                rt = UCase$(slots(j).RightText)
+                If slots(j).IsOpen Or rt Like "NO TAKERS*" Then
+                    unit = SlotUnit(slots(j).Key)
+                    NAAdd lr, nL, Format$(d, "ddd mmm d"), CStr(sh), IIf(sh = "Days", DaysCrew(d), NightsCrew(d)), unit, _
+                          slots(j).LeftText, TypeLong(slots(j).TypeCode), IIf(rt Like "NO TAKERS*", "NO TAKERS", "OPEN"), _
+                          WhenText(d), slots(j).Key & "|" & CLng(Int(d)) & "|" & sh, 0, thOpen(), thOpen(), thOpenFill(), WhenColor(d)
+                End If
+            Next j
+        Next sh
+    Next i
+
+    ' C. shift switch paybacks still owed
+    Dim ow As Variant, owIds As Variant, swD As Date, swSh As String, swU As String, swOff As String, swWorks As String
+    On Error Resume Next
+    ow = OwedSwitches(owIds)
+    On Error GoTo Failed
+    If IsArray(owIds) Then
+        For i = LBound(owIds) To UBound(owIds)
+            id = CStr(owIds(i))
+            If SwitchInfo(id, swD, swSh, swU, swOff, swWorks) Then
+                If UnitInGroup(swU, grp) Then
+                    NAAdd sr, nS, Format$(swD, "ddd mmm d"), swSh, IIf(swSh = "Days", DaysCrew(swD), NightsCrew(swD)), swU, _
+                          swOff & " owes " & swWorks & " a shift   (" & id & ")", "Shift switch", "Payback owed", _
+                          WhenText(swD), "S:" & id, CDbl(Int(swD)), TypeColor("SS"), TypeColor("SS"), Tint(TypeColor("SS"), 0.85), thMuted()
+                End If
+            End If
+        Next i
+    End If
+
+    ' D. leave returning soon, and anything open-ended
+    Dim code As String, eD As Date, nOpenEnded As Long, empNm As String
+    If IsArray(mAbs) Then
+        For i = 1 To UBound(mAbs, 1)
+            If UCase$(SafeStr(mAbs(i, AB_STATUS))) <> "VOID" And IsDate(mAbs(i, AB_START)) Then
+                If UnitInGroup(SafeStr(mAbs(i, AB_UNIT)), grp) Then
+                    code = TypeCode(SafeStr(mAbs(i, AB_TYPE)))
+                    sd = CDate(mAbs(i, AB_START))
+                    st = ""
+                    If Not IsDate(mAbs(i, AB_END)) Then
+                        If Int(sd) <= Date + nDays - 1 Then
+                            st = "Open-ended - no return date": eD = sd: nOpenEnded = nOpenEnded + 1
+                        End If
+                    ElseIf IsLeaveCode(code) Then
+                        eD = CDate(mAbs(i, AB_END)) + 1
+                        If Int(eD) >= Date And Int(eD) <= Date + nDays - 1 Then st = "Returns " & Format$(eD, "ddd mmm d")
+                    End If
+                    If st <> "" Then
+                        empNm = SafeStr(mAbs(i, AB_EMP))
+                        NAAdd br, nB, Format$(sd, "ddd mmm d"), "", EmpCrewOf(empNm), SafeStr(mAbs(i, AB_UNIT)), _
+                              CalName(empNm), TypeLong(code), st, WhenText(eD), "B:" & SafeStr(mAbs(i, AB_ID)), _
+                              IIf(Left$(st, 4) = "Open", 0, 1000000#) + CDbl(Int(eD)), TypeColor(code), TypeColor(code), _
+                              Tint(TypeColor(code), 0.85), thMuted()
+                    End If
+                End If
+            End If
+        Next i
+        NASort br, nB
+    End If
+
+    ' E. weekend holidays still waiting for the weekday the plant gives off (v20)
+    Dim hr() As NARow, nH As Long, hv As Variant, hk As Variant, hd As Date, hLook As Long
+    ReDim hr(1 To 20)
+    hLook = nDays: If hLook < HOL_CONFIRM_DAYS Then hLook = HOL_CONFIRM_DAYS
+    hv = HolidaysToConfirm(Date, Date + hLook - 1)
+    If IsArray(hv) Then
+        For Each hk In hv
+            hd = DateSerial(CLng(Left$(hk, 4)), CLng(Mid$(hk, 6, 2)), CLng(Mid$(hk, 9, 2)))
+            NAAdd hr, nH, Format$(hd, "ddd mmm d"), "", "DAYS", "All units", Mid$(hk, 12), "Holiday", _
+                  "Set the weekday off", WhenText(hd), "H:" & Format$(hd, "yyyy-mm-dd"), CDbl(hd), _
+                  RGB(176, 0, 32), RGB(176, 0, 32), Tint(RGB(176, 0, 32), 0.88), thMuted()
+        Next hk
+    End If
+
+    ' H. imported vacation lines not yet booked (v22) - they don't keep people off call lists
+    Dim ir() As NARow, nI As Long, iv As Variant
+    ReDim ir(1 To 20)
+    On Error Resume Next
+    iv = ImportCandidates(Date, Date + IMPORT_WATCH_DAYS - 1)
+    On Error GoTo Failed
+    If IsArray(iv) Then
+        For i = 1 To UBound(iv, 1)
+            If UnitInGroup(SafeStr(iv(i, 4)), grp) Then
+                NAAdd ir, nI, Format$(Dt2(iv(i, 2)), "ddd mmm d"), SafeStr(iv(i, 3)), "", SafeStr(iv(i, 4)), _
+                      SafeStr(iv(i, 5)) & IIf(SafeStr(iv(i, 6)) = "", "   (no roster match)", IIf(SafeStr(iv(i, 6)) = "?", "   (several matches)", "   = " & SafeStr(iv(i, 6)))), _
+                      "Imported", "Not booked", WhenText(Dt2(iv(i, 2))), "I:" & SafeStr(iv(i, 1)), CDbl(Int(Dt2(iv(i, 2)))), _
+                      TypeColor("VAC"), thOpen(), thOpenFill(), WhenColor(Dt2(iv(i, 2)))
+            End If
+        Next i
+        NASort ir, nI
+    End If
+
+    ' G. members' file not published lately (M1)
+    Dim mr() As NARow, nM As Long, pubAt As Date, pubTxt As String
+    ReDim mr(1 To 2)
+    pubAt = MembersPublishedAt()
+    If pubAt = 0 Then
+        pubTxt = "never published - click Member View on the roster"
+    ElseIf Int(Date) - Int(pubAt) >= MEMBERS_STALE_DAYS Then
+        pubTxt = "last published " & Format$(pubAt, "ddd mmm d, h:mm AM/PM") & " (" & (Int(Date) - Int(pubAt)) & " days ago)"
+    End If
+    If pubTxt <> "" Then
+        NAAdd mr, nM, Format$(Date, "ddd mmm d"), "", "", "All units", "Members file: " & pubTxt, "Publish", _
+              "Publish again", "", "M:publish", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
+    End If
+
+    ' E. errors nobody has looked at yet (v24.2)
+    Dim er() As NARow, nE As Long, nErrLines As Long
+    ReDim er(1 To 2)
+    nErrLines = UnseenErrorCount()
+    If nErrLines > 0 Then
+        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
+              "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+    End If
+
+    ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
+    Dim ur() As NARow, nU As Long, uv As Variant, uk As Variant
+    ReDim ur(1 To 20)
+    On Error Resume Next
+    uv = BlankHomeUnits()
+    On Error GoTo Failed
+    If IsArray(uv) Then
+        For Each uk In uv
+            NAAdd ur, nU, "", "", EmpCrewOf(CStr(uk)), "", CStr(uk), "Roster", "Home Unit blank", "", _
+                  "U:" & CStr(uk), 0, thMuted(), thOpen(), thOpenFill(), thMuted()
+        Next uk
+    End If
+
+    ' V. unit moves entered ahead of time (v24.3): waiting for their date, or due and not applied
+    Dim vr() As NARow, nV As Long, pmv As Variant, pmD As Date, pmDue As Boolean, pmWho As String
+    ReDim vr(1 To 10)
+    On Error Resume Next
+    pmv = PlannedRows()
+    On Error GoTo Failed
+    If IsArray(pmv) Then
+        For i = 1 To UBound(pmv, 1)
+            pmD = Dt2(pmv(i, PM_FROM))
+            pmDue = (Int(pmD) <= Date)                  ' a date that can't be read (0) shows as a problem too
+            pmWho = SafeStr(pmv(i, PM_EMP))
+            NAAdd vr, nV, IIf(pmD = 0, "?", Format$(pmD, "ddd mmm d")), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
+                  CalName(pmWho) & "   " & HomeUnitOf(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
+                  SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmD = 0, "Date can't be read", IIf(pmDue, "DUE - not applied", "Planned")), _
+                  IIf(pmD = 0, "", WhenText(pmD)), "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), _
+                  IIf(pmDue, thOpen(), thMuted()), IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
+        Next i
+        NASort vr, nV
+    End If
+
+    ' T. attendance (v22.1): sick / personal days at or over the limit, by home unit
+    Dim tr() As NARow, nT As Long, rn As Variant, ast As AttendanceStatus, lvl As Long, hu As String, nmT As String
+    ReDim tr(1 To 20)
+    On Error Resume Next
+    rn = RosterNames()
+    If IsArray(rn) Then
+        BeginAttendanceBatch
+        For i = LBound(rn) To UBound(rn)
+            nmT = CStr(rn(i))
+            hu = HomeUnitOf(nmT)
+            If hu = "" Or UnitInGroup(hu, grp) Then
+                If AttendanceFor(nmT, Date, ast) Then
+                    lvl = AttendanceLevel(ast)
+                    If lvl > 0 Then
+                        NAAdd tr, nT, IIf(ast.LastSick > 0, Format$(ast.LastSick, "ddd mmm d"), ""), "", EmpCrewOf(nmT), hu, _
+                              CalName(nmT) & "   " & ast.SickUsed & " sick / " & ast.PersonalUsed & " personal, " & ast.Occurrences & " occ.", _
+                              "Attendance", AttendanceStatusText(ast), _
+                              IIf(ast.WaitUntil > 0, "until " & Format$(ast.WaitUntil, "mmm d, yyyy"), ""), _
+                              "T:" & nmT, CDbl(-lvl * 1000 - ast.Combined), TypeColor("SIC"), _
+                              IIf(lvl = 2, thOpen(), thPosted()), IIf(lvl = 2, thOpenFill(), thPostedFill()), thMuted()
+                    End If
+                End If
+            End If
+        Next i
+        EndAttendanceBatch
+        NASort tr, nT
+    End If
+    On Error GoTo Failed
+
+    tA = Timer                                      ' gathered
+    ' ---- draw ----
+    ws.Rows("1:3000").Delete
+    With ws.Cells.Font
+        .Name = CAL_FONT
+        .Size = 9
+    End With
+    ws.Cells.Interior.Color = vbWhite
+    ws.Columns(1).ColumnWidth = 1.5
+    ws.Columns(2).ColumnWidth = 13
+    ws.Columns(3).ColumnWidth = 8
+    ws.Columns(4).ColumnWidth = 7
+    ws.Columns(5).ColumnWidth = 17
+    ws.Columns(6).ColumnWidth = 46
+    ws.Columns(7).ColumnWidth = 16
+    ws.Columns(8).ColumnWidth = 26
+    ws.Columns(9).ColumnWidth = 13
+    ws.Columns(10).ColumnWidth = 2
+    ws.Range(ws.Columns(NA_KEY), ws.Columns(NA_KEY + 12)).Hidden = True
+
+    ws.Rows(1).RowHeight = 38
+    ws.Range("A1:J1").Interior.Color = thBand()
+    With ws.Range("B1:E1")
+        .Merge
+        .Value = "NEEDS ATTENTION"
+        .Font.Name = CAL_FONT_B: .Font.Size = 15: .Font.Color = vbWhite
+        .VerticalAlignment = xlCenter
+    End With
+    ws.Rows(2).RowHeight = 22
+    With ws.Range("B2:I2")
+        .Merge
+        .Value = grp & "   " & ChrW(183) & "   " & Format$(Date, "ddd mmm d") & " to " & Format$(Date + nDays - 1, "ddd mmm d") & _
+                 "   " & ChrW(183) & "   updated " & Format$(Now, "h:mm AM/PM") & "   " & ChrW(183) & "   double-click any row for options" & _
+                 IIf(RolloverNote() <> "", "   " & ChrW(183) & "   " & RolloverNote(), "")
+        .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
+        .VerticalAlignment = xlCenter
+    End With
+    ws.Rows(3).RowHeight = 8
+    ws.Rows(4).RowHeight = 30
+    ws.Rows(5).RowHeight = 16
+    ws.Rows(6).RowHeight = 12
+
+    Dim r As Long: r = 7
+    Dim rowP As Long, rowL As Long, rowS As Long, rowB As Long
+    rowL = r
+    r = NASection(ws, r, "OPEN LINES  -  need cover in the next " & nDays & " days", nL, thOpen(), _
+                  Array("Date", "Shift", "Crew", "Unit", "Who's off / need", "Type", "Status", "When"))
+    r = NARowsLegacy(ws, r, lr, nL, "Nothing open - every line in the window is covered, posted or NCN.")
+    rowP = r
+    r = NASection(ws, r, "POSTINGS  -  open postings, oldest closing first", nP, thPosted(), _
+                  Array("Shift date", "Shift", "Crew", "Unit", "Posting", "Type", "Status", "Closes"))
+    r = NARowsLegacy(ws, r, pr, nP, "No open postings.")
+    rowS = r
+    r = NASection(ws, r, "SHIFT SWITCH PAYBACKS OWED", nS, TypeColor("SS"), _
+                  Array("Switch date", "Shift", "Crew", "Unit", "Owed", "Type", "Status", "When"))
+    r = NARowsLegacy(ws, r, sr, nS, "No paybacks owed.")
+    rowB = r
+    r = NASection(ws, r, "LEAVE  -  returning soon or open-ended", nB, TypeColor("LOA"), _
+                  Array("Started", "", "Crew", "Unit", "Who", "Type", "Status", "When"))
+    r = NARowsLegacy(ws, r, br, nB, "Nobody returning from leave in the window, and nothing open-ended.")
+    If nH > 0 Then
+        r = NASection(ws, r, "HOLIDAYS TO CONFIRM  -  weekend holiday, weekday off not entered (next " & hLook & " days)", _
+                      nH, RGB(176, 0, 32), Array("Holiday date", "", "Crew", "Unit", "Holiday", "Type", "Status", "When"))
+        r = NARowsLegacy(ws, r, hr, nH, "")
+    End If
+    If nU > 0 Then
+        r = NASection(ws, r, "HOME UNIT NOT SET  -  pick it from the drop-down in column B of the roster (double-click a name)", _
+                      nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
+        r = NARowsLegacy(ws, r, ur, nU, "")
+    End If
+    If nE > 0 Then
+        r = NASection(ws, r, "ERRORS  -  something didn't finish (double-click to open the Error Log)", _
+                      nE, RGB(176, 0, 32), Array("Today", "", "", "", "What", "Type", "Status", ""))
+        r = NARowsLegacy(ws, r, er, nE, "")
+    End If
+    If nM > 0 Then
+        r = NASection(ws, r, "MEMBERS FILE  -  what the union sees is out of date (double-click to publish)", _
+                      nM, thPosted(), Array("Today", "", "", "", "Members file", "Type", "Status", ""))
+        r = NARowsLegacy(ws, r, mr, nM, "")
+    End If
+    If nI > 0 Then
+        r = NASection(ws, r, "IMPORTED, NOT BOOKED  -  old-calendar vacations that don't keep people off call lists yet (double-click to convert)", _
+                      nI, TypeColor("VAC"), Array("Date", "Shift", "", "Unit", "As imported", "Type", "Status", "When"))
+        r = NARowsLegacy(ws, r, ir, nI, "")
+    End If
+    If nV > 0 Then
+        r = NASection(ws, r, "PLANNED UNIT MOVES  -  applied when an admin opens the file on or after the date (double-click to cancel)", _
+                      nV, thMuted(), Array("Effective", "", "New crew", "New unit", "Who", "Type", "Status", "When"))
+        r = NARowsLegacy(ws, r, vr, nV, "")
+    End If
+    If nT > 0 Then
+        r = NASection(ws, r, "ATTENDANCE  -  sick / personal days at or over the limit (double-click for the Attendance sheet)", _
+                      nT, TypeColor("SIC"), Array("Last sick", "", "Crew", "Home unit", "Who", "Type", "Status", "Until"))
+        r = NARowsLegacy(ws, r, tr, nT, "")
+    End If
+
+    tB = Timer                                      ' rows drawn
+    ' ---- summary tiles (double-click one to jump to its list) ----
+    NATile ws, 2, 3, nL, "OPEN LINES", thOpen(), rowL
+    NATile ws, 4, 5, nReady, "READY TO AWARD", thPosted(), rowP
+    NATile ws, 6, 6, nP, "OPEN POSTINGS", TypeColor("VAC"), rowP
+    NATile ws, 7, 7, nS, "PAYBACKS OWED", TypeColor("SS"), rowS
+    NATile ws, 8, 9, nB, "LEAVE TO WATCH", TypeColor("LOA"), rowB
+
+    BuildNAControls ws, grp, nDays
+
+    On Error Resume Next
+    If ActiveSheet Is ws Then
+        With ActiveWindow
+            .DisplayGridlines = False
+            .DisplayHeadings = False
+            .FreezePanes = False
+            .ScrollRow = 1
+            .SplitColumn = 0
+            .SplitRow = 2
+            .FreezePanes = True
+        End With
+    End If
+    On Error GoTo Failed
+    MapWrite "Z9", drawnFrom                        ' v25.1: through the pair
+    MapWrite "Z11", "'" & DrawContext()
+    tC = Timer                                      ' v25.1.2: tiles drawn
+    MapWrite "Z15", "'" & "Needs Attention LEGACY " & grp & ", " & nDays & " days (" & (nP + nL + nS + nB + nH + nU + nE + nM + nI + nV + nT) & " rows): drawn in " & _
+        Format$(Secs(t0, tC), "0.0") & " s = gather " & Format$(Secs(t0, tA), "0.0") & " (slots " & Format$(mTimeSlots, "0.0") & _
+        "), rows " & Format$(Secs(tA, tB), "0.0") & ", tiles " & Format$(Secs(tB, tC), "0.0") & "  [" & CAL_VERSION & "]"
+    GoTo Done
+
+Failed:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description & " (error " & Err.Number & ")"
+    Resume AfterFail
+AfterFail:
+    On Error Resume Next
+    LogError "DrawNeedsLegacy", en, em          ' v24.3.1
+    UnlockSheet ws
+    ws.Cells(3, 2).Value = "Couldn't finish: " & em
+    ws.Cells(3, 2).Font.Color = thOpen()
+    BuildNAControls ws, grp, nDays
+    Application.ScreenUpdating = True
+    MsgBox "The Needs Attention tab couldn't finish drawing:" & vbNewLine & vbNewLine & em & vbNewLine & vbNewLine & _
+           "Send a screenshot of this message.  (" & CAL_VERSION & ")", vbExclamation, "Needs Attention"
+Done:
+    On Error Resume Next
+    ProtectSheet ws
+    Application.Calculation = calcWas
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = True
+    mDrawing = False
+End Sub
+
+Private Function NARowsLegacy(ByVal ws As Worksheet, ByVal r As Long, ByRef recs() As NARow, ByVal n As Long, _
+                        ByVal emptyMsg As String) As Long
+    Dim i As Long, c As Long
+    If n = 0 Then
+        ws.Rows(r).RowHeight = 20
+        With ws.Cells(r, 2)
+            .Value = emptyMsg
+            .Font.Italic = True: .Font.Color = thGreen()
+            .VerticalAlignment = xlCenter: .IndentLevel = 1
+        End With
+        ws.Rows(r + 1).RowHeight = 14
+        NARowsLegacy = r + 2
+        Exit Function
+    End If
+    For i = 1 To n
+        ws.Rows(r).RowHeight = 20
+        If i Mod 2 = 0 Then ws.Range(ws.Cells(r, 2), ws.Cells(r, 9)).Interior.Color = RGB(250, 250, 251)
+        ws.Cells(r, 1).Interior.Color = recs(i).Accent
+        For c = 0 To 7
+            With ws.Cells(r, 2 + c)
+                .Value = "'" & recs(i).Cell(c)
+                .VerticalAlignment = xlCenter
+                .IndentLevel = 1
+                .ShrinkToFit = True
+            End With
+        Next c
+        ws.Cells(r, 6).Font.Name = CAL_FONT_B
+        With ws.Cells(r, 8)
+            .Font.Name = CAL_FONT_B: .Font.Color = recs(i).StatusCol
+            If recs(i).StatusFill >= 0 Then .Interior.Color = recs(i).StatusFill
+        End With
+        With ws.Cells(r, 9)
+            .Font.Color = recs(i).WhenCol
+            .Font.Name = IIf(recs(i).WhenCol = thMuted(), CAL_FONT, CAL_FONT_B)
+        End With
+        With ws.Range(ws.Cells(r, 1), ws.Cells(r, 9)).Borders(xlEdgeBottom)
+            .LineStyle = xlContinuous: .Weight = xlHairline: .Color = thGrid()
+        End With
+        ws.Cells(r, NA_KEY).Value = recs(i).Key
+        If Left$(recs(i).Key, 2) = "A:" Or Left$(recs(i).Key, 2) = "C:" Then AddNote ws.Cells(r, 6), LineDetails(recs(i).Key, True)
+        r = r + 1
+    Next i
+    ws.Rows(r).RowHeight = 14
+    NARowsLegacy = r + 1
+End Function

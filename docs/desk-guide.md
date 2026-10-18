@@ -2,7 +2,7 @@
 
 The Desk is the first tab you see when you open the roster. It has tiles that say what is waiting today, and buttons grouped by when you need them. Every button opens the same pop-up the full roster uses; nothing is different underneath.
 
-There are two Desks from the same screen. **A supervisor's Desk** has the jobs every supervisor may do: Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Print the call-out roster, and the two help buttons. **The admin Desk** (for a login on the Desk list) has those plus Book time off, Shift switch or payback, Leave, Update the members' file, the paybacks-owed tile and "Show everything".
+There are two Desks from the same screen. **A supervisor's Desk** (a login on the supervisor list, v25.5) has the jobs a supervisor may do: Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster, and the help buttons. **The admin Desk** (for a login on the Desk list) has those plus Book time off, Shift switch or payback, Leave, Undo the last thing I did, the paybacks-owed tile and "Show everything". The header says which crews are on today; the cover tile names the next uncovered shift.
 
 ## The tiles (TODAY)
 | Tile | Means | Click it for |
@@ -19,7 +19,7 @@ A grey tile means nothing to do. A coloured one has work in it.
 - **PLAN AHEAD**: Post a shift (New Posting). Award a posting. Book time off. Shift switch or payback.
 - **PEOPLE**: Leave: going or returning.
 - **WHEN YOU ARE DONE**: Update the members' file (Member View). Print the call-out roster.
-- **HELP**: How do I ... (the quick guide, once it is on this PC). Something went wrong (an email to Graeme with the newest Error Log line already in it - add what you were doing and send).
+- **HELP**: How do I ... (the Help tab inside the file: one heading and a paragraph per job; < Back returns here). Something went wrong (an email to Graeme with the newest Error Log line already in it - add what you were doing and send). Suggest an improvement (the same kind of email). Under them the keys: Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar, Ctrl+Shift+D this Desk.
 
 ## The tabs
 You see the **Desk** and the tabs every supervisor sees (OT Roster, Calendar, Postings, OT Log, Shift Switches ...); the admin Desk adds **Needs Attention**, and opens the roster and the Calendar at 120 % so they read easily. The admin-only tabs (Absences, Coverage, Holidays, the logs) are in the file but out of the way.

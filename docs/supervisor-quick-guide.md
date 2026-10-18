@@ -1,8 +1,8 @@
 # Call Out Roster: Supervisor Quick Guide
 
-How to do each everyday job in the roster. Current as of v25.1 (Oct 2026).
+How to do each everyday job in the roster. Current as of v25.5 (Oct 2026). The same text is on the roster's **Help** tab (Desk > How do I ...).
 
-The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out**, **Calendar**, **Sick Call**, **New Posting**, **Award Posting** and **Call Out Roster** show for everyone (v25.3). The other buttons show only for logins on the admin list. If a button is missing, ask the admin.
+The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out** and **Calendar** show for everyone. **Sick Call**, **New Posting**, **Award Posting**, **Call Out Roster**, **Member View** and **Find a person** show for supervisors (a login on the supervisor list) and admins (v25.5). The other buttons show only for logins on the admin list. If a button is missing, ask the admin. Keys while the roster is the active workbook: Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar, Ctrl+Shift+D the Desk.
 
 ## Open the file
 1. Open the roster from its usual folder. Click **Enable Content** if Excel asks.
@@ -18,10 +18,10 @@ Every date box takes "Oct 12", "12 Oct", "Oct 12, 2026" or "10/12" (month then d
 Something stopped part-way. The box says "Error Log line N" and the name of what you were doing. Nothing you did before the error is lost; it is saved when you close (unless the box says this copy can't be saved). Check what you were doing (run it again if it was an import), and tell the admin the line number. If the same thing fails twice, stop and ask.
 
 ## Log a call-out
-1. Click **Log Call-Out**. Pick Department, Shift and Date. Type the Hours. Leave Crew on "All not scheduled".
-2. Click **LOAD LIST**. The list is in call order and holds only people free for that shift.
-3. Call the name shown at "Now calling". Click **ACCEPTED**, **REFUSED**, **LEFT MSG** or **UNAVAIL.** For Unavailable, pick the reason first.
-4. When the shift is filled, click **SUBMIT ALL ENTRIES**. Note the session number (S-0012) in the message.
+1. Click **Log Call-Out** (or Fill a shift now on the Desk, or Ctrl+Shift+C). Pick Department, Shift and Date. Type the Hours. Leave Crew on "All not scheduled".
+2. Click **LOAD LIST**. The list is in call order and holds only people free for that shift. The card under the list shows who to call: name, phone, and one line with their code, hours and anything that matters.
+3. Call the person on the card. Press **A** (accepted), **R** (refused), **L** (left message) or **U** (unavailable: the reason list gets the focus, pick one, Enter records it), or click the button. The next person comes up. **K** skips for now (the row keeps "-"), **B** goes back one, **P** is part of the hours. **Call back** goes down the pile of people you left a message with (marked "?").
+4. When the shift is filled, press **Enter** or click **SUBMIT ALL ENTRIES**. The box is four lines; the session number (S-0012) is in its title; the full detail sits on the status bar until your next click and is in the OT Log.
 5. If asked which calendar line the person covers, type its number.
 
 Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. `~` means the hours are an estimate because the person has a unit move planned for a later date (the admin entered it ahead of time). If warned that Kronos data is old, No stops so the admin can import first.
@@ -92,16 +92,16 @@ The person is off call lists for that shift and any shift starting within 24 hou
 Open it from the Calendar with the **Needs attention >** button (it reads "N need cover >" when lines are open), or click the Needs Attention tab. It lists open lines, postings ready to award, paybacks owed, leaves to watch, planned unit moves and other items. Double-click any row for its options. A due planned move's row asks "Apply it now?": Yes applies that one move; No asks "Cancel the move?".
 
 ## The Desk
-Every supervisor opens on the **Desk** tab: tiles for what is waiting today and the buttons for a supervisor's jobs (Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Print the call-out roster, help). Since v25.3 a supervisor may book a sick call, post a shift and award a posting; the bar shows those buttons too. Back to the Desk: click its tab. If your login is on the admin Desk list you open on the fuller Desk: four tiles for what is waiting today and fourteen plain buttons (Someone called in sick, Fill a shift now, Post a shift, Award a posting, Book time off, Shift switch or payback, Leave, Update the members' file, Print the call-out roster ...). Each opens the usual pop-up. You see a supervisor's tabs plus the Desk and Needs Attention; **Show everything** at the bottom gives the full roster for the session and **< Desk** on the bar brings the Desk back. `docs/desk-guide.md` is the one-page version.
+A supervisor (a login on the supervisor list) opens on the **Desk** tab: the header says which crews are on today; tiles for what is waiting (the cover tile names the next uncovered shift) and the buttons for a supervisor's jobs (Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster, How do I ... for the Help tab, Something went wrong, Suggest an improvement). Since v25.3 a supervisor may book a sick call, post a shift and award a posting, and since v25.5 publish the members' file; the bar shows those buttons too. A login on neither list opens on the roster and can log call-outs and look at the calendar. Back to the Desk: click its tab. If your login is on the admin Desk list you open on the fuller Desk: four tiles for what is waiting today and fourteen plain buttons (Someone called in sick, Fill a shift now, Post a shift, Award a posting, Book time off, Shift switch or payback, Leave, Update the members' file, Print the call-out roster ...). Each opens the usual pop-up. You see a supervisor's tabs plus the Desk and Needs Attention; **Show everything** at the bottom gives the full roster for the session and **< Desk** on the bar brings the Desk back. `docs/desk-guide.md` is the one-page version.
 
 ## Calendar
-Click **Calendar**. Pick the month and the unit at the top. OPEN means the line still needs cover. Double-click a line for its details and options. **Print / PDF** prints the month or saves it as a PDF.
+Click **Calendar** (or Ctrl+Shift+K). Pick the month and the unit at the top. OPEN means the line still needs cover. Click a line: its details show in the row under the title and on the status bar (no hover boxes since v25.5). Double-click a line for its options. **Print / PDF** prints the month or saves it as a PDF.
 
 ## Print the call-out roster
 Click **Call Out Roster**. It is redrawn in call order. Answer Yes to print.
 
 ## Publish Member View
-Click **Member View**. Wait for "Members' file published". If it asks "The members' file is open in this Excel ... Close it and publish?", Yes closes it and publishes. If it says the file couldn't be written, it is open on a plant PC: have it closed there and publish again (nothing was written). "NOT published. Something private would have gone into the members' file" names a calendar line or posting reason that mentions a kind of leave, sick or personal: reword it and publish again. Member View refuses to run from a dated backup or the frozen year-end file: open the live roster.
+Click **Member View** (Update the members' file on the Desk; supervisors and admins since v25.5). Wait for "Members' file published". If it asks "The members' file is open in this Excel ... Close it and publish?", Yes closes it and publishes. If it says the file couldn't be written, it is open on a plant PC: have it closed there and publish again (nothing was written). "NOT published. Something private would have gone into the members' file" names a calendar line or posting reason that mentions a kind of leave, sick or personal: reword it and publish again. Member View refuses to run from a dated backup or the frozen year-end file: open the live roster.
 
 ## Postings when someone moves unit
 A person who moves into a unit (today, or on a date the admin entered ahead of time) is added to that unit's open postings for shifts from the move that can still be signed up for, in call order. Print those sheets again; the box after the move names them. If a planned move is cancelled before the day, they come off again.

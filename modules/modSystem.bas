@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v25.3 (Oct 17)"
-Public Const EXPECTED_RELEASE As String = "v25.3"
+Public Const SYS_VERSION As String = "System v25.5 (Oct 18)"
+Public Const EXPECTED_RELEASE As String = "v25.5"
 ' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
 Public Const WHATS_NEW As String = "The call-out pop-up: the person being called is the screen, one key per outcome (A R L U P), Call back for the left-message pile.|" & _
                                    "Supervisors by login (the Desk, sick call, posting, award, print, Member View); Help tab from How do I ...; click a calendar line for its details.|" & _

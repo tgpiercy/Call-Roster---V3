@@ -337,6 +337,11 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_Access", "Full Access", "LoginFullAccess.LoginFullAccess", x, y(3), wA, gry, INK, False
     Btn ws, "ui_adm_Attend", "Attendance", "modAttendance.ShowAttendance", x + wA + G, y(3), wA, gry, INK, False   ' v22.1
     ' Refresh Formulas is a repair tool now (roster totals are live formulas): Alt+F8 > RefreshRosterFormulas
+    x = x + 2 * wA + G + GG
+
+    ' --- Find (v25.5, A10: supervisors and admins; every other group was full) ---
+    GroupLabel ws, "ui_sup_lbl_find", "FIND", x, y0, wP
+    Btn ws, "ui_sup_Find", "Find a person", "modReports.FindPerson", x, y(1), wP, vbWhite, NAVY, False
 End Sub
 
 Private Sub GroupLabel(ByVal ws As Worksheet, ByVal nm As String, ByVal txt As String, _

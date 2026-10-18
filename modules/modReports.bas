@@ -244,6 +244,58 @@ Quit:
     If mBarShown Then Application.StatusBar = False: mBarShown = False
 End Sub
 
+' v25.5 (A10) "Find a person" on the bar (supervisors and admins): part of a name -> the roster row is selected
+' (a unit filter that hides it is cleared first) and the status bar says where the person stands in their home
+' unit's call order today - LoadEligible, the one call order, everyone holding a code in the unit. No rule here.
+Public Sub FindPerson()
+    On Error GoTo Oops
+    Dim q As Variant
+    q = Application.InputBox(Prompt:="Part of the name (the last name is enough):", Title:="Find a person", Type:=2)
+    If VarType(q) = vbBoolean Then Exit Sub
+    Dim t As String: t = Trim$(CStr(q))
+    If t = "" Then Exit Sub
+    Dim rs As Worksheet: Set rs = RosterSheet()
+    Dim r As Long, lastRow As Long: lastRow = RosterLastRow()
+    Dim hitRow As Long, nHits As Long, nm As String, firstNm As String
+    For r = R_FIRST To lastRow
+        nm = Trim$(SafeStr(rs.Cells(r, C_NAME).Value))
+        If nm <> "" Then
+            If InStr(1, nm, t, vbTextCompare) > 0 Then
+                nHits = nHits + 1
+                If hitRow = 0 Then hitRow = r: firstNm = nm
+            End If
+        End If
+    Next r
+    If hitRow = 0 Then
+        MsgBox "Nobody on the roster matches """ & t & """.", vbInformation, "Find a person"
+        Exit Sub
+    End If
+    If rs.Rows(hitRow).Hidden Then ShowAllRows            ' a unit filter was hiding the row
+    rs.Activate
+    Application.Goto rs.Cells(hitRow, C_NAME), True
+    Dim txt As String: txt = firstNm
+    Dim hu As String: hu = HomeUnitOf(firstNm)
+    If hu <> "" Then
+        Dim recs() As EmpRec, n As Long, i As Long, pos As Long
+        n = LoadEligible(hu, CrewFilter(CREW_ALL), recs, 999, CALLOUT_INCLUDE_DAYS, Date)
+        For i = 1 To n
+            If StrComp(recs(i).EmpName, firstNm, vbTextCompare) = 0 Then pos = i: Exit For
+        Next i
+        If pos > 0 Then
+            txt = txt & ":   " & pos & " of " & n & " in the " & hu & " call order today"
+        Else
+            txt = txt & ":   no " & hu & " code on the roster today"
+        End If
+    Else
+        txt = txt & ":   no home unit on the roster (column B)"
+    End If
+    If nHits > 1 Then txt = txt & "   (" & nHits & " names match: the first is selected)"
+    ShowBarText txt
+    Exit Sub
+Oops:
+    ReportError "FindPerson"
+End Sub
+
 ' Gives Excel's status bar back if it holds our text. Called when the workbook
 ' loses focus or closes, and by macros that switch tabs with events off.
 Public Sub ReleaseStatusBar(Optional ByVal fromCode As Boolean = True)     ' the argument keeps it out of the Alt+F8 list

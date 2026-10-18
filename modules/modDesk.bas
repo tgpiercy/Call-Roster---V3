@@ -909,6 +909,10 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "blank), SAVE LEAVE. Returning: pick who is back, type the first day back, click Work out the top-up, read the peers, " & _
         "the average and the hours before and after, then SAVE TOP-UP. A return date in the future, or after the roster's last " & _
         "pay period, is refused."
+    HelpAdd h, n, "Find a person", _
+        "Click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
+        "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _
+        "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
     HelpAdd h, n, "Keyboard shortcuts", _
         "While the roster is the active workbook: Ctrl+Shift+S opens Sick Call, Ctrl+Shift+C the call-out, Ctrl+Shift+K the " & _
         "calendar, Ctrl+Shift+D the Desk. In the call-out pop-up the letters A R L U P record the outcome, K skips, B goes back, " & _

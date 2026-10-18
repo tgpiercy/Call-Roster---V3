@@ -31,12 +31,12 @@ Option Explicit
 '  check. Queued for v25.
 ' ====================================================================
 
-Public Const SMK_VERSION As String = "Smoke test v25.1.2 (Oct 17)"
+Public Const SMK_VERSION As String = "Smoke test v25.2 (Oct 17)"
 
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
 Private Const SMK_WHY As String = "SmokeTest"
-Private Const SMK_STEPS As Long = 18          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words
+Private Const SMK_STEPS As Long = 20          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words; v25.2: + the two draw compares
 
 Private Type SmkState
     Emp As String           ' the test person's current name
@@ -92,7 +92,7 @@ Public Sub SmokeTest()
     End If
     If MsgBox("Run the smoke test in this copy?" & vbNewLine & vbNewLine & ThisWorkbook.Name & vbNewLine & vbNewLine & _
               "It adds a test person, logs and voids a posting, a call-out, time off and a switch, publishes to a scratch file, " & _
-              "then checks every total is unchanged. About a minute. Nothing is saved, and afterwards this copy can only be closed.", _
+              "then checks every total is unchanged and (v25.2) draws the Calendar and Needs Attention both ways to compare them. About two minutes. Nothing is saved, and afterwards this copy can only be closed.", _
               vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
 
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
@@ -194,6 +194,8 @@ Private Function SmkName(ByVal k As Long) As String
         Case 16: SmkName = "void everything it logged"
         Case 17: SmkName = "remove the test employee"
         Case 18: SmkName = "integrity check"
+        Case 19: SmkName = "Calendar: the array draw equals the cell-by-cell draw"
+        Case 20: SmkName = "Needs Attention: the array draw equals the row-by-row draw"
     End Select
 End Function
 
@@ -219,6 +221,8 @@ Private Function SmkStep(ByVal k As Long, ByRef st As SmkState, ByVal nErr0 As L
         Case 16: SmkStep = SmkVoid(st, why)
         Case 17: SmkStep = SmkRemove(st, why)
         Case 18: SmkStep = SmkIntegrity(st, nErr0, why)
+        Case 19: SmkStep = SmkCalCompare(st, why)
+        Case 20: SmkStep = SmkNeedsCompare(st, why)
     End Select
     If Not SmkStep And why = "" Then why = "the function returned False (a message above says why)"
     Exit Function
@@ -976,4 +980,63 @@ Private Function SmkIntegrity(ByRef st As SmkState, ByVal nErr0 As Long, ByRef w
     End If
     st.Note = nErr & " PROBLEM (" & nErr0 & " before), " & nWarn & " Check"
     SmkIntegrity = True
+End Function
+
+' ---- 19. the Calendar drawn both ways (v25.2 item 5): DrawCalendar (arrays, formats by class) against
+' DrawCalendarLegacy (the v25.1.2 cell-by-cell writer) on the month of the test postings, in the test
+' unit's group. Every cell, row height, click-map key and hover note must match; the note carries both times.
+Private Function SmkCalCompare(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim m0 As Date: m0 = DateSerial(Year(st.PostDate), Month(st.PostDate), 1)
+    Dim grp As String: grp = GroupOfUnit(st.Unit)
+    Dim secNew As String, secOld As String, snapNew As String, snapOld As String
+    CalShowMonth m0, grp
+    CalClearDrawTimes
+    DrawCalendar
+    secNew = CalDrawSeconds()
+    If secNew = "" Then why = "the array draw didn't finish (see the Error Log)": Exit Function
+    snapNew = DrawSnapshot(CAL_SHEET)
+    CalClearDrawTimes
+    DrawCalendarLegacy
+    secOld = CalDrawSeconds()
+    If secOld = "" Then why = "the cell-by-cell draw didn't finish (see the Error Log)": Exit Function
+    snapOld = DrawSnapshot(CAL_SHEET)
+    DrawCalendar                                   ' leave the sheet as the live code draws it
+    why = SmkFirstDiff(snapNew, snapOld, "Calendar " & Format$(m0, "mmmm yyyy") & " (" & grp & ")")
+    If why <> "" Then Exit Function
+    st.Note = Format$(m0, "mmm yyyy") & " " & grp & " identical; drawn in " & secNew & " s (cell by cell " & secOld & " s)"
+    SmkCalCompare = True
+End Function
+
+' ---- 20. Needs Attention drawn both ways: DrawNeeds against DrawNeedsLegacy, the tab's current group and range
+Private Function SmkNeedsCompare(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim secNew As String, secOld As String, snapNew As String, snapOld As String
+    CalClearDrawTimes
+    DrawNeeds
+    secNew = NADrawSeconds()
+    If secNew = "" Then why = "the array draw didn't finish (see the Error Log)": Exit Function
+    snapNew = DrawSnapshot(NA_SHEET)
+    CalClearDrawTimes
+    DrawNeedsLegacy
+    secOld = NADrawSeconds()
+    If secOld = "" Then why = "the row-by-row draw didn't finish (see the Error Log)": Exit Function
+    snapOld = DrawSnapshot(NA_SHEET)
+    DrawNeeds
+    why = SmkFirstDiff(snapNew, snapOld, "Needs Attention")
+    If why <> "" Then Exit Function
+    st.Note = "identical; drawn in " & secNew & " s (row by row " & secOld & " s)"
+    SmkNeedsCompare = True
+End Function
+
+' the first line where two snapshots differ ("" when none); a line is one cell, one row height or one map key
+Private Function SmkFirstDiff(ByVal snapNew As String, ByVal snapOld As String, ByVal what As String) As String
+    Dim a As Variant, b As Variant, i As Long
+    a = Split(snapNew, vbLf): b = Split(snapOld, vbLf)
+    For i = 0 To UBound(a)
+        If i > UBound(b) Then Exit For
+        If a(i) <> b(i) Then
+            SmkFirstDiff = what & ": first difference at '" & Left$(CStr(a(i)), 160) & "' (new) vs '" & Left$(CStr(b(i)), 160) & "' (cell by cell)"
+            Exit Function
+        End If
+    Next i
+    If UBound(a) <> UBound(b) Then SmkFirstDiff = what & ": " & (UBound(a) + 1) & " lines in the new draw, " & (UBound(b) + 1) & " cell by cell"
 End Function

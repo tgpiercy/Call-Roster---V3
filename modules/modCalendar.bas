@@ -1634,6 +1634,77 @@ Private Sub MapWrite(ByVal addr As String, ByVal v As Variant)
     If en <> 0 Then Err.Raise en, , em
 End Sub
 
+' v25.2 (item 5): SmokeTest's compare steps. The month and group to draw, with nothing drawn; the draw-time
+' cells cleared (a draw that fails leaves them empty, which the step reads as "didn't finish"); the seconds
+' of the last Calendar draw (Z13) and of the last Needs Attention draw (parsed out of Z15).
+Public Sub CalShowMonth(ByVal m0 As Date, ByVal grp As String)
+    CalendarSheet
+    MapWrite "Z1", DateSerial(Year(m0), Month(m0), 1)
+    MapWrite "Z2", grp
+End Sub
+
+Public Sub CalClearDrawTimes()
+    CalendarSheet
+    MapWrite "Z13", ""
+    MapWrite "Z14", ""
+    MapWrite "Z15", ""
+End Sub
+
+Public Function CalDrawSeconds() As String
+    On Error Resume Next
+    CalDrawSeconds = SafeStr(MapSheet().Range("Z13").Value)
+End Function
+
+Public Function NADrawSeconds() As String
+    On Error Resume Next
+    Dim s As String: s = SafeStr(MapSheet().Range("Z15").Value)
+    Dim i As Long: i = InStr(s, "drawn in ")
+    If i = 0 Then Exit Function
+    s = Mid$(s, i + Len("drawn in "))
+    i = InStr(s, " s")
+    If i > 0 Then NADrawSeconds = Left$(s, i - 1)
+End Function
+
+' v25.2 (item 5): one text describing a drawn sheet, for SmokeTest's compare steps: every cell of the drawn
+' block (value, fill, font name / size / colour / bold / italic, alignment, indent, wrap, shrink, merge area,
+' comment text), every row height, and for the Calendar the click map too. The Calendar's row 3 (the hint with
+' the draw time) and Needs Attention's row 2 (the "updated h:mm" line) are left out: they differ by design.
+' Slow (thousands of reads) and only ever run by SmokeTest on a practice copy.
+Public Function DrawSnapshot(ByVal sheetName As String) As String
+    Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(sheetName)
+    Dim isCal As Boolean: isCal = (StrComp(sheetName, CAL_SHEET, vbTextCompare) = 0)
+    Dim lastRow As Long: lastRow = ws.UsedRange.Row + ws.UsedRange.Rows.Count - 1
+    Dim lastCol As Long: lastCol = IIf(isCal, 16, NA_KEY)
+    Dim skipRow As Long: skipRow = IIf(isCal, 3, 2)
+    Dim out() As String, n As Long, r As Long, c As Long, cel As Range, cm As String
+    ReDim out(1 To (lastRow + 1) * (lastCol + 2))
+    For r = 1 To lastRow
+        n = n + 1: out(n) = "h" & r & "|" & ws.Rows(r).RowHeight
+        If r <> skipRow Then
+            For c = 1 To lastCol
+                Set cel = ws.Cells(r, c)
+                cm = ""
+                If Not cel.Comment Is Nothing Then cm = cel.Comment.Text
+                n = n + 1
+                out(n) = r & "," & c & "|" & SafeStr(cel.Value) & "|" & cel.Interior.Color & "|" & cel.Font.Name & "|" & _
+                         cel.Font.Size & "|" & cel.Font.Color & "|" & cel.Font.Bold & "|" & cel.Font.Italic & "|" & _
+                         cel.HorizontalAlignment & "|" & cel.VerticalAlignment & "|" & cel.IndentLevel & "|" & _
+                         cel.WrapText & "|" & cel.ShrinkToFit & "|" & IIf(cel.MergeCells, cel.MergeArea.Address, "") & "|" & cm
+            Next c
+        End If
+    Next r
+    If isCal Then
+        Dim mv As Variant: mv = MapSheet().Range("A1:P" & lastRow).Value
+        For r = 1 To UBound(mv, 1)
+            For c = 1 To UBound(mv, 2)
+                If SafeStr(mv(r, c)) <> "" Then n = n + 1: out(n) = "map " & r & "," & c & "|" & SafeStr(mv(r, c))
+            Next c
+        Next r
+    End If
+    ReDim Preserve out(1 To n)
+    DrawSnapshot = Join(out, vbLf)
+End Function
+
 ' v25.1: the dirty counter as text, so SmokeTest can prove MarkCalDirty really wrote it; a roster where
 ' CalendarSheet() has never run has no map (MarkCalDirty does nothing there) and says so
 Public Function CalDirtyStamp() As String

@@ -18,18 +18,25 @@ fixes to a bundle count up from it; never a single-fix install unless the roster
 Here is my v25.3 install report: <paste the SmokeTest box, the Desk photo, what the boss said, and the
 supervisor-login row's result>.
 
+The timeline (docs/timeline-2026-10-18.md): all development before the rollout. v25.5 = the ALPHA BUILD by
+Oct 31 = the v25.3.5 bundle (briefs/v25.2.5.md items 0-9) folded in + the pop-up release (briefs/v25.5.md,
+its four decisions taken by default unless I say otherwise). Alpha testing Nov 1-15, with the documentation
+and the what-if scenario sheets written during it. v26 = the BETA BUILD by Nov 15 (the reports + M3 members
++ the alpha's findings), presented to management and the union that day. Revisions v26.5 as needed; beta
+through December; training from Dec 1; the December dry run; the freeze Dec 20 - Jan 4 (the live rollover
+Dec 27); go-live early January with v25.4 (the Payroll # key) last.
+
 Then, in this order, asking every decision as a multiple-choice question (recommended option first):
-1. Fold anything the install found into briefs/v25.2.5.md (it is the v25.3.5 bundle now).
-2. Build the bundle (v25.3.5) before Dec 20: click-details on the calendar (item 0), Needs Attention without
-   hover notes, the legacy writers and SmokeTest steps 19-20 out, the three admin award buttons greyed for a
-   supervisor, the Help sheet, plus the install's findings. One commit per item, the four checkers before
-   review, read-only reviewers in isolation worktrees, re-review the fixes, tag, zip, push from my Terminal.
-3. The rollover rehearsal script (late November): one page for me and my boss on a practice copy, from
-   docs/rollover-one-pager.md against the current code.
-4. v25.5 in January: answer the four decisions at the end of briefs/v25.5.md first, then the call-out
-   session rework, then the rest of that brief.
-Still open and dated: the December dry run (first week), the install freeze Dec 20 - Jan 4, the live
-rollover Dec 27, no installs the week before Jan 23, 2027; go-live not set.
+1. Build v25.5 (the alpha build): the bundle's items first (click-details item 0, named supervisors item 9,
+   publish for supervisors item 8, the Help sheet, the legacy writers and steps 19-20 out, Needs Attention
+   without notes, the greyed award buttons), then the call-out session rework, UI_SCALE on every pop-up, the
+   language pass, shortcuts, what's-new, the Desk refinements, undo, find. One commit per item, the four
+   checkers before review, read-only reviewers in isolation worktrees, re-review the fixes, tag, zip, push
+   from my Terminal. Ship by Oct 31.
+2. Nov 1-14: v26 (the beta build) from docs/code-kit-2026-10/briefs/07-v26-reporting.md + deep review 4.6,
+   M3 from deep review 4.5, plus the alpha's findings; and the documentation set in
+   docs/timeline-2026-10-18.md (the what-if scenario sheets, the guides, the Nov 15 pack, the training plan).
+3. After Nov 15: the revisions, the rollover rehearsal page for the December dry run, the freeze, go-live.
 ```
 
 ## Why this file exists

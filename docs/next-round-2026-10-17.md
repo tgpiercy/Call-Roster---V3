@@ -1,5 +1,7 @@
 # The next round, reviewed Oct 17, 2026
 
+> **Superseded on Oct 18 by `docs/timeline-2026-10-18.md`:** the builds move up (v25.5 the alpha build by Oct 31 with the bundle folded in; v26 the beta build by Nov 15 with M3); the order below is kept for the record.
+
 Where things stand: the real roster is on v25.1.1 (v25.1.2 measurement installed the same day); v25.2 (calendar speed) is tagged and waits for its install and the "after" numbers. The numbering rule from today: features x.y as one install, bundles x.y.5, no single-fix installs. Fixed dates: the December rollover dry run (first week of December, Graeme with his boss), the install freeze Dec 20 - Jan 4 except the rollover, the live rollover Dec 27, no installs the week before Jan 23, 2027. Go-live is not set.
 
 ## What is queued, by source

@@ -53,6 +53,8 @@ Size: S = under a day, M = a few days, L = a release of its own. Risk: data (tou
 | D3 | Every pop-up change ships with a hand-check row on the panel (the pop-up opened pre-filled from the panel, as v24.4 does) so the look is checked on the plant PC, not in the repo |
 
 ## 3. Packaged by the numbering rule
+> **Re-dated Oct 18 (`docs/timeline-2026-10-18.md`):** the bundle and v25.5 together are the alpha build by Oct 31; v26 with M3 is the beta build by Nov 15; the table below keeps the contents, the dates are the timeline's.
+
 | Release | When | Holds |
 |---|---|---|
 | **v25.3.5** (the bundle) | before Dec 20 | A1 click-details; Needs Attention without hover notes; the legacy writers and steps 19-20 out; the three admin award buttons greyed for a supervisor; A5 shortcuts; A6 what's-new; A7 the Help sheet; whatever v25.3's install finds |

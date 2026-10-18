@@ -195,6 +195,8 @@ Postings compare using the **posted** totals (frozen at creation). Awarded is ch
 
 **Install freezes:** no updates Dec 20 - Jan 4 except the rollover; none in the week before Jan 23, 2027.
 
+**The timeline (Graeme, Oct 18, 2026; `docs/timeline-2026-10-18.md`):** all development before the rollout. **v25.5 the alpha build by Oct 31** (the v25.3.5 bundle folded in + the pop-up release); **alpha testing Nov 1-15**, with the documentation and the what-if scenario sheets written during it; **v26 the beta build by Nov 15** (the reports + the members' follow-up M3 + the alpha's findings), presented to management and the union that day; revisions (v26.5) as needed; beta testing through December; **training for supervisors from Dec 1**; the December dry run of the rollover; the freeze; go-live early January with v25.4 (the Payroll # key) last.
+
 ## Decisions already made (don't re-ask)
 - Postings list any grade; only grade <= 2 charged.
 - Totals reset yearly, no carry-forward.

@@ -29,6 +29,7 @@ Public Const CAL_VERSION As String = "Calendar v25.2 (Oct 17)"
 ' during the current draw, read by DrawCalendar / DrawNeeds for their breakdown lines
 Private mTimeSlots As Double
 Private mTimeNotes As Double
+Private mHomeMap As Object               ' v25.2 (item 4): name -> Home Unit, filled by LoadCache
 Public Const NA_SHEET As String = "Needs Attention"
 Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
 Private Const CAL_FONT As String = "Segoe UI"
@@ -355,7 +356,7 @@ End Sub
 
 Public Sub ResetCalCacheAll()
     If mTestMode Then Exit Sub              ' SelfTest's fixtures stay until it clears them
-    mAbs = Empty: mCov = Empty: Set mShiftMap = Nothing
+    mAbs = Empty: mCov = Empty: Set mShiftMap = Nothing: Set mHomeMap = Nothing     ' v25.2: and the home-unit map
 End Sub
 
 Public Function CovTable(Optional ByVal create As Boolean = False) As ListObject
@@ -490,16 +491,31 @@ Private Sub LoadCache()
     mCov = TableData(CovTable())
     Set mShiftMap = CreateObject("Scripting.Dictionary")
     mShiftMap.CompareMode = 1
+    Set mHomeMap = CreateObject("Scripting.Dictionary")      ' v25.2 (item 4, C7): name -> Home Unit, one read
+    mHomeMap.CompareMode = 1
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Sub
-    Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_SHIFT)).Value
+    Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, C_HOME), ws.Cells(lastRow, C_SHIFT)).Value
     Dim i As Long, nm As String
     For i = 1 To UBound(v, 1)
-        nm = Trim$(SafeStr(v(i, 1)))
-        If nm <> "" Then mShiftMap(nm) = UCase$(Trim$(SafeStr(v(i, 2))))
+        nm = Trim$(SafeStr(v(i, C_NAME - C_HOME + 1)))
+        If nm <> "" Then
+            mShiftMap(nm) = UCase$(Trim$(SafeStr(v(i, C_SHIFT - C_HOME + 1))))
+            mHomeMap(nm) = Trim$(SafeStr(v(i, 1)))
+        End If
     Next i
 End Sub
+
+' v25.2 (item 4, C7): the Home Unit from the cache LoadCache filled (HomeUnitOf in modLeave scans the roster
+' cell by cell: Needs Attention called it per name and per planned move); a name not on the roster asks HomeUnitOf
+Private Function HomeUnitCached(ByVal emp As String) As String
+    If mHomeMap Is Nothing Then LoadCache
+    If Not mHomeMap Is Nothing Then
+        If mHomeMap.Exists(Trim$(emp)) Then HomeUnitCached = mHomeMap(Trim$(emp)): Exit Function
+    End If
+    HomeUnitCached = HomeUnitOf(emp)
+End Function
 
 ' ====================================================================
 '  WHO WORKS WHEN / WHO IS OFF
@@ -3656,7 +3672,7 @@ Public Sub DrawNeeds()
             pmDue = (Int(pmD) <= Date)                  ' a date that can't be read (0) shows as a problem too
             pmWho = SafeStr(pmv(i, PM_EMP))
             NAAdd vr, nV, IIf(pmD = 0, "?", Format$(pmD, "ddd mmm d")), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
-                  CalName(pmWho) & "   " & HomeUnitOf(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
+                  CalName(pmWho) & "   " & HomeUnitCached(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
                   SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmD = 0, "Date can't be read", IIf(pmDue, "DUE - not applied", "Planned")), _
                   IIf(pmD = 0, "", WhenText(pmD)), "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), _
                   IIf(pmDue, thOpen(), thMuted()), IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
@@ -3673,7 +3689,7 @@ Public Sub DrawNeeds()
         BeginAttendanceBatch
         For i = LBound(rn) To UBound(rn)
             nmT = CStr(rn(i))
-            hu = HomeUnitOf(nmT)
+            hu = HomeUnitCached(nmT)
             If hu = "" Or UnitInGroup(hu, grp) Then
                 If AttendanceFor(nmT, Date, ast) Then
                     lvl = AttendanceLevel(ast)
@@ -3903,37 +3919,76 @@ Private Function NARows(ByVal ws As Worksheet, ByVal r As Long, ByRef recs() As 
         NARows = r + 2
         Exit Function
     End If
+    ' v25.2 (item 4): the section's rows as ONE array write and its formats by class (Union), as the Calendar's
+    ' weeks (item 3); NARowsLegacy is the row-by-row writer this replaces (SmokeTest step 20 proves them identical)
+    Dim vals() As Variant: ReDim vals(1 To n, 1 To 8)
+    Dim keyV() As Variant: ReDim keyV(1 To n, 1 To 1)
+    Dim rgAlt As Range, whenMuted As Range, whenBold As Range
+    Dim accents As Object: Set accents = CreateObject("Scripting.Dictionary")     ' accent colour -> column A cells
+    Dim stCols As Object: Set stCols = CreateObject("Scripting.Dictionary")       ' status font colour -> column H cells
+    Dim stFills As Object: Set stFills = CreateObject("Scripting.Dictionary")     ' status fill -> column H cells
+    Dim whenCols As Object: Set whenCols = CreateObject("Scripting.Dictionary")   ' "when" font colour -> column I cells
+    Dim rowAt As Long, key As Variant
     For i = 1 To n
-        ws.Rows(r).RowHeight = 20
-        If i Mod 2 = 0 Then ws.Range(ws.Cells(r, 2), ws.Cells(r, 9)).Interior.Color = RGB(250, 250, 251)
-        ws.Cells(r, 1).Interior.Color = recs(i).Accent
+        rowAt = r + i - 1
         For c = 0 To 7
-            With ws.Cells(r, 2 + c)
-                .Value = "'" & recs(i).Cell(c)
-                .VerticalAlignment = xlCenter
-                .IndentLevel = 1
-                .ShrinkToFit = True
-            End With
+            vals(i, c + 1) = "'" & recs(i).Cell(c)
         Next c
-        ws.Cells(r, 6).Font.Name = CAL_FONT_B
-        With ws.Cells(r, 8)
-            .Font.Name = CAL_FONT_B: .Font.Color = recs(i).StatusCol
-            If recs(i).StatusFill >= 0 Then .Interior.Color = recs(i).StatusFill
-        End With
-        With ws.Cells(r, 9)
-            .Font.Color = recs(i).WhenCol
-            .Font.Name = IIf(recs(i).WhenCol = thMuted(), CAL_FONT, CAL_FONT_B)
-        End With
-        With ws.Range(ws.Cells(r, 1), ws.Cells(r, 9)).Borders(xlEdgeBottom)
+        keyV(i, 1) = recs(i).Key
+        If i Mod 2 = 0 Then AddToRange rgAlt, ws.Range(ws.Cells(rowAt, 2), ws.Cells(rowAt, 9))
+        DictAddRange accents, recs(i).Accent, ws.Cells(rowAt, 1)
+        DictAddRange stCols, recs(i).StatusCol, ws.Cells(rowAt, 8)
+        If recs(i).StatusFill >= 0 Then DictAddRange stFills, recs(i).StatusFill, ws.Cells(rowAt, 8)
+        DictAddRange whenCols, recs(i).WhenCol, ws.Cells(rowAt, 9)
+        If recs(i).WhenCol = thMuted() Then AddToRange whenMuted, ws.Cells(rowAt, 9) Else AddToRange whenBold, ws.Cells(rowAt, 9)
+    Next i
+    Dim blk As Range: Set blk = ws.Range(ws.Cells(r, 2), ws.Cells(r + n - 1, 9))
+    blk.Value = vals
+    ws.Range(ws.Cells(r, NA_KEY), ws.Cells(r + n - 1, NA_KEY)).Value = keyV
+    ws.Range(ws.Rows(r), ws.Rows(r + n - 1)).RowHeight = 20
+    With blk
+        .VerticalAlignment = xlCenter: .IndentLevel = 1: .ShrinkToFit = True
+    End With
+    If Not rgAlt Is Nothing Then rgAlt.Interior.Color = RGB(250, 250, 251)
+    For Each key In accents.Keys
+        accents(key).Interior.Color = CLng(key)
+    Next key
+    ws.Range(ws.Cells(r, 6), ws.Cells(r + n - 1, 6)).Font.Name = CAL_FONT_B
+    ws.Range(ws.Cells(r, 8), ws.Cells(r + n - 1, 8)).Font.Name = CAL_FONT_B
+    For Each key In stCols.Keys
+        stCols(key).Font.Color = CLng(key)
+    Next key
+    For Each key In stFills.Keys
+        stFills(key).Interior.Color = CLng(key)
+    Next key
+    For Each key In whenCols.Keys
+        whenCols(key).Font.Color = CLng(key)
+    Next key
+    If Not whenMuted Is Nothing Then whenMuted.Font.Name = CAL_FONT
+    If Not whenBold Is Nothing Then whenBold.Font.Name = CAL_FONT_B
+    ' each row's bottom edge: the block's inside lines plus its bottom edge
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r + n - 1, 9))
+        If n > 1 Then
+            With .Borders(xlInsideHorizontal)
+                .LineStyle = xlContinuous: .Weight = xlHairline: .Color = thGrid()
+            End With
+        End If
+        With .Borders(xlEdgeBottom)
             .LineStyle = xlContinuous: .Weight = xlHairline: .Color = thGrid()
         End With
-        ws.Cells(r, NA_KEY).Value = recs(i).Key
-        If Left$(recs(i).Key, 2) = "A:" Or Left$(recs(i).Key, 2) = "C:" Then AddNote ws.Cells(r, 6), LineDetails(recs(i).Key, True)
-        r = r + 1
+    End With
+    For i = 1 To n
+        If Left$(recs(i).Key, 2) = "A:" Or Left$(recs(i).Key, 2) = "C:" Then AddNote ws.Cells(r + i - 1, 6), LineDetails(recs(i).Key, True)
     Next i
+    r = r + n
     ws.Rows(r).RowHeight = 14
     NARows = r + 1
 End Function
+
+' v25.2 (item 4): a range per key grown by Union (the key is a colour)
+Private Sub DictAddRange(ByVal dict As Object, ByVal key As Long, ByVal part As Range)
+    If dict.Exists(key) Then Set dict(key) = Union(dict(key), part) Else dict.Add key, part
+End Sub
 
 ' summary tile over columns c1..c2, rows 4-5
 Private Sub NATile(ByVal ws As Worksheet, ByVal c1 As Long, ByVal c2 As Long, ByVal n As Long, ByVal cap As String, _

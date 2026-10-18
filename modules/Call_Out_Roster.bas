@@ -31,8 +31,7 @@ Sub Call_Out()
     Application.ScreenUpdating = False
     On Error GoTo Failed
     RenderCalloutRoster ws, nPeople, nUnits
-    On Error GoTo 0
-    SetSheetVisible ws, xlSheetVisible
+    SetSheetVisible ws, xlSheetVisible               ' v25.3 review: still under the handler (a raw VBA box otherwise)
     ws.Activate
     On Error Resume Next
     ActiveWindow.DisplayGridlines = False

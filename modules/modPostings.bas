@@ -1229,7 +1229,7 @@ Private Function CanFinalize(ByRef p As PostRec) As Boolean
     End If
     If HasActiveLogRows(p.ID) Then
         MsgBox p.ID & " already has entries in the OT Log, so it can't be closed again." & vbNewLine & _
-               "If they're wrong: Void Entry > " & p.ID & ", then ReopenPosting.", vbExclamation
+               "If they're wrong, an admin voids them (Void Entry > " & p.ID & ") and reopens the posting.", vbExclamation
         Exit Function
     End If
     CanFinalize = True
@@ -1342,6 +1342,7 @@ End Function
 Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
                                    ByVal outName As String, Optional ByVal outTake As Double = 0) As Boolean
     ' outTake (v24.1): hours the out-of-department person takes when it is only part of the shift (0 = all)
+    If Not RequireAdmin() Then Exit Function         ' v25.3: an admin's job (a supervisor awards to the list only)
     If Not CanFinalize(p) Then Exit Function
     outName = Trim$(outName)
     Dim outPartial As Boolean: outPartial = IsPartialSignup(p.Hours, outTake)
@@ -1481,6 +1482,7 @@ End Function
 
 ' ---------------- NO TAKERS ----------------
 Public Function SubmitNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long) As Boolean
+    If Not RequireAdmin() Then Exit Function         ' v25.3: an admin's job (it charges the whole list)
     If Not CanFinalize(p) Then Exit Function
     Dim i As Long, marked As String
     For i = 1 To n
@@ -1548,6 +1550,7 @@ End Function
 
 ' ---------------- CANCEL ----------------
 Public Function SubmitCancel(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long) As Boolean
+    If Not RequireAdmin() Then Exit Function         ' v25.3: an admin's job (Graeme listed post and award, not cancel)
     If Not CanFinalize(p) Then Exit Function
     ' v24.3.1: Ask / Tell so SmokeTest can cancel a posting (step 9)
     If Ask("Cancel " & p.ID & " (" & p.Unit & ", " & Format$(p.ShiftDate, "ddd mmm d") & ")?" & vbNewLine & vbNewLine & _

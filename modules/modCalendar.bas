@@ -1063,7 +1063,7 @@ End Function
 Public Function SaveNeed(ByVal unit As String, ByVal needText As String, ByVal typ As String, _
                          ByVal dStart As Date, ByVal dEnd As Date, ByVal shiftSel As String, _
                          ByVal hrs As Variant) As Long
-    If Not RequireSupervisor() Then Exit Function     ' v25.3: a supervisor's job (Graeme, Oct 17)
+    If Not RequireAdmin() Then Exit Function          ' (v25.3 review: only Book Time Off reaches this - admin)
     If Not RequireWritable() Then Exit Function
     Dim lo As ListObject: Set lo = CovTable(True)
     If lo Is Nothing Then Exit Function

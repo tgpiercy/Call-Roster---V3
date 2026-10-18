@@ -2,7 +2,7 @@ Attribute VB_Name = "modDesk"
 Option Explicit
 
 ' ====================================================================
-'  DESK (v25.3): the landing screen for the second admin
+'  DESK (v25.3): the landing screen - the admin Desk and the supervisor Desk
 '
 '  One sheet, "Desk", drawn by code like the Calendar: a header (today, the
 '  pay period, how old the Kronos data is), TODAY tiles (shifts needing
@@ -185,8 +185,8 @@ Public Sub DrawDesk()
     ' ---- TODAY: the tiles ----
     DeskLabel ws, "dk_lbl_today", "TODAY", x0, y0
     yy = y0 + 16
-    DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover"), "modDesk.DeskNeeds", _
-             tileX, yy, IIf(nCover > 0, dkOrange(), 0)
+    DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover"), _
+             IIf(sup, "modDesk.DeskCalendar", "modDesk.DeskNeeds"), tileX, yy, IIf(nCover > 0, dkOrange(), 0)   ' Needs Attention is admin: a supervisor's tile opens the Calendar
     tileX = tileX + TILE_W + GAP
     DeskTile ws, "dk_tile_award", nReady, IIf(nReady = 1, "posting ready to award", "postings ready to award"), "modDesk.DeskAward", _
              tileX, yy, IIf(nReady > 0, dkOrange(), 0)
@@ -204,7 +204,8 @@ Public Sub DrawDesk()
     Else
         pubTxt = "updated today " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
     End If
-    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, IIf(sup, "", "modDesk.DeskPublish"), tileX, yy, pubCol   ' a supervisor can't publish: information only
+    If sup Then pubCol = 0                          ' information only for a supervisor: never coloured (coloured = work to do)
+    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, IIf(sup, "", "modDesk.DeskPublish"), tileX, yy, pubCol
 
     ' ---- RIGHT NOW (left column) ----
     yy = yy + TILE_H + 18

@@ -183,7 +183,7 @@ Oops:
     ReportError "ShowOvertimeForm"
 End Sub
 
-' Award Posting pop-up (admin)
+' Award Posting pop-up (v25.3: every supervisor; Award Out of Dept, No Takers and Cancel inside it stay admin)
 Sub ShowPostingForm()
     On Error GoTo Oops
     If Not RequireSupervisor() Then Exit Sub     ' v25.3: a supervisor's job (Graeme, Oct 17)

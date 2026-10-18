@@ -2,7 +2,7 @@
 
 How to do each everyday job in the roster. Current as of v25.1 (Oct 2026).
 
-The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out** and **Calendar** show for everyone. The other buttons show only for logins on the admin list. If a button is missing, ask the admin.
+The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out**, **Calendar**, **Sick Call**, **New Posting**, **Award Posting** and **Call Out Roster** show for everyone (v25.3). The other buttons show only for logins on the admin list. If a button is missing, ask the admin.
 
 ## Open the file
 1. Open the roster from its usual folder. Click **Enable Content** if Excel asks.
@@ -92,7 +92,7 @@ The person is off call lists for that shift and any shift starting within 24 hou
 Open it from the Calendar with the **Needs attention >** button (it reads "N need cover >" when lines are open), or click the Needs Attention tab. It lists open lines, postings ready to award, paybacks owed, leaves to watch, planned unit moves and other items. Double-click any row for its options. A due planned move's row asks "Apply it now?": Yes applies that one move; No asks "Cancel the move?".
 
 ## The Desk
-Every supervisor opens on the **Desk** tab: tiles for what is waiting today and the buttons for a supervisor's jobs (Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Print the call-out roster, help). Since v25.3 a supervisor may book a sick call, post a shift and award a posting; the bar shows those buttons too. If your login is on the admin Desk list you open on the fuller Desk: four tiles for what is waiting today and fourteen plain buttons (Someone called in sick, Fill a shift now, Post a shift, Award a posting, Book time off, Shift switch or payback, Leave, Update the members' file, Print the call-out roster ...). Each opens the usual pop-up. You see a supervisor's tabs plus the Desk and Needs Attention; **Show everything** at the bottom gives the full roster for the session and **< Desk** on the bar brings the Desk back. `docs/desk-guide.md` is the one-page version.
+Every supervisor opens on the **Desk** tab: tiles for what is waiting today and the buttons for a supervisor's jobs (Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Print the call-out roster, help). Since v25.3 a supervisor may book a sick call, post a shift and award a posting; the bar shows those buttons too. Back to the Desk: click its tab. If your login is on the admin Desk list you open on the fuller Desk: four tiles for what is waiting today and fourteen plain buttons (Someone called in sick, Fill a shift now, Post a shift, Award a posting, Book time off, Shift switch or payback, Leave, Update the members' file, Print the call-out roster ...). Each opens the usual pop-up. You see a supervisor's tabs plus the Desk and Needs Attention; **Show everything** at the bottom gives the full roster for the session and **< Desk** on the bar brings the Desk back. `docs/desk-guide.md` is the one-page version.
 
 ## Calendar
 Click **Calendar**. Pick the month and the unit at the top. OPEN means the line still needs cover. Double-click a line for its details and options. **Print / PDF** prints the month or saves it as a PDF.

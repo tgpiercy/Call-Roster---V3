@@ -7,10 +7,10 @@ There are two Desks from the same screen. **A supervisor's Desk** has the jobs e
 ## The tiles (TODAY)
 | Tile | Means | Click it for |
 |---|---|---|
-| N shifts need cover | OPEN lines on the calendar in the next 14 days, every unit | Needs Attention |
+| N shifts need cover | OPEN lines on the calendar in the next 14 days, every unit | Needs Attention (admin Desk) or the Calendar (supervisor Desk) |
 | N postings ready to award | Postings whose closing time has passed and that nobody has awarded | Award a posting |
-| N paybacks owed | Shift switches still waiting for their payback | Shift switch or payback |
-| Members' file: updated ... | When the members' file was last published (blue when it is a day or more old) | Update the members' file |
+| N paybacks owed (admin Desk) | Shift switches still waiting for their payback | Shift switch or payback |
+| Members' file: updated ... | When the members' file was last published (on the admin Desk, blue when it is a day or more old) | Update the members' file (admin Desk; information only on a supervisor's) |
 
 A grey tile means nothing to do. A coloured one has work in it.
 
@@ -22,10 +22,10 @@ A grey tile means nothing to do. A coloured one has work in it.
 - **HELP**: How do I ... (the quick guide, once it is on this PC). Something went wrong (an email to Graeme with the newest Error Log line already in it - add what you were doing and send).
 
 ## The tabs
-You see the **Desk**, the tabs every supervisor sees (OT Roster, Calendar, Postings, OT Log, Shift Switches ...) and **Needs Attention**. The admin-only tabs (Absences, Coverage, Holidays, the logs) are in the file but out of the way. The roster and the Calendar open at 120 % so they read easily.
+You see the **Desk** and the tabs every supervisor sees (OT Roster, Calendar, Postings, OT Log, Shift Switches ...); the admin Desk adds **Needs Attention**, and opens the roster and the Calendar at 120 % so they read easily. The admin-only tabs (Absences, Coverage, Holidays, the logs) are in the file but out of the way.
 
-## If you need the full roster tools
-Click **Show everything (primary admin tools)** at the bottom of the Desk. The full bar and every tab appear for this session. **< Desk** on the bar brings the Desk back. Nothing is saved differently either way.
+## If you need the full roster tools (admin Desk)
+Click **Show everything (primary admin tools)** at the bottom of the Desk. The full bar and every tab appear for this session. **< Desk** on the bar brings the Desk back. Nothing is saved differently either way. On a supervisor's Desk, **Full roster >** goes to the roster and the Desk tab brings you back.
 
 ## If a red "This didn't finish" box appears
 Click OK, then **Something went wrong** on the Desk: the email it opens has the details. Whatever was done before the error is still in the file.

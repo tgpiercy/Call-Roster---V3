@@ -299,14 +299,14 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_TimeOff", "Book Time Off", "modCalendar.ShowTimeOffForm", x, y(3), wL, RGB(31, 56, 100), vbWhite, True
     x = x + wL + GG
 
-    ' --- People (admin, v22) ---
+    ' --- People (v22; v25.3: Sick Call for every supervisor, the rest admin) ---
     GroupLabel ws, "ui_lbl_people", "PEOPLE", x, y0, wE                     ' v25.3: Sick Call is a supervisor's job
     Btn ws, "ui_btn_Sick", "Sick Call", "modLeave.ShowSickCallForm", x, y(1), wE, RGB(230, 81, 0), vbWhite, True   ' v25.3: every supervisor
     Btn ws, "ui_adm_Leave", "Leave", "modLeave.ShowLeaveForm", x, y(2), wE, RGB(106, 27, 154), vbWhite, True
     Btn ws, "ui_adm_Convert", "Convert imports", "modLeave.ShowConvertForm", x, y(3), wE, RGB(21, 101, 192), vbWhite, False
     x = x + wE + GG
 
-    ' --- Postings (admin) ---
+    ' --- Postings (v25.3: New Posting and Award Posting for every supervisor; Load Posting admin) ---
     Dim grn As Long: grn = RGB(0, 128, 70)
     GroupLabel ws, "ui_lbl_post", "POSTINGS", x, y0, wL                      ' v25.3: New Posting and Award Posting are a supervisor's jobs
     Btn ws, "ui_btn_NewPost", "New Posting", "modPostings.ShowNewPostingForm", x, y(1), wL, grn, vbWhite, True   ' v25.3: every supervisor
@@ -314,7 +314,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_btn_Award", "Award Posting", "modOvertimeEntry.ShowPostingForm", x, y(3), wL, grn, vbWhite, True   ' v25.3: every supervisor
     x = x + wL + GG
 
-    ' --- Print / publish (admin) ---
+    ' --- Print / publish (v25.3: Call Out Roster and Calendar for everyone; Member View and the report admin) ---
     GroupLabel ws, "ui_lbl_print", "PRINT / PUBLISH", x, y0, 2 * wP + G      ' v25.3: Call Out Roster and Calendar are everyone's
     Btn ws, "ui_btn_CallOut", "Call Out Roster", "Call_Out", x, y(1), wP, NAVY, vbWhite, False   ' v25.3: every supervisor
     Btn ws, "ui_adm_Member", "Member View", "PublishMemberView", x + wP + G, y(1), wP, NAVY, vbWhite, False

@@ -96,7 +96,7 @@ No release since v24 has needed a one-time macro: the Planned Moves, Error Log a
 | `SelfTest` | Section 5 |
 | `IntegrityCheck` | Section 13. Reads only. |
 | `MakePracticeCopy` | Saves and opens a practice copy (COPY in its name) in a `Practice` folder, with the members' template beside it. |
-| `SmokeTest` | In a practice copy only: 14 steps through the roster's own functions; every total must come back. Never saves. |
+| `SmokeTest` | In a practice copy only: 19 steps (v25.5) through the roster's own functions; every total must come back. Never saves. |
 | `ShowErrorLog` | Opens the Error Log sheet and marks every line seen. `ErrorLogTest` writes one test line so you can see the box a supervisor gets. |
 | `ApplyPlannedMoves` | Applies the planned unit moves that are due (the open asks the same question). |
 | `ApplyPlannedMoves` / Needs Attention > Planned unit moves | Cancel a planned move, or apply one that is due. |

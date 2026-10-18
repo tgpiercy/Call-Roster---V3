@@ -88,7 +88,7 @@ Public gCalPostDate As Date
 Public gCalPostShift As String
 
 ' calendar menu / redraw state
-Private mPostV As Variant           ' tblPostings snapshot for notes and the attention box
+Private mPostV As Variant           ' tblPostings snapshot for the details text and the attention box
 Private mMenuKey As String          ' line (or "P:P-0001") the double-click menu is for
 Private mDrawing As Boolean
 Private mEventsSeen As Boolean      ' True once ThisWorkbook's tab-switch / change events have fired
@@ -1598,6 +1598,7 @@ Public Sub CalSelectionChanged(ByVal Sh As Object, ByVal Target As Range)
     If Sh.Name <> CAL_SHEET Then Exit Sub
     If Not SheetExists(MAP_SHEET) Then Exit Sub
     Dim ws As Worksheet: Set ws = Sh
+    If Target.Cells(1, 1).Row <= 3 Then Exit Sub        ' the title, legend and hint rows: the details stay readable (review)
     Dim keyTxt As String: keyTxt = SafeStr(MapSheet().Range(Target.Cells(1, 1).Address).Value)
     Dim txt As String
     If keyTxt <> "" Then
@@ -1615,14 +1616,28 @@ Public Sub CalSelectionChanged(ByVal Sh As Object, ByVal Target As Range)
         Exit Sub
     End If
     txt = Replace(txt, vbLf, "   |   ")
+    ShowBarText txt                                     ' the status bar first: it shows even when row 3 is kept (review)
     If Left$(SafeStr(ws.Range("F3").Value), 8) = "Calendar" Then Exit Sub   ' a failed draw's message stays
     If SafeStr(ws.Range("F3").Value) <> txt Then
+        ' the write under Resume Next and the sheet protected again whatever happened (convention 17, review)
         UnlockSheet ws
+        On Error Resume Next
         ws.Range("F3").Value = txt
+        On Error GoTo Quit
         ProtectSheet ws
     End If
-    ShowBarText txt
+    Exit Sub
 Quit:
+    On Error Resume Next
+    ProtectSheet ws
+End Sub
+
+' v25.5: the hint back in row 3 (the close: a clicked line's details are not saved for the next opener)
+Public Sub CalHintReset()
+    On Error Resume Next
+    If Not SheetExists(CAL_SHEET) Then Exit Sub
+    If Not SheetExists(MAP_SHEET) Then Exit Sub
+    SetCalHint ThisWorkbook.Worksheets(CAL_SHEET)
 End Sub
 
 ' True if a live coverage line came from this source (SS- / P- / S- id)
@@ -1921,7 +1936,7 @@ Public Sub DrawCalendar()
         .Merge
         .Value = CalHintText()                  ' v25.2: one text (rewritten with this draw's time at the end)
         .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
-        .VerticalAlignment = xlCenter
+        .VerticalAlignment = xlTop                      ' v25.5 review: long details keep their first line
         .IndentLevel = 1
         .WrapText = True
     End With

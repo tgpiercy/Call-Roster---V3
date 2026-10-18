@@ -33,7 +33,7 @@ Public Const SUPERVISOR_USERS As String = "mihaychukc,sheltond,campeauc"
 Public Const PRIMARY_ADMIN_NAME As String = "Graeme"                       ' named by the Desk's help buttons
 Public Const PRIMARY_ADMIN_EMAIL As String = "graeme.piercy@syensqo.com"   ' "Something went wrong" writes to this address
 Public Const GUIDE_PATH As String = ""                                    ' the quick guide as a PDF on the plant PC; "" until go-live
-Public Const SUPERVISOR_DESK As Boolean = True                            ' every supervisor (non-admin) lands on the supervisor Desk (Graeme, Oct 17)
+Public Const SUPERVISOR_DESK As Boolean = True                            ' a login on SUPERVISOR_USERS lands on the supervisor Desk (Graeme, Oct 17 / v25.5); False = the roster
 ' v25.5 (briefs/v25.5.md item 2, D1 taken by default Oct 18): every pop-up's positions, sizes and point sizes are
 ' multiplied by this, for everyone. 1 = the sizes as written (500 x 600 call-out fits 1366 x 768); 1.2 fits 1920 x 1080.
 Public Const UI_SCALE As Double = 1                                       ' (ScaleForm / UiPx in modUI apply it)
@@ -1188,7 +1188,7 @@ End Function
 
 ' v25.3 (Graeme, Oct 17, 2026): SUPERVISOR rights - the jobs every supervisor with the file open may do: log a
 ' call-out, sick call (books the sick shift, can start the call-out), new posting, award posting, print the
-' call-out roster. Everything else (time off, switches, leave, void, adjustments, people, Kronos, publish, the
+' call-out roster, and (v25.5) publish the members' file. Everything else (time off, switches, leave, void, adjustments, people, Kronos, the
 ' reopen / no-takers / out-of-department / cancel of a posting - the three Submit* carry RequireAdmin before
 ' CanFinalize) stays behind RequireAdmin. v25.5 (Graeme, Oct 18): a supervisor is a login on SUPERVISOR_USERS or
 ' an admin (ViewModeFor, modDesk), with edit access; anyone else is refused by name, a read-only copy as before.
@@ -1449,6 +1449,14 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
         If Left$(shp.Name, 7) = "ui_adm_" Then shp.Visible = IIf(adminView And (Not gDeskMode Or shp.Name = "ui_adm_Desk"), msoTrue, msoFalse)   ' v25.3: the Desk hides the admin groups, keeps "< Desk"
         If Left$(shp.Name, 7) = "ui_sup_" Then shp.Visible = IIf(supView, msoTrue, msoFalse)   ' v25.5: the supervisor's jobs
     Next shp
+    ' v25.5 (review): the FIND group sits after ADMIN; when the ADMIN group is hidden (a supervisor, the Desk view) it
+    ' takes ADMIN's place, so it is on screen on a 1366-wide monitor instead of past an empty gap
+    On Error Resume Next
+    Dim fx As Double: fx = rs.Shapes("ui_adm_lbl_admin").Left
+    If adminView And Not gDeskMode Then fx = fx + 187          ' 2 * wA + G + GG in BuildCommandBar
+    rs.Shapes("ui_sup_lbl_find").Left = fx
+    rs.Shapes("ui_sup_Find").Left = fx
+    On Error GoTo 0
     If SheetExists(CALLOUT_SHEET) Then
         ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView
     End If

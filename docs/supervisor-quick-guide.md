@@ -27,7 +27,7 @@ Something stopped part-way. The box says "Error Log line N" and the name of what
 Refused and Left Message are charged (grade 2 and below). `>>` means above grade 2, called but not charged. `*` means the total includes accepted overtime not yet in Kronos. `~` means the hours are an estimate because the person has a unit move planned for a later date (the admin entered it ahead of time). If warned that Kronos data is old, No stops so the admin can import first.
 
 ## Part of a call-out
-If someone takes only part of the hours, select them and click **ACCEPTED PART OF THE HOURS**, then enter the hours. **That closes the shift:** nobody else is called, nobody below is charged, and the pop-up refuses any further outcome (the partial taker's own entry can still be changed). Anyone who refused BEFORE the partial keeps their charge. Leave the rest of the list uncalled and click **SUBMIT ALL ENTRIES**.
+If someone takes only part of the hours, select them and press **P** (Part of the hours), then enter the hours. **That closes the shift:** nobody else is called, nobody below is charged, and the pop-up refuses a further Accepted (the partial taker's own entry can still be changed; a refusal or message logged before the close can be corrected to another refusal or message). Anyone who refused BEFORE the partial keeps their charge. Leave the rest of the list uncalled and click **SUBMIT ALL ENTRIES**.
 
 ## Postings
 **Post a shift**
@@ -62,7 +62,7 @@ If someone takes only part of the hours, select them and click **ACCEPTED PART O
 
 - **Payback:** click the switch in the OWED list. Type the payback date. Click **SAVE SWITCH**.
 - **Both dates known now:** tick **Two-way swap**, type the payback date, and save once.
-- **Wrong switch:** select it in the list and click **Void selected**. Give the reason.
+- **Wrong switch:** select it in the list and click **Void the selected switch**. Give the reason.
 
 ## Book time off
 1. Click **Book Time Off**. Pick Employee, Unit and Type. Type From and To (last day). A date before this roster year's January 1 is refused.
@@ -76,7 +76,7 @@ If someone takes only part of the hours, select them and click **ACCEPTED PART O
 1. Click **Sick Call**. Pick who called in. Check the Shift date, Shift, Unit to cover and Hours.
 2. Read the line under the Note box. It gives the person's counts and "This shift: Paid sick day ..." or "Unpaid - ..." with the reason.
 3. Click **SAVE + START CALL-OUT**. Log Call-Out opens filled in. Type the hours, click **LOAD LIST** and call as usual.
-4. **Save only** books the sick shift without starting a call-out.
+4. **Save, no call-out** books the sick shift without starting a call-out.
 5. **Past sick days** (a range already gone): the box says how many days were recorded and how many were skipped because there was no scheduled shift or the day was already booked sick.
 
 The person is off call lists for that shift and any shift starting within 24 hours after it ends. Log each sick shift as its own sick call. The calendar shows one "Sick" line on the shift called in; members see it as "Off".

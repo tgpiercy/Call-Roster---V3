@@ -38,6 +38,7 @@ Private mDept As String, mShift As String, mDate As Date, mHours As Double, mShi
 Private mKronosOk As Boolean     ' v20: stale-Kronos warning answered once per session
 Private mAutoHours As String     ' v21: hours we filled in for a DST night ("" = none / typed by hand)
 Private mStarted As Date         ' v25.5: when LOAD LIST was clicked (the progress line's "started N min ago")
+Private mKeyHeld As Boolean      ' v25.5: a key is down in the list (KeyDown repeats while held: one outcome per press)
 
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const MUTED As Long = 9211020           ' RGB(140, 140, 140)
@@ -88,7 +89,7 @@ End Sub
 ' INITIALIZE
 ' ================================================================
 Private Sub UserForm_Initialize()
-    Me.Width = Px(500): Me.Height = Px(600)
+    Me.Width = Px(500): Me.Height = Px(615)          ' 615: the status line's bottom (579) sits inside the frame (review)
     Me.Caption = "Call-out session"
 
     ' ---- the shift ----
@@ -117,8 +118,8 @@ Private Sub UserForm_Initialize()
     End With
 
     MakeLabel "lblLegend", _
-        ">> = above Grade " & CHARGE_MAX_GRADE & " (called, not charged)  |  charged at " & _
-        CHARGE_MULTIPLIER & "x  |  * = total includes accepted OT not yet in Kronos  |  ~ = hours after a planned unit move  |  ? = left a message  |  S/S = working a shift switch", _
+        ">> = above Grade " & CHARGE_MAX_GRADE & ", called, not charged  |  charged at " & CHARGE_MULTIPLIER & "x  |  * = includes accepted OT not yet in Kronos  |  " & _
+        "~ = after a planned unit move  |  ? = left a message  |  S/S = working a shift switch", _
         10, 90, 472, 9.5
     C("lblLegend").Height = Px(26)
     C("lblLegend").WordWrap = True
@@ -138,7 +139,7 @@ Private Sub UserForm_Initialize()
     With lstEmployees
         .Left = Px(10): .Top = Px(132): .Width = Px(472): .Height = Px(140)
         .ColumnCount = 4
-        .ColumnWidths = CStr(Px(195)) & ";" & CStr(Px(95)) & ";" & CStr(Px(42)) & ";" & CStr(Px(124))
+        .ColumnWidths = Replace(CStr(Px(195)) & ";" & CStr(Px(95)) & ";" & CStr(Px(42)) & ";" & CStr(Px(124)), ",", ".")   ' a point, whatever the locale (review)
         .Font.Size = Px(11)
     End With
 
@@ -160,7 +161,7 @@ Private Sub UserForm_Initialize()
     ' ---- the unavailable reason ----
     MakeLabel "lblReason", "Unavailable reason:", 10, 387, 110, 9.5
     MakeCombo "cmbReason", 122, 384, 210
-    MakeLabel "lblReasonHint", "(pick first, or press U; Enter records it)", 340, 387, 142, 9
+    MakeLabel "lblReasonHint", "(U, pick, Enter records it)", 340, 387, 142, 9
     C("lblReasonHint").Font.Italic = True
     C("lblReasonHint").ForeColor = RGB(100, 100, 100)
 
@@ -176,10 +177,13 @@ Private Sub UserForm_Initialize()
         .Caption = "P   Part of" & vbLf & "the hours"
         .Left = Px(402): .Top = Px(408): .Width = Px(80): .Height = Px(52)
         .Font.Bold = True: .Font.Size = Px(10)
+        .WordWrap = True                            ' two lines (review: a code-made button does not wrap by default)
         .Enabled = False
     End With
 
-    MakeLabel "lblKeys", "Keys:  A  R  L  U  P     K = skip for now     B = back one     Enter = submit when all are logged     Esc = close", 10, 466, 376, 9
+    MakeLabel "lblKeys", "Keys: A R L U P as on the buttons.  K = skip for now, B = back one, Enter = submit when all are logged, Esc = close.", 10, 464, 376, 9
+    C("lblKeys").Height = Px(22)                     ' two lines (review: 15 pt cut it)
+    C("lblKeys").WordWrap = True
     C("lblKeys").ForeColor = MUTED
     Set mCallBack = Me.Controls.Add("Forms.CommandButton.1", "cmdCallBack", True)
     With mCallBack
@@ -341,6 +345,9 @@ Private Sub btnLoad_Click()
     If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, dL, C("cmbDN").Text, offList)
     If mCount = 0 Then
         lstEmployees.Clear
+        mCurrent = 0
+        UpdateCurrentLabel                         ' review: the card and the progress line of the old list go too
+        UpdateProgress
         SetOutcomeButtons False
         btnSubmit.Enabled = False
         mCallBack.Enabled = False
@@ -425,7 +432,7 @@ End Sub
 Private Sub UpdateCurrentLabel()
     If mCurrent < 1 Or mCurrent > mCount Then
         C("lblNowHdr").Caption = IIf(mCount = 0, "Now calling", "Everyone is logged")
-        C("lblName").Caption = IIf(mCount = 0, "Load a list to begin", "Ready to submit - press Enter or click SUBMIT ALL ENTRIES")
+        C("lblName").Caption = IIf(mCount = 0, "Load a list to begin", "Everyone logged: Enter submits")
         C("lblPhone").Caption = ""
         C("lblInfo").Caption = ""
         Exit Sub
@@ -444,7 +451,7 @@ Private Sub UpdateCurrentLabel()
     ' one line: code, total hours (+ provisional / estimate), the grade note, the S/S note, the offer
     Dim info As String
     info = "Code " & mEntries(mCurrent).DeptCode & "   -   " & Format$(mEntries(mCurrent).TotalHrs, "0") & " h"
-    If mEntries(mCurrent).ProvHrs > 0 Then info = info & " incl. " & Format$(mEntries(mCurrent).ProvHrs, "0.##") & " provisional"
+    If mEntries(mCurrent).ProvHrs > 0 Then info = info & " incl. " & HoursText(mEntries(mCurrent).ProvHrs) & " provisional"
     If mEntries(mCurrent).EstHrs Then
         info = info & ", after their planned unit move's top-up (" & Format$(mEntries(mCurrent).RosterHrs, "0") & " today)"
     End If
@@ -466,19 +473,30 @@ Private Sub UpdateProgress()
     Next i
     Dim txt As String
     If logged = mCount Then
-        txt = "All " & mCount & " logged - press Enter or click SUBMIT ALL ENTRIES"
+        txt = "All " & mCount & " logged - Enter submits"
     ElseIf logged = 0 Then
-        txt = "0 of " & mCount & " logged - press a key or click an outcome to start"
+        txt = "0 of " & mCount & " logged - a key or a button starts"
     Else
         txt = logged & " of " & mCount & " logged"
     End If
-    If nMsg > 0 Then txt = txt & "  -  " & nMsg & " left message" & IIf(nMsg > 1, "s", "") & " (Call back goes down that pile)"
+    If nMsg > 0 Then txt = txt & "  -  " & nMsg & " left message" & IIf(nMsg > 1, "s", "") & " (Call back)"
     If logged < mCount And logged > 0 Then txt = txt & "  -  " & (mCount - logged) & " to call"
     Dim mins As Long: mins = DateDiff("n", mStarted, Now)
     txt = txt & "  -  " & IIf(mins < 1, "just started", "started " & mins & " min ago")
     C("lblProgress").Caption = txt
-    mCallBack.Enabled = (nMsg > 0)
+    mCallBack.Enabled = (nMsg > 0) And Not SessionClosed()   ' v25.5 review: no call-backs once a partial closed the shift
 End Sub
+
+' v25.5 (review): True once a partial acceptance anywhere in the list closed the shift (the one rule, CalloutClosed)
+Private Function SessionClosed() As Boolean
+    Dim oc() As String, i As Long
+    If mCount < 1 Then Exit Function
+    ReDim oc(1 To mCount)
+    For i = 1 To mCount
+        oc(i) = mEntries(i).Outcome
+    Next i
+    SessionClosed = CalloutClosed(oc, mTaken, mCount, mHours)
+End Function
 
 Private Sub lstEmployees_Click()
     If lstEmployees.ListIndex >= 0 Then
@@ -487,9 +505,12 @@ Private Sub lstEmployees_Click()
     End If
 End Sub
 
-' v25.5: one key per outcome; the letters never reach the ListBox's own type-ahead (KeyCode.Value = 0)
+' v25.5: one key per outcome; the letters never reach the ListBox's own type-ahead (KeyCode.Value = 0).
+' A held key repeats KeyDown (review): one outcome per press - the flag clears on KeyUp.
 Private Sub lstEmployees_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
     If Shift <> 0 Then Exit Sub                      ' Ctrl / Alt / Shift combinations are not ours
+    If mKeyHeld Then KeyCode.Value = 0: Exit Sub
+    mKeyHeld = True
     Dim handled As Boolean: handled = True
     Select Case KeyCode
         Case vbKeyA: If btnAccepted.Enabled Then btnAccepted_Click
@@ -500,10 +521,14 @@ Private Sub lstEmployees_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal S
         Case vbKeyK: SkipCurrent
         Case vbKeyB: BackOne
         Case vbKeyReturn: If btnSubmit.Enabled Then btnSubmit_Click
-        Case vbKeyEscape: Unload Me                 ' the unsaved-entries question as always (QueryClose)
+        Case vbKeyEscape: KeyCode.Value = 0: Unload Me: Exit Sub     ' the unsaved-entries question as always (QueryClose); nothing after the unload (review)
         Case Else: handled = False
     End Select
     If handled Then KeyCode.Value = 0
+End Sub
+
+Private Sub lstEmployees_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    mKeyHeld = False
 End Sub
 
 ' Enter in the reason list records Unavailable for the person on the card; Esc goes back to the list
@@ -549,17 +574,23 @@ Private Sub BackOne()
     UpdateCurrentLabel
 End Sub
 
-' Call back: the first person who was left a message, so a second round goes down that pile
+' Call back: the next person who was left a message (after the card, wrapping round), so a second
+' round walks the whole pile (v25.5 review: the first one alone would come back every time)
 Private Sub mCallBack_Click()
-    Dim i As Long
-    For i = 1 To mCount
-        If mEntries(i).Outcome = "Left Message" Then
-            mCurrent = i
-            RefreshList
-            UpdateCurrentLabel
-            Exit For
+    Dim i As Long, k As Long, base As Long
+    base = mCurrent
+    If base > mCount Then base = 0                  ' everyone logged: start from the top
+    For k = 1 To mCount
+        i = ((base + k - 1) Mod mCount) + 1
+        If i >= 1 And i <= mCount Then
+            If mEntries(i).Outcome = "Left Message" Then
+                mCurrent = i
+                RefreshList
+                UpdateCurrentLabel
+                Exit For
+            End If
         End If
-    Next i
+    Next k
     FocusList
 End Sub
 
@@ -579,11 +610,13 @@ End Function
 ' v25 (D-E4): once someone took PART of the hours the shift is closed - no further outcome of any
 ' kind (review: a Refused recorded after the close would still be charged, since the charge goes by
 ' list position). The partial taker's own row stays correctable (their entry is left out of the test).
-Private Function ShiftClosedByPartial() As Boolean
+' v25.5 (review): a row logged BEFORE the close may still be corrected to a refusal, a message or
+' unavailable - never to Accepted (toAccepted): Call back and B reach those rows with one key now.
+Private Function ShiftClosedByPartial(Optional ByVal toAccepted As Boolean = False) As Boolean
     Dim oc() As String, tk() As Double, i As Long
     If mCount < 1 Then Exit Function
     If mCurrent >= 1 And mCurrent <= mCount Then
-        If mEntries(mCurrent).Outcome <> "" Then Exit Function      ' a row already logged (before the close) can be corrected
+        If mEntries(mCurrent).Outcome <> "" And Not toAccepted Then Exit Function   ' a row already logged (before the close) can be corrected, not to Accepted
     End If
     ReDim oc(1 To mCount): ReDim tk(1 To mCount)
     For i = 1 To mCount
@@ -599,7 +632,7 @@ End Function
 ' P / ACCEPTED PART OF THE HOURS: asks how many, records Accepted with those hours
 Private Sub mPartAcc_Click()
     If mCurrent < 1 Or mCurrent > mCount Then Exit Sub
-    If ShiftClosedByPartial() Then Exit Sub
+    If ShiftClosedByPartial(True) Then Exit Sub
     Dim was As Double: was = mTaken(mCurrent)
     mTaken(mCurrent) = 0
     Dim offer As Double: offer = OfferFor(mCurrent)
@@ -627,7 +660,7 @@ End Function
 ' OUTCOME BUTTONS
 ' ================================================================
 Private Sub btnAccepted_Click()
-    If ShiftClosedByPartial() Then Exit Sub              ' v25 (D-E4)
+    If ShiftClosedByPartial(True) Then Exit Sub          ' v25 (D-E4); v25.5: a logged row never becomes Accepted after the close
     RecordOutcome "Accepted", ""                         ' the whole of what is on offer
 End Sub
 Private Sub btnRefused_Click()

@@ -301,7 +301,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     x = x + wL + GG
 
     ' --- People (v22; v25.3: Sick Call for every supervisor, the rest admin) ---
-    GroupLabel ws, "ui_lbl_people", "PEOPLE", x, y0, wE                     ' v25.3: Sick Call is a supervisor's job
+    GroupLabel ws, "ui_sup_lbl_people", "PEOPLE", x, y0, wE                 ' v25.3: Sick Call is a supervisor's job; v25.5: the heading goes with its buttons (a plain user has none here)
     Btn ws, "ui_sup_Sick", "Sick Call", "modLeave.ShowSickCallForm", x, y(1), wE, RGB(230, 81, 0), vbWhite, True   ' v25.3: every supervisor; v25.5: ui_sup_ = the logins on SUPERVISOR_USERS + admins
     Btn ws, "ui_adm_Leave", "Leave", "modLeave.ShowLeaveForm", x, y(2), wE, RGB(106, 27, 154), vbWhite, True
     Btn ws, "ui_adm_Convert", "Convert imports", "modLeave.ShowConvertForm", x, y(3), wE, RGB(21, 101, 192), vbWhite, False
@@ -309,13 +309,13 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
 
     ' --- Postings (v25.3: New Posting and Award Posting for every supervisor; Load Posting admin) ---
     Dim grn As Long: grn = RGB(0, 128, 70)
-    GroupLabel ws, "ui_lbl_post", "POSTINGS", x, y0, wL                      ' v25.3: New Posting and Award Posting are a supervisor's jobs
+    GroupLabel ws, "ui_sup_lbl_post", "POSTINGS", x, y0, wL                  ' v25.3: New Posting and Award Posting are a supervisor's jobs; v25.5: the heading goes with them
     Btn ws, "ui_sup_NewPost", "New Posting", "modPostings.ShowNewPostingForm", x, y(1), wL, grn, vbWhite, True   ' v25.3: every supervisor; v25.5: ui_sup_
     Btn ws, "ui_adm_LoadPost", "Load Posting", "modPostings.ShowLoadPostingForm", x, y(2), wL, grn, vbWhite, True
     Btn ws, "ui_sup_Award", "Award Posting", "modOvertimeEntry.ShowPostingForm", x, y(3), wL, grn, vbWhite, True   ' v25.3: every supervisor; v25.5: ui_sup_
     x = x + wL + GG
 
-    ' --- Print / publish (v25.3: Call Out Roster and Calendar for everyone; Member View and the report admin) ---
+    ' --- Print / publish (v25.3: Calendar for everyone; v25.5: Call Out Roster and Member View for supervisors and admins, the report admin) ---
     GroupLabel ws, "ui_lbl_print", "PRINT / PUBLISH", x, y0, 2 * wP + G      ' v25.3: Call Out Roster and Calendar are everyone's
     Btn ws, "ui_sup_CallOut", "Call Out Roster", "Call_Out", x, y(1), wP, NAVY, vbWhite, False   ' v25.3: every supervisor; v25.5: ui_sup_
     Btn ws, "ui_sup_Member", "Member View", "PublishMemberView", x + wP + G, y(1), wP, NAVY, vbWhite, False   ' v25.5: supervisors publish too (bundle item 8)
@@ -324,7 +324,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     ' v25.3: the Desk (the second admin's screen), under Calendar so it is in view in every layout. ui_adm_ so
     ' non-admins never see it; ApplyViewCore keeps it visible in the Desk view, where the other admin buttons hide
     Btn ws, "ui_adm_Desk", "< Desk", "modDesk.ShowDesk", x, y(3), wP, NAVY, vbWhite, False
-    Btn ws, "ui_adm_Undo", "Undo last", "modOTLog.UndoLast", x + wP + G, y(3), wP, RGB(236, 239, 243), INK, False   ' v25.5 (A9): the free slot beside "< Desk" (the ADMIN group is full; gry is set below)
+    Btn ws, "ui_adm_Undo", "Undo last entry", "modOTLog.UndoLast", x + wP + G, y(3), wP, RGB(236, 239, 243), INK, False   ' v25.5 (A9): the free slot beside "< Desk" (the ADMIN group is full; gry is set below)
     x = x + 2 * wP + G + GG
 
     ' --- Admin ---
@@ -815,8 +815,8 @@ Public Function ScaleWidths(ByVal widths As String) As String
     Dim parts As Variant, i As Long, v As Double
     parts = Split(widths, ";")
     For i = LBound(parts) To UBound(parts)
-        v = Val(Trim$(CStr(parts(i))))
-        If v > 0 Then parts(i) = Format$(v * UI_SCALE, "0.##") & " pt" Else parts(i) = Trim$(CStr(parts(i)))
+        v = Val(Replace(Trim$(CStr(parts(i))), ",", "."))      ' a comma-decimal locale reads back "22,5 pt" (review)
+        If v > 0 Then parts(i) = Replace(HoursText(v * UI_SCALE), ",", ".") & " pt" Else parts(i) = Trim$(CStr(parts(i)))   ' no trailing point, a point as the separator
     Next i
     ScaleWidths = Join(parts, ";")
 End Function
@@ -838,9 +838,10 @@ Public Sub SetShortcuts(ByVal on_ As Boolean)
     keys = Array("^+s", "^+S", "^+c", "^+C", "^+k", "^+K", "^+d", "^+D")
     macs = Array("modUI.KeySick", "modUI.KeySick", "modUI.KeyCallout", "modUI.KeyCallout", _
                  "modUI.KeyCalendar", "modUI.KeyCalendar", "modUI.KeyDesk", "modUI.KeyDesk")
+    Dim wbq As String: wbq = "'" & Replace(ThisWorkbook.Name, "'", "''") & "'!"   ' this workbook's macro, not a practice copy's (review)
     For i = LBound(keys) To UBound(keys)
         If on_ Then
-            Application.OnKey CStr(keys(i)), CStr(macs(i))
+            Application.OnKey CStr(keys(i)), wbq & CStr(macs(i))
         Else
             Application.OnKey CStr(keys(i))
         End If

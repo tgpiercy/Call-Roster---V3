@@ -105,6 +105,23 @@ def test_only_unlocksheet_unprotects():
     assert "Public Sub UnlockSheet(" in src and "Public Sub UnlockStructure(" in src
 
 
+def test_module_stamps_carry_the_release():
+    """v25.5 review: every stamped module carries EXPECTED_RELEASE, and N_MODULES equals the VerCheck count."""
+    sysrc = vba("modSystem.bas")
+    rel = re.search(r'EXPECTED_RELEASE As String = "([^"]+)"', sysrc).group(1)
+    n_modules = int(re.search(r"N_MODULES As Long = (\d+)", sysrc).group(1))
+    checks = re.findall(r"^\s*VerCheck\b", sysrc, re.M)
+    assert len(checks) == n_modules, f"N_MODULES is {n_modules}, SystemCheck checks {len(checks)}"
+    stamped = {}
+    for p in sorted((ROOT / "modules").glob("*.bas")):
+        m = re.search(r'_VERSION As String = "([^"]+)"', p.read_text(encoding="ascii"))
+        if m:
+            stamped[p.name] = m.group(1)
+    assert len(stamped) == n_modules, f"{len(stamped)} stamped modules, N_MODULES {n_modules}"
+    wrong = {k: v for k, v in stamped.items() if rel + " " not in v and not v.endswith(rel)}
+    assert not wrong, f"stamps not on {rel}: {wrong}"
+
+
 def test_versions_agree():
     """v25 review: SystemCheck's expectations equal what ThisWorkbook and the forms say about themselves."""
     sysrc = vba("modSystem.bas")

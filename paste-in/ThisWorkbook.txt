@@ -11,7 +11,7 @@ Private mRestoreDesk As Boolean        ' v25.3: the Desk view was on before the 
 Private Sub Workbook_Open()
     Dim k As Long
     Application.ScreenUpdating = False
-    For k = 1 To 11                    ' v24.2: a step that fails is written to the Error Log; the rest still run
+    For k = 1 To 10                    ' v24.2: a step that fails is written to the Error Log; the rest still run
         OpenStep k
     Next k
     On Error Resume Next
@@ -19,6 +19,8 @@ Private Sub Workbook_Open()
     ThisWorkbook.Saved = True
     OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
     SetShortcuts True                  ' v25.5: Ctrl+Shift+S / C / K / D while this workbook is active (modUI)
+    WhatsNewOnOpen                     ' v25.5: the what's-new box once per login per release (modSystem) - last, on a painted screen (review)
+    ThisWorkbook.Saved = True          ' the hidden name it may write goes with the next real save
     On Error GoTo 0
 End Sub
 
@@ -35,7 +37,6 @@ Private Sub OpenStep(ByVal k As Long)
         Case 8: CalOnOpen              ' calendar: this month, fresh needs-attention box
         Case 9: IntegrityOnOpen        ' v23: quiet integrity check for admins (result on the status line)
         Case 10: DeskOpenLanding          ' v25.3: a Desk user lands on the Desk, everyone else on the roster (modDesk)
-        Case 11: WhatsNewOnOpen           ' v25.5: the what's-new box once per login per release (modSystem)
     End Select
     Exit Sub
 Oops:
@@ -102,6 +103,7 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
         Exit Sub
     End If
     PublishReminderOnClose                 ' v24.1: offers to publish the members' file if it is behind
+    CalHintReset                           ' v25.5: a clicked line's details are not saved for the next opener (modCalendar)
     mRestoreAdmin = True                   ' closing - no tab redraws while the view switches
     ApplyView False
     RosterSheet().Activate

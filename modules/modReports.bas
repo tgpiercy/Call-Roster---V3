@@ -249,6 +249,7 @@ End Sub
 ' unit's call order today - LoadEligible, the one call order, everyone holding a code in the unit. No rule here.
 Public Sub FindPerson()
     On Error GoTo Oops
+    If Not IsSupervisor() Then Exit Sub                 ' review: the button is theirs; Alt+F8 by a plain user does nothing
     Dim q As Variant
     q = Application.InputBox(Prompt:="Part of the name (the last name is enough):", Title:="Find a person", Type:=2)
     If VarType(q) = vbBoolean Then Exit Sub
@@ -270,7 +271,14 @@ Public Sub FindPerson()
         MsgBox "Nobody on the roster matches """ & t & """.", vbInformation, "Find a person"
         Exit Sub
     End If
-    If rs.Rows(hitRow).Hidden Then ShowAllRows            ' a unit filter was hiding the row
+    If rs.Rows(hitRow).Hidden Then
+        ShowAllRows                                       ' a unit filter was hiding the row - it also sorts A-Z (review)
+        hitRow = 0
+        For r = R_FIRST To RosterLastRow()
+            If StrComp(Trim$(SafeStr(rs.Cells(r, C_NAME).Value)), firstNm, vbTextCompare) = 0 Then hitRow = r: Exit For
+        Next r
+        If hitRow = 0 Then MsgBox firstNm & " moved while the filter cleared - search again.", vbInformation, "Find a person": Exit Sub
+    End If
     rs.Activate
     Application.Goto rs.Cells(hitRow, C_NAME), True
     Dim txt As String: txt = firstNm

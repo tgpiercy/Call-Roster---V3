@@ -400,8 +400,18 @@ Public Sub UndoLast()
         Exit Sub
     End If
     Dim k As String: k = UCase$(SafeStr(v(best, L_REF)))
-    VoidEntryFor k, "Your last entry today: " & k & " (" & SafeStr(v(best, L_TYPE)) & ", " & SafeStr(v(best, L_EMP)) & ", " & _
-                    Format$(bestAt, "h:mm AM/PM") & ")."
+    If k = "" Then MsgBox "Your newest entry today has no Ref ID (row #" & SafeStr(v(best, L_ENTRY)) & "): void it by its Entry ID with Void Entry.", vbInformation, "Undo last": Exit Sub
+    ' review: an undo voids the OT LOG rows only, as Void Entry does; what a P- / LV- / UM- / NH- ref leaves behind is named
+    Dim lead As String
+    lead = "Your last OT Log entry today: " & k & " (" & SafeStr(v(best, L_TYPE)) & ", " & SafeStr(v(best, L_EMP)) & ", " & Format$(bestAt, "h:mm AM/PM") & ")."
+    If Left$(k, 2) = "P-" Then
+        lead = lead & vbNewLine & "The posting stays awarded: reopen it afterwards (its calendar line > Reopen) to award it again."
+    ElseIf Left$(k, 3) = "LV-" Then
+        lead = lead & vbNewLine & "The leave stays closed: book it again with Leave if they are still away."
+    ElseIf Left$(k, 3) = "UM-" Or Left$(k, 3) = "NH-" Then
+        lead = lead & vbNewLine & "The roster row keeps the move / the new hire: the Employee pop-up takes it back."
+    End If
+    VoidEntryFor k, lead
     Exit Sub
 Oops:
     ReportError "UndoLast"

@@ -594,9 +594,10 @@ Public Sub WhatsNewOnOpen()
     End If
 End Sub
 
-' Alt+F8, or the Help sheet: the box itself
+' Alt+F8 (the Help tab names it): the box itself
 Public Sub ShowWhatsNew()
     On Error GoTo Oops
+    Application.ScreenUpdating = True                ' open step 11 runs with it off: the box must not sit on an unpainted window (review)
     MsgBox "What's new in " & EXPECTED_RELEASE & ":" & vbNewLine & vbNewLine & _
            "- " & Replace(WHATS_NEW, "|", vbNewLine & vbNewLine & "- ") & vbNewLine & vbNewLine & _
            "The Help tab (How do I ... on the Desk) has every job. This box shows once; Alt+F8 > ShowWhatsNew brings it back.", _

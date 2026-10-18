@@ -16,7 +16,7 @@ Needs **v25.3 installed** and **Roster Updater.xlsm v4.1**. **The updater does n
 - **Plain language (item 3):** names before IDs in the saved-messages, verb-phrase buttons, S/S explained in the call-out legend, a glossary on the Help tab and in the quick guide.
 - **Shortcuts and what's-new (item 4):** Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar, Ctrl+Shift+D the Desk, while the roster is the active workbook (listed under the Desk's HELP group); a three-line what's-new box once per login after an install (Alt+F8 > ShowWhatsNew brings it back).
 - **Desk refinements (item 5):** the cover tile names the next uncovered shift; the header says which crews are on today; Suggest an improvement beside Something went wrong.
-- **Undo the last thing I did (item 6, admin):** the admin Desk and Undo last on the bar void this login's newest entry of today through Void Entry's own confirm and reason.
+- **Undo my last log entry (item 6, admin):** the admin Desk, and Undo last entry on the bar, void this login's newest OT Log entry of today through Void Entry's own confirm and reason (log rows only: a P- / LV- / UM- / NH- entry's box says what stays and the next step).
 - **Find a person (item 7):** a FIND group at the right end of the bar (supervisors and admins): part of a name selects the row; the status bar says "N of M in the <unit> call order today".
 - Settings (modOvertimeEntry, under DESK_USERS): `SUPERVISOR_USERS`, `UI_SCALE`. modSystem: `WHATS_NEW`.
 

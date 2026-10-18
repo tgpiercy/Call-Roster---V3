@@ -385,7 +385,7 @@ The steps are in docs/rollover-one-pager.md.
 |---|---|
 | What it is | A separate workbook for members, opened on plant PCs |
 | Values only | The master works everything out and pushes values in. The members' file holds no rules and never reads the master. |
-| When it updates | When the admin clicks Member View. Needs Attention reminds the admin when it is more than a day old. |
+| When it updates | When a supervisor or an admin clicks Member View (v25.5; the Desk's Update the members' file). Needs Attention reminds the admin when it is more than a day old. |
 | Privacy check | Before publishing, the master checks every published value for emails, phone numbers, employee numbers and leave codes, and every free-text line for a leave word or the words sick and personal. If it finds one, nothing is published and the message names the line. |
 | From a copy | Member View refuses to run from a daily backup, the frozen year-end file or a "Backup before" copy. A practice copy publishes a file named PRACTICE beside itself, never the real members' file. |
 
@@ -404,7 +404,8 @@ The steps are in docs/rollover-one-pager.md.
 | Who | Can do |
 |---|---|
 | Anyone who opens the roster | Sort and filter the roster, use Log Call-Out, look at the Calendar |
-| Logins on the admin list | Everything else: postings, shift switches, time off, sick calls, leave, the printed call-out roster, publishing, Kronos import, adjustments and voids |
+| Logins on the supervisor list (v25.5) | Sick calls, postings (new, award to the list), the printed call-out roster, publishing; the Desk. |
+| Logins on the admin list | Everything else: shift switches, time off, leave, void / undo, adjustments, people, Kronos, a posting's no takers / out of department / cancel / reopen, Kronos import, adjustments and voids |
 
 - Phone numbers and email addresses are hidden from people not on the admin list.
 - The file is always saved in the restricted view, and so is every copy the system makes (pre-change backups, practice copies, the updater's backup).
@@ -417,7 +418,7 @@ The steps are in docs/rollover-one-pager.md.
 | Automatic save | The file saves after each entry, and again when it is closed. |
 | Daily backup | A dated copy is saved the first time an admin opens the live file each day. 30 days are kept. A backup, the frozen year-end file or a practice copy never takes that day's slot. |
 | Error log | A button or pop-up that fails part-way writes a line to the admin-only Error Log sheet (and a text file beside the roster) and shows "This didn't finish ... Error Log line N" instead of a code error. |
-| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 18 steps through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos heading rule, a planted leave word stopping the publish, void, remove, integrity) and checks every total comes back. It never saves. |
+| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 19 steps (v25.5) through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos heading rule, a planted leave word stopping the publish, void, remove, integrity) and checks every total comes back. It never saves. |
 | One parser, one rule | Every date box reads through one parser; every rule (call order, who is free, closing, charging, the trim, the switch stops) lives in one module function the pop-ups call, with known answers in SelfTest. |
 | Checked changes | A change to the roster's layout is compared before and after. If the totals differ, saving is blocked. |
 | SystemCheck | Confirms the installed code is the right release and the data is in order. |

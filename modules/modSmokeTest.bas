@@ -97,7 +97,7 @@ Public Sub SmokeTest()
 
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
     Dim repNotes As String                         ' v24.3.1: the notes alone (the Error Log line)
-    Dim repSkips As String                         ' v25.2: the skipped steps (the PASSED box shows these; 20 names no longer fit)
+    Dim repSkips As String                         ' v25.2: the skipped steps (the PASSED box shows these; 19 step names don't fit)
     Dim before As Object, logBefore As Double, nErr0 As Long, nWarn0 As Long, diff As String
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -153,7 +153,7 @@ Public Sub SmokeTest()
         head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
     Else
         head = "SMOKE TEST PASSED: all " & SMK_STEPS & " steps OK, totals unchanged."
-        ' v25.2: 20 step names no longer fit a MsgBox with the closing text; a passed run's box shows the skipped
+        ' v25.2: 19 step names don't fit a MsgBox with the closing text; a passed run's box shows the skipped
         ' steps (a failed run's box lists the steps: rep)
         rep = IIf(repSkips = "", "No step skipped." & vbNewLine, repSkips)
     End If

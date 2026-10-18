@@ -29,6 +29,8 @@ Option Explicit
 Public Const DESK_VERSION As String = "Desk v25.5 (Oct 18)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
+Public Const HELP_SHEET As String = "Help"           ' v25.5: the Help sheet (ShowHelp / DrawHelp below)
+Private Const HELP_COL_W As Double = 118            ' the Help sheet's column B: one wide wrapped column (characters)
 
 Public gDeskMode As Boolean                         ' the Desk view is on (set by ApplyViewCore)
 Private mZoomChecked As String                      ' sheets whose left-behind 120 % was put back this session (review)
@@ -234,7 +236,7 @@ Public Sub DrawDesk()
         yL = yL + 16
         DeskBtn ws, "dk_btn_leave", "Leave: going or returning", "modDesk.DeskLeave", x0, yL, dkLeave()
         yL = yL + BTN_H + GAP
-        DeskBtn ws, "dk_btn_undo", "Undo the last thing I did", "modDesk.DeskUndo", x0, yL, dkGrey(), BTN_W, dkInk()   ' v25.5 (A9): admin only (void)
+        DeskBtn ws, "dk_btn_undo", "Undo my last log entry", "modDesk.DeskUndo", x0, yL, dkGrey(), BTN_W, dkInk()   ' v25.5 (A9): admin only (void); "log entry": it undoes OT Log rows only (review)
         yL = yL + BTN_H + 18
     End If
     DeskLabel ws, "dk_lbl_help", "HELP", x0, yL
@@ -425,6 +427,7 @@ End Sub
 ' Activating it fires SheetActivate -> DeskSheetActivated -> DrawDesk, so the draw is done here only when
 ' the event can't do it (the Desk already in front, or events off) - never twice (review).
 Public Sub ShowDeskSheet()
+    If Not (gAdminUnlocked Or IsSupervisor()) Then Exit Sub   ' v25.5 review: a plain user has no Desk (Alt+F8 too)
     Dim ws As Worksheet: Set ws = DeskSheet()
     SetSheetVisible ws, xlSheetVisible
     If ActiveSheet Is ws Or Not Application.EnableEvents Then
@@ -655,8 +658,7 @@ End Sub
 '  (GUIDE_PATH, a PDF) stays optional behind its own button. Drawn on first use and again after an install
 '  (the version in D1 differs). Protected like every sheet; nothing is typed into it. Holds no rule.
 ' ====================================================================
-Public Const HELP_SHEET As String = "Help"
-Private Const HELP_COL_W As Double = 118            ' column B: one wide wrapped column (characters)
+' (HELP_SHEET / HELP_COL_W are declared at the top of the module - a Const after a procedure does not compile)
 
 ' "How do I ...": the Help sheet (the name stays: the Desk button calls it)
 Public Sub DeskGuide()
@@ -679,8 +681,9 @@ Private Function HelpSheet() As Worksheet
     SetTabColor HelpSheet, dkMuted()
 End Function
 
-' The sheet drawn (when missing or from an older release) and brought to the front
+' The sheet drawn (when missing or from an older release) and brought to the front (Alt+F8 too: framed)
 Public Sub ShowHelp()
+    On Error GoTo Oops
     Dim ws As Worksheet: Set ws = HelpSheet()
     If SafeStr(ws.Cells(1, 4).Value) <> DESK_VERSION Then DrawHelp ws
     SetSheetVisible ws, xlSheetVisible
@@ -693,6 +696,9 @@ Public Sub ShowHelp()
         .ScrollRow = 1
     End With
     ws.Range("B1").Select
+    Exit Sub
+Oops:
+    ReportError "ShowHelp"
 End Sub
 
 ' "< Back": the Desk when this login has one, else the roster
@@ -838,7 +844,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "editing means you can look but not log: close it and come back when they are out. Every sheet is protected: the " & _
         "buttons do the writing, nothing is typed into cells. Close the file as soon as you are done so the next supervisor can get in."
     HelpAdd h, n, "The Desk", _
-        "Supervisors and admins open on the Desk tab: the tiles say what is waiting today (shifts needing cover, postings ready " & _
+        "A supervisor on the list, and an admin on the Desk list, open on the Desk tab (the primary admin opens on the roster and reaches it with < Desk): the tiles say what is waiting today (shifts needing cover, postings ready " & _
         "to award, the members' file's age) and the buttons are the jobs - Someone called in sick, Fill a shift now, What needs " & _
         "cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster. Full roster > at the bottom " & _
         "goes to the roster; the Desk tab brings it back. Anyone not on the supervisor list opens on the roster and can log " & _
@@ -853,13 +859,14 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "and below; >> means above grade 2 (called, never charged); * means the total includes accepted overtime not yet in " & _
         "Kronos; ~ means an estimate because a unit move is planned for the person."
     HelpAdd h, n, "Someone takes only part of the hours", _
-        "Select them and click ACCEPTED PART OF THE HOURS, then enter the hours. That closes the shift: nobody else is called, " & _
-        "nobody below is charged, and the pop-up refuses any further outcome. Anyone who refused before the partial keeps their " & _
+        "Select them and press P (Part of the hours), then enter the hours. That closes the shift: nobody else is called, " & _
+        "nobody below is charged, and the pop-up refuses a further Accepted (a refusal or a message already logged can still be " & _
+        "corrected to another refusal or message). Anyone who refused before the partial keeps their " & _
         "charge. Click SUBMIT ALL ENTRIES."
     HelpAdd h, n, "Someone called in sick", _
         "Click Someone called in sick (Sick Call on the bar). Pick who called, check the Shift date, Shift, Unit to cover and " & _
         "Hours, and read the line under the Note box: it gives their sick-day counts and whether this shift is a paid sick day. " & _
-        "SAVE + START CALL-OUT books the sick shift and opens the call-out filled in; Save only books it without a call-out. " & _
+        "SAVE + START CALL-OUT books the sick shift and opens the call-out filled in; Save, no call-out books it without a call-out. " & _
         "The person is off every call list for that shift and any shift starting within 24 hours after it ends. Log each sick " & _
         "shift as its own sick call. Members see it as Off, never why."
     HelpAdd h, n, "Post a shift", _
@@ -888,8 +895,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "The calendar", _
         "Click What needs cover (Calendar on the bar). Pick the month and the unit at the top. OPEN means the line still needs " & _
         "cover; POSTED means a posting is out; a name means covered; NCN means no cover needed. Click a line: its details show " & _
-        "in the row under the title. Double-click a line for its options (an admin: set coverage, change the text, start a " & _
-        "call-out, post it). Print / PDF prints the month or saves it as a PDF."
+        "in the row under the title. Double-click a line for its options (an admin: set coverage, change the text, " & _
+        "post it). Print / PDF prints the month or saves it as a PDF."
     HelpAdd h, n, "Needs Attention (admin)", _
         "From the calendar's Needs attention > button or the tab. It lists open lines, postings ready to award, paybacks owed, " & _
         "leaves to watch, planned unit moves and other items; double-click a row for its options. A due planned move asks " & _
@@ -898,19 +905,19 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Click Book time off. Pick Employee, Unit and Type (VAC vacation, PER personal day, TRN training; for a leave use the " & _
         "Leave button), type From and To (last day). Vacation and personal days go on scheduled shifts only: a range that " & _
         "starts or ends on days off asks to be trimmed. Open-ended for no return date yet; Hours / shift for part of a shift. " & _
-        "SAVE. To fix a booking select it under BOOKED TIME OFF and click Change end date or Void."
+        "SAVE. To fix a booking select it under BOOKED TIME OFF and click Change end date or Void this booking."
     HelpAdd h, n, "Shift switch and payback (admin)", _
         "Click Shift switch or payback. Type the Shift date, pick the Unit, then Gives up shift and Works the shift. Read the hint " & _
         "lines: NOT ELIGIBLE stops the save, check is a warning. SAVE SWITCH. It stays on the OWED list until paid back: click " & _
-        "the switch in the list, type the payback date and save. Tick Two-way swap when both dates are known now. A wrong " & _
-        "switch: select it and click Void selected."
+        "the switch in the list, type the payback date and save. Tick log the payback now when both dates are known. A wrong " & _
+        "switch: select it and click Void the selected switch."
     HelpAdd h, n, "Leave: going and returning (admin)", _
         "Click Leave. Going on leave: pick Employee and Type, type the first day off and the expected return (or leave it " & _
         "blank), SAVE LEAVE. Returning: pick who is back, type the first day back, click Work out the top-up, read the peers, " & _
         "the average and the hours before and after, then SAVE TOP-UP. A return date in the future, or after the roster's last " & _
         "pay period, is refused."
     HelpAdd h, n, "Find a person", _
-        "Click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
+        "Supervisors and admins: click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
         "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _
         "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
     HelpAdd h, n, "Keyboard shortcuts", _
@@ -924,11 +931,13 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Asking for a void", _
         "Void Entry is an admin button. To correct a logged call-out or award, tell the admin the number (S-0012, P-0003) and " & _
         "what was wrong: the admin voids it (the entry stays in the log, marked VOID) and you log the correct entry. An admin " & _
-        "who just logged something wrong clicks Undo the last thing I did (the admin Desk, or Undo last on the bar): it offers " & _
-        "to void their own newest entry of today, with the same confirm and reason."
+        "who just logged something wrong clicks Undo my last log entry (the admin Desk, or Undo last entry on the bar): it offers " & _
+        "to void their own newest OT Log entry of today, with the same confirm and reason. It undoes log entries only: a sick " & _
+        "call, time off, a switch or a new posting is taken back in its own pop-up."
     HelpAdd h, n, "If a red box appears", _
         "This didn't finish means something stopped part-way. The box names what you were doing and an Error Log line. Nothing " & _
-        "you did before it is lost. Try once more; if it fails again, click Something went wrong on the Desk: an email to " & _
+        "you did before it is lost. Try once more; if it fails again, click Something went wrong on the Desk (supervisors and admins; anyone else tells " & _
+        PRIMARY_ADMIN_NAME & " the line number): an email to " & _
         PRIMARY_ADMIN_NAME & " opens with the error line in it (or a box to photograph). Saving is blocked in red means close " & _
         "WITHOUT saving, reopen, check your last entry, and tell the admin."
     HelpAdd h, n, "Close the file", _
@@ -936,7 +945,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "close: Yes publishes before closing."
     HelpAdd h, n, "Words you will see", _
         "Call order: grade code first, then the lowest Total Hours, then plant seniority - the order everyone is called in. " & _
-        "Total Hours: worked (Kronos) + refused + accepted overtime not yet in Kronos (*). Charged: refused or left-message " & _
+        "Total Hours: worked (Kronos) + the hours charged in the OT Log this year (refusals, left messages, adjustments) + accepted " & _
+        "overtime not yet in Kronos (*). Charged: refused or left-message " & _
         "hours x 1.75 added to Total Hours, grade 2 and below only (>> = above grade 2, called but never charged). ~ = an " & _
         "estimate because a unit move is planned for the person. ? = left a message. S/S = working a shift switch that " & _
         "shift. NCN = no cover needed. PHA = hazard-analysis coverage. OPEN = the line still needs cover; POSTED = a " & _

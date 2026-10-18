@@ -96,7 +96,7 @@ Public Sub SmokeTest()
               vbOKCancel + vbQuestion, TTL) <> vbOK Then Exit Sub
 
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
-    Dim repShort As String, repNotes As String     ' v24.3.1: the step lines without their notes (the PASSED box), and the notes alone (the Error Log line)
+    Dim repNotes As String                         ' v24.3.1: the notes alone (the Error Log line)
     Dim repSkips As String, repDraw As String       ' v25.2: the skipped steps and the two draw-compare lines (the PASSED box shows these; 20 names no longer fit)
     Dim before As Object, logBefore As Double, nErr0 As Long, nWarn0 As Long, diff As String
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
@@ -116,8 +116,7 @@ Public Sub SmokeTest()
         Application.StatusBar = "Smoke test: step " & k & " of " & SMK_STEPS & " - " & SmkName(k)
         ok = SmkStep(k, st, nErr0, why)
         If ok Then
-            repShort = repShort & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & vbNewLine
-            If st.Note <> "" Then repNotes = repNotes & k & ": " & st.Note & "; "
+            If st.Note <> "" And k < 19 Then repNotes = repNotes & k & ": " & st.Note & "; "    ' steps 19-20 go in repDraw, first on the line
             If Left$(st.Note, 7) = "SKIPPED" Then repSkips = repSkips & Format$(k, "00") & "  skip  " & SmkName(k) & "  (" & st.Note & ")" & vbNewLine
             If k >= 19 Then repDraw = repDraw & SmkName(k) & ": " & st.Note & vbNewLine
             rep = rep & Format$(k, "00") & "  " & IIf(Left$(st.Note, 7) = "SKIPPED", "skip", "OK  ") & "  " & SmkName(k) & _
@@ -155,12 +154,12 @@ Public Sub SmokeTest()
         head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
     Else
         head = "SMOKE TEST PASSED: all " & SMK_STEPS & " steps OK, totals unchanged." & IIf(repDraw <> "", vbNewLine & repDraw, "")
-        ' v25.2: 20 step names no longer fit a MsgBox with the closing text; the box shows the skipped steps and the
-        ' two draw-compare lines, the full step list is on the Error Log line (repShort stays for the FAILED box)
+        ' v25.2: 20 step names no longer fit a MsgBox with the closing text; a passed run's box shows the skipped
+        ' steps and the two draw-compare lines (a failed run's box lists the steps: rep)
         rep = IIf(repSkips = "", "No step skipped." & vbNewLine, repSkips)
     End If
     If Len(head) > 420 Then head = Left$(head, 400) & " ..." & vbNewLine
-    If Len(rep) > 820 - Len(head) Then rep = Left$(rep, 800 - Len(head)) & " ..." & vbNewLine     ' MsgBox holds about 1,000 characters; the closing text is 150
+    If Len(rep) > 820 - Len(head) Then rep = "... " & Right$(rep, 800 - Len(head))     ' MsgBox holds about 1,000 characters; the closing text is 150; the LAST lines (the failed one) stay (re-review)
     MsgBox head & vbNewLine & vbNewLine & rep & vbNewLine & _
            "Saving is blocked in this copy. Close it WITHOUT saving; nothing is kept. " & _
            "Make the next practice copy from the real roster, not from this one.", _

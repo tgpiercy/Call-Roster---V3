@@ -1600,6 +1600,7 @@ Private Function CalendarSheet() As Worksheet
         Set ws = ThisWorkbook.Worksheets.Add(After:=RosterSheet())
         ws.Name = CAL_SHEET
         RelockStructure
+        If SheetExists(MAP_SHEET) Then MapWrite "Z17", ""       ' v25.2 re-review: a fresh sheet needs its page setup again
     End If
     If Not SheetExists(MAP_SHEET) Then
         Dim m As Worksheet
@@ -2193,7 +2194,8 @@ Public Sub DrawCalendar()
     ' release (CalMap Z17 remembers); the PRINT AREA is set on every draw regardless - the wipe's Rows.Delete
     ' shrinks the Print_Area name to rows 1-2, so a draw that skipped it would print two rows (review).
     Dim pageAddr As String: pageAddr = ws.Range(ws.Cells(1, 1), ws.Cells(r, 16)).Address
-    If SafeStr(mp.Range("Z17").Value) <> CAL_VERSION Then
+    If SafeStr(mp.Range("Z17").Value) <> CAL_VERSION Or ws.PageSetup.Orientation <> xlLandscape Then   ' re-review: a re-made or hand-changed sheet too
+    Err.Clear
     Application.PrintCommunication = False
     With ws.PageSetup
         .PrintArea = pageAddr
@@ -2211,7 +2213,7 @@ Public Sub DrawCalendar()
         .PrintComments = xlPrintNoComments
     End With
     Application.PrintCommunication = True
-    mp.Range("Z17").Value = "'" & CAL_VERSION
+    If Err.Number = 0 Then mp.Range("Z17").Value = "'" & CAL_VERSION     ' stamped only when every property set took (re-review)
     Else
         ws.PageSetup.PrintArea = pageAddr               ' the one property that must follow the rows
     End If

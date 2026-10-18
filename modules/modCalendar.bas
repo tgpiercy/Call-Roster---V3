@@ -24,7 +24,7 @@ Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v25.1.2 (Oct 17)"
+Public Const CAL_VERSION As String = "Calendar v25.2 (Oct 17)"
 ' v25.1.2: draw-time measurement (the v25.2 plan's step 1): seconds spent inside SlotsFor and AddNote
 ' during the current draw, read by DrawCalendar / DrawNeeds for their breakdown lines
 Private mTimeSlots As Double
@@ -1531,8 +1531,8 @@ End Function
 ' the toolbar hint depends on who's looking - cheap to fix without a redraw
 ' v25.1.2: the hint text, with the last draw's time on the end (CalMap Z13 holds the seconds)
 Private Function CalHintText() As String
-    CalHintText = IIf(gAdminUnlocked, "Double-click any line or empty space for options.  Hover for details.", _
-                      "Hover over a line for details, or double-click it.  Print / PDF gives the copy to post.")
+    CalHintText = IIf(gAdminUnlocked, "Double-click any line or empty space for options.  Hover an open or posted line for details.", _
+                      "Double-click a line for its details; hover an open or posted line.  Print / PDF gives the copy to post.")
     Dim s As String: s = SafeStr(MapSheet().Range("Z13").Value)
     If s <> "" Then CalHintText = CalHintText & "  Drawn in " & s & " s."
 End Function
@@ -1868,9 +1868,7 @@ Public Sub DrawCalendar()
     ws.Rows(3).RowHeight = 28
     With ws.Range("F3:K3")
         .Merge
-        .Value = IIf(gAdminUnlocked, _
-                     "Double-click any line or empty space for options.  Hover for details.", _
-                     "Hover over a line for details, or double-click it.  Print / PDF gives the copy to post.")
+        .Value = CalHintText()                  ' v25.2: one text (rewritten with this draw's time at the end)
         .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
         .VerticalAlignment = xlCenter
         .IndentLevel = 1
@@ -2190,6 +2188,7 @@ Private Sub WriteSlot(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal rr As 
     a.ShrinkToFit = True                  ' long names shrink instead of spilling into the next day
     a.VerticalAlignment = xlCenter
     Dim t As String: t = s.RightText
+    Dim noteIt As Boolean                     ' v25.2 (item 1): a hover note only where action is needed
     b.Font.Name = CAL_FONT: b.Font.Size = 9: b.Font.Bold = False: b.Font.Italic = False
     b.IndentLevel = 1
     b.ShrinkToFit = True
@@ -2198,10 +2197,12 @@ Private Sub WriteSlot(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal rr As 
         b.Value = IIf(t = "", "OPEN", "NO TAKERS")
         b.Font.Name = CAL_FONT_B: b.Font.Color = thOpen()
         b.Interior.Color = thOpenFill()
+        noteIt = True
     ElseIf UCase$(t) Like "POSTED*" Then
         b.Value = "'" & t
         b.Font.Name = CAL_FONT_B: b.Font.Color = thPosted()
         b.Interior.Color = thPostedFill()
+        noteIt = True
     ElseIf UCase$(t) = "NCN" Then
         b.Value = "'" & t: b.Font.Italic = True: b.Font.Color = thMuted()
     Else
@@ -2210,10 +2211,14 @@ Private Sub WriteSlot(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal rr As 
     Dim keyTxt As String: keyTxt = s.Key & "|" & CLng(Int(d)) & "|" & shiftLbl
     mp.Cells(rr, 2 + 2 * k).Value = keyTxt
     mp.Cells(rr, 3 + 2 * k).Value = keyTxt
-    Dim tL As Double: tL = Timer              ' v25.1.2 review: the details text counts under notes, not cells
-    Dim det As String: det = LineDetails(keyTxt, True)
-    mTimeNotes = mTimeNotes + Secs(tL, Timer)
-    AddNote b, det                            ' hover for the details
+    ' v25.2 (item 1, D-C4 revisited on the v25.1.2 numbers: 85 notes were 2.8 of 4.6 s): OPEN, NO TAKERS and
+    ' POSTED lines keep the hover box; a covered line's details are on double-click > Details...
+    If noteIt Then
+        Dim tL As Double: tL = Timer          ' v25.1.2 review: the details text counts under notes, not cells
+        Dim det As String: det = LineDetails(keyTxt, True)
+        mTimeNotes = mTimeNotes + Secs(tL, Timer)
+        AddNote b, det                        ' hover for the details
+    End If
 End Sub
 
 Private Sub BuildCalControls(ByVal ws As Worksheet, ByVal m0 As Date, ByVal grp As String)
@@ -3160,12 +3165,12 @@ Private Sub AddNote(ByVal c As Range, ByVal txt As String)
     If txt = "" Then Exit Sub
     Dim tN As Double: tN = Timer                     ' v25.1.2: measured
     On Error Resume Next
-    c.ClearComments
+    If Not c.Comment Is Nothing Then c.ClearComments      ' v25.2 (item 1): fresh rows have none
     c.AddComment txt
     With c.Comment.Shape
-        .TextFrame.Characters.Font.Name = CAL_FONT
-        .TextFrame.Characters.Font.Size = 9
-        .TextFrame.Characters.Font.Bold = False
+        With .TextFrame.Characters.Font
+            .Name = CAL_FONT: .Size = 9: .Bold = False
+        End With
         Dim p As Long: p = InStr(txt, vbLf)
         If p > 1 Then .TextFrame.Characters(1, p - 1).Font.Bold = True
         .TextFrame.AutoSize = True

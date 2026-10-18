@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desk view mock-up</title>
+<style>
+  /* Sizes are Excel points converted at 96 dpi (1 pt = 1.333 px) so the two
+     sheets below show at the size they would appear on screen at 100 percent. */
+  :root {
+    --navy: #1e3864; --ink: #333; --light: #dee5f0; --grey: #eceff3; --muted: #6e7887;
+    --green: #008046; --orange: #e65100; --amber: #b46400; --purple: #6a1b9a; --blue: #1565c0;
+    --red: #be1e1e; --paper: #fff; --page: #f3f4f6; --grid: #e4e6ea;
+  }
+  body { margin: 0; background: var(--page); color: var(--ink); font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; }
+  .wrap { max-width: 1380px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 24px; color: var(--muted); }
+  h2 { font-size: 16px; margin: 32px 0 8px; }
+  .note { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+
+  /* an Excel window frame */
+  .xl { background: var(--paper); border: 1px solid #c9ccd2; box-shadow: 0 2px 10px rgba(0,0,0,.08); overflow: hidden; }
+  .xl .sheet { position: relative; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 100% 20px, 64px 100%; }
+  .tabs { display: flex; gap: 2px; background: #e9ebef; border-top: 1px solid #c9ccd2; padding: 4px 8px 0; font-size: 12px; overflow-x: auto; }
+  .tabs span { background: #f6f7f9; border: 1px solid #c9ccd2; border-bottom: none; padding: 3px 10px; white-space: nowrap; color: #555; }
+  .tabs span.on { background: #fff; color: var(--navy); font-weight: 600; border-bottom: 2px solid var(--green); }
+  .tabs span.dim { color: #aaa; }
+
+  /* ---- TODAY: the bar at true scale ---- */
+  .bar { padding: 4px 0 6px 56px; height: 128px; box-sizing: border-box; display: flex; gap: 11px; align-items: flex-start; }
+  .grp { display: grid; grid-auto-rows: 32px; row-gap: 4px; }
+  .grp .lbl { height: 16px; font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .2px; }
+  .b { height: 32px; border-radius: 6px; font-size: 11.3px; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; box-sizing: border-box; padding: 0 2px; }
+  .b.w62 { width: 83px; } .b.w90 { width: 120px; } .b.w88 { width: 117px; }
+  .sort { background: #fff; color: var(--navy); border: 1px solid #a0afc8; }
+  .fill { color: #fff; font-weight: 700; }
+  .adm { background: var(--grey); color: var(--ink); }
+  .row3 { display: flex; gap: 4px; }
+  .status { position: absolute; left: 56px; top: 150px; font-size: 12px; line-height: 15px; width: 540px; }
+  .status .k { color: var(--red); }
+  .hdr { position: absolute; left: 56px; top: 206px; right: 0; height: 24px; background: var(--navy); color: #fff; font-size: 12px; display: flex; align-items: center; gap: 0; }
+  .hdr span { display: inline-block; padding: 0 6px; border-right: 1px solid rgba(255,255,255,.25); white-space: nowrap; }
+  .rows { position: absolute; left: 56px; top: 230px; right: 0; font-size: 12px; }
+  .rows div { height: 20px; display: flex; }
+  .rows div:nth-child(even) { background: #f4f6fa; }
+  .rows span { display: inline-block; padding: 0 6px; white-space: nowrap; overflow: hidden; }
+
+  /* ---- PROPOSED: the Desk ---- */
+  .desk { padding: 20px 28px 16px; min-height: 620px; box-sizing: border-box; }
+  .desk .title { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--navy); padding-bottom: 8px; margin-bottom: 16px; }
+  .desk .title h3 { margin: 0; font-size: 18.7px; color: var(--navy); letter-spacing: .5px; }
+  .desk .title .meta { font-size: 16px; color: var(--ink); }
+  .desk .title .meta b { color: var(--navy); }
+  .desk .title .meta .old { color: var(--red); }
+  .band { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .4px; margin: 14px 0 6px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tile { height: 60px; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; padding: 0 14px; font-size: 16px; font-weight: 700; color: #fff; }
+  .tile small { font-size: 12px; font-weight: 400; opacity: .9; }
+  .tile.hot { background: var(--orange); } .tile.warm { background: var(--amber); } .tile.ok { background: #cfd5de; color: #555; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .big { height: 48px; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 700; display: flex; align-items: center; padding: 0 16px; margin-bottom: 8px; }
+  .big small { font-weight: 400; font-size: 13px; opacity: .85; margin-left: auto; }
+  .big.green { background: var(--green); } .big.orange { background: var(--orange); } .big.navy { background: var(--navy); }
+  .big.amber { background: var(--amber); } .big.purple { background: var(--purple); } .big.blue { background: var(--blue); }
+  .big.help { background: #fff; color: var(--navy); border: 1.5px solid var(--navy); height: 40px; font-size: 14.7px; }
+  .helprow { display: flex; gap: 8px; }
+  .helprow .big { flex: 1; }
+  .foot { display: flex; justify-content: space-between; margin-top: 22px; font-size: 13.3px; color: var(--navy); }
+  .foot span { text-decoration: underline; }
+
+  table.cmp { border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  table.cmp th, table.cmp td { border: 1px solid #d6d9df; padding: 5px 10px; text-align: left; vertical-align: top; }
+  table.cmp th { background: #eef1f6; }
+  @media (max-width: 900px) { .tiles { grid-template-columns: 1fr 1fr; } .cols { grid-template-columns: 1fr; } .xl.today { overflow-x: auto; } .bar { width: 1300px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Desk view: mock-up</h1>
+  <p class="lead">Proposal of Oct 15, 2026 for the second admin's screen. Both panels are drawn at the size Excel would show them at 100 percent zoom on a 1920-wide screen. See <code>supervisor-desk-proposal-2026-10.md</code> for the reasoning and the open decisions.</p>
+
+  <h2>Today: what the admin lands on (OT Roster tab, row 1 bar)</h2>
+  <p class="note">26 buttons at 8.5 pt, group labels at 7.5 pt, the roster at 9 pt behind it, about 24 tabs along the bottom.</p>
+  <div class="xl today">
+    <div class="sheet" style="height: 330px;">
+      <div class="bar">
+        <div class="grp"><div class="lbl">SORT &amp; FILTER</div>
+          <div class="row3"><span class="b w62 sort">Derivatives</span><span class="b w62 sort">Phosphine</span><span class="b w62 sort">Cypure</span></div>
+          <div class="row3"><span class="b w62 sort">Fumigation</span><span class="b w62 sort">QC - Lab</span><span class="b w62 sort">QC - Gases</span></div>
+          <div class="row3"><span class="b w62 sort">Utilities</span><span class="b w62 sort">SBP</span><span class="b w62 sort">Show All</span></div>
+        </div>
+        <div class="grp"><div class="lbl">LOG</div>
+          <span class="b w90 fill" style="background:var(--green)">Log Call-Out</span>
+          <span class="b w90 fill" style="background:var(--amber)">Shift Switch</span>
+          <span class="b w90 fill" style="background:var(--navy)">Book Time Off</span>
+        </div>
+        <div class="grp"><div class="lbl">PEOPLE</div>
+          <span class="b w90 fill" style="background:var(--orange)">Sick Call</span>
+          <span class="b w90 fill" style="background:var(--purple)">Leave</span>
+          <span class="b w90" style="background:var(--blue);color:#fff">Convert imports</span>
+        </div>
+        <div class="grp"><div class="lbl">POSTINGS</div>
+          <span class="b w90 fill" style="background:var(--green)">New Posting</span>
+          <span class="b w90 fill" style="background:var(--green)">Load Posting</span>
+          <span class="b w90 fill" style="background:var(--green)">Award Posting</span>
+        </div>
+        <div class="grp"><div class="lbl">PRINT / PUBLISH</div>
+          <div class="row3"><span class="b w88" style="background:var(--navy);color:#fff">Call Out Roster</span><span class="b w88" style="background:var(--navy);color:#fff">Member View</span></div>
+          <div class="row3"><span class="b w88 fill" style="background:var(--green)">Calendar</span><span class="b w88" style="background:var(--navy);color:#fff">Refusals Report</span></div>
+        </div>
+        <div class="grp"><div class="lbl">ADMIN</div>
+          <div class="row3"><span class="b w88 adm">Import Kronos</span><span class="b w88 adm">Add Adjustment</span></div>
+          <div class="row3"><span class="b w88 adm">Void Entry</span><span class="b w88 adm">Employee</span></div>
+          <div class="row3"><span class="b w88 adm">Full Access</span><span class="b w88 adm">Attendance</span></div>
+        </div>
+      </div>
+      <div class="status">Pay period: Oct 11 - Oct 24<br><span class="k">Kronos: Oct 6 (9 days old)</span>  |  data through Oct 5<br>Log: 1,284  |  Integrity: OK  |  View: All</div>
+      <div class="hdr"><span style="width:60px">Payroll #</span><span style="width:84px">Home Unit</span><span style="width:160px">Employee</span><span style="width:36px">Crew</span><span style="width:76px">Phone</span><span style="width:44px">Total</span><span style="width:44px">Worked</span><span style="width:44px">Refused</span><span style="width:70px">Seniority</span><span style="width:120px">EMAIL</span><span style="width:40px">Phos</span><span style="width:40px">Deriv</span><span style="width:40px">Cyp</span><span style="width:40px">MH</span><span style="width:40px">QCL</span><span style="width:40px">QCG</span><span style="width:40px">Util</span><span style="width:40px">SBP</span><span style="width:50px">Dec 28</span><span style="width:50px">Jan 11</span><span style="width:50px">Jan 25</span><span style="width:50px">...</span></div>
+      <div class="rows">
+        <div><span style="width:60px">10234567</span><span style="width:84px">Phosphine</span><span style="width:160px">Example, Person A</span><span style="width:36px">A</span><span style="width:76px">905 555 0101</span><span style="width:44px">212*</span><span style="width:44px">170</span><span style="width:44px">42</span><span style="width:70px">2011-04-18</span><span style="width:120px">a@example</span><span style="width:40px">P2</span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:50px">0</span><span style="width:50px">21</span><span style="width:50px">0</span></div>
+        <div><span style="width:60px">10234568</span><span style="width:84px">Derivatives</span><span style="width:160px">Example, Person B</span><span style="width:36px">C</span><span style="width:76px">905 555 0102</span><span style="width:44px">98</span><span style="width:44px">98</span><span style="width:44px">0</span><span style="width:70px">2019-09-02</span><span style="width:120px">b@example</span><span style="width:40px"></span><span style="width:40px">D1.5</span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:50px">0</span><span style="width:50px">0</span><span style="width:50px">0</span></div>
+        <div><span style="width:60px">10234569</span><span style="width:84px">Cypure</span><span style="width:160px">Example, Person C</span><span style="width:36px">B</span><span style="width:76px">905 555 0103</span><span style="width:44px">301</span><span style="width:44px">259</span><span style="width:44px">42</span><span style="width:70px">2004-01-12</span><span style="width:120px">c@example</span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px">C1</span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:50px">21</span><span style="width:50px">0</span><span style="width:50px">21</span></div>
+        <div><span style="width:60px">10234570</span><span style="width:84px">Phosphine</span><span style="width:160px">Example, Person D</span><span style="width:36px">D</span><span style="width:76px">905 555 0104</span><span style="width:44px">156</span><span style="width:44px">135</span><span style="width:44px">21</span><span style="width:70px">2015-06-30</span><span style="width:120px">d@example</span><span style="width:40px">P1</span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:40px"></span><span style="width:50px">0</span><span style="width:50px">0</span><span style="width:50px">0</span></div>
+      </div>
+    </div>
+    <div class="tabs"><span class="on">OT Roster</span><span>OT Log</span><span>Calendar</span><span>Needs Attention</span><span>Postings</span><span>Shift Switches</span><span>Absences</span><span>Coverage</span><span>Holidays</span><span>Attendance</span><span>Grade Log</span><span>Crew History</span><span>Planned Moves</span><span>Former</span><span>Integrity</span><span>Year End</span><span>Refusal Report</span><span>Error Log</span><span>Install Log</span><span>Overtime Posting</span><span>Blank Call Out Roster</span><span>Hours History</span><span>OT Log 2026</span><span>...</span></div>
+  </div>
+
+  <h2>Proposed: the Desk (new first tab for logins on DESK_USERS)</h2>
+  <p class="note">14 buttons at 12 pt on 36-point shapes, headings 14 pt, four TODAY tiles that are also buttons, five tabs. Every button calls the macro the existing bar calls. Figures shown are examples.</p>
+  <div class="xl">
+    <div class="sheet desk">
+      <div class="title">
+        <h3>CALL OUT ROSTER</h3>
+        <div class="meta"><b>Wed Oct 15, 2026</b> &nbsp;|&nbsp; Pay period Oct 11 - Oct 24 &nbsp;|&nbsp; <span class="old">Kronos data through Oct 5 (9 days old)</span></div>
+      </div>
+
+      <div class="band">TODAY</div>
+      <div class="tiles">
+        <div class="tile hot">3 shifts need cover<small>open the calendar</small></div>
+        <div class="tile warm">2 postings ready to award<small>open Award Posting</small></div>
+        <div class="tile warm">1 payback owed<small>open Shift Switch</small></div>
+        <div class="tile ok">Members' file: updated yesterday<small>click to update it now</small></div>
+      </div>
+
+      <div class="cols">
+        <div>
+          <div class="band">RIGHT NOW</div>
+          <div class="big orange">Someone called in sick<small>Sick Call</small></div>
+          <div class="big green">Fill a shift now<small>Log Call-Out</small></div>
+          <div class="big green">What needs cover<small>Calendar</small></div>
+
+          <div class="band">PEOPLE</div>
+          <div class="big purple">Leave: going or returning<small>Leave</small></div>
+
+          <div class="band">HELP</div>
+          <div class="helprow">
+            <div class="big help">How do I ...</div>
+            <div class="big help">Something went wrong</div>
+          </div>
+        </div>
+        <div>
+          <div class="band">PLAN AHEAD</div>
+          <div class="big green">Post a shift<small>New Posting</small></div>
+          <div class="big green">Award a posting<small>Award Posting</small></div>
+          <div class="big navy">Book time off<small>Book Time Off</small></div>
+          <div class="big amber">Shift switch or payback<small>Shift Switch</small></div>
+
+          <div class="band">WHEN YOU ARE DONE</div>
+          <div class="big navy">Update the members' file<small>Member View</small></div>
+          <div class="big navy">Print the call-out roster<small>Call Out Roster</small></div>
+        </div>
+      </div>
+
+      <div class="foot"><span>Full roster &gt;</span><span>Show everything (primary admin tools) &gt;</span></div>
+    </div>
+    <div class="tabs"><span class="on">Desk</span><span>OT Roster</span><span>Calendar</span><span>Needs Attention</span><span>Postings</span><span class="dim">(19 more tabs stay in the file, hidden for Desk users)</span></div>
+  </div>
+
+  <h2>Side by side</h2>
+  <table class="cmp">
+    <tr><th></th><th>Today (admin)</th><th>Desk user</th><th>Primary admin</th></tr>
+    <tr><td>First screen</td><td>OT Roster: 26-button bar over a 45-column sheet</td><td>Desk: 4 tiles, 14 verb-phrase buttons</td><td>Unchanged</td></tr>
+    <tr><td>Smallest text on the first screen</td><td>7.5 pt labels, 8.5 pt buttons, 9 pt sheet</td><td>12 pt (buttons), 13 pt (links)</td><td>Unchanged</td></tr>
+    <tr><td>Tabs visible</td><td>About 24</td><td>5</td><td>Unchanged</td></tr>
+    <tr><td>Roster and calendar zoom</td><td>100 %</td><td>120 %</td><td>Unchanged</td></tr>
+    <tr><td>Admin-only tools (Void, Adjustment, Employee, Kronos, Full Access, Attendance, Refusals, Convert imports)</td><td>On the bar</td><td>Behind "Show everything"</td><td>On the bar</td></tr>
+    <tr><td>Rights, gates, privacy screens</td><td colspan="3">Identical: the Desk calls the same macros</td></tr>
+  </table>
+</div>
+</body>
+</html>

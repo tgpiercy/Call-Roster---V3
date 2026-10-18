@@ -33,7 +33,7 @@ Private Sub OpenStep(ByVal k As Long)
         Case 7: HolidaysOnOpen         ' v20: this year's and next year's holidays listed (admins)
         Case 8: CalOnOpen              ' calendar: this month, fresh needs-attention box
         Case 9: IntegrityOnOpen        ' v23: quiet integrity check for admins (result on the status line)
-        Case 10: If gDeskMode Then ShowDeskSheet Else RosterSheet().Activate      ' v25.3: a Desk user lands on the Desk
+        Case 10: DeskOpenLanding          ' v25.3: a Desk user lands on the Desk, everyone else on the roster (modDesk)
     End Select
     Exit Sub
 Oops:
@@ -102,6 +102,7 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
     mRestoreAdmin = True                   ' closing - no tab redraws while the view switches
     ApplyView False
     RosterSheet().Activate
+    DeskZoomReset                          ' v25.3: a Desk user's 120 % is not saved for everyone
     mRestoreAdmin = False
     ThisWorkbook.Save
     On Error GoTo 0

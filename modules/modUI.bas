@@ -55,7 +55,7 @@ Public Sub ApplyRosterLayout()
     BuildCommandBar ws
     EnsureRosterFilter ws
     SetRosterStatus "All"
-    ApplyView IsAdmin()                           ' shows/hides admin buttons, re-protects
+    ApplyView IsAdmin(), gDeskMode                ' shows/hides admin buttons, re-protects; v25.3: a Desk user keeps the Desk view
 
     ws.Activate
     ws.Range("D5").Select
@@ -320,6 +320,9 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_Member", "Member View", "PublishMemberView", x + wP + G, y(1), wP, NAVY, vbWhite, False
     Btn ws, "ui_btn_Calendar", "Calendar", "modCalendar.ShowCalendar", x, y(2), wP, RGB(0, 128, 70), vbWhite, True
     Btn ws, "ui_adm_Refusals", "Refusals Report", "modReports.RefusalsReport", x + wP + G, y(2), wP, NAVY, vbWhite, False   ' v24.1
+    ' v25.3: the Desk (the second admin's screen), under Calendar so it is in view in every layout. ui_adm_ so
+    ' non-admins never see it; ApplyViewCore keeps it visible in the Desk view, where the other admin buttons hide
+    Btn ws, "ui_adm_Desk", "< Desk", "modDesk.ShowDesk", x, y(3), wP, NAVY, vbWhite, False
     x = x + 2 * wP + G + GG
 
     ' --- Admin ---
@@ -331,11 +334,6 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     Btn ws, "ui_adm_Employee", "Employee", "modPeople.ShowEmployeeForm", x + wA + G, y(2), wA, gry, INK, False   ' v24: add / move / rename / remove
     Btn ws, "ui_adm_Access", "Full Access", "LoginFullAccess.LoginFullAccess", x, y(3), wA, gry, INK, False
     Btn ws, "ui_adm_Attend", "Attendance", "modAttendance.ShowAttendance", x + wA + G, y(3), wA, gry, INK, False   ' v22.1
-    x = x + 2 * wA + G + GG
-
-    ' --- v25.3: the Desk (the second admin's screen). ui_adm_ so non-admins never see it; ApplyViewCore keeps
-    '     it visible in the Desk view, where every other admin button is hidden ---
-    Btn ws, "ui_adm_Desk", "< Desk", "modDesk.ShowDesk", x, y(1), 56, NAVY, vbWhite, False
     ' Refresh Formulas is a repair tool now (roster totals are live formulas): Alt+F8 > RefreshRosterFormulas
 End Sub
 

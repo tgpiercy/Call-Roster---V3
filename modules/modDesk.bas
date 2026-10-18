@@ -21,7 +21,6 @@ Option Explicit
 Public Const DESK_VERSION As String = "Desk v25.3 (Oct 17)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
-Public Const KRONOS_OLD_DAYS As Long = 7            ' the header says the Kronos data is old after this many days
 
 Public gDeskMode As Boolean                         ' the Desk view is on (set by ApplyViewCore)
 
@@ -151,7 +150,7 @@ Public Sub DrawDesk()
     Else
         kTxt = "Kronos data through " & Format$(dt, "ddd mmm d")
     End If
-    Dim kOld As Boolean: kOld = (dt = 0 Or Int(Date) - Int(dt) > KRONOS_OLD_DAYS)
+    Dim kOld As Boolean: kOld = (dt = 0 Or KronosIsStale())      ' the status line's one rule (review)
     With ws.Cells(1, 2)
         .Value = "CALL OUT ROSTER"
         .Font.Name = DK_FONT_B: .Font.Size = 18: .Font.Color = dkNavy()
@@ -187,7 +186,7 @@ Public Sub DrawDesk()
     ElseIf Int(Date) - Int(pubAt) >= MEMBERS_STALE_DAYS Then
         pubTxt = "updated " & Format$(pubAt, "ddd mmm d"): pubCol = dkBlue()
     Else
-        pubTxt = "updated " & IIf(Int(pubAt) = Int(Date), "today", "yesterday") & " " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
+        pubTxt = "updated today " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
     End If
     DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, "modDesk.DeskPublish", x0 + 3 * (TILE_W + GAP), yy, pubCol
 
@@ -379,14 +378,47 @@ End Sub
 ' ====================================================================
 '  SHOWING THE DESK; THE VIEW
 ' ====================================================================
-' The Desk drawn and brought to the front (the open step for a Desk user; ShowDesk after a view switch)
+' The Desk drawn and brought to the front (the open step for a Desk user; ShowDesk after a view switch).
+' Activating it fires SheetActivate -> DeskSheetActivated -> DrawDesk, so the draw is done here only when
+' the event can't do it (the Desk already in front, or events off) - never twice (review).
 Public Sub ShowDeskSheet()
     Dim ws As Worksheet: Set ws = DeskSheet()
     SetSheetVisible ws, xlSheetVisible
-    DrawDesk
-    ws.Activate
+    If ActiveSheet Is ws Or Not Application.EnableEvents Then
+        DrawDesk
+    Else
+        ws.Activate
+    End If
     On Error Resume Next
     ws.Range("A1").Select
+End Sub
+
+' ThisWorkbook's open step 10: a Desk user lands on the Desk, everyone else on the roster; a Desk that can't
+' draw still leaves the user on the roster (review), and a 120 % left behind is put back
+Public Sub DeskOpenLanding()
+    On Error Resume Next
+    If gDeskMode Then
+        ShowDeskSheet
+        If Err.Number <> 0 Then
+            LogError "DeskOpenLanding", Err.Number, Err.Description
+            Err.Clear
+            RosterSheet().Activate
+        End If
+    Else
+        RosterSheet().Activate
+        DeskZoomReset
+    End If
+End Sub
+
+' A Desk user's 120 % is saved in the file with the sheet: anyone else who lands on that sheet gets 100 % back
+' (review: Excel keeps each sheet's zoom in the file; activating an already-active sheet fires no event)
+Public Sub DeskZoomReset()
+    On Error Resume Next
+    If gDeskMode Then Exit Sub
+    Select Case ActiveSheet.Name
+        Case ROSTER_SHEET, CAL_SHEET
+            If ActiveWindow.Zoom = 120 Then ActiveWindow.Zoom = 100
+    End Select
 End Sub
 
 ' "< Desk" on the master bar, or Alt+F8: the Desk view for the session (admins only)
@@ -411,17 +443,21 @@ Oops:
     ReportError "DeskShowAll"
 End Sub
 
-' Called from ThisWorkbook's SheetActivate: a Desk user sees the roster and the Calendar at 120 %,
-' the Desk at 100 %, and the Desk is refreshed every time it is looked at. Nothing for anyone else.
+' Called from ThisWorkbook's SheetActivate: the Desk is refreshed every time an admin looks at it (in the
+' full view too - its figures must never be stale); a Desk user sees the roster and the Calendar at 120 %;
+' anyone else landing on those sheets at a left-behind 120 % gets 100 % (review).
 Public Sub DeskSheetActivated(ByVal Sh As Object)
-    If Not gDeskMode Then Exit Sub
     On Error Resume Next
     Select Case Sh.Name
-        Case ROSTER_SHEET, CAL_SHEET
-            If ActiveWindow.Zoom <> 120 Then ActiveWindow.Zoom = 120
         Case DESK_SHEET
-            DrawDesk
+            If gAdminUnlocked Then DrawDesk
             If ActiveWindow.Zoom <> 100 Then ActiveWindow.Zoom = 100
+        Case ROSTER_SHEET, CAL_SHEET
+            If gDeskMode Then
+                If ActiveWindow.Zoom <> 120 Then ActiveWindow.Zoom = 120
+            ElseIf ActiveWindow.Zoom = 120 Then
+                ActiveWindow.Zoom = 100
+            End If
     End Select
 End Sub
 
@@ -562,14 +598,15 @@ End Sub
 Public Sub DeskReport()
     On Error GoTo Oops
     Dim body As String
+    ' the prompt comes BEFORE the error line, and the line is cut, so a long error never pushes the prompt out (review)
     body = "Something went wrong on the Call Out Roster." & vbNewLine & vbNewLine & _
            "Who: " & CurrentUser() & vbNewLine & "When: " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & vbNewLine & _
            "File: " & ThisWorkbook.Name & "  (" & CORE_VERSION & ")" & vbNewLine & vbNewLine & _
-           "Newest line in the Error Log:" & vbNewLine & NewestErrorLine() & vbNewLine & vbNewLine & _
-           "What I was doing: " & vbNewLine
+           "What I was doing: " & vbNewLine & vbNewLine & _
+           "Newest line in the Error Log:" & vbNewLine & Left$(NewestErrorLine(), 350) & vbNewLine
     If Not OpenMailTo(PRIMARY_ADMIN_EMAIL, "Call Out Roster: something went wrong", body) Then
         MsgBox "No mail app could be opened. Send this to " & PRIMARY_ADMIN_NAME & " yourself (a photo is fine):" & _
-               vbNewLine & vbNewLine & body, vbExclamation, "Something went wrong"
+               vbNewLine & vbNewLine & Left$(body, 850), vbExclamation, "Something went wrong"
     End If
     Exit Sub
 Oops:

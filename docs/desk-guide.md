@@ -20,7 +20,7 @@ A grey tile means nothing to do. A coloured one has work in it.
 - **HELP**: How do I ... (the quick guide, once it is on this PC). Something went wrong (an email to Graeme with the newest Error Log line already in it - add what you were doing and send).
 
 ## The tabs
-You see five: **Desk, OT Roster, Calendar, Needs Attention, Postings**. The roster and the Calendar open at 120 % so they read easily. Everything else is in the file but out of the way.
+You see the **Desk**, the tabs every supervisor sees (OT Roster, Calendar, Postings, OT Log, Shift Switches ...) and **Needs Attention**. The admin-only tabs (Absences, Coverage, Holidays, the logs) are in the file but out of the way. The roster and the Calendar open at 120 % so they read easily.
 
 ## If you need the full roster tools
 Click **Show everything (primary admin tools)** at the bottom of the Desk. The full bar and every tab appear for this session. **< Desk** on the bar brings the Desk back. Nothing is saved differently either way.

@@ -1050,21 +1050,26 @@ Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim absId As String: absId = SaveAbsence(st.Peer, st.Unit, "Vacation", d, d, Empty, "", SMK_WHY, "", "", "", "AB", True)
     If absId = "" Then why = "SaveAbsence returned no ID": Exit Function
     MarkCalDirty
-    Dim p As PostRec, lst() As PListRec, n As Long, readyAdd As Long
-    p.Unit = st.Unit: p.ShiftDate = Date + 20: p.ShiftLbl = "Days": p.Crew = CREW_ALL
+    Dim p As PostRec, lst() As PListRec, n As Long, readyAdd As Long, nearClose As Boolean
+    ' the shift step 2 proved has people free (21+ days out: outside the cover tile's window); it closes today
+    p.Unit = st.Unit: p.ShiftDate = st.PostDate: p.ShiftLbl = st.PostShift: p.Crew = CREW_ALL
     p.Reason = "Unit Operator Support": p.Hours = USUAL_SHIFT_HOURS: p.Positions = 1: p.ClosesOn = Date
     If Not CreatePostingFrom(p, False, False) Then why = "a posting closing today couldn't be created": GoTo Undo
     readyAdd = IIf(PostingClosed(Date), 1, 0)       ' closed from the closing time on the closing date
+    ' a run crossing the closing moment would move every posting closing today: the ready compare is skipped then (review)
+    nearClose = (Abs(Now - (Date + TimeValue(POSTING_CLOSE_TIME))) < 2 / 1440)
     DeskCounts c1, r1, o1, pubAt
     If c1 < c0 + 1 Then why = "shifts needing cover read " & c1 & " after a vacation in the window; expected at least " & (c0 + 1): GoTo Undo
-    If r1 <> r0 + readyAdd Then why = "postings ready to award read " & r1 & " with a posting closing today; expected " & (r0 + readyAdd): GoTo Undo
+    If Not nearClose Then
+        If r1 <> r0 + readyAdd Then why = "postings ready to award read " & r1 & " with a posting closing today; expected " & (r0 + readyAdd): GoTo Undo
+    End If
     n = LoadPosting(p.ID, p, lst)
     If Not SubmitCancel(p, lst, n) Then why = p.ID & " couldn't be cancelled": Exit Function
     If Not VoidAbsence(absId, SMK_WHY) Then why = "VoidAbsence " & absId & " returned False": Exit Function
     MarkCalDirty
     DeskCounts c2, r2, o2, pubAt
-    If c2 <> c0 Or r2 <> r0 Or o2 <> o0 Then why = "after the cancel and the void the figures read " & c2 & " / " & r2 & " / " & o2 & "; expected " & c0 & " / " & r0 & " / " & o0: Exit Function
-    st.Note = "cover " & c0 & " -> " & c1 & " -> " & c2 & ", ready " & r0 & " -> " & r1 & " -> " & r2 & ", owed " & o0 & "; ViewModeFor desk / admin / user"
+    If c2 <> c0 Or (r2 <> r0 And Not nearClose) Or o2 <> o0 Then why = "after the cancel and the void the figures read " & c2 & " / " & r2 & " / " & o2 & "; expected " & c0 & " / " & r0 & " / " & o0: Exit Function
+    st.Note = "cover " & c0 & " -> " & c1 & " -> " & c2 & ", ready " & r0 & " -> " & r1 & " -> " & r2 & IIf(nearClose, " (not compared: the closing moment)", "") & ", owed " & o0 & "; ViewModeFor desk / admin / user"
     SmkDesk = True
     Exit Function
 Undo:

@@ -1388,7 +1388,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
         If SheetExists(CStr(nm)) Then
             Dim showIt As Boolean
             showIt = adminView And Not gDeskMode
-            If gDeskMode Then showIt = (CStr(nm) = NA_SHEET)          ' v25.3: the Desk's five tabs
+            If gDeskMode Then showIt = (CStr(nm) = NA_SHEET)          ' v25.3: a Desk user sees a supervisor's tabs + the Desk + Needs Attention
             SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(showIt, xlSheetVisible, xlSheetVeryHidden)
         End If
     Next nm

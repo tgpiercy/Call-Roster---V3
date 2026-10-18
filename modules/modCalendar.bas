@@ -108,7 +108,6 @@ Private mCov As Variant
 Private mShiftMap As Object
 Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the tables are never read
 
-
 ' ====================================================================
 '  LISTS
 ' ====================================================================
@@ -260,7 +259,6 @@ Private Function HrsTag(ByVal h As Variant) As String
         If CDbl(h) > 0 And CDbl(h) < FULL_SHIFT Then HrsTag = " " & CDbl(h) & "h"
     End If
 End Function
-
 
 ' ====================================================================
 '  TABLES
@@ -502,7 +500,6 @@ Private Sub LoadCache()
         If nm <> "" Then mShiftMap(nm) = UCase$(Trim$(SafeStr(v(i, 2))))
     Next i
 End Sub
-
 
 ' ====================================================================
 '  WHO WORKS WHEN / WHO IS OFF
@@ -754,7 +751,6 @@ Public Function FilterAbsent(ByRef recs() As EmpRec, ByVal n As Long, ByVal d As
     FilterAbsent = k
 End Function
 
-
 ' ====================================================================
 '  SLOTS (what the calendar shows for one date + shift)
 ' ====================================================================
@@ -839,7 +835,6 @@ Private Function CovLive(ByVal c As Long, ByVal d As Date, ByVal shiftLbl As Str
     If Int(CDate(mCov(c, CV_DATE))) <> Int(d) Then Exit Function
     CovLive = (StrComp(SafeStr(mCov(c, CV_SHIFT)), shiftLbl, vbTextCompare) = 0)
 End Function
-
 
 ' ====================================================================
 '  WRITE: absences / needs / coverage
@@ -1316,7 +1311,6 @@ Failed:
     CalendarAddAccepted = empName & ": calendar NOT updated (" & Err.Description & ")"
 End Function
 
-
 ' ====================================================================
 '  VOID / EDIT absences (Book Time Off pop-up)
 ' ====================================================================
@@ -1400,7 +1394,6 @@ Public Function VoidAbsence(ByVal id As String, Optional ByVal reasonTxt As Stri
     VoidAbsence = True
 End Function
 
-
 ' ====================================================================
 '  CALENDAR SHEET
 ' ====================================================================
@@ -1455,7 +1448,6 @@ Public Sub RefreshCalendar()
     End If
     On Error GoTo 0
 End Sub
-
 
 ' ====================================================================
 '  CHANGE TRACKING  - redraw only when something the calendar shows changed
@@ -1720,7 +1712,6 @@ Oops:
     ReportError "CalMonthChanged"
 End Sub
 
-
 ' ====================================================================
 '  THEME  - every calendar / needs-attention colour is set here
 ' ====================================================================
@@ -1791,7 +1782,6 @@ Private Function Tint(ByVal col As Long, ByVal f As Double) As Long
     rr = col Mod 256: gg = (col \ 256) Mod 256: bb = (col \ 65536) Mod 256
     Tint = RGB(rr + (255 - rr) * f, gg + (255 - gg) * f, bb + (255 - bb) * f)
 End Function
-
 
 ' ====================================================================
 '  DRAW THE CALENDAR
@@ -1900,11 +1890,23 @@ Public Sub DrawCalendar()
     mTimeSlots = 0: mTimeNotes = 0                  ' the weeks' share starts here
 
     ' ---- weeks ----
+    ' v25.2 (item 3): each week block is built in two arrays (the texts for B:O and the click-map keys) and
+    ' written with ONE .Value each; the formats go on by class (one Union per class per block) instead of
+    ' per cell; the date cells' rich text stays per cell. DrawCalendarLegacy is the cell-by-cell writer this
+    ' replaces (SmokeTest's compare step proves the two draws identical). The numbers: cells 0.7 s of 4.6.
     Dim mEnd As Date: mEnd = DateSerial(Year(m0), Month(m0) + 1, 0)
     Dim wk As Date: wk = m0 - (Weekday(m0, vbSunday) - 1)
     Dim slotsD() As CalSlot, slotsN() As CalSlot
-    Dim d As Date, nD As Long, nN As Long, mxD As Long, mxN As Long, rr As Long, inMonth As Boolean
-    Dim bg As Long, nOpen(0 To 6) As Long, sv As Long
+    Dim d As Date, nD As Long, nN As Long, mxD As Long, mxN As Long, inMonth As Boolean
+    Dim nOpen(0 To 6) As Long, sv As Long
+    Dim vals() As Variant, keys() As Variant, nRows As Long, c As Long
+    Dim numLen(0 To 6) As Long, flagLen(0 To 6) As Long, holLen(0 To 6) As Long, past(0 To 6) As Boolean
+    Dim rgDay As Range, rgNight As Range, rgOut As Range, rgLine As Range, rgOpen As Range, rgPosted As Range
+    Dim rgNcn As Range, rgCov As Range, rgDateA As Range, rgDateB As Range, rgHol As Range
+    Dim rgBg(0 To 3) As Range                       ' the date row's fills: 0 out of month, 1 today, 2 weekend, 3 white
+    Dim rgLeft As Object: Set rgLeft = CreateObject("Scripting.Dictionary")   ' type colour -> the left cells in it
+    Dim colKey As Variant, t As String, numTxt As String, flagTxt As String, holTxt As String, bgIx As Long
+    Dim blockTop As Long, blockBot As Long
     Do While wk <= mEnd
         mxD = 1: mxN = 1
         For k = 0 To 6
@@ -1918,77 +1920,145 @@ Public Sub DrawCalendar()
                 nOpen(k) = OpenCount(slotsD, nD) + OpenCount(slotsN, nN)
             End If
         Next k
+        nRows = 1 + mxD + mxN                       ' the date row, then the day slots, then the night slots
+        ReDim vals(1 To nRows, 1 To 14): ReDim keys(1 To nRows, 1 To 14)
+        Set rgDay = Nothing: Set rgNight = Nothing: Set rgOut = Nothing: Set rgLine = Nothing
+        Set rgOpen = Nothing: Set rgPosted = Nothing: Set rgNcn = Nothing: Set rgCov = Nothing
+        Set rgDateA = Nothing: Set rgDateB = Nothing: Set rgHol = Nothing
+        For bgIx = 0 To 3
+            Set rgBg(bgIx) = Nothing
+        Next bgIx
+        rgLeft.RemoveAll
 
-        ' date row: number over "Days: B Shift" | "Nights: A Shift" in the pair column
-        ws.Rows(r).RowHeight = 38
+        ' every day of the week into the arrays; the cells of each class collected on the way
         For k = 0 To 6
             d = wk + k
             inMonth = (Month(d) = Month(m0))
+            c = 2 + 2 * k                           ' the day's left column (B, D, ... N)
             If Not inMonth Then
-                bg = thOutFill()
+                bgIx = 0
             ElseIf Int(d) = Int(Date) Then
-                bg = thToday()
+                bgIx = 1
             ElseIf k = 0 Or k = 6 Then
-                bg = thWeekend()
+                bgIx = 2
             Else
-                bg = vbWhite
+                bgIx = 3
             End If
-            ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r, 3 + 2 * k)).Interior.Color = bg
+            AddToRange rgBg(bgIx), ws.Range(ws.Cells(r, c), ws.Cells(r, c + 1))
             If inMonth Then
-                DateCells ws.Cells(r, 2 + 2 * k), ws.Cells(r, 3 + 2 * k), d, nOpen(k)
                 sv = CLng(Int(d))
-                mp.Cells(r, 2 + 2 * k).Value = "D:DAY|" & sv & "|"
-                mp.Cells(r, 3 + 2 * k).Value = "D:DAY|" & sv & "|"
-            End If
-        Next k
-        r = r + 1
-
-        ' day slots, then night slots (empty rows are clickable too)
-        For k = 0 To 6
-            d = wk + k
-            If Month(d) = Month(m0) Then
-                sv = CLng(Int(d))
+                numTxt = CStr(Day(d)): flagTxt = ""
+                If nOpen(k) > 0 Then flagTxt = "   " & ChrW(9679) & " " & nOpen(k) & " open"
+                vals(1, 2 * k + 1) = numTxt & flagTxt & vbLf & "Days: " & DaysCrew(d) & " Shift"
+                holTxt = HolidayLabel(d)
+                t = "Nights: " & NightsCrew(d) & " Shift"
+                If holTxt <> "" Then vals(1, 2 * k + 2) = holTxt & vbLf & t Else vals(1, 2 * k + 2) = t
+                numLen(k) = Len(numTxt): flagLen(k) = Len(flagTxt): holLen(k) = Len(holTxt): past(k) = (Int(d) < Int(Date))
+                keys(1, 2 * k + 1) = "D:DAY|" & sv & "|": keys(1, 2 * k + 2) = "D:DAY|" & sv & "|"
+                AddToRange rgDateA, ws.Cells(r, c)
+                AddToRange rgDateB, ws.Cells(r, c + 1)
+                If holTxt <> "" Then AddToRange rgHol, ws.Cells(r, c + 1)
                 nD = SlotsFor(d, "Days", grp, slotsD, True)
                 nN = SlotsFor(d, "Nights", grp, slotsN, True)
                 nLines = nLines + nD + nN
-                ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r + mxD - 1, 3 + 2 * k)).Interior.Color = thDayFill()
-                ws.Range(ws.Cells(r + mxD, 2 + 2 * k), ws.Cells(r + mxD + mxN - 1, 3 + 2 * k)).Interior.Color = thNightFill()
+                AddToRange rgDay, ws.Range(ws.Cells(r + 1, c), ws.Cells(r + mxD, c + 1))
+                AddToRange rgNight, ws.Range(ws.Cells(r + mxD + 1, c), ws.Cells(r + mxD + mxN, c + 1))
                 For i = 1 To mxD
                     If i <= nD Then
-                        WriteSlot ws, mp, r + i - 1, k, slotsD(i), d, "Days"
+                        SlotIntoArrays ws, vals, keys, 1 + i, k, c, r + i, slotsD(i), sv, "Days", _
+                                       rgLine, rgOpen, rgPosted, rgNcn, rgCov, rgLeft
                     Else
-                        mp.Cells(r + i - 1, 2 + 2 * k).Value = "E:NEW|" & sv & "|Days"
-                        mp.Cells(r + i - 1, 3 + 2 * k).Value = "E:NEW|" & sv & "|Days"
+                        keys(1 + i, 2 * k + 1) = "E:NEW|" & sv & "|Days": keys(1 + i, 2 * k + 2) = "E:NEW|" & sv & "|Days"
                     End If
                 Next i
                 For i = 1 To mxN
                     If i <= nN Then
-                        WriteSlot ws, mp, r + mxD + i - 1, k, slotsN(i), d, "Nights"
+                        SlotIntoArrays ws, vals, keys, 1 + mxD + i, k, c, r + mxD + i, slotsN(i), sv, "Nights", _
+                                       rgLine, rgOpen, rgPosted, rgNcn, rgCov, rgLeft
                     Else
-                        mp.Cells(r + mxD + i - 1, 2 + 2 * k).Value = "E:NEW|" & sv & "|Nights"
-                        mp.Cells(r + mxD + i - 1, 3 + 2 * k).Value = "E:NEW|" & sv & "|Nights"
+                        keys(1 + mxD + i, 2 * k + 1) = "E:NEW|" & sv & "|Nights": keys(1 + mxD + i, 2 * k + 2) = "E:NEW|" & sv & "|Nights"
                     End If
                 Next i
             Else
-                ws.Range(ws.Cells(r, 2 + 2 * k), ws.Cells(r + mxD + mxN - 1, 3 + 2 * k)).Interior.Color = thOutFill()
+                AddToRange rgOut, ws.Range(ws.Cells(r + 1, c), ws.Cells(r + mxD + mxN, c + 1))
             End If
         Next k
-        For rr = r To r + mxD + mxN - 1
-            ws.Rows(rr).RowHeight = 17
-        Next rr
-        SectionLabel ws, r, mxD, "DAYS", thDayTab(), thDayText()
-        SectionLabel ws, r + mxD, mxN, "NIGHTS", thNightTab(), thNightText()
 
-        ' borders: thick around each day, thin day/night split, dotted inside the pair
-        Dim blockTop As Long: blockTop = r - 1
-        Dim blockBot As Long: blockBot = r + mxD + mxN - 1
+        ' one write for the texts, one for the click map, two for the row heights
+        ws.Range(ws.Cells(r, 2), ws.Cells(r + nRows - 1, 15)).Value = vals
+        mp.Range(mp.Cells(r, 2), mp.Cells(r + nRows - 1, 15)).Value = keys
+        ws.Rows(r).RowHeight = 38
+        ws.Range(ws.Rows(r + 1), ws.Rows(r + nRows - 1)).RowHeight = 17
+
+        ' fills by class (the date row, the day and night areas, days outside the month), then the lines' formats
+        For bgIx = 0 To 3
+            If Not rgBg(bgIx) Is Nothing Then rgBg(bgIx).Interior.Color = Choose(bgIx + 1, thOutFill(), thToday(), thWeekend(), vbWhite)
+        Next bgIx
+        If Not rgDay Is Nothing Then rgDay.Interior.Color = thDayFill()
+        If Not rgNight Is Nothing Then rgNight.Interior.Color = thNightFill()
+        If Not rgOut Is Nothing Then rgOut.Interior.Color = thOutFill()
+        If Not rgLine Is Nothing Then
+            With rgLine
+                .IndentLevel = 1: .ShrinkToFit = True: .VerticalAlignment = xlCenter
+            End With
+        End If
+        For Each colKey In rgLeft.Keys
+            With rgLeft(colKey).Font
+                .Name = CAL_FONT_B: .Color = CLng(colKey)
+            End With
+        Next colKey
+        If Not rgOpen Is Nothing Then
+            With rgOpen
+                .Font.Name = CAL_FONT_B: .Font.Color = thOpen(): .Interior.Color = thOpenFill()
+            End With
+        End If
+        If Not rgPosted Is Nothing Then
+            With rgPosted
+                .Font.Name = CAL_FONT_B: .Font.Color = thPosted(): .Interior.Color = thPostedFill()
+            End With
+        End If
+        If Not rgNcn Is Nothing Then
+            With rgNcn
+                .Font.Italic = True: .Font.Color = thMuted()
+            End With
+        End If
+        If Not rgCov Is Nothing Then
+            With rgCov
+                .Font.Name = CAL_FONT_B: .Font.Color = thInk()
+            End With
+        End If
+
+        ' the date cells: the formats by class, then the rich text per cell (the big number, the red open flag, the holiday)
+        If Not rgDateA Is Nothing Then
+            With rgDateA
+                .WrapText = True: .HorizontalAlignment = xlLeft: .VerticalAlignment = xlBottom: .IndentLevel = 1
+                .Font.Name = CAL_FONT_B: .Font.Size = 8: .Font.Bold = False: .Font.Color = thDayText()
+            End With
+        End If
+        If Not rgDateB Is Nothing Then
+            With rgDateB
+                .HorizontalAlignment = xlRight: .VerticalAlignment = xlBottom: .IndentLevel = 1
+                .Font.Name = CAL_FONT_B: .Font.Size = 8: .Font.Color = thNightText()
+            End With
+        End If
+        If Not rgHol Is Nothing Then rgHol.WrapText = True
+        For k = 0 To 6
+            d = wk + k
+            If Month(d) = Month(m0) Then DateRich ws.Cells(r, 2 + 2 * k), ws.Cells(r, 3 + 2 * k), numLen(k), flagLen(k), holLen(k), past(k)
+        Next k
+        SectionLabel ws, r + 1, mxD, "DAYS", thDayTab(), thDayText()
+        SectionLabel ws, r + 1 + mxD, mxN, "NIGHTS", thNightTab(), thNightText()
+
+        ' borders: thick around each day, thin day/night split, dotted inside the pair (as before)
+        blockTop = r
+        blockBot = r + nRows - 1
         With ws.Range(ws.Cells(blockTop, 1), ws.Cells(blockTop, 15)).Borders(xlEdgeTop)
             .LineStyle = xlContinuous: .Weight = xlMedium: .Color = thBand()
         End With
         With ws.Range(ws.Cells(blockTop, 2), ws.Cells(blockTop, 15)).Borders(xlEdgeBottom)
             .LineStyle = xlContinuous: .Weight = xlThin: .Color = thGrid()
         End With
-        With ws.Range(ws.Cells(r + mxD - 1, 1), ws.Cells(r + mxD - 1, 15)).Borders(xlEdgeBottom)
+        With ws.Range(ws.Cells(r + mxD, 1), ws.Cells(r + mxD, 15)).Borders(xlEdgeBottom)
             .LineStyle = xlContinuous: .Weight = xlThin: .Color = thGrid()
         End With
         For k = 0 To 6
@@ -2003,7 +2073,7 @@ Public Sub DrawCalendar()
             .LineStyle = xlContinuous: .Weight = xlThick: .Color = thBand()
         End With
 
-        r = r + mxD + mxN
+        r = r + nRows
         wk = wk + 7
     Loop
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, 15)).Borders(xlEdgeTop)
@@ -2120,46 +2190,73 @@ Private Sub LegendChip(ByVal c As Range, ByVal txt As String, ByVal col As Long,
     End With
 End Sub
 
-' date row of one day: big number (+ red "2 open" flag) with "Days: B Shift"
-' under it on the left, "Nights: A Shift" bottom-right in the pair column
-Private Sub DateCells(ByVal a As Range, ByVal b As Range, ByVal d As Date, ByVal nOpen As Long)
-    Dim num As String: num = CStr(Day(d))
-    Dim flag As String
-    If nOpen > 0 Then flag = "   " & ChrW(9679) & " " & nOpen & " open"
-    Dim t1 As String: t1 = "Days: " & DaysCrew(d) & " Shift"
-    Dim past As Boolean: past = (Int(d) < Int(Date))
-    a.Value = num & flag & vbLf & t1
-    a.WrapText = True
-    a.HorizontalAlignment = xlLeft: a.VerticalAlignment = xlBottom
-    a.IndentLevel = 1
-    a.Font.Name = CAL_FONT_B: a.Font.Size = 8: a.Font.Bold = False: a.Font.Color = thDayText()
-    With a.Characters(1, Len(num)).Font
+' v25.2 (item 3): the rich text of one date cell pair, after the class formats went on: the big number
+' (grey when past), the red "n open" flag, the holiday name top-right. The texts were written in the block.
+Private Sub DateRich(ByVal a As Range, ByVal b As Range, ByVal numLen As Long, ByVal flagLen As Long, _
+                     ByVal holLen As Long, ByVal past As Boolean)
+    With a.Characters(1, numLen).Font
         .Size = 15
         .Color = IIf(past, RGB(158, 158, 158), thBand())
     End With
-    If flag <> "" Then
-        With a.Characters(Len(num) + 1, Len(flag)).Font
+    If flagLen > 0 Then
+        With a.Characters(numLen + 1, flagLen).Font
             .Size = 8
             .Color = IIf(past, RGB(158, 158, 158), thOpen())
         End With
     End If
-
-    ' plant holiday name top-right (v20), "Nights: A Shift" under it
-    Dim hol As String: hol = HolidayLabel(d)
-    Dim t2 As String: t2 = "Nights: " & NightsCrew(d) & " Shift"
-    If hol <> "" Then
-        b.Value = hol & vbLf & t2
-        b.WrapText = True
-    Else
-        b.Value = t2
-    End If
-    b.HorizontalAlignment = xlRight: b.VerticalAlignment = xlBottom
-    b.IndentLevel = 1
-    b.Font.Name = CAL_FONT_B: b.Font.Size = 8: b.Font.Color = thNightText()
-    If hol <> "" Then
-        With b.Characters(1, Len(hol)).Font
+    If holLen > 0 Then
+        With b.Characters(1, holLen).Font
             .Color = IIf(past, RGB(158, 158, 158), RGB(176, 0, 32))
         End With
+    End If
+End Sub
+
+' v25.2 (item 3): a range grown by Union (Nothing to start with)
+Private Sub AddToRange(ByRef rg As Range, ByVal part As Range)
+    If rg Is Nothing Then Set rg = part Else Set rg = Union(rg, part)
+End Sub
+
+' v25.2 (item 3): one calendar line into the block's arrays (its texts and its click-map key) and its two
+' cells into the class ranges the block formats in one go; the hover note (OPEN / NO TAKERS / POSTED only,
+' item 1) is added here, before the block is written - a value write keeps a cell's comment.
+Private Sub SlotIntoArrays(ByVal ws As Worksheet, ByRef vals() As Variant, ByRef keys() As Variant, ByVal ar As Long, _
+                           ByVal k As Long, ByVal c As Long, ByVal sheetRow As Long, ByRef s As CalSlot, ByVal sv As Long, _
+                           ByVal shiftLbl As String, ByRef rgLine As Range, ByRef rgOpen As Range, ByRef rgPosted As Range, _
+                           ByRef rgNcn As Range, ByRef rgCov As Range, ByVal rgLeft As Object)
+    Dim a As Range: Set a = ws.Cells(sheetRow, c)
+    Dim b As Range: Set b = ws.Cells(sheetRow, c + 1)
+    vals(ar, 2 * k + 1) = "'" & s.LeftText
+    Dim t As String: t = s.RightText
+    Dim noteIt As Boolean
+    If t = "" Or UCase$(t) Like "NO TAKERS*" Then
+        vals(ar, 2 * k + 2) = IIf(t = "", "OPEN", "NO TAKERS")
+        AddToRange rgOpen, b
+        noteIt = True
+    ElseIf UCase$(t) Like "POSTED*" Then
+        vals(ar, 2 * k + 2) = "'" & t
+        AddToRange rgPosted, b
+        noteIt = True
+    ElseIf UCase$(t) = "NCN" Then
+        vals(ar, 2 * k + 2) = "'" & t
+        AddToRange rgNcn, b
+    Else
+        vals(ar, 2 * k + 2) = "'" & t
+        AddToRange rgCov, b
+    End If
+    AddToRange rgLine, ws.Range(a, b)
+    Dim colr As Long: colr = TypeColor(s.TypeCode)
+    If rgLeft.Exists(colr) Then
+        Set rgLeft(colr) = Union(rgLeft(colr), a)
+    Else
+        rgLeft.Add colr, a
+    End If
+    Dim keyTxt As String: keyTxt = s.Key & "|" & sv & "|" & shiftLbl
+    keys(ar, 2 * k + 1) = keyTxt: keys(ar, 2 * k + 2) = keyTxt
+    If noteIt Then
+        Dim tL As Double: tL = Timer              ' v25.1.2 review: the details text counts under notes, not cells
+        Dim det As String: det = LineDetails(keyTxt, True)
+        mTimeNotes = mTimeNotes + Secs(tL, Timer)
+        AddNote b, det                            ' hover for the details
     End If
 End Sub
 
@@ -2182,49 +2279,6 @@ Private Sub SectionLabel(ByVal ws As Worksheet, ByVal r As Long, ByVal n As Long
             .Cells(1, 1).Value = Left$(txt, 1)
         End If
     End With
-End Sub
-
-Private Sub WriteSlot(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal rr As Long, ByVal k As Long, _
-                      ByRef s As CalSlot, ByVal d As Date, ByVal shiftLbl As String)
-    Dim a As Range: Set a = ws.Cells(rr, 2 + 2 * k)
-    Dim b As Range: Set b = ws.Cells(rr, 3 + 2 * k)
-    a.Value = "'" & s.LeftText
-    a.Font.Name = CAL_FONT_B: a.Font.Size = 9: a.Font.Color = TypeColor(s.TypeCode)
-    a.IndentLevel = 1
-    a.ShrinkToFit = True                  ' long names shrink instead of spilling into the next day
-    a.VerticalAlignment = xlCenter
-    Dim t As String: t = s.RightText
-    Dim noteIt As Boolean                     ' v25.2 (item 1): a hover note only where action is needed
-    b.Font.Name = CAL_FONT: b.Font.Size = 9: b.Font.Bold = False: b.Font.Italic = False
-    b.IndentLevel = 1
-    b.ShrinkToFit = True
-    b.VerticalAlignment = xlCenter
-    If t = "" Or UCase$(t) Like "NO TAKERS*" Then
-        b.Value = IIf(t = "", "OPEN", "NO TAKERS")
-        b.Font.Name = CAL_FONT_B: b.Font.Color = thOpen()
-        b.Interior.Color = thOpenFill()
-        noteIt = True
-    ElseIf UCase$(t) Like "POSTED*" Then
-        b.Value = "'" & t
-        b.Font.Name = CAL_FONT_B: b.Font.Color = thPosted()
-        b.Interior.Color = thPostedFill()
-        noteIt = True
-    ElseIf UCase$(t) = "NCN" Then
-        b.Value = "'" & t: b.Font.Italic = True: b.Font.Color = thMuted()
-    Else
-        b.Value = "'" & t: b.Font.Name = CAL_FONT_B: b.Font.Color = thInk()
-    End If
-    Dim keyTxt As String: keyTxt = s.Key & "|" & CLng(Int(d)) & "|" & shiftLbl
-    mp.Cells(rr, 2 + 2 * k).Value = keyTxt
-    mp.Cells(rr, 3 + 2 * k).Value = keyTxt
-    ' v25.2 (item 1, D-C4 revisited on the v25.1.2 numbers: 85 notes were 2.8 of 4.6 s): OPEN, NO TAKERS and
-    ' POSTED lines keep the hover box; a covered line's details are on double-click > Details...
-    If noteIt Then
-        Dim tL As Double: tL = Timer          ' v25.1.2 review: the details text counts under notes, not cells
-        Dim det As String: det = LineDetails(keyTxt, True)
-        mTimeNotes = mTimeNotes + Secs(tL, Timer)
-        AddNote b, det                        ' hover for the details
-    End If
 End Sub
 
 Private Sub BuildCalControls(ByVal ws As Worksheet, ByVal m0 As Date, ByVal grp As String)
@@ -2335,7 +2389,6 @@ Private Sub CalDrop(ByVal ws As Worksheet, ByVal nm As String, ByVal cel As Rang
     dd.Name = nm
     dd.PrintObject = False
 End Sub
-
 
 ' Admin: click a calendar line, then Set Coverage
 Public Sub CalSetCoverage()
@@ -2763,7 +2816,6 @@ Oops:
     ReportError "ShowTimeOffForm"
 End Sub
 
-
 ' ====================================================================
 '  ONE-TIME IMPORT of an old monthly calendar workbook
 ' ====================================================================
@@ -2992,7 +3044,6 @@ Private Function GuessType(ByVal t As String) As String
         GuessType = "VAC"
     End If
 End Function
-
 
 ' ====================================================================
 '  LINE DETAILS  (hover notes + Details in the menu)
@@ -3223,8 +3274,6 @@ Private Function PostIdOfLine(ByVal keyTxt As String) As String
         End If
     Next c
 End Function
-
-
 
 ' ====================================================================
 '  NEEDS ATTENTION TAB  (admin only - double-click any row for options)
@@ -3954,7 +4003,6 @@ Private Sub BuildNAControls(ByVal ws As Worksheet, ByVal grp As String, ByVal nD
     End If
 End Sub
 
-
 ' ====================================================================
 '  MENUS  (double-click / right-click on the Calendar or Needs Attention)
 '  Keys:  A:AB-0001|serial|Days   a time-off line
@@ -4618,7 +4666,6 @@ Oops:
     ReportError "CalMenuGoto"
 End Sub
 
-
 ' ====================================================================
 '  AUTOMATIC REDRAW + EVENT ROUTING  (called from ThisWorkbook)
 ' ====================================================================
@@ -4678,7 +4725,6 @@ Public Sub CalSheetRightClick(ByVal Sh As Object, ByVal Target As Range, ByRef C
         NARightClick Target, Cancel
     End If
 End Sub
-
 
 ' ====================================================================
 '  LEGACY DRAW (v25.2, item 5): the v25.1.2 cell-by-cell writer, kept for ONE release so SmokeTest's

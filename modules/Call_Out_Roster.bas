@@ -59,6 +59,7 @@ Failed:
     Dim msg As String: msg = Err.Description
     LogError "Call_Out", Err.Number, msg      ' v24.3.1
     On Error Resume Next
+    Application.DisplayAlerts = True              ' v25.3 re-review: the renderer turns it off
     ProtectSheet ws
     Application.ScreenUpdating = True
     MsgBox "The call out roster couldn't be drawn: " & msg & vbNewLine & "Send me a screenshot of this message.", vbCritical

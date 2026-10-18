@@ -348,7 +348,7 @@ Public Sub ShowLeaveForm()
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     If Not AbsenceColumnsCurrent() Then
-        MsgBox "The Absences table needs its v22 columns first: ask the admin to run Alt+F8 > UpgradeAbsenceColumns.", vbExclamation
+        MsgBox "Run Alt+F8 > UpgradeAbsenceColumns first (the Absences table needs its v22 columns).", vbExclamation
         Exit Sub
     End If
     frmLeave.Show
@@ -592,7 +592,7 @@ Public Sub ShowConvertForm()
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If Not AbsenceColumnsCurrent() Then
-        MsgBox "The Absences table needs its v22 columns first: ask the admin to run Alt+F8 > UpgradeAbsenceColumns.", vbExclamation
+        MsgBox "Run Alt+F8 > UpgradeAbsenceColumns first (the Absences table needs its v22 columns).", vbExclamation
         Exit Sub
     End If
     frmConvert.Show

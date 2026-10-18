@@ -1173,8 +1173,8 @@ End Function
 ' v25.3 (Graeme, Oct 17, 2026): SUPERVISOR rights - the jobs every supervisor with the file open may do: log a
 ' call-out, sick call (books the sick shift, can start the call-out), new posting, award posting, print the
 ' call-out roster. Everything else (time off, switches, leave, void, adjustments, people, Kronos, publish, the
-' reopen / no-takers / out-of-department awards) stays behind RequireAdmin. A supervisor is anyone with edit
-' access; a read-only copy refuses as before.
+' reopen / no-takers / out-of-department / cancel of a posting - the three Submit* carry RequireAdmin before
+' CanFinalize) stays behind RequireAdmin. A supervisor is anyone with edit access; a read-only copy refuses as before.
 Public Function RequireSupervisor() As Boolean
     RequireSupervisor = RequireWritable()
 End Function

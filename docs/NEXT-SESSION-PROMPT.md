@@ -8,10 +8,10 @@ docs/deep-review-2026-10-13.md sections 4.5 and 4.6. Confirm the four checkers (
 clean (main is at a216d56 or later; everything is pushed to origin; tag v25.5 is on origin).
 
 Where things stand: v25.5 (the ALPHA BUILD) is INSTALLED on the real roster (Oct 18): no issues, the
-install's testing ran clean. Alpha testing runs Nov 1-15; its findings are batched into v25.5.5 (nothing
-is installed on its own unless the roster is broken). Still open from the install: whether the call-out
-pop-up's bottom is cut off on any plant PC (500 x 615 pt; if so v25.5.5 shrinks it to about 540 pt), and
-whether the FIND group at the bar's right end is on screen for a supervisor.
+install's testing ran clean; the call-out pop-up (500 x 615 pt) is not cut off on the plant screens and
+everything was very readable (Graeme, Oct 18) - the screen-fit question is CLOSED, the form stays as built.
+Alpha testing runs Nov 1-15; its findings are batched into v25.5.5 (nothing is installed on its own unless
+the roster is broken).
 
 Now: v26 = the BETA BUILD by Nov 15, presented to management and the union that day. Write
 briefs/v26.md FIRST from the kit brief 07 + deep review 4.6 (employee history report, admin and

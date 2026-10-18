@@ -37,7 +37,7 @@ Private Const DK_FONT As String = "Segoe UI"
 Private Const DK_FONT_B As String = "Segoe UI Semibold"
 Private Const BTN_H As Double = 36
 Private Const BTN_W As Double = 230
-Private Const TILE_H As Double = 58
+Private Const TILE_H As Double = 62                 ' v25.5: room for the cover tile's third line (the next uncovered shift)
 Private Const TILE_W As Double = 205
 Private Const GAP As Double = 8
 Private Const COL2 As Double = 470                  ' the right column's left edge, points from the sheet's left margin
@@ -171,7 +171,9 @@ Public Sub DrawDesk()
         .VerticalAlignment = xlCenter
     End With
     Dim info As String
-    info = Format$(Date, "dddd mmm d, yyyy") & "    |    Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & "    |    " & kTxt
+    ' v25.5 (A8): today's shifts - the crews on days and nights - in the header
+    info = Format$(Date, "dddd mmm d, yyyy") & "    |    Today: " & DaysCrew(Date) & " on days, " & NightsCrew(Date) & " on nights" & _
+           "    |    Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & "    |    " & kTxt
     With ws.Cells(2, 2)
         .NumberFormat = "@"
         .Value = info
@@ -192,7 +194,9 @@ Public Sub DrawDesk()
     ' ---- TODAY: the tiles ----
     DeskLabel ws, "dk_lbl_today", "TODAY", x0, y0
     yy = y0 + 16
-    DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover"), _
+    Dim nextTxt As String                          ' v25.5 (A8): the next uncovered shift under the count
+    If nCover > 0 Then nextTxt = NextOpenLine(DESK_AHEAD_DAYS)
+    DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover") & IIf(nextTxt <> "", vbCr & nextTxt, ""), _
              IIf(sup, "modDesk.DeskCalendar", "modDesk.DeskNeeds"), tileX, yy, IIf(nCover > 0, dkOrange(), 0)   ' Needs Attention is admin: a supervisor's tile opens the Calendar
     tileX = tileX + TILE_W + GAP
     DeskTile ws, "dk_tile_award", nReady, IIf(nReady = 1, "posting ready to award", "postings ready to award"), "modDesk.DeskAward", _
@@ -235,6 +239,9 @@ Public Sub DrawDesk()
     yL = yL + 16
     DeskBtn ws, "dk_btn_guide", "How do I ...", "modDesk.DeskGuide", x0, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
     DeskBtn ws, "dk_btn_report", "Something went wrong", "modDesk.DeskReport", x0 + (BTN_W + GAP) / 2, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
+    ' v25.5 (A8): a suggestion goes the same way as a fault, with its own subject
+    yL = yL + BTN_H + GAP
+    DeskBtn ws, "dk_btn_suggest", "Suggest an improvement", "modDesk.DeskSuggest", x0, yL, dkGrey(), BTN_W, dkInk()
     ' v25.5 (A5): the shortcut keys, under the help buttons
     yL = yL + BTN_H + 6
     DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yL
@@ -610,6 +617,23 @@ Public Sub DeskRoster()
     Exit Sub
 Oops:
     ReportError "DeskRoster"
+End Sub
+
+' v25.5 (A8) "Suggest an improvement": the same email draft as a fault report, with its own subject and no error line
+Public Sub DeskSuggest()
+    On Error GoTo Oops
+    Dim body As String
+    body = "A suggestion for the Call Out Roster." & vbNewLine & vbNewLine & _
+           "Who: " & CurrentUser() & vbNewLine & "When: " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & vbNewLine & _
+           "File: " & ThisWorkbook.Name & "  (" & CORE_VERSION & ")" & vbNewLine & vbNewLine & _
+           "What would help: " & vbNewLine & vbNewLine & "Where (which pop-up or tab): " & vbNewLine
+    If Not OpenMailTo(PRIMARY_ADMIN_EMAIL, "Call Out Roster: a suggestion", body) Then
+        MsgBox "No mail app could be opened. Tell " & PRIMARY_ADMIN_NAME & " yourself, or send this:" & _
+               vbNewLine & vbNewLine & Left$(body, 850), vbExclamation, "Suggest an improvement"
+    End If
+    Exit Sub
+Oops:
+    ReportError "DeskSuggest"
 End Sub
 
 ' ====================================================================

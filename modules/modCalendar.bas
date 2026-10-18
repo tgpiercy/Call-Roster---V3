@@ -2417,6 +2417,25 @@ Public Function OpenLinesAhead(ByVal nDays As Long) As Long
     OpenLinesAhead = OpenAhead("", nDays)
 End Function
 
+' v25.5 (A8, the Desk's cover tile): the first open line over the next n days as "Tue Oct 21 Nights, Phosphine"
+' ("" when none). The same walk as OpenAhead, every unit, stopped at the first open or NO TAKERS slot.
+Public Function NextOpenLine(ByVal nDays As Long) As String
+    LoadCache
+    LoadPostCache
+    Dim i As Long, sh As Variant, slots() As CalSlot, m As Long, k As Long
+    For i = 0 To nDays - 1
+        For Each sh In Array("Days", "Nights")
+            m = SlotsFor(Date + i, CStr(sh), "", slots, True)
+            For k = 1 To m
+                If slots(k).IsOpen Or UCase$(slots(k).RightText) Like "NO TAKERS*" Then
+                    NextOpenLine = Format$(Date + i, "ddd mmm d") & " " & CStr(sh) & IIf(SlotUnit(slots(k).Key) <> "", ", " & SlotUnit(slots(k).Key), "")
+                    Exit Function
+                End If
+            Next k
+        Next sh
+    Next i
+End Function
+
 Public Function ReadyToAwardCount() As Long
     LoadPostCache
     If Not IsArray(mPostV) Then Exit Function

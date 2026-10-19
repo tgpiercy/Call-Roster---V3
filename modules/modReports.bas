@@ -889,6 +889,8 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
     ws.Rows(4).RowHeight = 30
 
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
+    Dim totalsP As Object: Set totalsP = CreateObject("Scripting.Dictionary")     ' v26.5: posting refusals per period
+    Dim totalsC As Object: Set totalsC = CreateObject("Scripting.Dictionary")     ' v26.5: call-out refusals per period
     Dim yearTot As Double, kCall As Double, kPost As Double, kOther As Double, ch As Double, ps As String, isVoid As Boolean
     r = 5
     If n = 0 Then
@@ -924,8 +926,8 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
             If totals.Exists(ps) Then totals(ps) = totals(ps) + ch Else totals.Add ps, ch
             yearTot = yearTot + ch
             Select Case RefusedBucket(SafeStr(lg(t, L_TYPE)))
-                Case "callout": kCall = kCall + ch
-                Case "posting": kPost = kPost + ch
+                Case "callout": kCall = kCall + ch: If totalsC.Exists(ps) Then totalsC(ps) = totalsC(ps) + ch Else totalsC.Add ps, ch
+                Case "posting": kPost = kPost + ch: If totalsP.Exists(ps) Then totalsP(ps) = totalsP(ps) + ch Else totalsP.Add ps, ch
                 Case Else: kOther = kOther + ch
             End Select
         End If
@@ -935,7 +937,8 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
 
     ' ---- the totals, as the members' My history shows them ----
     r = r + 1
-    ws.Range(ws.Cells(r, 1), ws.Cells(r, 2)).Value = Array("Pay period", "Charged hours")
+    ' v26.5: per pay period the total charged, the posting refusals and the call-out refusals (as My history shows them)
+    ws.Range(ws.Cells(r, 1), ws.Cells(r, 4)).Value = Array("Pay period", "Charged hours", "Posting refusals", "Call-out refusals")
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, nc))
         .Font.Bold = True: .Font.Color = vbWhite: .Interior.Color = RGB(30, 56, 100)
     End With
@@ -963,10 +966,13 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
             ws.Cells(r, 1).Value = ks(i)
         End If
         ws.Cells(r, 2).Value = totals(ks(i))
+        If totalsP.Exists(ks(i)) Then ws.Cells(r, 3).Value = totalsP(ks(i)) Else ws.Cells(r, 3).Value = 0
+        If totalsC.Exists(ks(i)) Then ws.Cells(r, 4).Value = totalsC(ks(i)) Else ws.Cells(r, 4).Value = 0
         r = r + 1
     Next i
     ws.Cells(r, 1).Value = "Total for the range": ws.Cells(r, 1).Font.Bold = True
-    ws.Cells(r, 2).Value = yearTot: ws.Cells(r, 2).Font.Bold = True
+    ws.Cells(r, 2).Value = yearTot: ws.Cells(r, 3).Value = kPost: ws.Cells(r, 4).Value = kCall
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).Font.Bold = True
     r = r + 1
     ws.Cells(r, 1).Value = "  call-out refusals": ws.Cells(r, 2).Value = kCall: r = r + 1
     ws.Cells(r, 1).Value = "  posting refusals": ws.Cells(r, 2).Value = kPost: r = r + 1
@@ -996,7 +1002,7 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
         ws.Range(ws.Cells(4, 1), ws.Cells(rRowsEnd, nc)).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
         ws.Range(ws.Rows(5), ws.Rows(rRowsEnd)).AutoFit
     End If
-    ws.Range(ws.Cells(rRowsEnd + 3, 2), ws.Cells(r, 2)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(rRowsEnd + 3, 2), ws.Cells(r, 4)).HorizontalAlignment = xlCenter
     On Error Resume Next
     With ws.PageSetup
         .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, nc)).Address

@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M3 (Oct 18)"
+Public Const MEM_VERSION As String = "Members M3.1 (Oct 19)"     ' v26.5: the per-period split in My history (the tables are M3's)
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -2190,7 +2190,9 @@ Private Sub DrawHistory(ByVal nm As String)
     Next i
     Dim out() As Variant: ReDim out(1 To n, 1 To nc)
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
-    Dim yearTot As Double, ps As String, kCall As Double, kPost As Double, kOther As Double
+    Dim totalsP As Object: Set totalsP = CreateObject("Scripting.Dictionary")     ' M3.1: posting refusals per period
+    Dim totalsC As Object: Set totalsC = CreateObject("Scripting.Dictionary")     ' M3.1: call-out refusals per period
+    Dim yearTot As Double, ps As String, kCall As Double, kPost As Double, kOther As Double, kindTxt As String
     Dim hasM3 As Boolean: hasM3 = (UBound(v, 2) >= 13)
     Dim kind As String
     For i = 1 To n
@@ -2209,8 +2211,8 @@ Private Sub DrawHistory(ByVal nm As String)
         yearTot = yearTot + Num(v(idx(i), 9))
         If hasM3 Then kind = LCase$(Txt(v(idx(i), 11))) Else kind = ""    ' M3: the master's Kind column (the bucket rule lives there); not IIf (it reads column 11 either way)
         Select Case kind
-            Case "callout": kCall = kCall + Num(v(idx(i), 9))
-            Case "posting": kPost = kPost + Num(v(idx(i), 9))
+            Case "callout": kCall = kCall + Num(v(idx(i), 9)): totalsC(ps) = Num(totalsC(ps)) + Num(v(idx(i), 9))
+            Case "posting": kPost = kPost + Num(v(idx(i), 9)): totalsP(ps) = Num(totalsP(ps)) + Num(v(idx(i), 9))
             Case Else: kOther = kOther + Num(v(idx(i), 9))
         End Select
     Next i
@@ -2227,7 +2229,8 @@ Private Sub DrawHistory(ByVal nm As String)
     ws.Range(ws.Cells(6, 10), ws.Cells(5 + n, 10)).WrapText = True
     ws.Range(ws.Rows(6), ws.Rows(5 + n)).AutoFit
     r = 5 + n + 2
-    Header ws, r, Array("Pay period", "Charged hours", "", "", "", "", "", "", "", "")
+    ' M3.1 (v26.5, Graeme Oct 19): per pay period the total charged, the posting refusals and the call-out refusals
+    Header ws, r, Array("Pay period", "Charged hours", "Posting refusals", "Call-out refusals", "", "", "", "", "", "")
     r = r + 1
     Dim keys As Variant: keys = totals.Keys
     Dim ks() As String, nk As Long
@@ -2241,15 +2244,19 @@ Private Sub DrawHistory(ByVal nm As String)
         For i = nk To 1 Step -1
             ws.Cells(r, 1).Value = Format$(CDate(ks(i)), "mmm d") & " - " & Format$(CDate(ks(i)) + perDays - 1, "mmm d")
             ws.Cells(r, 2).Value = Num(totals(ks(i)))
-            ws.Cells(r, 2).HorizontalAlignment = xlCenter
+            ws.Cells(r, 3).Value = Num(totalsP(ks(i)))
+            ws.Cells(r, 4).Value = Num(totalsC(ks(i)))
+            ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).HorizontalAlignment = xlCenter
             r = r + 1
         Next i
     End If
     ws.Cells(r, 1).Value = "Year to date"
     ws.Cells(r, 1).Font.Bold = True
     ws.Cells(r, 2).Value = yearTot
-    ws.Cells(r, 2).Font.Bold = True
-    ws.Cells(r, 2).HorizontalAlignment = xlCenter
+    ws.Cells(r, 3).Value = kPost
+    ws.Cells(r, 4).Value = kCall
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).Font.Bold = True
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).HorizontalAlignment = xlCenter
     r = r + 1
     ws.Cells(r, 1).Value = "  call-out refusals": ws.Cells(r, 2).Value = kCall: ws.Cells(r, 2).HorizontalAlignment = xlCenter
     r = r + 1

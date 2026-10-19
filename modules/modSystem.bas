@@ -23,12 +23,12 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v26 (Oct 18)"
-Public Const EXPECTED_RELEASE As String = "v26"
+Public Const SYS_VERSION As String = "System v26.5 (Oct 19)"
+Public Const EXPECTED_RELEASE As String = "v26.5"
 ' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
-Public Const WHATS_NEW As String = "Employee history (FIND group, the Desk): one person, a date range, every entry with its place and a Why line, then the pay-period totals; a PDF.|" & _
-                                   "Why was I charged: click any OT Log row for the status bar line; the Refusals Report lists every charged row; members see it in My history.|" & _
-                                   "Board on the Calendar: the two-week board as a PDF. Minimum staffing: a red N short on a date cell and BELOW MINIMUM STAFFING on Needs Attention (admins set the minimums on the Min Staff sheet)."
+Public Const WHATS_NEW As String = "Nothing on the roster is typed into any more: double-click a person's row (or click it and press Employee) and the Employee pop-up opens on Edit with their details; Worked comes from the Kronos import.|" & _
+                                   "Refused counts the pay periods up to the current one: a posting refusal for a shift in a later period shows in that period's column and starts counting when the period begins. The short flag counts every unit.|" & _
+                                   "Members: My history shows per pay period the charged hours, the posting refusals, the call-out refusals and the premium hours worked (from the Kronos export); electronic sign-ups are on; the printed month calendar is the members' copy."
 Private Const N_MODULES As Long = 25           ' v24.4: + modSmoke; v25.3: + modDesk
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v26.5"

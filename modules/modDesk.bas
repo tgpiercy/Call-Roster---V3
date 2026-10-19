@@ -26,7 +26,7 @@ Option Explicit
 '  ordinary view with the Desk sheet in front.
 ' ====================================================================
 
-Public Const DESK_VERSION As String = "Desk v26 (Oct 18)"
+Public Const DESK_VERSION As String = "Desk v26.5 (Oct 19)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
 Public Const HELP_SHEET As String = "Help"           ' v25.5: the Help sheet (ShowHelp / DrawHelp below)

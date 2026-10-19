@@ -59,8 +59,8 @@ The system works out the same 11 holidays for any year: New Year's Day, Family D
 
 | Part | What it is | Where it comes from |
 |---|---|---|
-| Worked | Hours worked this year | The Kronos import |
-| Refused | Hours charged this year, plus adjustments | Hours Charged in the OT Log for this year's pay periods. Voided rows do not count. |
+| Worked | Premium hours worked this year | The Kronos import (since v26.5 it reads the Kronos export itself: the sum of the premium pay codes per person, and the same per pay period on the Worked Periods sheet) |
+| Refused | Hours charged this year, plus adjustments | Hours Charged in the OT Log for this year's pay periods **up to the current one** (v26.5): a posting's refusal charges carry the shift's pay period, so a refusal for a shift two periods out shows in its column and starts counting when that period begins. Voided rows do not count. |
 | Provisional | Accepted overtime that Kronos does not show yet | Accepted call-outs and awarded postings in the OT Log |
 
 ### Provisional accepted overtime
@@ -134,6 +134,8 @@ Charged hours go into Refused, so they raise Total Hours.
 | Posting: Award Out of Dept | Everyone eligible in the department who did not sign up | Shift date |
 | Posting: No Takers | Everyone eligible on the list | Shift date |
 | Posting: Cancel Request | Nobody | - |
+
+Since v26.5 a charge counts in Refused and Total Hours only once its pay period has started: a posting refusal for a shift in a later period is logged at the award, shows in that period's column, and joins the totals (and the call order) when the period begins. Call-out charges carry the call-out date's period, so they count at once.
 
 ## 8. Postings
 
@@ -401,7 +403,7 @@ The steps are in docs/rollover-one-pager.md.
 | Who's next | For a unit, date and shift in the next 14 days: who is free, in call order |
 | Calendar | Who is off and what needs cover, by month and unit. Leave shows as "Leave"; sick and personal days as "Off". |
 | Postings | Open postings with their closing dates and lists. With electronic sign-ups switched on, a Sign me up button. A member who moved unit shows no rank and no button on the old unit's list (v26). |
-| My history | For any name: this year's entries, outcomes and charges, by pay period, with Refused split into call-out, posting and other; since v26 each entry's place in the call order and a Why line for every charge, and a Print / PDF button |
+| My history | For any name: this year's entries, outcomes and charges; since v26 each entry's place in the call order and a Why line for every charge, and a Print / PDF button; since v26.5 the pay-period block shows the charged hours, the posting refusals, the call-out refusals and the premium hours worked (from the Kronos export) per period |
 | Where I stand | For the name picked with Find me: their call position in each unit, **Am I next?** (the next shift they are listed for and their place; v26), their open postings, and their five sick-time counts (section 10) |
 | Larger type (v26) | A button on Home: every sheet at 130 % for the session |
 
@@ -411,7 +413,7 @@ The steps are in docs/rollover-one-pager.md.
 |---|---|
 | Anyone who opens the roster | Sort and filter the roster, use Log Call-Out, look at the Calendar |
 | Logins on the supervisor list (v25.5) | Sick calls, postings (new, award to the list), the printed call-out roster, publishing; the Desk. |
-| Logins on the admin list | Everything else: shift switches, time off, leave, void / undo, adjustments, people, Kronos, a posting's no takers / out of department / cancel / reopen, Kronos import, adjustments and voids |
+| Logins on the admin list | Everything else: shift switches, time off, leave, void / undo, adjustments, people (since v26.5 a person's details are changed through the Employee pop-up's Edit, opened by a double-click on the row; nothing on the roster is typed into), Kronos, a posting's no takers / out of department / cancel / reopen, Kronos import, adjustments and voids |
 
 - Phone numbers and email addresses are hidden from people not on the admin list.
 - The file is always saved in the restricted view, and so is every copy the system makes (pre-change backups, practice copies, the updater's backup).
@@ -424,7 +426,7 @@ The steps are in docs/rollover-one-pager.md.
 | Automatic save | The file saves after each entry, and again when it is closed. |
 | Daily backup | A dated copy is saved the first time an admin opens the live file each day. 30 days are kept, of the daily copies and (v26) of the "Backup before ..." copies made before a people change. A backup, the frozen year-end file or a practice copy never takes that day's slot. SystemCheck says how many copies are kept and their size. |
 | Error log | A button or pop-up that fails part-way writes a line to the admin-only Error Log sheet (and a text file beside the roster) and shows "This didn't finish ... Error Log line N" instead of a code error. |
-| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 19 steps (v25.5) through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos heading rule, a planted leave word stopping the publish, void, remove, integrity) and checks every total comes back. It never saves. |
+| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 20 steps (v26.5) through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, edit a person's details, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos heading rule, a planted leave word stopping the publish, void, remove, integrity) and checks every total comes back. It never saves. |
 | One parser, one rule | Every date box reads through one parser; every rule (call order, who is free, closing, charging, the trim, the switch stops) lives in one module function the pop-ups call, with known answers in SelfTest. |
 | Checked changes | A change to the roster's layout is compared before and after. If the totals differ, saving is blocked. |
 | SystemCheck | Confirms the installed code is the right release and the data is in order. |

@@ -96,7 +96,7 @@ No release since v24 has needed a one-time macro: the Planned Moves, Error Log a
 | `SelfTest` | Section 5 |
 | `IntegrityCheck` | Section 13. Reads only. |
 | `MakePracticeCopy` | Saves and opens a practice copy (COPY in its name) in a `Practice` folder, with the members' template beside it. |
-| `SmokeTest` | In a practice copy only: 19 steps (v25.5) through the roster's own functions; every total must come back. Never saves. |
+| `SmokeTest` | In a practice copy only: 20 steps (v26.5) through the roster's own functions; every total must come back. Never saves. |
 | `ShowErrorLog` | Opens the Error Log sheet and marks every line seen. `ErrorLogTest` writes one test line so you can see the box a supervisor gets. |
 | `ApplyPlannedMoves` | Applies the planned unit moves that are due (the open asks the same question). |
 | `ApplyPlannedMoves` / Needs Attention > Planned unit moves | Cancel a planned move, or apply one that is due. |
@@ -221,7 +221,7 @@ The settings are constants at the top of `modOvertimeEntry`. Change them there a
 | `PUBLISH_FOLDER` | . | Where the members' file is published. "." is the roster's own folder (the setting for now). At the network roll-out it becomes the members' network folder. |
 | `PUBLISH_FILE` | (old file name) | The old Member View file. No longer written. |
 | `REFUSAL_SHEET` | Refusal Report | The tab the Refusals Report is drawn on |
-| `SIGNUPS_ON` | False | True switches on electronic sign-ups from the members' file |
+| `SIGNUPS_ON` | True (v26.5) | Electronic sign-ups from the members' file: Sign me up / Withdraw write a request file into the `Signups` folder beside the members' file (made at the next publish; members need write access to it); the Award pop-up reads them at LOAD |
 | `SIGNUP_FOLDER` | Signups | The inbox folder for sign-up request files, inside the members' folder |
 | `SIGNUP_STALE_DAYS` | (in the module) | A request file older than this is ignored |
 | `MEMBER_TEMPLATE_NAME` | Call Out Roster - Members TEMPLATE.xlsm | The template. It must sit next to the roster. |
@@ -229,7 +229,7 @@ The settings are constants at the top of `modOvertimeEntry`. Change them there a
 | `MEMBER_PASSWORD` | (in the module) | Sheet protection in the members' file. The members' code uses the same one. |
 | `MEMBERS_STALE_DAYS` | 1 | Needs Attention reminds you after this many days without a publish |
 | `MEMBER_NEXT_DAYS` | 14 | How many days ahead "Who's next" covers |
-| `KRONOS_PATH` | A network file | The Kronos workbook that Import Kronos reads |
+| `KRONOS_PATH` | A network file or folder | The Kronos EXPORT that Import Kronos reads (v26.5: "Employee Transactions and Totals", one dated row per transaction) - a file, or the folder the exports are saved in (ending in a backslash: the newest file is read). The pivot workbook ("Sorted Data Here") still works, without the per-period hours |
 | `KRONOS_SHEET` | Sorted Data Here | The sheet in that workbook. The import finds the `Employee Name`, `Grand Total` and `Payroll #` columns by their headings (first 10 rows) and refuses, changing nothing, when a heading is missing. |
 | `KRONOS_STALE_DAYS` | 7 | Kronos data older than this gives a warning |
 | `BACKUP_FOLDER` | . | See section 6 |
@@ -337,8 +337,8 @@ Restore the backup only if the reopened file is wrong.
 | **Import Kronos** | Reads worked hours from the Kronos workbook and saves a dated snapshot |
 | **Add Adjustment** | Adds or removes charged hours for the person in the selected roster row |
 | **Void Entry** | Voids a session, posting or adjustment by its number, or one row by `#` and its Entry ID |
-| **Employee** | Add a person, move one to another unit, rename, remove (to the Former sheet) or bring back. Each shows what it will do first, saves a backup where rows move, and checks every total after. |
-| Crew column (E) on the roster | Type the new crew. A box asks from which date; Cancel puts the old crew back. Earlier time off and switches stay on the old crew's shifts. |
+| **Employee** | **Edit** a person's details (v26.5: double-click their row; home unit, a dated crew change, phone, email, seniority, the unit codes; code changes go in the Grade Log; nobody's hours move), add a person, move one to another unit, rename, remove (to the Former sheet) or bring back. Each shows what it will do first, saves a backup where rows move, and checks every total after. |
+| Crew changes | Through Employee > Edit (v26.5; column E is locked): pick the crew and the date it starts. Earlier time off and switches stay on the old crew's shifts. |
 | **Full Access** | Puts the admin view back for a login on the admin list |
 | **Attendance** | Draws the sick and personal day sheet: one row per person, a column per occurrence, sorts and a filter |
 | **Refusals Report** (PRINT / PUBLISH) | Refused hours split into call-out and posting refusals, per person and per unit; printable, PDF. **v26:** a second part under the totals, "The charges behind the figures": one line per charged OT Log row with the sentence that explains it |
@@ -346,13 +346,14 @@ Restore the backup only if the reopened file is wrong.
 | **Employee history** (FIND group, the Desk; v26) | One person and a date range -> the History Report tab and a PDF: every log row with its call-order place, outcome, charge and Why line, then the pay-period totals. An admin picks **Full** (Logged by, When, Status, Void note, void rows struck through; the admin-only `History Report (admin)` tab) or **member-safe** (the members' My history columns, row for row); a supervisor gets member-safe only |
 | **Board** (Calendar's top row; v26) | The two-week board: today and the next 13 days, one page per unit group, PDF beside the month calendars, then print |
 | **Min Staff** sheet (v26) | The minimum operators per unit and shift (Unit, Shift, Minimum, Note). Made with the plant's numbers on an admin's first open after the install; type into Minimum and Note only; blank = no minimum on that shift. The calendar's date cells (a red "N short" flag; click the date for which) and Needs Attention (BELOW MINIMUM STAFFING) flag a short shift for the next 14 days. It only reads. |
+| **Worked Periods** sheet (v26.5) | Each person's premium hours per pay period from the Kronos export, rebuilt at every import; what the members' My history shows as Worked (Kronos) |
 | `RepairIdMarks` (Alt+F8; v26) | Raises the hidden ID counters (`IdMark_*`) to the highest number in the archived years and the live log when IntegrityCheck's IDs line says one is below an archive. It never lowers a counter. |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |
 | Employee > Move to unit with a later date | Plans the move. Nothing changes until the date; the first admin open on or after it asks "apply now?". Needs Attention > Planned unit moves cancels or applies one. |
 | `MakePracticeCopy`, `SmokeTest` (Alt+F8) | Section 3, step 14 |
 | `ShowErrorLog`, `ErrorLogTest` (Alt+F8) | The Error Log sheet (admin only, never published) |
 | `ReopenPosting` (Alt+F8) | Reopens a closed posting after its log rows are voided; refuses a shift before the roster year; names anyone it marks not chargeable (moved, left, no code now) |
-| Typing on the sheets (v25) | Every sheet stays protected in both views. In ADMIN view you can type into the roster's Home Unit (B), Crew (E), Phone (F), Worked (H, from the Kronos PDF until the daily import runs), Plant Seniority (J), EMAIL (K) and the unit code columns (L:S), and the Holidays sheet's "Observed on"; everything else (totals, pay-period cells, every other sheet) is refused and goes through the buttons; sorting a selected block by hand is refused too (the sort buttons sort in code). A message that asks you to fix a cell on a protected sheet says how (the VBA editor's Immediate window: `UnlockSheet Sheets("name")`, the fix, then `ProtectAll`). Sheets can't be added, deleted or unhidden by hand. Copies made by the system (pre-change, practice, the updater's backup) are saved in the restricted view. |
+| Typing on the sheets (v25; v26.5) | Every sheet stays protected in both views, and **since v26.5 nothing on the roster is typed into**: a person's home unit, crew, phone, email, seniority date and unit codes change through the Employee pop-up's **Edit** (double-click the row, or click it and press Employee); Worked (H) is filled by the Kronos import. The only typed-into cells left are the Holidays sheet's "Observed on" and the Min Staff sheet's Minimum / Note. Everything else (totals, pay-period cells, every other sheet) goes through the buttons; sorting a selected block by hand is refused (the sort buttons sort in code). A message that asks you to fix a cell on a protected sheet says how (the VBA editor's Immediate window: `UnlockSheet Sheets("name")`, the fix, then `ProtectAll`). Sheets can't be added, deleted or unhidden by hand. Copies made by the system (pre-change, practice, the updater's backup) are saved in the restricted view. |
 | `ShowGradeLog` (Alt+F8) | Shows the log of grade code changes |
 | `SystemCheck`, `SelfTest` (Alt+F8) | See sections 4 and 5 |
 

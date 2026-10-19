@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v26 (Oct 18)"
+Public Const CORE_VERSION As String = "Core v26.5 (Oct 19)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -82,7 +82,7 @@ Public Const PUB_NAME As String = "MembersPublishedAt"
 Public Const SIGNUPS_ON As Boolean = True       ' v26.5 (Graeme, Oct 19): on for the beta - members' Sign me up / Withdraw write into the Signups folder beside the members' file
 Public Const SIGNUP_FOLDER As String = ".\Signups"
 Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox files this old for a closed posting
-Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"
+Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"   ' v26.5: the Kronos EXPORT file ("Employee Transactions and Totals"), or the FOLDER the exports are saved in (ending in \: the newest file is read); the pivot workbook still works, without the per-period hours
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)

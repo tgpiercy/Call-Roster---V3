@@ -27,7 +27,7 @@ Option Explicit
 '  hidden in saved copies and never published).
 ' ====================================================================
 
-Public Const AT_VERSION As String = "Attendance v26 (Oct 18)"
+Public Const AT_VERSION As String = "Attendance v26.5 (Oct 19)"
 Public Const AT_SHEET As String = "Attendance"
 
 Public Const PAID_SICK_DAYS As Long = 5

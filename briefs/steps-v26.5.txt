@@ -1,0 +1,22 @@
+# Groups 3 and 4 of install-steps.txt for v26.5 (groups 1 and 2 are standard; tests/build_zip.py adds them,
+# the VERSION / EXPECT / MEMBER / FORMS header, and the members' template step because member/ changed).
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+# The Roster Updater (v4.1) does not change. ThisWorkbook and frmEmployee are re-pasted (the panel does it).
+
+[3. Run once]
+macro   | Rebuild the roster's bar                                          | ApplyRosterLayout
+macro   | Refresh the roster formulas (Refused now counts the pay periods up to the current one) | RefreshRosterFormulas | confirm
+macro   | System check (expect 25 of 25 on v26.5, ThisWorkbook v26.5, frmEmployee v26.5) | SystemCheckOK
+macro   | Self test (expect 649 passed, 75 suites)                           | SelfTestOK
+manual  | KRONOS_PATH                                                       | In the VBA editor (Alt+F11), modOvertimeEntry near the top: point KRONOS_PATH at the Kronos EXPORT file (the "Employee Transactions and Totals" workbook), or at the folder the exports are saved in (ending in a backslash: the newest file is read). The pivot workbook still works but gives no per-period hours. Debug > Compile, Ctrl+S. Click Done.
+
+[4. Checks]
+macro   | Make a practice copy (it opens; leave it for the next rows)       | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY (20 steps)                                 | In the practice copy: Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, 20 steps (step 10 is the Employee pop-up's Edit). Then CLOSE THE COPY WITHOUT SAVING and come back to this sheet. Click Done.
+manual  | Nothing typed on the roster; Edit                                 | OT Roster (ADMIN view): click a person's phone cell and type: Excel refuses (the sheet is protected). Double-click the row: the Employee pop-up opens on Edit, filled with that person. Change the phone, SAVE CHANGES: the box lists the change, then "updated". Double-click again: the new phone is there. Click Done.
+manual  | A refusal in a future pay period waits                            | On a PRACTICE copy: post a shift three weeks out, award it with one person ahead not signed up (they are charged). OT Roster: that person's Refused (I) does NOT include the new charge; the future period's column does. Click Done. (On a copy: close it without saving after.)
+manual  | The short flag counts every unit                                  | Calendar tab: pick a unit group that is NOT short while another unit is: the date cell still shows "N short"; click the date: the row under the title names the other unit. Needs Attention: BELOW MINIMUM STAFFING lists it whatever group is picked. Click Done.
+manual  | The month PDF is the members' copy                                | Calendar tab with a sick call on it: Print / PDF, No to the printer: the PDF reads "(Off ...)" on that line and the title says members' copy; the calendar on screen still reads "(Sick ...)". Click Done.
+manual  | Sign me up from the members' file                                 | Member View (publish), open Call Out Roster - Members.xlsm with the master closed, Enable Content. Postings: Sign me up on an open posting (your name picked in Find me): "Sign-up sent". Close it. In the master: Award Posting > LOAD that posting: the LOAD summary says 1 electronic sign-up ticked and the person is ticked. Click Done.
+manual  | The Kronos export import (on a PRACTICE copy)                     | In a practice copy: Import Kronos with KRONOS_PATH at the export (or its folder): the box says "Read from the Kronos export's transactions" and "Premium hours per pay period: N people ...". Show everything: the Worked Periods tab holds one row per person per pay period. Close the copy without saving. Click Done.
+manual  | My history's new columns                                          | In the members' file: My history for a name: the pay-period block shows Charged hours, Posting refusals, Call-out refusals and Worked (Kronos) (a dash until the real roster has imported an export). Click Done.

@@ -27,10 +27,15 @@ v26.5.5 or v27 (one commit per finding, the four checkers after each, read-only 
 worktrees told to review `main`, re-review the fixes, INSTALL note, steps file, stamps, tag, zip, push from
 my Terminal panel). Never git add -A. Update docs/NEXT-SESSION-PROMPT.md at the end of the session.
 
-Desk v2 (decided Oct 19): docs/desk-v2-mockup-2026-10.html is the mock-up (four bands NOW / PLAN / FINISH
-+ TODAY, three colours, header pills, action tiles; same buttons and rights). No code until the boss's first
-alpha week (Nov 1-7) has shaped it; then a UI-only item (DrawDesk redraw, no form re-paste) in v26.5.5.
-UI_SCALE and the call-out form's fit wait for the plant screen measurement.
+Desk v2 APPROVED (Graeme, Oct 19: "looks good, code it in the next version after I run the previous
+update"): docs/desk-v2-mockup-2026-10.html is the spec (four bands TODAY / NOW / PLAN / FINISH in three
+columns, one colour per band + grey, the header as three pills with the Kronos pill red + "import it" when
+old, tiles that name the next thing and the action, Help / Undo / links in one footer row; same buttons,
+same rights). Build it as the FIRST item of the next version (v26.5.5 if a fix bundle, else v27) once he
+confirms v26 + v26.5 are installed on the real roster: a UI-only DrawDesk redraw in modDesk (DeskTile /
+DeskTileText / DeskBtn / DeskLabel / the layout constants; the supervisor Desk keeps the same bands minus
+the admin-only buttons), no form re-paste; refresh docs/desk-guide.md, the Help text and the quick guide.
+UI_SCALE and the call-out form's fit still wait for the plant screen measurement.
 
 In parallel, no code (docs/timeline-2026-10-18.md): the what-if scenario sheets, the four guides refreshed
 for v25.5 / v26 / v26.5, the Nov 15 presentation pack, the Dec 1 training plan - start them when I say.

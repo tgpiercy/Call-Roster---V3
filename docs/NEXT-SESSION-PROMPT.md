@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (written Oct 19, 2026: v26.5 built and tagged; the push, the installs and the alpha testing are next)
+# Paste this into a fresh session to carry on (written Oct 19, 2026: v26.5 built, tagged and pushed; next = his installs, then v27 = one bundle before the Dec 1 training, v28 in January)
 
 ```
 Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first, then docs/timeline-2026-10-18.md,
@@ -64,6 +64,16 @@ folder members can reach from a phone (SharePoint or the share) - a cheap test b
 gate. Also on the list, undated: the December rollover dry run on a copy with the v26.5 rule; v25.4 Payroll #
 as the key (needs column A from a real import); B4 usage counts; A4 the plain-language audit; a board PDF at
 every publish; a restore drill; D1 the sit-with sessions.
+
+BUNDLING (Graeme, Oct 19, the fewer-installs rule): TWO installs cover all of the above. v27 = ONE bundle built
+during the alpha once v26.5 has run on the real roster (the pre-release rule), installed about Nov 20-25
+before the Dec 1 training: Desk v2, the Stats report, the two Desk tiles, "Since you were last here", the
+Holidays + Min Staff pop-ups, plus the alpha findings of Nov 1-15 - all UI / reports / admin tooling, no
+charging or call-order rule change, one brief per item inside one release brief (briefs/v27.md), one
+four-reviewer pass, one master install, no members' change; the December rollover dry run then runs on v27.
+v28 = January after the rollover, with go-live: the members' requests (switches + time off), the phone page,
+v25.4 Payroll # as the key, the P: paths; one master + one members' install. Build order inside v27: Desk v2
+first (the boss sees it in the alpha pack), then Stats, tiles, since-last-here, the two pop-ups.
 
 In parallel, no code (docs/timeline-2026-10-18.md): the what-if scenario sheets, the four guides refreshed
 for v25.5 / v26 / v26.5, the Nov 15 presentation pack, the Dec 1 training plan - start them when I say.

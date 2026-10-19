@@ -79,7 +79,7 @@ Public Const PUB_NAME As String = "MembersPublishedAt"
 ' folder and Award Posting reads them. ".\Signups" = a folder beside the members' file; every
 ' member needs WRITE access to it. Off until the union and management agree it counts like
 ' initialling the posted sheet.
-Public Const SIGNUPS_ON As Boolean = False
+Public Const SIGNUPS_ON As Boolean = True       ' v26.5 (Graeme, Oct 19): on for the beta - members' Sign me up / Withdraw write into the Signups folder beside the members' file
 Public Const SIGNUP_FOLDER As String = ".\Signups"
 Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox files this old for a closed posting
 Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"

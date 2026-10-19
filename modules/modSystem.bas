@@ -34,7 +34,7 @@ Private Const N_MODULES As Long = 25           ' v24.4: + modSmoke; v25.3: + mod
 Private Const THISWB_RELEASE As String = "v26.5"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v25.5,frmNewPosting|v25.5,frmPostingEntry|v25.5,frmShiftSwitch|v25.5," & _
-                                        "frmTimeOff|v25.5,frmLeave|v25.5,frmSickCall|v25.5,frmConvert|v25.5,frmEmployee|v26.5"   ' v25.5: every form re-pasted (UI_SCALE); v26.5: frmEmployee (Edit) and ThisWorkbook (the roster double-click)
+                                        "frmTimeOff|v25.5,frmLeave|v26.5,frmSickCall|v25.5,frmConvert|v25.5,frmEmployee|v26.5"   ' v25.5: every form re-pasted (UI_SCALE); v26.5: frmEmployee (Edit), frmLeave (a message) and ThisWorkbook (the roster double-click)
 
 Private mBackupWarned As Boolean
 

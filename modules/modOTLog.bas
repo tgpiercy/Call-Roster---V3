@@ -156,6 +156,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
     '      Worked + Refused + Provisional (G itself may grow by the
     '      provisional hours the first time v21 writes it) ----
     Dim afterSum As Double, mism As String, k As Long, expG As Double, provTot As Double
+    Dim thr As Date: thr = EnsureRefusedThrough()        ' v26.5: once, not per cell
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
         If nm <> "" Then
@@ -174,7 +175,7 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
             For c = C_PERIOD1 To lastPer
                 v = ws.Cells(r, c).Value2
                 If IsRealNumber(v) Then
-                    If RefusedCounts(CDate(ws.Cells(sRow, c).Value), RefusedThrough()) Then expI = expI + CDbl(v)
+                    If RefusedCounts(CDate(ws.Cells(sRow, c).Value), thr) Then expI = expI + CDbl(v)
                 End If
             Next c
             If Abs(afterSum - before(k)) > 0.0001 Then

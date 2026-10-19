@@ -9,7 +9,7 @@ The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out**
 2. A notice that someone "has the roster open for editing, so this copy is read-only" means you can look but not log. Close it. Open it again when they are out. "This is a frozen copy of the roster" means you opened a dated backup or the year-end FINAL file: look, but log in the live roster.
 3. An admin may see "N planned unit move(s) are due: apply them now?" Yes applies them (a backup is saved first). No leaves them waiting; the question comes back at the next open.
 4. Close the file as soon as you are done, so the next supervisor can get in.
-5. Every sheet is protected. Nothing is typed into cells: the buttons do the writing. (Admins can type into the roster's Home Unit, Crew, Phone, Worked, Seniority, EMAIL and unit code columns, and the Holidays sheet's "Observed on"; everything else, totals included, is refused, and so is sorting a block of cells by hand: the sort buttons do it.)
+5. Every sheet is protected. Nothing is typed into cells: the buttons do the writing. (Since v26.5 nothing on the roster is typed into either: an admin double-clicks a person's row and the Employee pop-up opens on Edit. The Holidays sheet's "Observed on" and the Min Staff sheet's Minimum / Note are the only typed-into cells; everything else, totals included, is refused, and so is sorting a block of cells by hand: the sort buttons do it.)
 
 ## Typing a date
 Every date box takes "Oct 12", "12 Oct", "Oct 12, 2026" or "10/12" (month then day), and shows the full date it understood. With no year typed, a date more than three months back means next year ("Jan 5" typed in October is next January) and a date more than nine months ahead means last year ("Dec 20" typed on January 3 is the December just gone). A time typed after the date is ignored. The box tells you when it can't read what you typed.
@@ -33,12 +33,12 @@ If someone takes only part of the hours, select them and press **P** (Part of th
 **Post a shift**
 1. Click **New Posting**. Fill in Unit, Shift date, Shift, Reason, Hours and Positions. Crew and "Posting closes" fill in.
 2. Leave "Print it" and "Save PDF" ticked. Click **CREATE POSTING**, then OK.
-3. Put up the printed sheet. Sign-up is on paper.
+3. Put up the printed sheet. Sign-up is on paper or, since v26.5, from the members' file (Sign me up).
 
 **Load a posting:** click **Load Posting**, pick it, then **View on sheet**, **Print** or **Save PDF**.
 
 **Award it**
-1. Click **Award Posting**. Pick the posting and click **LOAD**.
+1. Click **Award Posting**. Pick the posting and click **LOAD**. Electronic sign-ups are ticked already; the summary line names late ones, withdrawals and any name not on the roster.
 2. Double-click each name that signed up.
 3. If someone signed up for only part of the shift: select the name, click **PARTIAL HOURS** and enter the hours.
 4. Select the person who gets it and click **AWARD (on / off)**. Repeat for more positions. Anyone who signed up for the whole shift comes before a partial sign-up.
@@ -101,7 +101,7 @@ A supervisor (a login on the supervisor list) opens on the **Desk** tab: the hea
 Click **Calendar** (or Ctrl+Shift+K). Pick the month and the unit at the top. OPEN means the line still needs cover. Click a line: its details show in the row under the title and on the status bar (no hover boxes since v25.5). Double-click a line for its options. **Print / PDF** prints the month or saves it as a PDF (since v26.5 as the members' copy: a sick call or a personal day reads Off on the printed page). **v26:** a date in the next 14 days where any unit is below its minimum staffing shows a red "N short" flag in its date cell, whatever unit group the calendar shows (click the date: the row under the title says which unit and shift); **Board** draws the two-week board (today and the next 13 days, one page per unit group) and saves it as a PDF, then asks whether to print it.
 
 ## Employee history (v26)
-**Employee history** (the FIND group on the bar, or the Desk): type part of a name, then the From and To dates (the boxes open on the whole roster year). The History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with their place in the call order, postings, adjustments, the hours charged and a **Why** line for each ("Charged 21 h: 3rd on the call list, Refused, 12 h offered x 1.75 (grade P2)"), then the charged hours per pay period and the total. "Save a PDF as well?" puts it in the reports folder (beside the roster until go-live). It is the same report the members' file shows as My history, row for row, so a question at the board can be answered from either. An admin is also offered the full report (who logged each entry and when). **Why on the status bar:** click any row on the OT Log tab and the status bar at the bottom explains that row's charge.
+**Employee history** (the FIND group on the bar, or the Desk): type part of a name, then the From and To dates (the boxes open on the whole roster year). The History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with their place in the call order, postings, adjustments, the hours charged and a **Why** line for each ("Charged 21 h: 3rd on the call list, Refused, 12 h offered x 1.75 (grade P2)"), then the charged hours per pay period and the total. "Save a PDF as well?" puts it in the reports folder (beside the roster until go-live). It is the same report the members' file shows as My history, row for row, so a question at the board can be answered from either. An admin is also offered the full report (who logged each entry and when). **Why on the status bar:** click any row on the OT Log tab and the status bar at the bottom explains that row's charge. Since v26.5 the pay-period block shows the charged hours, the posting refusals, the call-out refusals and Worked (Kronos).
 
 ## Print the call-out roster
 Click **Call Out Roster**. It is redrawn in call order. Answer Yes to print.
@@ -123,7 +123,7 @@ The three lines above the roster show the pay period, the Kronos date and the lo
 
 ## Words you will see
 - **Call order:** grade code first, then the lowest Total Hours, then plant seniority. Everyone is called in that order.
-- **Total Hours:** worked hours (Kronos) + refused hours + accepted overtime not yet in Kronos (shown with `*`).
+- **Total Hours:** worked hours (Kronos) + refused hours whose pay period has started (a refusal for a shift in a later period counts from that period; v26.5) + accepted overtime not yet in Kronos (shown with `*`).
 - **Charged:** refused or left-message hours x 1.75, added to Total Hours; grade 2 and below only. `>>` = above grade 2: called, never charged.
 - `~` = an estimate, because the admin has entered a unit move for the person for a later date. `?` = left a message (the call-back pile). `S/S` = working a shift switch that shift.
 - **NCN** = no cover needed. **PHA** = hazard-analysis coverage. **OPEN** = the line still needs cover. **POSTED** = a posting is out for it. **DAYS** = the Monday-to-Friday day crew.

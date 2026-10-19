@@ -21,6 +21,14 @@ Option Explicit
 '     kept as the hidden name KronosDataThrough, which the roster's
 '     provisional-OT formulas (column C) read: accepted / awarded shifts
 '     that have ended by that date are in Kronos, so they stop counting.
+'  v26.5 (Oct 19):
+'   - Reads the Kronos EXPORT itself ("Employee Transactions and Totals",
+'     one dated row per transaction) when KRONOS_PATH names it, or the
+'     folder the exports are saved in (the newest file): the rows are
+'     summed per person into the pivot's shape (PivotFromTransactions),
+'     so the import runs unchanged, and per roster pay period into the
+'     admin-only Worked Periods sheet (WriteWorkedPeriods; published as
+'     dWorked). The pivot sheet "Sorted Data Here" stays as the fall-back.
 ' ====================================================================
 
 Public Const KR_VERSION As String = "Kronos import v26.5 (Oct 19)"
@@ -37,6 +45,7 @@ Private mTxPeriods As Object                ' this import's per-period sums: "na
 Private mTxCodes As Object                  ' "namekey|serial" -> "code h; code h"
 Private mTxRaw As Object                    ' namekey -> the name as the export spells it
 Private mTxPay As Object                    ' namekey -> Global ID (the Payroll #)
+Private mTxSkipped As Long                  ' export rows with hours but no pay code or no date (a total or title line): not counted
 
 ' v25: the by-heading rule on its own (D-I4): "" when 'Employee Name' and 'Grand Total' are both found
 ' on one heading row within the first 10 rows of src (a 2-D array of the sheet), else what is missing.
@@ -280,8 +289,8 @@ Sub SyncKronosData()
     Dim wpTxt As String                        ' v26.5: the per-period premium hours (from the export only)
     If fromExport Then wpTxt = WriteWorkedPeriods(rosterOf, stamp)
     Application.CalculateFull                 ' provisional (C) and Total (G) pick up the new date
+    wsDest.Activate                           ' before the screen comes back: the Worked Periods sheet must not flash
     Application.ScreenUpdating = True
-    wsDest.Activate
     On Error Resume Next
     SetRosterStatus
     On Error GoTo Oops
@@ -349,6 +358,7 @@ End Sub
 Public Function KronosFilePath() As String
     Dim p As String: p = Trim$(KRONOS_PATH)
     If p = "" Then Exit Function
+    On Error Resume Next                                     ' an unreachable drive: "" (the caller says no file was found)
     Dim pattern As String, folder As String
     If Right$(p, 1) = "\" Then
         folder = p: pattern = "*.xls*"
@@ -359,7 +369,6 @@ Public Function KronosFilePath() As String
         Exit Function
     End If
     Dim f As String, best As String, bestAt As Date, at As Date
-    On Error Resume Next
     f = Dir$(folder & pattern)
     Do While f <> ""
         If Left$(f, 2) <> "~$" Then                      ' not Excel's lock files
@@ -377,6 +386,7 @@ Private Function TransactionsSheet(ByVal wb As Workbook, ByRef hdrRow As Long) A
     Dim ws As Worksheet, r As Long, c As Long, v As Variant, lastC As Long
     Dim hasEmp As Boolean, hasDate As Boolean, hasCode As Boolean, hasHrs As Boolean
     For Each ws In wb.Worksheets
+        lastC = 0
         On Error Resume Next
         lastC = ws.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious).Column
         On Error GoTo 0
@@ -421,7 +431,12 @@ Private Function PivotFromTransactions(ByRef src As Variant, ByVal hdrRow As Lon
     For i = hdrRow + 1 To UBound(src, 1)
         raw = Trim$(SafeStr(src(i, cEmp)))
         k = NameKey(raw)
-        If k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) Then
+        ' a transaction row only: a pay code and a date (a total or title line has neither; those are counted and reported)
+        code = Trim$(SafeStr(src(i, cCode)))
+        If k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) And code = "" Or _
+           k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) And Not IsDate(src(i, cDt)) Then
+            mTxSkipped = mTxSkipped + 1
+        ElseIf k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) Then
             hrs = CDbl(src(i, cHrs))
             If Not totals.Exists(k) Then
                 totals.Add k, 0#
@@ -433,8 +448,7 @@ Private Function PivotFromTransactions(ByRef src As Variant, ByVal hdrRow As Lon
                 d = CDate(src(i, cDt))
                 pk = k & "|" & CLng(Int(CDbl(PeriodStartFor(d))))
                 If mTxPeriods.Exists(pk) Then mTxPeriods(pk) = mTxPeriods(pk) + hrs Else mTxPeriods.Add pk, hrs
-                code = Trim$(SafeStr(src(i, cCode)))
-                If code <> "" Then mTxCodes(pk) = SafeStr(mTxCodes(pk)) & IIf(SafeStr(mTxCodes(pk)) = "", "", "; ") & code & " " & HoursText(hrs)
+                mTxCodes(pk) = SafeStr(mTxCodes(pk)) & IIf(SafeStr(mTxCodes(pk)) = "", "", "; ") & code & " " & HoursText(hrs)
             End If
         End If
     Next i
@@ -491,18 +505,21 @@ Private Function WriteWorkedPeriods(ByVal rosterOf As Object, ByVal stamp As Dat
     If n > 0 Then
         ReDim outA(1 To n, 1 To WP_NCOLS)
         For Each kk In mTxPeriods.Keys
-            i = i + 1
             p = InStr(CStr(kk), "|")
             k = Left$(CStr(kk), p - 1)
-            If rosterOf.Exists(k) Then nm = CStr(rosterOf(k)) Else nm = CStr(mTxRaw(k))
-            people(nm) = True
-            outA(i, 1) = SafeStr(mTxPay(k))
-            outA(i, 2) = nm
-            outA(i, 3) = CDate(CDbl(Mid$(CStr(kk), p + 1)))
-            outA(i, 4) = mTxPeriods(kk)
-            outA(i, 5) = SafeStr(mTxCodes(kk))
-            outA(i, 6) = stamp
+            If rosterOf.Exists(k) Then                       ' roster people only: a name not on the roster (or Former) is not kept
+                nm = CStr(rosterOf(k))
+                i = i + 1
+                people(nm) = True
+                outA(i, 1) = SafeStr(mTxPay(k))
+                outA(i, 2) = nm
+                outA(i, 3) = CDate(CDbl(Mid$(CStr(kk), p + 1)))
+                outA(i, 4) = mTxPeriods(kk)
+                outA(i, 5) = SafeStr(mTxCodes(kk))
+                outA(i, 6) = stamp
+            End If
         Next kk
+        n = i
     End If
     Dim em As String
     On Error GoTo Fail
@@ -518,7 +535,8 @@ Private Function WriteWorkedPeriods(ByVal rosterOf As Object, ByVal stamp As Dat
         End With
     End If
     ProtectSheet ws
-    WriteWorkedPeriods = "Premium hours per pay period: " & people.Count & " people, " & n & " person-periods (Worked Periods sheet)."
+    WriteWorkedPeriods = "Premium hours per pay period: " & people.Count & " people, " & n & " person-periods (Worked Periods sheet)." & _
+                         IIf(mTxSkipped > 0, " " & mTxSkipped & " export row(s) with no pay code or no date were not counted.", "")
     Exit Function
 Fail:
     em = Err.Description

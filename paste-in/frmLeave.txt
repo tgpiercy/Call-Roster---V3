@@ -1,5 +1,5 @@
 Option Explicit
-' @version v25.5 (Oct 18)
+' @version v26.5 (Oct 19)
 
 ' ================================================================
 ' LEAVE (v22) - two modes
@@ -256,7 +256,7 @@ Private Sub SaveGoing()
     End If
     If HomeUnitOf(mEmp.Text) = "" Then
         If MsgBox(mEmp.Text & " has no Home Unit on the roster. The return top-up needs it. Save the leave anyway " & _
-                  "(fill in column B before they return)?", vbYesNo + vbExclamation, "Leave") = vbNo Then Exit Sub
+                  "(set it with Employee > Edit before they return)?", vbYesNo + vbExclamation, "Leave") = vbNo Then Exit Sub
     End If
     Dim hu As String, id As String
     id = SaveLeaveGoing(mEmp.Text, C("cboType").Text, d1, d2, Trim$(C("txtNote").Text), hu)

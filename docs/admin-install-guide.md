@@ -222,7 +222,7 @@ The settings are constants at the top of `modOvertimeEntry`. Change them there a
 | `PUBLISH_FILE` | (old file name) | The old Member View file. No longer written. |
 | `REFUSAL_SHEET` | Refusal Report | The tab the Refusals Report is drawn on |
 | `SIGNUPS_ON` | True (v26.5) | Electronic sign-ups from the members' file: Sign me up / Withdraw write a request file into the `Signups` folder beside the members' file (made at the next publish; members need write access to it); the Award pop-up reads them at LOAD |
-| `SIGNUP_FOLDER` | Signups | The inbox folder for sign-up request files, inside the members' folder |
+| `SIGNUP_FOLDER` | Signups | The inbox folder for sign-up request files, beside the members' file (members need write access to it, and can list it: a file's name carries the login that signed up) |
 | `SIGNUP_STALE_DAYS` | (in the module) | A request file older than this is ignored |
 | `MEMBER_TEMPLATE_NAME` | Call Out Roster - Members TEMPLATE.xlsm | The template. It must sit next to the roster. |
 | `MEMBER_FILE_NAME` | Call Out Roster - Members.xlsm | The published members' file |
@@ -230,7 +230,7 @@ The settings are constants at the top of `modOvertimeEntry`. Change them there a
 | `MEMBERS_STALE_DAYS` | 1 | Needs Attention reminds you after this many days without a publish |
 | `MEMBER_NEXT_DAYS` | 14 | How many days ahead "Who's next" covers |
 | `KRONOS_PATH` | A network file or folder | The Kronos EXPORT that Import Kronos reads (v26.5: "Employee Transactions and Totals", one dated row per transaction) - a file, or the folder the exports are saved in (ending in a backslash: the newest file is read). The pivot workbook ("Sorted Data Here") still works, without the per-period hours |
-| `KRONOS_SHEET` | Sorted Data Here | The sheet in that workbook. The import finds the `Employee Name`, `Grand Total` and `Payroll #` columns by their headings (first 10 rows) and refuses, changing nothing, when a heading is missing. |
+| `KRONOS_SHEET` | Sorted Data Here | The pivot sheet, read only when the file has no transactions sheet (since v26.5 the export is read directly). The import finds the `Employee Name`, `Grand Total` and `Payroll #` columns by their headings (first 10 rows) and refuses, changing nothing, when a heading is missing. |
 | `KRONOS_STALE_DAYS` | 7 | Kronos data older than this gives a warning |
 | `BACKUP_FOLDER` | . | See section 6 |
 | `BACKUP_KEEP_DAYS` | 30 | Days of backups kept |
@@ -334,7 +334,7 @@ Restore the backup only if the reopened file is wrong.
 
 | Button or macro | What it does |
 |---|---|
-| **Import Kronos** | Reads worked hours from the Kronos workbook and saves a dated snapshot |
+| **Import Kronos** | Reads the premium hours from the Kronos export (per person into Worked, per pay period into the Worked Periods sheet) and saves a dated snapshot |
 | **Add Adjustment** | Adds or removes charged hours for the person in the selected roster row |
 | **Void Entry** | Voids a session, posting or adjustment by its number, or one row by `#` and its Entry ID |
 | **Employee** | **Edit** a person's details (v26.5: double-click their row; home unit, a dated crew change, phone, email, seniority, the unit codes; code changes go in the Grade Log; nobody's hours move), add a person, move one to another unit, rename, remove (to the Former sheet) or bring back. Each shows what it will do first, saves a backup where rows move, and checks every total after. |
@@ -343,9 +343,9 @@ Restore the backup only if the reopened file is wrong.
 | **Attendance** | Draws the sick and personal day sheet: one row per person, a column per occurrence, sorts and a filter |
 | **Refusals Report** (PRINT / PUBLISH) | Refused hours split into call-out and posting refusals, per person and per unit; printable, PDF. **v26:** a second part under the totals, "The charges behind the figures": one line per charged OT Log row with the sentence that explains it |
 | Status bar (bottom left) | Click a roster row to see that person's Refused hours by kind; **v26:** click an OT Log row to see why it was (or wasn't) charged |
-| **Employee history** (FIND group, the Desk; v26) | One person and a date range -> the History Report tab and a PDF: every log row with its call-order place, outcome, charge and Why line, then the pay-period totals. An admin picks **Full** (Logged by, When, Status, Void note, void rows struck through; the admin-only `History Report (admin)` tab) or **member-safe** (the members' My history columns, row for row); a supervisor gets member-safe only |
+| **Employee history** (FIND group, the Desk; v26) | One person and a date range -> the History Report tab and a PDF: every log row with its call-order place, outcome, charge and Why line, then the pay-period totals. An admin picks **Full** (Logged by, When, Status, Void note, void rows struck through; the admin-only `History Report (admin)` tab) or **member-safe** (the members' My history columns, row for row); a supervisor gets member-safe only Since v26.5 the pay-period block shows the charged hours, the posting refusals, the call-out refusals and Worked (Kronos). |
 | **Board** (Calendar's top row; v26) | The two-week board: today and the next 13 days, one page per unit group, PDF beside the month calendars, then print |
-| **Min Staff** sheet (v26) | The minimum operators per unit and shift (Unit, Shift, Minimum, Note). Made with the plant's numbers on an admin's first open after the install; type into Minimum and Note only; blank = no minimum on that shift. The calendar's date cells (a red "N short" flag; click the date for which) and Needs Attention (BELOW MINIMUM STAFFING) flag a short shift for the next 14 days. It only reads. |
+| **Min Staff** sheet (v26) | The minimum operators per unit and shift (Unit, Shift, Minimum, Note). Made with the plant's numbers on an admin's first open after the install; type into Minimum and Note only; blank = no minimum on that shift. The calendar's date cells (a red "N short" flag; click the date for which) and Needs Attention (BELOW MINIMUM STAFFING) flag a short shift for the next 14 days. It only reads. The short flag and Needs Attention count every unit whatever group is shown (v26.5). |
 | **Worked Periods** sheet (v26.5) | Each person's premium hours per pay period from the Kronos export, rebuilt at every import; what the members' My history shows as Worked (Kronos) |
 | `RepairIdMarks` (Alt+F8; v26) | Raises the hidden ID counters (`IdMark_*`) to the highest number in the archived years and the live log when IntegrityCheck's IDs line says one is below an archive. It never lowers a counter. |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |
@@ -376,6 +376,7 @@ IntegrityCheck reads the roster, the OT Log and the other tables. It reports any
 | Check | Level | It reports |
 |---|---|---|
 | Roster = log | PROBLEM | A pay-period cell, Refused, Provisional or Total that differs from what the OT Log gives |
+| Roster = log | Check | N roster row(s) still carry the pre-v26.5 Refused formula: run RefreshRosterFormulas once (the first open after the v26.5 install, before the panel's group 3) |
 | Typed values | PROBLEM | A pay-period cell that holds a typed number, text, or no formula |
 | IDs | PROBLEM | An Entry ID used twice, the same posting, switch, absence or calendar-line ID on two rows, or a leave return logged twice |
 | IDs | PROBLEM (v26) | An ID counter (`IdMark_S`, `IdMark_P`, ..., the Entry ID counter) below an archived year's highest number: the next ID of that prefix could repeat an archived one. Fix: Alt+F8 > `RepairIdMarks`, then IntegrityCheck again. |

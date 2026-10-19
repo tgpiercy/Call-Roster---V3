@@ -691,7 +691,7 @@ Public Sub SetupHomeUnit()
     With ws.Range(ws.Cells(R_FIRST, C_HOME), ws.Cells(lastRow, C_HOME))
         .Font.Name = "Segoe UI": .Font.Size = 9: .Font.Color = INK
         .HorizontalAlignment = xlCenter
-        .Locked = Not gAdminUnlocked               ' v25 review: as LockRosterCells leaves it (admins type Home Unit)
+        .Locked = True                             ' v26.5: nothing on the roster is typed into (Employee > Edit)
     End With
     With ws.Cells(2, C_HOME)
         .Interior.Color = NAVY: .Font.Color = vbWhite: .Font.Bold = True: .Font.Size = 8
@@ -724,7 +724,7 @@ Public Sub SetupHomeUnit()
     On Error GoTo 0
     SaveIfWritable
     MsgBox "Home Unit set up: " & fills & " filled in, " & nBlank & " left blank for you." & vbNewLine & vbNewLine & _
-           "Pick the blank ones from the drop-down in column B (Needs Attention lists them)." & vbNewLine & _
+           "Set the blank ones with Employee > Edit (double-click the row; Needs Attention lists them)." & vbNewLine & _
            "Backup saved as:" & vbNewLine & bk, vbInformation, "Home Unit"
     Exit Sub
 
@@ -756,6 +756,7 @@ Public Sub GoToHomeUnit(ByVal empName As String)
             End If
             Application.Goto ws.Cells(r, C_HOME), False
             On Error GoTo 0
+            If IsAdmin() Then OpenEmployeeEdit empName   ' v26.5: column B is locked; the Employee pop-up's Edit sets it
             Exit Sub
         End If
     Next r

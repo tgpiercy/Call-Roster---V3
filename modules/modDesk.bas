@@ -885,7 +885,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Post a shift", _
         "Click Post a shift (New Posting on the bar). Fill in Unit, Shift date, Shift, Reason, Hours and Positions; Crew and " & _
         "Posting closes fill in. Leave Print it and Save PDF ticked, click CREATE POSTING, then put up the printed sheet. Sign-up " & _
-        "is on paper. The Reason must not say what kind of leave anyone is on: a leave word is refused. Load Posting (admin) " & _
+        "is on the paper sheet or, from the members' file, Sign me up (since v26.5): Award Posting's LOAD ticks those and names " & _
+        "late ones and withdrawals; your tick is what counts. The Reason must not say what kind of leave anyone is on: a leave word is refused. Load Posting (admin) " & _
         "shows, prints or saves a posting again."
     HelpAdd h, n, "Award a posting", _
         "Click Award a posting (Award Posting on the bar), pick the posting and click LOAD. Double-click each name that signed " & _
@@ -909,7 +910,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Click What needs cover (Calendar on the bar). Pick the month and the unit at the top. OPEN means the line still needs " & _
         "cover; POSTED means a posting is out; a name means covered; NCN means no cover needed. Click a line: its details show " & _
         "in the row under the title. Double-click a line for its options (an admin: set coverage, change the text, " & _
-        "post it). Print / PDF prints the month or saves it as a PDF."
+        "post it). Print / PDF prints the month or saves it as a PDF as the members' copy (a sick call or a personal day reads Off)."
     HelpAdd h, n, "Needs Attention (admin)", _
         "From the calendar's Needs attention > button or the tab. It lists open lines, postings ready to award, paybacks owed, " & _
         "leaves to watch, planned unit moves and other items; double-click a row for its options. A due planned move asks " & _
@@ -956,7 +957,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Employee history on the bar's FIND group or the Desk: part of a name, then a From and To date (the boxes open on the whole roster " & _
         "year; the member-safe report takes the pay periods starting in the range, the full one the shift dates), and the History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with " & _
         "their place in the call order, postings, adjustments, the hours charged and a Why line on every charged row (for example Charged 21 h: 3rd " & _
-        "called, Refused, 12 h offered x 1.75), then the charged hours per pay period and the total. An admin is asked for the full " & _
+        "called, Refused, 12 h offered x 1.75), then per pay period the charged hours, the posting refusals, the call-out refusals and the " & _
+        "premium hours worked from the Kronos export (v26.5), and the total. An admin is asked for the full " & _
         "report (on the History Report (admin) tab: who logged each entry and when, a Why on every row, void rows struck through) or the " & _
         "member-safe one (the same rows and columns the members' My history shows); a supervisor gets the member-safe one. Save a PDF as well? puts it in the " & _
         "reports folder (beside the roster until go-live). Click any OT Log row for its Why on the status bar."
@@ -985,7 +987,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "close: Yes publishes before closing."
     HelpAdd h, n, "Words you will see", _
         "Call order: grade code first, then the lowest Total Hours, then plant seniority - the order everyone is called in. " & _
-        "Total Hours: worked (Kronos) + the hours charged in the OT Log this year (refusals, left messages, adjustments) + accepted " & _
+        "Total Hours: worked (Kronos) + the hours charged in the OT Log this year whose pay period has started (refusals, left " & _
+        "messages, adjustments; a refusal for a shift in a later pay period counts from that period) + accepted " & _
         "overtime not yet in Kronos (*). Charged: refused or left-message " & _
         "hours x 1.75 added to Total Hours, grade 2 and below only (>> = above grade 2, called but never charged). ~ = an " & _
         "estimate because a unit move is planned for the person. ? = left a message. S/S = working a shift switch that " & _

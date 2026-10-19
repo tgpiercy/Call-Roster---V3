@@ -77,8 +77,8 @@ Public Const MEMBER_NEXT_DAYS As Long = 14          ' Who's next horizon
 Public Const PUB_NAME As String = "MembersPublishedAt"
 ' Electronic sign-ups (v24.1): the members' workbook drops one small file per sign-up into this
 ' folder and Award Posting reads them. ".\Signups" = a folder beside the members' file; every
-' member needs WRITE access to it. Off until the union and management agree it counts like
-' initialling the posted sheet.
+' member needs WRITE access to it (and can list it: the file names carry the login that signed up).
+' On since v26.5 for the beta; the supervisor's tick is what counts, the paper sheet stays valid.
 Public Const SIGNUPS_ON As Boolean = True       ' v26.5 (Graeme, Oct 19): on for the beta - members' Sign me up / Withdraw write into the Signups folder beside the members' file
 Public Const SIGNUP_FOLDER As String = ".\Signups"
 Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox files this old for a closed posting
@@ -116,7 +116,7 @@ Public Const C_SHIFT As Long = 5        ' E
 Public Const C_PHONE As Long = 6        ' F
 Public Const C_TOTAL As Long = 7        ' G  = Worked + Refused + Provisional (v21)
 Public Const C_WORKED As Long = 8       ' H  (from Kronos)
-Public Const C_REFUSED As Long = 9      ' I  = SUM(period columns)
+Public Const C_REFUSED As Long = 9      ' I  = the period cells up to the current period (v26.5 RefusedFormula)
 Public Const C_SENIORITY As Long = 10   ' J
 Public Const C_EMAIL As Long = 11       ' K  operator email (award emails) - admin view only
 Public Const C_PERIOD1 As Long = 20     ' T  first pay period
@@ -433,6 +433,7 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                              Optional ByVal maxGrade As Double = 999, _
                              Optional ByVal includeDays As Boolean = True, _
                              Optional ByVal asOf As Variant) As Long
+    EnsureRefusedThrough                                     ' v26.5: a session open across a period start keeps I, G and the call order current
     ' asOf (v24): a shift date. Each person's crew is then the crew they are on
     ' that day (crew history); left out, it is the roster's crew column.
     ' v24.3: a unit move that is waiting counts from its date (UnitCodeOn): the
@@ -887,21 +888,24 @@ End Function
 Public Function EnsureRefusedThrough() As Date
     Dim want As Date: want = PeriodStartFor(Date)
     Dim have As Date: have = RefusedThrough()
-    If have <> want And Not ThisWorkbook.ReadOnly Then SetDateName REFUSED_NAME, want: have = want
+    If have <> want And Not ThisWorkbook.ReadOnly Then
+        SetDateName REFUSED_NAME, want: have = want
+        MarkMembersDirty                                     ' every I, G and the call order moved: the members' file is out of date
+    End If
     If have = 0 Then have = want
     EnsureRefusedThrough = have
 End Function
 
-' One roster row's Refused formula: the log's non-void charges for the name whose Period Start lies
-' in this roster's year and on or before RefusedThrough (same test as RefusedCounts)
+' One roster row's Refused formula: the row's own pay-period cells whose header date is on or before
+' RefusedThrough (same test as RefusedCounts). Summing the row's cells, not the log, keeps I inside this
+' roster's year by construction (the v26.5 reviews: from Dec 27 the current period is next year's first,
+' and a log row off the period grid counts nowhere, as before) - exactly what IntegrityCheck and
+' RefreshRosterFormulas add up.
 Public Function RefusedFormula(ByVal r As Long) As String
-    Dim yearFrom As String: yearFrom = "$" & ColLetter(C_PERIOD1) & "$" & PStartRow()
-    RefusedFormula = "=SUMIFS(" & _
-        LOG_TABLE & "[[Hours Charged]:[Hours Charged]]," & _
-        LOG_TABLE & "[[Employee]:[Employee]],$" & ColLetter(C_NAME) & r & "," & _
-        LOG_TABLE & "[[Status]:[Status]],""<>VOID""," & _
-        LOG_TABLE & "[[Period Start]:[Period Start]],"">=""&" & yearFrom & "," & _
-        LOG_TABLE & "[[Period Start]:[Period Start]],""<=""&" & REFUSED_NAME & ")"
+    Dim c1 As String: c1 = ColLetter(C_PERIOD1)
+    Dim cN As String: cN = ColLetter(PeriodLastCol())
+    Dim hdr As Long: hdr = PStartRow()
+    RefusedFormula = "=SUMIFS($" & c1 & r & ":$" & cN & r & ",$" & c1 & "$" & hdr & ":$" & cN & "$" & hdr & ",""<=""&" & REFUSED_NAME & ")"
 End Function
 
 ' True when a Refused cell still holds the pre-v26.5 formula (=SUM of the period cells) - the first open after
@@ -925,7 +929,7 @@ End Sub
 
 ' Non-void hours charged in the OT Log for one employee, across the pay
 ' periods shown on this roster. Used to verify the roster after rewrites.
-Public Function LogTotalOnRoster(ByVal empName As String) As Double
+Public Function LogTotalOnRoster(ByVal empName As String, Optional ByVal throughCurrent As Boolean = False) As Double
     Dim lo As ListObject
     On Error Resume Next
     Set lo = ThisWorkbook.Worksheets(LOG_SHEET).ListObjects(LOG_TABLE)
@@ -936,6 +940,10 @@ Public Function LogTotalOnRoster(ByVal empName As String) As Double
     Dim sRow As Long: sRow = PStartRow()
     Dim f As Long: f = CLng(ws.Cells(sRow, C_PERIOD1).Value2)
     Dim l As Long: l = CLng(ws.Cells(sRow, PeriodLastCol()).Value2)
+    If throughCurrent Then                                   ' v26.5: as Refused (I) counts - the periods up to the current one
+        Dim thr As Long: thr = CLng(Int(EnsureRefusedThrough()))
+        If thr < l Then l = thr
+    End If
     LogTotalOnRoster = Application.WorksheetFunction.SumIfs( _
         lo.ListColumns(L_CHARGED).DataBodyRange, _
         lo.ListColumns(L_EMP).DataBodyRange, empName, _
@@ -1459,7 +1467,7 @@ Public Sub SetTabColor(ByVal ws As Worksheet, ByVal colour As Long)
 End Sub
 
 ' Admin view shows the admin sheets and phone numbers; everyone else doesn't see them.
-' v25: and unlocks the typed-into roster cells for admins (LockRosterCells); error frame (E4).
+' v25: and LockRosterCells (v26.5: every roster cell locked, nothing is typed into); error frame (E4).
 Public Sub ApplyView(ByVal adminView As Boolean, Optional ByVal deskMode As Boolean = False)
     On Error GoTo Oops
     ApplyViewCore adminView, deskMode

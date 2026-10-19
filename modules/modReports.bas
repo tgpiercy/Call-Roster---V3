@@ -303,7 +303,7 @@ Private Function CachedSplit() As Object
                 Application.WorksheetFunction.Sum(lo.ListColumns(L_CHARGED).DataBodyRange) & "|" & _
                 Application.WorksheetFunction.CountIf(lo.ListColumns(L_STATUS).DataBodyRange, "VOID")
     End If
-    stamp = stamp & "|" & CStr(RosterSheet().Cells(PStartRow(), C_PERIOD1).Value2)
+    stamp = stamp & "|" & CStr(RosterSheet().Cells(PStartRow(), C_PERIOD1).Value2) & "|" & CStr(CDbl(RefusedThrough()))   ' v26.5: the cap moves the split
     If mSplit Is Nothing Or stamp <> mSplitStamp Then
         Set mSplit = SplitNow()
         mSplitStamp = stamp
@@ -942,11 +942,20 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
     Dim worked As Object: Set worked = WorkedPeriodsFor(nm)
     Dim hasWorked As Boolean: hasWorked = (worked.Count > 0)
     Dim wk As Variant, wkTot As Double
+    ' only the periods the report covers (the member-safe report takes the periods starting in the range, the
+    ' full one the periods holding its shift dates), so "Total for the range" is one range
+    Dim wkFrom As Double: wkFrom = CDbl(Int(dFrom))
+    If full Then wkFrom = CDbl(Int(PeriodStartFor(dFrom)))
+    Dim inRange As Object: Set inRange = CreateObject("Scripting.Dictionary")
     For Each wk In worked.Keys
-        wkTot = wkTot + worked(wk)
-        ps = Format$(CDate(CDbl(wk)), "yyyy-mm-dd")
-        If Not totals.Exists(ps) Then totals.Add ps, 0#            ' a period with hours worked but nothing charged still gets a row
+        If CDbl(wk) >= wkFrom And CDbl(wk) <= CDbl(Int(dTo)) Then
+            inRange(wk) = worked(wk)
+            wkTot = wkTot + worked(wk)
+            ps = Format$(CDate(CDbl(wk)), "yyyy-mm-dd")
+            If Not totals.Exists(ps) Then totals.Add ps, 0#        ' a period with hours worked but nothing charged still gets a row
+        End If
     Next wk
+    Set worked = inRange
     ws.Range(ws.Cells(r, 1), ws.Cells(r, 5)).Value = Array("Pay period", "Charged hours", "Posting refusals", "Call-out refusals", "Worked (Kronos)")
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, nc))
         .Font.Bold = True: .Font.Color = vbWhite: .Interior.Color = RGB(30, 56, 100)

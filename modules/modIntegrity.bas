@@ -277,6 +277,7 @@ Private Sub CheckRosterVsLog()
     Next c
     Dim provLive As Boolean: provLive = ProvisionalLive()
     Dim nOldForm As Long                                 ' v26.5: rows whose Refused formula is the pre-v26.5 kind
+    Dim thr As Date: thr = EnsureRefusedThrough()        ' v26.5: once, not per cell
     Dim r As Long, expSum As Double, expCell As Double, act As Variant, bad As String, nBad As Long
     Dim vI As Variant, vG As Variant, vH As Variant, vC As Variant
     For r = 1 To mRows
@@ -289,7 +290,7 @@ Private Sub CheckRosterVsLog()
             If oldForm Then nOldForm = nOldForm + 1
             For c = C_PERIOD1 To mLastPer
                 expCell = NumOr0(sums(mNames(r) & "|" & per(c)))
-                If oldForm Or RefusedCounts(CDate(per(c)), RefusedThrough()) Then expSum = expSum + expCell
+                If oldForm Or RefusedCounts(CDate(per(c)), thr) Then expSum = expSum + expCell
                 act = mVals(r, c)
                 If IsError(act) Then
                     nBad = nBad + 1
@@ -538,11 +539,19 @@ Private Sub CheckLogTypes()
                  "They count in Refused under 'other'. Send me this line if you didn't expect it"
     Next kk
     ' call-out + posting + other must equal the roster's Refused (I) for every person
-    Dim splitMap As Object, c As Double, p As Double, o As Double, r As Long, nBad As Long
-    Set splitMap = SplitTotals(mLog, CLng(mYearFrom), CLng(mLastStart))
+    Dim splitMap As Object, splitAll As Object, useMap As Object, c As Double, p As Double, o As Double, r As Long, nBad As Long
+    ' v26.5: Refused (I) counts the periods up to the current one, so the split is capped the same way (SplitNow's
+    ' rule); a row still carrying the pre-v26.5 =SUM formula is compared with the whole year
+    Dim capStart As Long: capStart = CLng(mLastStart)
+    Dim thrI As Long: thrI = CLng(Int(EnsureRefusedThrough()))
+    If thrI < capStart Then capStart = thrI
+    Set splitMap = SplitTotals(mLog, CLng(mYearFrom), capStart)
+    Set splitAll = SplitTotals(mLog, CLng(mYearFrom), CLng(mLastStart))
+    Dim wsR As Worksheet: Set wsR = RosterSheet()
     For r = 1 To mRows
         If mNames(r) <> "" And Not IsError(mVals(r, C_REFUSED)) Then
-            RefusedSplitOf splitMap, mNames(r), c, p, o
+            If OldRefusedFormula(wsR.Cells(R_FIRST + r - 1, C_REFUSED)) Then Set useMap = splitAll Else Set useMap = splitMap
+            RefusedSplitOf useMap, mNames(r), c, p, o
             If Abs(c + p + o - NumOr0(mVals(r, C_REFUSED))) > TOL Then
                 nBad = nBad + 1
                 If nBad <= 10 Then

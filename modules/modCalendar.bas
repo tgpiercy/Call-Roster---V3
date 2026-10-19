@@ -2353,7 +2353,8 @@ Private Sub SlotIntoArrays(ByVal ws As Worksheet, ByRef vals() As Variant, ByRef
         AddToRange rgCov, b
     End If
     AddToRange rgLine, ws.Range(a, b)
-    Dim colr As Long: colr = TypeColor(s.TypeCode)
+    Dim colr As Long                                         ' v26.5: the members' copy colours Off as Off, never as sick or personal
+    If mPublicDraw Then colr = TypeColor(PublicType(s.TypeCode)) Else colr = TypeColor(s.TypeCode)
     If rgLeft.Exists(colr) Then
         Set rgLeft(colr) = Union(rgLeft(colr), a)
     Else
@@ -2932,6 +2933,14 @@ Public Sub CalPrintPdf()
     ' same). Drawn masked, exported / printed, then drawn again as supervisors see it.
     mPublicDraw = True
     DrawCalendar
+    ' the masked draw must have finished (DrawCalendar reports its own failure and never raises): otherwise the
+    ' sheet may still hold the supervisors' draw - nothing is exported
+    If InStr(SafeStr(ws.Range("B1").Value), "members' copy") = 0 Or Left$(SafeStr(ws.Range("F3").Value), 8) = "Calendar" Then
+        mPublicDraw = False
+        DrawCalendar
+        MsgBox "The calendar couldn't be drawn for printing, so nothing was printed or saved.", vbExclamation, "Calendar"
+        Exit Sub
+    End If
     On Error Resume Next
     ' the admin toolbar and the needs-attention box are screen-only
     Dim hideTo As Long: hideTo = CLng(Val(MapSheet().Range("Z4").Value))
@@ -2956,6 +2965,7 @@ Public Sub CalPrintPdf()
 Oops:
     mPublicDraw = False                         ' never leave the masked draw as the working calendar
     ReportError "CalPrintPdf"
+    DrawCalendar                                ' back to the supervisors' draw (it never raises)
 End Sub
 
 ' ====================================================================
@@ -4480,7 +4490,7 @@ Public Sub DrawNeeds()
         r = NARows(ws, r, hr, nH, "")
     End If
     If nU > 0 Then
-        r = NASection(ws, r, "HOME UNIT NOT SET  -  pick it from the drop-down in column B of the roster (double-click a name)", _
+        r = NASection(ws, r, "HOME UNIT NOT SET  -  double-click a name: the Employee pop-up opens on Edit, pick the home unit there", _
                       nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
         r = NARows(ws, r, ur, nU, "")
     End If

@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M3.1 (Oct 19)"     ' v26.5: the per-period split in My history (the tables are M3's)
+Public Const MEM_VERSION As String = "Members M3.1 (Oct 19)"     ' v26.5: the per-period split + Worked (Kronos) in My history (dWorked is new: the template is rebuilt)
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -1513,10 +1513,22 @@ End Function
 
 ' The newest sign-up file this person has in the inbox for a posting (their own
 ' request, read back so the sheet can say "sent"). False = none / can't read.
+' M3.1: the inbox folder as published (".\Signups" = beside this file), resolved the one way for the sign-up
+' and for reading it back (the v26.5 reviews: InboxMine used the raw ".\" against Excel's current folder)
+Private Function SignupFolderPath() As String
+    Dim folder As String: folder = Txt(Meta("Signup folder"))
+    If folder = "." Then
+        folder = ThisWorkbook.Path
+    ElseIf Left$(folder, 2) = ".\" Then
+        folder = ThisWorkbook.Path & Mid$(folder, 2)
+    End If
+    SignupFolderPath = folder
+End Function
+
 Private Function InboxMine(ByVal postId As String, ByVal nm As String, ByRef action As String, _
                            ByRef hrs As Double, ByRef stamp As Date) As Boolean
     action = "": hrs = 0: stamp = 0
-    Dim folder As String: folder = Txt(Meta("Signup folder"))
+    Dim folder As String: folder = SignupFolderPath()
     If folder = "" Or Not SignupsOn() Then Exit Function
     Dim files() As String, n As Long, f As String, i As Long, ff As Integer, ln As String, p As Long
     Dim emp As String, act As String, h As Double, st As Date, s As String
@@ -1839,12 +1851,7 @@ Private Sub SendSignup(ByVal postId As String, ByVal action As String)
     End If
     If Not SignupsOn() Then MsgBox "Sign-up from this file isn't switched on. Sign up on the posted paper sheet.", vbInformation, TTL: Exit Sub
     ' M3 (M10): the inbox folder is published as the setting reads (".\Signups" = beside this file), resolved here
-    Dim folder As String: folder = Txt(Meta("Signup folder"))
-    If folder = "." Then
-        folder = ThisWorkbook.Path
-    ElseIf Left$(folder, 2) = ".\" Then
-        folder = ThisWorkbook.Path & Mid$(folder, 2)
-    End If
+    Dim folder As String: folder = SignupFolderPath()
     If folder <> "" Then
         If Right$(folder, 1) <> Application.PathSeparator Then folder = folder & Application.PathSeparator
     End If
@@ -2192,7 +2199,7 @@ Private Sub DrawHistory(ByVal nm As String)
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
     Dim totalsP As Object: Set totalsP = CreateObject("Scripting.Dictionary")     ' M3.1: posting refusals per period
     Dim totalsC As Object: Set totalsC = CreateObject("Scripting.Dictionary")     ' M3.1: call-out refusals per period
-    Dim yearTot As Double, ps As String, kCall As Double, kPost As Double, kOther As Double, kindTxt As String
+    Dim yearTot As Double, ps As String, kCall As Double, kPost As Double, kOther As Double
     Dim hasM3 As Boolean: hasM3 = (UBound(v, 2) >= 13)
     Dim kind As String
     For i = 1 To n
@@ -2268,7 +2275,7 @@ Private Sub DrawHistory(ByVal nm As String)
     For Each wk In worked.Keys
         wkTot = wkTot + Num(worked(wk))
     Next wk
-    ws.Cells(r, 1).Value = "Year to date"
+    ws.Cells(r, 1).Value = "Year to date (every period logged)"     ' M3.1: a later period's charge is here before the card's Refused counts it
     ws.Cells(r, 1).Font.Bold = True
     ws.Cells(r, 2).Value = yearTot
     ws.Cells(r, 3).Value = kPost

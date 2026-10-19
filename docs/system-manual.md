@@ -66,6 +66,7 @@ The system works out the same 11 holidays for any year: New Year's Day, Family D
 ### Provisional accepted overtime
 
 - An Accepted call-out or an Awarded posting counts from the moment it is logged.
+- A refusal's charge carries the pay period of the shift it was for and counts in Refused and Total Hours once that period has started (v26.5); it is logged at once and shows in its period's column.
 - It counts even when the shift is in the future.
 - The amount is the shift hours, not hours x 1.75.
 - It stops counting when Kronos covers the shift. From then on the hours are in Worked.
@@ -135,7 +136,7 @@ Charged hours go into Refused, so they raise Total Hours.
 | Posting: No Takers | Everyone eligible on the list | Shift date |
 | Posting: Cancel Request | Nobody | - |
 
-Since v26.5 a charge counts in Refused and Total Hours only once its pay period has started: a posting refusal for a shift in a later period is logged at the award, shows in that period's column, and joins the totals (and the call order) when the period begins. Call-out charges carry the call-out date's period, so they count at once.
+Since v26.5 a charge counts in Refused and Total Hours only once its pay period has started: a posting refusal for a shift in a later period is logged at the award, shows in that period's column, and joins the totals (and the call order) when the period begins. A call-out's charge carries its shift's period the same way, so a call-out for a shift in a later period waits too (call-outs are mostly same-day).
 
 ## 8. Postings
 
@@ -143,7 +144,7 @@ Since v26.5 a charge counts in Refused and Total Hours only once its pay period 
 |---|---|
 | The list | Made when the posting is created. It holds everyone free for that shift, in call order. |
 | Posted totals | Each person's Total Hours is frozen on the list at creation. Awards and charges use these posted totals, not later ones. |
-| Sign-up | On the printed sheet. The sheet has 3 blank lines for out-of-department sign-ups. |
+| Sign-up | On the printed sheet, or from the members' file (Sign me up, since v26.5; the supervisor's tick at LOAD is what counts). The sheet has 3 blank lines for out-of-department sign-ups. |
 | Closing | Default is 14 days before the shift, at 8:00 AM. If that has passed, the day before the shift. The supervisor can type another date. A posting is closed from 8:00 AM on its closing date (the time printed on the sheet); one test decides it everywhere (ready to award, still open, can still be signed up for, a mover added to the list). |
 | Awarding early | The system warns when a posting is awarded before it closes. |
 | Who is awarded | The supervisor marks who signed up and who is awarded. The system does not pick. |
@@ -315,7 +316,7 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | Why was I charged (v26) | Every log row explains itself from its own fields: "Charged 21 h: 3rd on the call list, Refused, 12 h offered x 1.75 (grade P2)", "Charged 21 h: #3 in call order, didn't sign up, posting hours 12 x 1.75 (grade P2)  (Posting - didn't sign up (#3, awarded #5))", "Not charged: accepted 12 h". It shows on the status bar when the row is selected, in the Refusals Report's second part, in the employee history report and, for charged rows, in the members' My history. It describes the row; the charge rules are the ones in section 7. |
 | Employee history (v26) | One person and a date range: every log row with its place in the call order, the outcome, the charge and the Why line, then the charged hours per pay period and the total. Supervisors draw the member-safe version (the members' My history columns); an admin may draw the full one with who logged each entry and when, void rows struck through. |
 | Name changes | Employee > Rename changes the name on the roster and in every table together: the log, postings, time off, switches, calendar lines, grade log, hours history and crew history. Hours do not change. Closed years keep the old name. |
-| Grade changes | A change to a unit code on the roster is logged with the old code, the new code, who and when. |
+| Grade changes | A change to a unit code (through Employee > Edit since v26.5) is logged with the old code, the new code, who and when. |
 
 | ID starts with | Meaning |
 |---|---|
@@ -417,7 +418,7 @@ The steps are in docs/rollover-one-pager.md.
 
 - Phone numbers and email addresses are hidden from people not on the admin list.
 - The file is always saved in the restricted view, and so is every copy the system makes (pre-change backups, practice copies, the updater's backup).
-- Every sheet is protected in both views. Admins type only into the roster's Home Unit, Crew, Phone, Worked (until the daily Kronos import exists), Plant Seniority, EMAIL and unit code columns and the Holidays sheet's "Observed on"; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
+- Every sheet is protected in both views. Since v26.5 nothing on the roster is typed into (a person's details change through Employee > Edit; Worked comes from the Kronos import); the Holidays sheet's "Observed on" and the Min Staff sheet's Minimum / Note are the only typed-into cells; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
 
 ## 19. Safeguards
 

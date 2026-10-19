@@ -44,7 +44,7 @@ Nothing is saved unless step 7 passes.
 | # | Check | Done |
 |---|---|---|
 | 1 | The roster's first period column shows Dec 27 (for 2027). | |
-| 2 | Total Hours are zero, or small for anyone already refused or awarded a new-year shift. | |
+| 2 | Total Hours are zero, or small for anyone already awarded a new-year shift (provisional) or refused one in the first period; a refusal for a later period shows in its column and counts from that period (v26.5). | |
 | 3 | Worked (H) is 0 for everyone. The status line says "Kronos: awaiting 2027 data". | |
 | 4 | The **OT Log 2026** sheet exists and holds last year's rows. | |
 | 5 | The **Year End** sheet lists every person with their 2026 finals. | |
@@ -77,7 +77,7 @@ Nothing is saved unless step 7 passes.
 | Any time | A late entry for the old year can still be logged. The form warns that the period is not on this roster. It will not change the frozen file. |
 
 ## Things to know
-- **Postings made in December for January shifts** keep the totals they were posted with. Their charges show on the new roster straight away.
+- **Postings made in December for January shifts** keep the totals they were posted with. Their charges show on the new roster in their period's column, and in Refused / Total Hours from that period's start (v26.5).
 - **The old year is closed.** Old-year rows are on the OT Log 2026 sheet and cannot be voided. The frozen file is the record.
 - **Members see the new year only.** The frozen file is the record of 2026.
 - **Sick and personal day counts** run on the calendar year. The rollover does not touch them.
@@ -87,5 +87,5 @@ Nothing is saved unless step 7 passes.
 1. Alt+F8 > **MakePracticeCopy** in the roster. It saves a copy with COPY in its name in a `Practice` folder and opens it (a file with DRY RUN in its name works the same way).
 2. In the copy, log a test posting for a January shift and award it.
 3. Run **RolloverYear** in the copy. It says "PRACTICE RUN" and names its frozen file "(dry run)".
-4. Go through "Check the result" above. The January posting's charges must show on the new roster.
+4. Go through "Check the result" above. The January posting's charges must show in their period's column; on a practice run before Dec 27, Refused and Total Hours stay 0 for them (their period hasn't started: v26.5).
 5. Delete the copy and its frozen file when done.

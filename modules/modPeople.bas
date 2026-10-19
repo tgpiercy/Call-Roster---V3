@@ -884,6 +884,7 @@ Public Function RosterTotalsMap() As Object
     Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
     d.CompareMode = 1
     Set RosterTotalsMap = d
+    EnsureRefusedThrough                                     ' v26.5: both captures of a change see the same current period
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Function
@@ -1495,9 +1496,12 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap(), nm)
     If Abs(LogChargedTotal() - logBefore - hoursToAdd) > 0.0001 Then diff = diff & "  OT Log total Hours Charged is off" & vbNewLine
+    ' v26.5: Refused (I) counts the periods up to the current one, so a start date in a later period leaves the
+    ' NH- row out of I until then: the check is against the log's capped total (the log-total line above checks the append)
     If PeriodColumn(ps) > 0 Or hoursToAdd = 0 Then
-        If Abs(NumOr0(ws.Cells(r, C_REFUSED).Value2) - ownBefore - hoursToAdd) > 0.0001 Then
-            diff = diff & "  " & nm & ": Refused shows " & NumOr0(ws.Cells(r, C_REFUSED).Value2) & ", expected " & (ownBefore + hoursToAdd) & vbNewLine
+        Dim expI As Double: expI = LogTotalOnRoster(nm, True)
+        If Abs(NumOr0(ws.Cells(r, C_REFUSED).Value2) - expI) > 0.0001 Then
+            diff = diff & "  " & nm & ": Refused shows " & NumOr0(ws.Cells(r, C_REFUSED).Value2) & ", expected " & expI & " (the log's charges up to the current pay period)" & vbNewLine
         End If
     End If
     QuietOff evWas, scrWas, calcWas
@@ -3127,8 +3131,8 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap(), emp)
     If Abs(LogChargedTotal() - logBefore) > 0.0001 Then diff = diff & "  OT Log total Hours Charged changed" & vbNewLine
-    If Abs(NumOr0(ws.Cells(r, C_REFUSED).Value2) - LogTotalOnRoster(emp)) > 0.0001 Then
-        diff = diff & "  " & emp & ": Refused shows " & NumOr0(ws.Cells(r, C_REFUSED).Value2) & ", the OT Log has " & LogTotalOnRoster(emp) & vbNewLine
+    If Abs(NumOr0(ws.Cells(r, C_REFUSED).Value2) - LogTotalOnRoster(emp, True)) > 0.0001 Then   ' v26.5: up to the current period, as I counts
+        diff = diff & "  " & emp & ": Refused shows " & NumOr0(ws.Cells(r, C_REFUSED).Value2) & ", the OT Log has " & LogTotalOnRoster(emp, True) & " up to the current pay period" & vbNewLine
     End If
     QuietOff evWas, scrWas, calcWas
     If diff <> "" Then
@@ -3201,12 +3205,12 @@ End Sub
 Public Sub PeopleRosterDoubleClick(ByVal Sh As Object, ByVal Target As Range, ByRef Cancel As Boolean)
     If Target Is Nothing Then Exit Sub
     If Not Sh Is RosterSheet() Then Exit Sub
+    Cancel = True                                            ' nothing on the roster is typed into: never Excel's protected-sheet box
     If Target.Row < R_FIRST Then Exit Sub
     If Target.Column > UnitColLast() Then Exit Sub          ' the pay-period cells: nothing to edit there
     Dim nm As String: nm = Trim$(SafeStr(Sh.Cells(Target.Row, C_NAME).Value))
     If nm = "" Then Exit Sub
-    If Not IsAdmin() Then Exit Sub                           ' a supervisor's double-click does what Excel does on a protected sheet: nothing
-    Cancel = True
+    If Not IsAdmin() Then Exit Sub                           ' a supervisor's double-click does nothing, quietly
     OpenEmployeeEdit nm
 End Sub
 
@@ -3269,11 +3273,18 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
     If crewTxt <> "" Then
         If Not IsCrewCode(crewTxt) Then MsgBox "Pick the crew.", vbExclamation, "Edit employee": Exit Function
     End If
-    Dim found As Boolean, crewNow As String
-    crewNow = NormCrew(NewestCrew(emp, found))
+    Dim found As Boolean, crewNow As String, since As Date
+    crewNow = NormCrew(NewestCrew(emp, found, since))
     If Not found Then crewNow = NormCrew(Trim$(SafeStr(ws.Cells(r, C_SHIFT).Value)))
     Dim crewChange As Boolean: crewChange = (crewTxt <> "" And StrComp(crewTxt, crewNow, vbTextCompare) <> 0)
     If crewChange And crewFrom = 0 Then MsgBox "Enter the date the crew change starts.", vbExclamation, "Edit employee": Exit Function
+    If crewChange And found Then                             ' the typed path's rule (AskCrewDate): never before the newest crew row
+        If Int(crewFrom) < Int(since) Then
+            MsgBox "The crew history already has a change dated " & Format$(since, "mmm d, yyyy") & ". The new one must start on or after it.", _
+                   vbExclamation, "Edit employee"
+            Exit Function
+        End If
+    End If
 
     Dim evWas As Boolean, scrWas As Boolean, calcWas As Long
     QuietOn evWas, scrWas, calcWas
@@ -3306,8 +3317,8 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
         End If
     Next c
     If crewChange Then
-        ws.Cells(r, C_SHIFT).Value = crewTxt
         If Not AddCrewRow(emp, crewTxt, crewFrom) Then Err.Raise vbObjectError + 716, , "the crew history row couldn't be written"
+        ws.Cells(r, C_SHIFT).Value = crewTxt                 ' the history row first: a failed row leaves column E as it was
         changed = changed & "crew " & crewTxt & " from " & Format$(crewFrom, "mmm d, yyyy") & "; "
     End If
     ProtectSheet ws

@@ -872,6 +872,7 @@ Private Function RolloverProblems(ByVal ws As Worksheet, ByVal lo As ListObject,
 
     ' each person: Refused = the kept rows for the new year, Worked = 0, Total = Worked + Refused + Provisional
     Dim lastStart As Long: lastStart = CLng(Int(CDbl(CDate(ws.Cells(PStartRow(), PeriodLastCol()).Value))))
+    Dim thr As Date: thr = EnsureRefusedThrough()            ' v26.5: Refused (I) counts the periods up to the current one
     Dim sums As Object: Set sums = CreateObject("Scripting.Dictionary")
     sums.CompareMode = 1
     Dim i As Long, emp As String, ps As Double
@@ -888,7 +889,7 @@ Private Function RolloverProblems(ByVal ws As Worksheet, ByVal lo As ListObject,
                     ps = Int(CDbl(keep(i, L_PERIOD)))
                 End If
                 ' on a period start of the new year exactly, as the roster formulas match it
-                If ps >= CDbl(newFrom) And ps <= lastStart Then
+                If ps >= CDbl(newFrom) And ps <= lastStart And RefusedCounts(CDate(ps), thr) Then   ' v26.5: as I counts
                     If (ps - CDbl(newFrom)) / 14 = Int((ps - CDbl(newFrom)) / 14) Then sums(emp) = NumOr0(sums(emp)) + NumOr0(keep(i, L_CHARGED))
                 End If
             End If

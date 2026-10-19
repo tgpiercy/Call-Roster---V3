@@ -335,6 +335,7 @@ Private Sub FillEdit()
     Dim codes() As String
     If Not PersonDetails(mEditEmp.Text, mEdHome, mEdCrew, mEdPhone, mEdEmail, mEdSen, codes) Then Exit Sub
     C("eHEmp").Caption = PersonSummary(mEditEmp.Text)
+    C("eHome").ListIndex = -1: C("eCrew").ListIndex = -1    ' a blank or unknown value must not keep the previous person's
     SelectIn C("eHome"), mEdHome
     SelectIn C("eCrew"), mEdCrew
     C("ePhone").Text = mEdPhone
@@ -535,7 +536,7 @@ Private Sub SaveEdit()
     If Trim$(C("ePhone").Text) <> mEdPhone Then what = what & "- phone: " & IIf(mEdPhone = "", "(none)", mEdPhone) & " -> " & IIf(Trim$(C("ePhone").Text) = "", "(none)", Trim$(C("ePhone").Text)) & vbNewLine
     If Trim$(C("eEmail").Text) <> mEdEmail Then what = what & "- email: " & IIf(mEdEmail = "", "(none)", mEdEmail) & " -> " & IIf(Trim$(C("eEmail").Text) = "", "(none)", Trim$(C("eEmail").Text)) & vbNewLine
     sen = ""
-    If Trim$(C("eSen").Text) <> "" Then
+    If Trim$(C("eSen").Text) <> "" And Trim$(C("eSen").Text) <> mEdSen Then     ' unchanged text (even a text value the roster holds) is left alone
         If Not ParseFullDate(C("eSen").Text, senDate) Then
             MsgBox "The seniority date needs the year, e.g. Mar 3, 2011.", vbExclamation, "Edit employee"
             Exit Sub

@@ -11,9 +11,11 @@ Option Explicit
 '    adds a test employee, creates a posting, marks a partial and a
 '    full sign-up and submits the award, logs a call-out with a part
 '    acceptance, books time off and a sick call, logs a shift switch,
-'    changes the test person's crew from a date, moves them to another
-'    unit, plans a unit move for tomorrow and cancels it (v24.3: the
-'    lists must follow the date), renames them, publishes to a scratch
+'    changes the test person's crew from a date (v26.5: through the
+'    Employee pop-up's Edit), moves them to another unit, plans a unit
+'    move for tomorrow and cancels it (v24.3: the lists must follow the
+'    date), edits their phone, seniority and a code through Edit
+'    (v26.5), renames them, publishes to a scratch
 '    members' file and reads it back, voids everything it logged,
 '    removes the test person and runs the integrity check.
 '
@@ -97,7 +99,7 @@ Public Sub SmokeTest()
 
     Dim st As SmkState, k As Long, ok As Boolean, why As String, rep As String, failedAt As Long
     Dim repNotes As String                         ' v24.3.1: the notes alone (the Error Log line)
-    Dim repSkips As String                         ' v25.2: the skipped steps (the PASSED box shows these; 19 step names don't fit)
+    Dim repSkips As String                         ' v25.2: the skipped steps (the PASSED box shows these; 20 step names don't fit)
     Dim before As Object, logBefore As Double, nErr0 As Long, nWarn0 As Long, diff As String
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Dim evWas As Boolean: evWas = Application.EnableEvents
@@ -303,10 +305,51 @@ Private Function SmkAward(ByRef st As SmkState, ByRef why As String) As Boolean
     iFull = n: iPart = n - 1
     lst(iFull).SignedUp = True: lst(iFull).Awarded = True
     lst(iPart).SignedUp = True: lst(iPart).SignupHrs = 8
+    ' v26.5: the shift is three or more weeks out (step 2), so its pay period is a later one: a refusal charged by this
+    ' award must show in that period's column and stay OUT of Refused (I) until RefusedThrough reaches the period -
+    ' checked by moving the hidden name there and back (the brief's acceptance; a practice copy is never saved)
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim pCol As Long: pCol = PeriodColumn(PeriodStartFor(st.PostDate))
+    Dim iBefore() As Double, cBefore() As Double, rowOf() As Long, i As Long
+    If n > 2 And pCol > 0 Then
+        ReDim iBefore(1 To n): ReDim cBefore(1 To n): ReDim rowOf(1 To n)
+        Application.Calculate
+        For i = 1 To n - 2
+            rowOf(i) = RosterRowOf(lst(i).EmpName)
+            If rowOf(i) > 0 Then
+                iBefore(i) = NumOr0(ws.Cells(rowOf(i), C_REFUSED).Value2)
+                cBefore(i) = NumOr0(ws.Cells(rowOf(i), pCol).Value2)
+            End If
+        Next i
+    End If
     If Not SubmitAward(p, lst, n) Then Exit Function
     If PostingStatus(st.PostId) = "Open" Then why = st.PostId & " is still Open after the award": Exit Function
     If Not HasActiveLogRows(st.PostId) Then why = "the award wrote no OT Log rows": Exit Function
-    st.Note = "awarded #" & iFull & " of " & n
+    Dim futTxt As String: futTxt = ", the shift's period is beyond this roster"
+    If n > 2 And pCol > 0 Then
+        Dim iC As Long: iC = 0
+        For i = 1 To n - 2
+            If lst(i).Charged > 0 And rowOf(i) > 0 Then iC = i: Exit For
+        Next i
+        If iC = 0 Then
+            futTxt = ", nobody charged (nothing to check for the later period)"
+        Else
+            Application.Calculate
+            Dim cAfter As Double: cAfter = NumOr0(ws.Cells(rowOf(iC), pCol).Value2)
+            If cAfter - cBefore(iC) < 0.0001 Then why = lst(iC).EmpName & "'s " & Format$(PeriodStartFor(st.PostDate), "mmm d") & " period cell didn't grow with the refusal charge": Exit Function
+            If Abs(NumOr0(ws.Cells(rowOf(iC), C_REFUSED).Value2) - iBefore(iC)) > 0.0001 Then why = lst(iC).EmpName & ": Refused (I) counted a refusal for a later pay period": Exit Function
+            Dim thrWas As Date: thrWas = RefusedThrough()
+            SetDateName REFUSED_NAME, PeriodStartFor(st.PostDate)
+            Application.Calculate
+            Dim iMoved As Double: iMoved = NumOr0(ws.Cells(rowOf(iC), C_REFUSED).Value2)
+            SetDateName REFUSED_NAME, thrWas
+            Application.Calculate
+            If Abs(iMoved - iBefore(iC) - (cAfter - cBefore(iC))) > 0.0001 Then why = "with RefusedThrough moved to " & Format$(PeriodStartFor(st.PostDate), "mmm d") & ", " & lst(iC).EmpName & "'s Refused showed " & iMoved & ", expected " & (iBefore(iC) + cAfter - cBefore(iC)): Exit Function
+            If Abs(NumOr0(ws.Cells(rowOf(iC), C_REFUSED).Value2) - iBefore(iC)) > 0.0001 Then why = "Refused (I) didn't come back after RefusedThrough was restored": Exit Function
+            futTxt = ", " & lst(iC).EmpName & "'s " & HoursText(cAfter - cBefore(iC)) & " h refusal waits for its period"
+        End If
+    End If
+    st.Note = "awarded #" & iFull & " of " & n & futTxt
     SmkAward = True
 End Function
 
@@ -399,19 +442,16 @@ Private Function SmkSwitch(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkSwitch = True
 End Function
 
-' ---- 7. crew change from a date (column E + its crew row, as convention 5 says) ----
+' ---- 7. crew change from a date (v26.5: through the Employee pop-up's Edit - column E + its crew row, as convention 5 says) ----
 Private Function SmkCrew(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim r As Long: r = RosterRowOf(st.Emp)
     If r = 0 Then why = st.Emp & " isn't on the roster": Exit Function
-    Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim eff As Date: eff = Date + 7
-    Application.EnableEvents = False
-    UnlockSheet ws
-    ws.Cells(r, C_SHIFT).Value = "A"
-    ProtectSheet ws
-    Application.EnableEvents = evWas
-    If Not AddCrewRow(st.Emp, "A", eff) Then why = "AddCrewRow returned False": Exit Function
+    Dim homeUnit As String, crewTxt As String, phone As String, email As String, sen As String, codes() As String, report As String
+    If Not PersonDetails(st.Emp, homeUnit, crewTxt, phone, email, sen, codes) Then why = "PersonDetails returned False": Exit Function
+    If Not SaveEmployeeEdit(st.Emp, "", "A", eff, phone, email, sen, codes, report) Then why = "SaveEmployeeEdit (crew A from " & Format$(eff, "mmm d") & ") returned False": Exit Function
+    If Trim$(SafeStr(ws.Cells(r, C_SHIFT).Value)) <> "A" Then why = "column E didn't change to A": Exit Function
     If CrewOn(st.Emp, eff + 1) <> "A" Then why = "crew on " & Format$(eff + 1, "mmm d") & " is '" & CrewOn(st.Emp, eff + 1) & "', expected A": Exit Function
     If CrewOn(st.Emp, Date) <> "DAYS" Then why = "crew today is '" & CrewOn(st.Emp, Date) & "', expected DAYS": Exit Function
     st.Note = "DAYS -> A from " & Format$(eff, "mmm d")
@@ -706,7 +746,7 @@ Private Function SmkOnList(ByVal emp As String, ByVal unit As String, ByVal d As
     Next i
 End Function
 
-' ---- 10. rename ----
+' ---- 11. rename ----
 Private Function SmkRename(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim report As String
     If Not RenameEverywhere(st.Emp, SMK_EMP2, report) Then Exit Function
@@ -715,7 +755,7 @@ Private Function SmkRename(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkRename = True
 End Function
 
-' ---- 11. publish to a scratch file, read it back ----
+' ---- 12. publish to a scratch file, read it back ----
 Private Function SmkPublish(ByRef st As SmkState, ByRef why As String) As Boolean
     If Not MemberTemplateExists() Then st.Note = "SKIPPED: no members' template beside this copy": SmkPublish = True: Exit Function
     Dim folder As String: folder = EnsureSlash(Environ$("TEMP")) & "RosterSmoke\"
@@ -770,7 +810,7 @@ Private Function SmkRows(ByVal wb As Workbook, ByVal sheetName As String) As Lon
     If last > 1 Then SmkRows = last - 1
 End Function
 
-' ---- 12. no takers, award out of dept, void, reopen (v25) ----
+' ---- 13. no takers, award out of dept, void, reopen (v25) ----
 ' Two more postings in Unit (the test person holds no code there since step 8, so they are OUT of
 ' department for them). Posting 3: No takers (everyone on the list charged), its rows voided, then
 ' reopened (ReopenPostingById) and left Open for step 16. Posting 4: awarded out of department to
@@ -816,7 +856,7 @@ Private Function SmkOutcomes(ByRef st As SmkState, ByRef why As String) As Boole
     SmkOutcomes = True
 End Function
 
-' ---- 13. leave going and returning (v25) ----
+' ---- 14. leave going and returning (v25) ----
 ' A leave booked from 30 days ago, returned today through the leave rule; the LV- row is logged even
 ' when the top-up is 0 h (L5; no peers or no history give 0 h with a warning, not a refusal), and the
 ' rule then refuses a second return. The one refusal that is this copy's state, not a fault - a
@@ -847,7 +887,7 @@ Private Function SmkLeaveReturn(ByRef st As SmkState, ByRef why As String) As Bo
     SmkLeaveReturn = True
 End Function
 
-' ---- 14. Kronos headings on a made-up sheet (v25, D-I4) ----
+' ---- 15. Kronos headings on a made-up sheet (v25, D-I4) ----
 Private Function SmkKronosHeadings(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim src(1 To 4, 1 To 4) As Variant, nameCol As Long, totCol As Long, hdrName As Long, hdrTot As Long, w As String
     src(1, 1) = "Hours report": src(2, 1) = "Payroll #": src(2, 2) = "Employee Name": src(2, 3) = "Regular": src(2, 4) = "Grand Total"
@@ -865,7 +905,7 @@ Private Function SmkKronosHeadings(ByRef st As SmkState, ByRef why As String) As
     SmkKronosHeadings = True
 End Function
 
-' ---- 15. a planted leave word stops the publish (v25) ----
+' ---- 16. a planted leave word stops the publish (v25) ----
 ' The posting Reason first, then a calendar line's covered-by; each publish must write nothing and
 ' must have refused for the planted word (gSmokeRefusal). The words are taken back and posting 3 is
 ' cancelled (step 17 cancels it when this step is skipped; a FAILED step stops the run, saving blocked).
@@ -907,7 +947,7 @@ Fail:
     Kill gSmokeSaved
 End Function
 
-' ---- 16. void everything ----
+' ---- 17. void everything ----
 Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     ' every Ref ID that is the session, the posting, or carries a row under either test name
     Dim lo As ListObject: Set lo = LogTable()
@@ -963,7 +1003,7 @@ Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkVoid = True
 End Function
 
-' ---- 17. remove ----
+' ---- 18. remove ----
 Private Function SmkRemove(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim report As String
     If Not RemoveEmployee(st.Emp, Date, report) Then Exit Function
@@ -972,7 +1012,7 @@ Private Function SmkRemove(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkRemove = True
 End Function
 
-' ---- 18. integrity ----
+' ---- 19. integrity ----
 Private Function SmkIntegrity(ByRef st As SmkState, ByVal nErr0 As Long, ByRef why As String) As Boolean
     Dim nErr As Long, nWarn As Long
     Application.Calculate
@@ -988,12 +1028,9 @@ End Function
 ' (v25.5: the v25.2 compare steps 19-20 - the Calendar and Needs Attention drawn both ways - went with the
 '  legacy writers; the compares passed on the real roster Oct 17, 2026)
 
-' ---- 19. the Desk (v25.3; step 21 until v25.5): its four figures come from the roster's own functions. A vacation for the peer on
-' a day shift inside the window adds at least one open line; a posting closing today adds one ready to award
-' once the closing moment has passed; both are taken back and the figures return; ViewModeFor on four logins (v25.5:
-' + a named supervisor).
 ' ---- 10. v26.5: the Employee pop-up's Edit, through its one write path: a new phone, a new seniority date and a code
-'          added in the second unit; the cells show it, the totals come back (SaveEmployeeEdit's own check), the Grade Log grew ----
+'          added in the FIRST unit (cleared by step 8's move) then cleared again; the cells show it, the totals come back
+'          (SaveEmployeeEdit's own check), the Grade Log grew by two ----
 Private Function SmkEdit(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim r As Long: r = RosterRowOf(st.Emp)
@@ -1027,6 +1064,10 @@ Private Function SmkEdit(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkEdit = True
 End Function
 
+' ---- 20. the Desk (v25.3; step 21 until v25.5, 19 until v26.5): its four figures come from the roster's own functions. A vacation
+' for the peer on a day shift inside the window adds at least one open line; a posting closing today adds one ready to award
+' once the closing moment has passed; both are taken back and the figures return; ViewModeFor on four logins (v25.5:
+' + a named supervisor).
 Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
     If ViewModeFor("boss", "ann,boss", "boss", "sue") <> "desk" Or ViewModeFor("ann", "ann,boss", "boss", "sue") <> "admin" Or _
        ViewModeFor("boss", "ann", "boss", "sue") <> "user" Or ViewModeFor("sue", "ann,boss", "boss", "sue") <> "supervisor" Then _

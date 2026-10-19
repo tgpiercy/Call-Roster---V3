@@ -11,7 +11,7 @@ About 15 minutes.
 2. Alt+F11 in that workbook. **File > Import File:** `member/modMember.bas`.
 3. In its project tree open **ThisWorkbook**, Ctrl+A, paste the contents of `member/ThisWorkbook.txt`.
 4. **Debug > Compile VBAProject.** No message expected.
-5. Alt+F8 > **BuildMemberTemplate** > OK. It lays out Home, Roster, Who's next, Calendar, Postings and My history, with the buttons, and protects them.
+5. Alt+F8 > **BuildMemberTemplate** > OK. It lays out Home, Roster, Who's next, Calendar, Postings and My history (M3.1: + the dWorked data sheet), with the buttons, and protects them.
 6. **Save** (Ctrl+S) and close it. The template holds no data. That is correct.
 
 ## 2. Where the published file goes

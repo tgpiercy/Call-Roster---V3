@@ -933,6 +933,11 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Supervisors and admins: click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
         "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _
         "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
+    HelpAdd h, n, "The two-week board", _
+        "Board on the Calendar's top row (supervisors and admins): the Board tab is drawn for today and the next 13 days, one page " & _
+        "per unit group, one row per date with the crews on and the Days and Nights lines as the calendar shows them, OPEN lines " & _
+        "in red; a PDF goes beside the month calendars, then it asks whether to print. Nothing is changed: it is a picture of the " & _
+        "calendar for the board in the control room."
     HelpAdd h, n, "Employee history (report)", _
         "Employee history on the bar's FIND group or the Desk: part of a name, then a From and To date (the box opens on the roster year " & _
         "to date), and the History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with " & _

@@ -602,3 +602,23 @@ prechange,no-what,Backup before 2026-10-13 0915 - V2 - Call Out Roster.xlsm,V2 -
 prechange,lower-case-head,backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-09-30
 prechange,letters-in-the-date,Backup before rename 2026-O9-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none
 prechange,no-roster-name,Backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,,,,,none
+chargewhy,callout-refused-charged,Callout,Refused,3,12|21,P2,Charged 21 h: 3rd called; Refused; 12 h offered x 1.75 (grade P2)
+chargewhy,callout-left-message-first,Callout,Left Message,1,12|21,D1.5,Charged 21 h: 1st called; Left Message; 12 h offered x 1.75 (grade D1.5)
+chargewhy,callout-accepted,Callout,Accepted,2,12|0,P2,Not charged: 2nd called; accepted 12 h
+chargewhy,callout-grade-3-not-charged,Callout,Refused,11,12|0,G3,Not charged: 11th called; Refused; grade G3 is above 2
+chargewhy,callout-unavailable,Callout,Unavailable,22,12|0,P1,Not charged: 22nd called; Unavailable
+chargewhy,callout-no-order-no-code,Callout,Refused,0,12|21,,Charged 21 h: Refused; 12 h offered x 1.75 (no code)
+chargewhy,callout-partial-offer,Callout,Refused,4,8|14,P2,Charged 14 h: 4th called; Refused; 8 h offered x 1.75 (grade P2)
+chargewhy,callout-no-outcome,Callout,,5,12|0,P2,Not charged: 5th called; no outcome
+chargewhy,posting-charged,Posting,Refused,3,12|21,P2,Charged 21 h: #3 in call order; didn't sign up; posting hours 12 x 1.75 (grade P2)
+chargewhy,posting-awarded,Posting,Awarded,5,12|0,P2,Not charged: #5 in call order; awarded 12 h
+chargewhy,posting-signed-up,Posting,Signed Up,4,12|0,P2,Not charged: #4 in call order; signed up; not awarded
+chargewhy,posting-grade-3,Posting,Refused,2,12|0,P3,Not charged: #2 in call order; didn't sign up; grade P3 is above 2
+chargewhy,posting-out-of-dept-award-no-rank,Posting,Awarded,0,12|0,OD,Not charged: awarded 12 h
+chargewhy,adjustment-leave-return,Adjustment,Leave return,0,0|40,,Adjustment: +40 h (Leave return)
+chargewhy,adjustment-negative,Adjustment,Correction,0,0|-8,,Adjustment: -8 h (Correction)
+chargewhy,blank-type,,,0,0|0,,Entry: +0 h
+chargewhy,ordinal-13th,Callout,Refused,13,8|14,P2,Charged 14 h: 13th called; Refused; 8 h offered x 1.75 (grade P2)
+chargewhy,ordinal-101st,Callout,Unavailable,101,8|0,P2,Not charged: 101st called; Unavailable
+chargewhy,ordinal-112th,Callout,Unavailable,112,8|0,P2,Not charged: 112th called; Unavailable
+chargewhy,ordinal-23rd,Callout,Unavailable,23,8|0,P2,Not charged: 23rd called; Unavailable

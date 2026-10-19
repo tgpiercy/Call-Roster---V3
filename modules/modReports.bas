@@ -84,6 +84,96 @@ Public Function SplitTotals(ByRef lg As Variant, ByVal firstStart As Long, ByVal
     Next i
 End Function
 
+' v26 PURE (SelfTest "chargewhy"): 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 11-13 -> "th", 21 -> "21st"
+Public Function OrdinalText(ByVal n As Long) As String
+    Dim sfx As String
+    If (n Mod 100) >= 11 And (n Mod 100) <= 13 Then
+        sfx = "th"
+    Else
+        Select Case n Mod 10
+            Case 1: sfx = "st"
+            Case 2: sfx = "nd"
+            Case 3: sfx = "rd"
+            Case Else: sfx = "th"
+        End Select
+    End If
+    OrdinalText = n & sfx
+End Function
+
+' v26 PURE (SelfTest "chargewhy"): "why was I charged" from an OT Log row's own fields - no new string
+' in the log, nothing parsed out of the Note (the caller appends the Note where it adds something).
+'   typ        Callout / Posting / anything else (Adjustment, the opening balance ...)
+'   outcome    the Outcome column (Refused, Left Message, Accepted, Unavailable, Awarded, Signed Up ...);
+'              for a row that is not a call-out or posting, the type held in its Reason column
+'   callOrder  the Call Order column (0 = none)
+'   hours      the Hours column: the hours offered (call-out) or the posting's / awarded hours
+'   charged    the Hours Charged column
+'   code       the Dept Code column
+' Charging itself lives in CalloutCharge / ComputeAward ...; this only says what the row shows.
+Public Function ChargeWhy(ByVal typ As String, ByVal outcome As String, ByVal callOrder As Long, _
+                          ByVal hours As Double, ByVal charged As Double, ByVal code As String) As String
+    Dim t As String: t = LCase$(Trim$(typ))
+    Dim o As String: o = LCase$(Trim$(outcome))
+    Dim gradeTxt As String: gradeTxt = IIf(Trim$(code) = "", "no code", "grade " & Trim$(code))
+    Dim posTxt As String
+    If t = "callout" Then
+        posTxt = IIf(callOrder > 0, OrdinalText(callOrder) & " called, ", "")
+        If charged <> 0 Then
+            ChargeWhy = "Charged " & HoursText(charged) & " h: " & posTxt & Trim$(outcome) & ", " & HoursText(hours) & _
+                        " h offered x " & HoursText(CHARGE_MULTIPLIER) & " (" & gradeTxt & ")"
+        ElseIf o = "accepted" Then
+            ChargeWhy = "Not charged: " & posTxt & "accepted " & HoursText(hours) & " h"
+        ElseIf (o = "refused" Or o = "left message") And DeptCodeValue(code) > CHARGE_MAX_GRADE Then
+            ChargeWhy = "Not charged: " & posTxt & Trim$(outcome) & ", " & gradeTxt & " is above " & HoursText(CHARGE_MAX_GRADE)
+        Else
+            ChargeWhy = "Not charged: " & posTxt & IIf(Trim$(outcome) = "", "no outcome", Trim$(outcome))
+        End If
+    ElseIf t = "posting" Then
+        posTxt = IIf(callOrder > 0, "#" & callOrder & " in call order, ", "")
+        If charged <> 0 Then
+            ChargeWhy = "Charged " & HoursText(charged) & " h: " & posTxt & "didn't sign up, posting hours " & HoursText(hours) & _
+                        " x " & HoursText(CHARGE_MULTIPLIER) & " (" & gradeTxt & ")"
+        ElseIf o = "awarded" Then
+            ChargeWhy = "Not charged: " & posTxt & "awarded " & HoursText(hours) & " h"
+        ElseIf o = "signed up" Then
+            ChargeWhy = "Not charged: " & posTxt & "signed up, not awarded"
+        ElseIf o = "refused" And DeptCodeValue(code) > CHARGE_MAX_GRADE Then
+            ChargeWhy = "Not charged: " & posTxt & "didn't sign up, " & gradeTxt & " is above " & HoursText(CHARGE_MAX_GRADE)
+        Else
+            ChargeWhy = "Not charged: " & posTxt & IIf(Trim$(outcome) = "", "no outcome", Trim$(outcome))
+        End If
+    Else
+        ChargeWhy = IIf(Trim$(typ) = "", "Entry", Trim$(typ)) & ": " & IIf(charged >= 0, "+", "") & HoursText(charged) & " h" & _
+                    IIf(Trim$(outcome) = "", "", " (" & Trim$(outcome) & ")")
+    End If
+End Function
+
+' v26: the sentence for row r of a log array in the OT Log layout (RangeTo2D of the table or of one
+' row). withNote appends the row's Note where it says more than the fields (a posting's "didn't sign
+' up (#3, awarded #5)", a call-out's partial texts), with the electronic-sign-up login cut
+' (PublicNote). A VOID row says so first.
+Public Function WhyFromRow(ByRef lg As Variant, ByVal r As Long, ByVal withNote As Boolean) As String
+    Dim typ As String: typ = SafeStr(lg(r, L_TYPE))
+    Dim outcome As String: outcome = SafeStr(lg(r, L_OUTCOME))
+    Dim t As String: t = LCase$(Trim$(typ))
+    If t <> "callout" And t <> "posting" Then outcome = SafeStr(lg(r, L_TASK))     ' an adjustment's type lives in Reason
+    WhyFromRow = ChargeWhy(typ, outcome, CLng(NumOr0(lg(r, L_ORDER))), NumOr0(lg(r, L_BASEHRS)), _
+                           NumOr0(lg(r, L_CHARGED)), SafeStr(lg(r, L_CODE)))
+    If withNote Then
+        Dim note As String: note = PublicNote(SafeStr(lg(r, L_REASON)))
+        If note <> "" And (t = "callout" Or t = "posting") Then WhyFromRow = WhyFromRow & "  (" & note & ")"
+    End If
+    If UCase$(Trim$(SafeStr(lg(r, L_STATUS)))) = "VOID" Then WhyFromRow = "VOID - " & WhyFromRow
+End Function
+
+' v26: a log Note as anyone may see it: the "[electronic sign-up <login> <time>]" marker the Award
+' pop-up adds (v24.1) is cut off - a login is never shown (was Private in modPublish)
+Public Function PublicNote(ByVal note As String) As String
+    Dim p As Long: p = InStr(1, note, "[electronic sign-up", vbTextCompare)
+    If p > 0 Then note = Trim$(Left$(note, p - 1))
+    PublicNote = note
+End Function
+
 ' A Period Start cell as a whole number (0 = not a date)
 Private Function PeriodNumber(ByVal v As Variant) As Long
     If IsError(v) Then Exit Function
@@ -106,15 +196,19 @@ Private Function QuietLog() As ListObject
     On Error GoTo 0
 End Function
 
+' v26: the OT Log's rows as a 2-D array in the log layout (Empty when there is no table, it is
+' empty, or its layout isn't current) - the one reader the split, the report and the status bar use
+Public Function LogRowsNow() As Variant
+    Dim lo As ListObject: Set lo = QuietLog()
+    If lo Is Nothing Then Exit Function
+    If Not LogLayoutCurrent(lo) Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    LogRowsNow = RangeTo2D(lo.DataBodyRange)
+End Function
+
 ' Everyone's split for this roster year, straight from the OT Log
 Public Function SplitNow() As Object
-    Dim lo As ListObject: Set lo = QuietLog()
-    Dim lg As Variant
-    If Not lo Is Nothing Then
-        If LogLayoutCurrent(lo) Then
-            If Not lo.DataBodyRange Is Nothing Then lg = RangeTo2D(lo.DataBodyRange)
-        End If
-    End If
+    Dim lg As Variant: lg = LogRowsNow()
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim sRow As Long: sRow = PStartRow()
     Set SplitNow = SplitTotals(lg, CLng(ws.Cells(sRow, C_PERIOD1).Value2), CLng(ws.Cells(sRow, PeriodLastCol()).Value2))
@@ -122,13 +216,7 @@ End Function
 
 ' v24.2: the same split for part of the year (period start numbers, both ends included)
 Public Function SplitBetween(ByVal firstStart As Long, ByVal lastStart As Long) As Object
-    Dim lo As ListObject: Set lo = QuietLog()
-    Dim lg As Variant
-    If Not lo Is Nothing Then
-        If LogLayoutCurrent(lo) Then
-            If Not lo.DataBodyRange Is Nothing Then lg = RangeTo2D(lo.DataBodyRange)
-        End If
-    End If
+    Dim lg As Variant: lg = LogRowsNow()
     Set SplitBetween = SplitTotals(lg, firstStart, lastStart)
 End Function
 
@@ -229,6 +317,8 @@ Public Sub RosterSelectionChanged(ByVal Sh As Object, ByVal Target As Range)
                 RefusedSplitOf CachedSplit(), nm, c, p, o
                 txt = nm & ":   Refused " & HoursText(c + p + o) & " h  =  " & SplitText(c, p, o)
             End If
+        ElseIf Sh.Name = LOG_SHEET And Target.Rows.Count = 1 Then
+            txt = LogRowWhy(Target.Row)                 ' v26: "why was I charged" for the selected OT Log row
         End If
     End If
     If txt <> "" Then
@@ -243,6 +333,24 @@ Quit:
     On Error Resume Next
     If mBarShown Then Application.StatusBar = False: mBarShown = False
 End Sub
+
+' v26: the status-bar text for one OT Log sheet row ("" when the row isn't a table row): the person,
+' the ref, the shift and WhyFromRow with the Note. Reads one table row; writes nothing.
+Private Function LogRowWhy(ByVal sheetRow As Long) As String
+    Dim lo As ListObject: Set lo = QuietLog()
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    If Not LogLayoutCurrent(lo) Then Exit Function
+    Dim r As Long: r = sheetRow - lo.DataBodyRange.Row + 1
+    If r < 1 Or r > lo.ListRows.Count Then Exit Function
+    Dim lg As Variant: lg = RangeTo2D(lo.DataBodyRange.Rows(r))
+    Dim nm As String: nm = Trim$(SafeStr(lg(1, L_EMP)))
+    If nm = "" Then Exit Function
+    Dim d As String
+    If IsDate(lg(1, L_DATE)) Then d = Format$(CDate(lg(1, L_DATE)), "ddd mmm d") & " "
+    LogRowWhy = nm & ":   " & SafeStr(lg(1, L_REF)) & "  " & d & SafeStr(lg(1, L_SHIFTLBL)) & ", " & SafeStr(lg(1, L_DEPT)) & _
+                "  -  " & WhyFromRow(lg, 1, True)
+End Function
 
 ' v25.5 (A10) "Find a person" on the bar (supervisors and admins): part of a name -> the roster row is selected
 ' (a unit filter that hides it is cleared first) and the status bar says where the person stands in their home
@@ -452,12 +560,65 @@ Public Sub RefusalsReport()
         ws.Cells(r, 1).Value = "Nobody has charged hours in these pay periods" & IIf(allUnits, ".", " in " & unit & ".")
         r = r + 1
     End If
+    Dim rTotEnd As Long: rTotEnd = r - 1
+
+    ' ---- v26: the charges behind the figures - one line per charged log row, by person in the same order ----
+    If n > 0 Then
+        r = r + 1
+        ws.Cells(r, 1).Value = "THE CHARGES BEHIND THE FIGURES  -  every charged OT Log row in " & rangeTxt
+        ws.Cells(r, 1).Font.Bold = True: ws.Cells(r, 1).Font.Size = 12
+        r = r + 1
+        ws.Range(ws.Cells(r, 1), ws.Cells(r, 5)).Value = Array("Shift date", "Ref", "Unit / shift", "Charged", "Why")
+        With ws.Range(ws.Cells(r, 1), ws.Cells(r, NC))
+            .Font.Bold = True: .Font.Color = vbWhite: .Interior.Color = RGB(30, 56, 100)
+            .VerticalAlignment = xlCenter
+        End With
+        r = r + 1
+        Dim lg As Variant: lg = LogRowsNow()
+        Dim rr As Long, per As Long, nmRows As Long
+        For i = 1 To n
+            ws.Cells(r, 1).Value = units(i) & "  -  " & names(i)
+            ws.Cells(r, 1).Font.Bold = True
+            ws.Range(ws.Cells(r, 1), ws.Cells(r, NC)).Interior.Color = RGB(236, 239, 243)
+            r = r + 1
+            nmRows = 0
+            If IsArray(lg) Then
+                For rr = 1 To UBound(lg, 1)                    ' newest first, as the log is
+                    If StrComp(Trim$(SafeStr(lg(rr, L_EMP))), names(i), vbTextCompare) = 0 Then
+                        If UCase$(Trim$(SafeStr(lg(rr, L_STATUS)))) <> "VOID" And NumOr0(lg(rr, L_CHARGED)) <> 0 Then
+                            per = PeriodNumber(lg(rr, L_PERIOD))
+                            If per >= firstStart And per <= lastStart Then
+                                ws.Cells(r, 1).NumberFormat = "ddd mmm d"
+                                If IsDate(lg(rr, L_DATE)) Then ws.Cells(r, 1).Value = CDate(lg(rr, L_DATE))
+                                ws.Cells(r, 2).Value = SafeStr(lg(rr, L_REF))
+                                ws.Cells(r, 3).Value = SafeStr(lg(rr, L_DEPT)) & " / " & SafeStr(lg(rr, L_SHIFTLBL))
+                                ws.Cells(r, 4).Value = NumOr0(lg(rr, L_CHARGED))
+                                ws.Cells(r, 5).Value = WhyFromRow(lg, rr, True)
+                                With ws.Range(ws.Cells(r, 5), ws.Cells(r, NC))       ' output-only sheet: the sentence across E:H
+                                    .Merge: .WrapText = True: .VerticalAlignment = xlTop
+                                End With
+                                ws.Rows(r).RowHeight = 15 * (1 + Len(CStr(ws.Cells(r, 5).Value)) \ 60)
+                                nmRows = nmRows + 1
+                                r = r + 1
+                            End If
+                        End If
+                    End If
+                Next rr
+            End If
+            If nmRows = 0 Then ws.Cells(r, 2).Value = "(no charged rows in these pay periods)": r = r + 1
+        Next i
+    End If
 
     ws.Columns(1).ColumnWidth = 20
     ws.Columns(2).ColumnWidth = 28
     ws.Range(ws.Columns(3), ws.Columns(NC)).ColumnWidth = 12
-    ws.Range(ws.Cells(5, 3), ws.Cells(r, NC)).HorizontalAlignment = xlCenter
-    ws.Range(ws.Cells(4, 1), ws.Cells(r - 1, NC)).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
+    ws.Range(ws.Cells(5, 3), ws.Cells(rTotEnd, NC)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(4, 1), ws.Cells(rTotEnd, NC)).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
+    If r > rTotEnd + 1 Then
+        ws.Range(ws.Cells(rTotEnd + 4, 1), ws.Cells(r - 1, 1)).HorizontalAlignment = xlLeft
+        ws.Range(ws.Cells(rTotEnd + 4, 4), ws.Cells(r - 1, 4)).HorizontalAlignment = xlCenter
+        ws.Range(ws.Cells(rTotEnd + 4, 1), ws.Cells(r - 1, NC)).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
+    End If
     On Error Resume Next
     With ws.PageSetup
         .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, NC)).Address

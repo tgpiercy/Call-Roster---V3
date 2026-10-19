@@ -832,13 +832,7 @@ Private Function DateNumber(ByVal x As Variant) As Double
     End If
 End Function
 
-' A log Note as members may see it: the "[electronic sign-up <login> <time>]"
-' marker the Award pop-up adds (v24.1) is cut off - a login is never published.
-Private Function PublicNote(ByVal note As String) As String
-    Dim p As Long: p = InStr(1, note, "[electronic sign-up", vbTextCompare)
-    If p > 0 Then note = Trim$(Left$(note, p - 1))
-    PublicNote = note
-End Function
+' (v26: PublicNote - the log Note with the electronic-sign-up login cut - moved to modReports, Public)
 
 ' first n rows of a (bigger) 2-D array
 Private Function Trimmed(ByRef a As Variant, ByVal n As Long, ByVal nCols As Long) As Variant

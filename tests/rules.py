@@ -1070,6 +1070,46 @@ def ref_prefix_max_text(ref_list: str) -> str:
     return "|".join(f"{k}={d[k]}" for k in sorted(d))
 
 
+def ordinal_text(n: int) -> str:
+    """modReports.OrdinalText (v26): 1st, 2nd, 3rd, 11th-13th, 21st ..."""
+    if 11 <= n % 100 <= 13:
+        return f"{n}th"
+    suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def charge_why(typ: str, outcome: str, call_order: int, hours: float, charged: float, code: str) -> str:
+    """modReports.ChargeWhy (v26): 'why was I charged' from an OT Log row's own fields."""
+    t = typ.strip().lower()
+    o = outcome.strip().lower()
+    oc = outcome.strip()
+    grade_txt = "no code" if code.strip() == "" else f"grade {code.strip()}"
+    mult = hours_text(CHARGE_MULTIPLIER)
+    if t == "callout":
+        pos = f"{ordinal_text(call_order)} called, " if call_order > 0 else ""
+        if charged != 0:
+            return f"Charged {hours_text(charged)} h: {pos}{oc}, {hours_text(hours)} h offered x {mult} ({grade_txt})"
+        if o == "accepted":
+            return f"Not charged: {pos}accepted {hours_text(hours)} h"
+        if o in ("refused", "left message") and dept_code_value(code) > CHARGE_MAX_GRADE:
+            return f"Not charged: {pos}{oc}, {grade_txt} is above {hours_text(CHARGE_MAX_GRADE)}"
+        return f"Not charged: {pos}{oc or 'no outcome'}"
+    if t == "posting":
+        pos = f"#{call_order} in call order, " if call_order > 0 else ""
+        if charged != 0:
+            return f"Charged {hours_text(charged)} h: {pos}didn't sign up, posting hours {hours_text(hours)} x {mult} ({grade_txt})"
+        if o == "awarded":
+            return f"Not charged: {pos}awarded {hours_text(hours)} h"
+        if o == "signed up":
+            return f"Not charged: {pos}signed up, not awarded"
+        if o == "refused" and dept_code_value(code) > CHARGE_MAX_GRADE:
+            return f"Not charged: {pos}didn't sign up, {grade_txt} is above {hours_text(CHARGE_MAX_GRADE)}"
+        return f"Not charged: {pos}{oc or 'no outcome'}"
+    head = typ.strip() or "Entry"
+    sign = "+" if charged >= 0 else ""
+    return f"{head}: {sign}{hours_text(charged)} h" + (f" ({oc})" if oc else "")
+
+
 def owed_status_text(days: int, warn_days: int) -> str:
     """modShiftSwitch.OwedStatusText (v26): the Needs Attention status for a payback owed `days` days."""
     return f"Payback owed {days} days" if days > warn_days else "Payback owed"

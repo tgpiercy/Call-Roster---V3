@@ -208,6 +208,9 @@ Private Function RunCase(f() As String) As String
         Case "idmark"                              ' v26 (I8): Ref IDs joined by | -> highest number per prefix, or none
             RunCase = RefPrefixMaxText(i1)
             If RunCase = "" Then RunCase = "none"
+        Case "chargewhy"                           ' v26: type, outcome, call order, hours|charged, code -> the sentence
+            Dim hc As Variant: hc = Split(i4 & "|", "|")
+            RunCase = Replace(ChargeWhy(i1, i2, CLng(Val(i3)), Val(hc(0)), Val(hc(1)), i5), ",", ";")   ' ; for , (no commas in a case)
         Case "prechange"                           ' v26: file name, roster file name -> the date a pre-change copy carries / none
             Dim pcD As Date: pcD = PreChangeCopyDate(i1, i2)
             RunCase = IIf(pcD = 0, "none", FmtD(pcD))
@@ -1452,5 +1455,25 @@ Private Sub LoadCases()
     AddCase "prechange,lower-case-head,backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-09-30"
     AddCase "prechange,letters-in-the-date,Backup before rename 2026-O9-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
     AddCase "prechange,no-roster-name,Backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,,,,,none"
+    AddCase "chargewhy,callout-refused-charged,Callout,Refused,3,12|21,P2,Charged 21 h: 3rd called; Refused; 12 h offered x 1.75 (grade P2)"
+    AddCase "chargewhy,callout-left-message-first,Callout,Left Message,1,12|21,D1.5,Charged 21 h: 1st called; Left Message; 12 h offered x 1.75 (grade D1.5)"
+    AddCase "chargewhy,callout-accepted,Callout,Accepted,2,12|0,P2,Not charged: 2nd called; accepted 12 h"
+    AddCase "chargewhy,callout-grade-3-not-charged,Callout,Refused,11,12|0,G3,Not charged: 11th called; Refused; grade G3 is above 2"
+    AddCase "chargewhy,callout-unavailable,Callout,Unavailable,22,12|0,P1,Not charged: 22nd called; Unavailable"
+    AddCase "chargewhy,callout-no-order-no-code,Callout,Refused,0,12|21,,Charged 21 h: Refused; 12 h offered x 1.75 (no code)"
+    AddCase "chargewhy,callout-partial-offer,Callout,Refused,4,8|14,P2,Charged 14 h: 4th called; Refused; 8 h offered x 1.75 (grade P2)"
+    AddCase "chargewhy,callout-no-outcome,Callout,,5,12|0,P2,Not charged: 5th called; no outcome"
+    AddCase "chargewhy,posting-charged,Posting,Refused,3,12|21,P2,Charged 21 h: #3 in call order; didn't sign up; posting hours 12 x 1.75 (grade P2)"
+    AddCase "chargewhy,posting-awarded,Posting,Awarded,5,12|0,P2,Not charged: #5 in call order; awarded 12 h"
+    AddCase "chargewhy,posting-signed-up,Posting,Signed Up,4,12|0,P2,Not charged: #4 in call order; signed up; not awarded"
+    AddCase "chargewhy,posting-grade-3,Posting,Refused,2,12|0,P3,Not charged: #2 in call order; didn't sign up; grade P3 is above 2"
+    AddCase "chargewhy,posting-out-of-dept-award-no-rank,Posting,Awarded,0,12|0,OD,Not charged: awarded 12 h"
+    AddCase "chargewhy,adjustment-leave-return,Adjustment,Leave return,0,0|40,,Adjustment: +40 h (Leave return)"
+    AddCase "chargewhy,adjustment-negative,Adjustment,Correction,0,0|-8,,Adjustment: -8 h (Correction)"
+    AddCase "chargewhy,blank-type,,,0,0|0,,Entry: +0 h"
+    AddCase "chargewhy,ordinal-13th,Callout,Refused,13,8|14,P2,Charged 14 h: 13th called; Refused; 8 h offered x 1.75 (grade P2)"
+    AddCase "chargewhy,ordinal-101st,Callout,Unavailable,101,8|0,P2,Not charged: 101st called; Unavailable"
+    AddCase "chargewhy,ordinal-112th,Callout,Unavailable,112,8|0,P2,Not charged: 112th called; Unavailable"
+    AddCase "chargewhy,ordinal-23rd,Callout,Unavailable,23,8|0,P2,Not charged: 23rd called; Unavailable"
 ' <<< CASES
 End Sub

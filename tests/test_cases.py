@@ -249,6 +249,8 @@ def evaluate(row: dict) -> str:
         return fmt_num(rules.dept_code_value(i1.replace("_", " ")))
     if suite == "hourstext":                     # v25: hours -> the text every message shows
         return rules.hours_text(float(i1))
+    if suite == "payback":                       # v26: days owed, warn days -> the Needs Attention status
+        return rules.owed_status_text(int(i1), int(i2))
     if suite == "typetag":                       # v25: absence code -> calendar tag / what members get
         return rules.type_tag(i1) + "/" + rules.public_type(i1)
     if suite == "planid":                        # v25: an Exempt note -> the planned move's ID / none

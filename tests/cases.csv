@@ -580,3 +580,9 @@ viewmode,supervisor-who-is-admin,ann,ann;boss,boss,ann;sue,,admin
 viewmode,supervisor-who-is-desk-admin,boss,ann;boss,boss,boss;sue,,desk
 viewmode,not-a-supervisor,sam,ann;boss,boss,sue;tom,,user
 viewmode,empty-supervisor-list,sue,ann;boss,boss,,,user
+payback,within-limit,10,42,,,,Payback owed
+payback,at-the-limit,42,42,,,,Payback owed
+payback,one-day-over,43,42,,,,Payback owed 43 days
+payback,long-overdue,120,42,,,,Payback owed 120 days
+payback,today,0,42,,,,Payback owed
+payback,limit-zero-flags-one-day,1,0,,,,Payback owed 1 days

@@ -3625,8 +3625,10 @@ Public Sub DrawNeeds()
         Next sh
     Next i
 
-    ' C. shift switch paybacks still owed
+    ' C. shift switch paybacks still owed (v26: oldest first; one owed longer than PAYBACK_WARN_DAYS
+    '    gets its age in the status, in red on amber)
     Dim ow As Variant, owIds As Variant, swD As Date, swSh As String, swU As String, swOff As String, swWorks As String
+    Dim owDays As Long
     On Error Resume Next
     ow = OwedSwitches(owIds)
     On Error GoTo Failed
@@ -3635,12 +3637,20 @@ Public Sub DrawNeeds()
             id = CStr(owIds(i))
             If SwitchInfo(id, swD, swSh, swU, swOff, swWorks) Then
                 If UnitInGroup(swU, grp) Then
+                    owDays = CLng(Int(Date) - Int(swD))
+                    st = OwedStatusText(owDays, PAYBACK_WARN_DAYS)
+                    If owDays > PAYBACK_WARN_DAYS Then
+                        stC = thOpen(): stF = RGB(255, 236, 179)
+                    Else
+                        stC = TypeColor("SS"): stF = Tint(TypeColor("SS"), 0.85)
+                    End If
                     NAAdd sr, nS, Format$(swD, "ddd mmm d"), swSh, IIf(swSh = "Days", DaysCrew(swD), NightsCrew(swD)), swU, _
-                          swOff & " owes " & swWorks & " a shift   (" & id & ")", "Shift switch", "Payback owed", _
-                          WhenText(swD), "S:" & id, CDbl(Int(swD)), TypeColor("SS"), TypeColor("SS"), Tint(TypeColor("SS"), 0.85), thMuted()
+                          swOff & " owes " & swWorks & " a shift   (" & id & ")", "Shift switch", st, _
+                          WhenText(swD), "S:" & id, CDbl(Int(swD)), TypeColor("SS"), stC, stF, thMuted()
                 End If
             End If
         Next i
+        NASort sr, nS
     End If
 
     ' D. leave returning soon, and anything open-ended
@@ -3843,7 +3853,7 @@ Public Sub DrawNeeds()
                   Array("Shift date", "Shift", "Crew", "Unit", "Posting", "Type", "Status", "Closes"))
     r = NARows(ws, r, pr, nP, "No open postings.")
     rowS = r
-    r = NASection(ws, r, "SHIFT SWITCH PAYBACKS OWED", nS, TypeColor("SS"), _
+    r = NASection(ws, r, "SHIFT SWITCH PAYBACKS OWED  -  oldest first; over " & PAYBACK_WARN_DAYS & " days in amber", nS, TypeColor("SS"), _
                   Array("Switch date", "Shift", "Crew", "Unit", "Owed", "Type", "Status", "When"))
     r = NARows(ws, r, sr, nS, "No paybacks owed.")
     rowB = r

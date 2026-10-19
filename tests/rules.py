@@ -1019,6 +1019,11 @@ def replace_name_token(txt: str, old: str, new: str) -> str:
 
 
 # ---------------------------------------------------------------- refused hours by kind (v24.1)
+def owed_status_text(days: int, warn_days: int) -> str:
+    """modShiftSwitch.OwedStatusText (v26): the Needs Attention status for a payback owed `days` days."""
+    return f"Payback owed {days} days" if days > warn_days else "Payback owed"
+
+
 def refused_bucket(typ: str) -> str:
     """modReports.RefusedBucket."""
     t = typ.strip().lower()

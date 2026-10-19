@@ -205,7 +205,9 @@ Public Sub DrawDesk()
              tileX, yy, IIf(nReady > 0, dkOrange(), 0)
     tileX = tileX + TILE_W + GAP
     If Not sup Then
-        DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed"), "modDesk.DeskSwitch", _
+        Dim nOver As Long: nOver = OwedOverdueCount()      ' v26 (payback aging): owed longer than PAYBACK_WARN_DAYS
+        DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed") & _
+                 IIf(nOver > 0, " (" & nOver & " overdue)", ""), "modDesk.DeskSwitch", _
                  tileX, yy, IIf(nOwed > 0, dkSwitch(), 0)
         tileX = tileX + TILE_W + GAP
     End If

@@ -514,8 +514,25 @@ Public Function OwedOlderThan(ByVal minDays As Long, ByRef txt As String) As Lon
     OwedOlderThan = n
 End Function
 
+' v26 (payback aging): how many owed paybacks are older than PAYBACK_WARN_DAYS (the Desk tile)
+Public Function OwedOverdueCount() As Long
+    Dim txt As String
+    OwedOverdueCount = OwedOlderThan(PAYBACK_WARN_DAYS, txt)
+End Function
+
+' v26 (payback aging): the Needs Attention status for a payback owed for `days` days.
+' Pure; mirrored (tests/rules.py owed_status_text, suite "payback").
+Public Function OwedStatusText(ByVal days As Long, ByVal warnDays As Long) As String
+    If days > warnDays Then
+        OwedStatusText = "Payback owed " & days & " days"
+    Else
+        OwedStatusText = "Payback owed"
+    End If
+End Function
+
 ' Switches still OWED a payback (original switches with no payback logged),
-' oldest first. 2-D array (rows x 6) for the pop-up list; ids() gets the IDs.
+' in table order (Needs Attention sorts them oldest first, v26). 2-D array
+' (rows x 6) for the pop-up list; ids() gets the IDs.
 Public Function OwedSwitches(ByRef ids As Variant) As Variant
     ids = Empty
     Dim v As Variant: v = SwitchData()

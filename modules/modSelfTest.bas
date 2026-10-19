@@ -203,6 +203,8 @@ Private Function RunCase(f() As String) As String
             RunCase = NumText(DeptCodeValue(Replace(i1, "_", " ")))
         Case "hourstext"                           ' v25: hours -> the text every message shows (no trailing point)
             RunCase = HoursText(Val(i1))
+        Case "payback"                             ' v26: days owed, warn days -> the Needs Attention status
+            RunCase = OwedStatusText(CLng(Val(i1)), CLng(Val(i2)))
         Case "typetag"                             ' v25: absence code -> calendar tag / what members get
             RunCase = TypeTag(i1) & "/" & PublicType(i1)
         Case "planid"                              ' v25: an Exempt note -> the planned move's ID it carries / none
@@ -1422,5 +1424,11 @@ Private Sub LoadCases()
     AddCase "viewmode,supervisor-who-is-desk-admin,boss,ann;boss,boss,boss;sue,,desk"
     AddCase "viewmode,not-a-supervisor,sam,ann;boss,boss,sue;tom,,user"
     AddCase "viewmode,empty-supervisor-list,sue,ann;boss,boss,,,user"
+    AddCase "payback,within-limit,10,42,,,,Payback owed"
+    AddCase "payback,at-the-limit,42,42,,,,Payback owed"
+    AddCase "payback,one-day-over,43,42,,,,Payback owed 43 days"
+    AddCase "payback,long-overdue,120,42,,,,Payback owed 120 days"
+    AddCase "payback,today,0,42,,,,Payback owed"
+    AddCase "payback,limit-zero-flags-one-day,1,0,,,,Payback owed 1 days"
 ' <<< CASES
 End Sub

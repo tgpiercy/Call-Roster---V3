@@ -9,7 +9,7 @@
 macro   | Refresh the roster formulas: Refused (I) now counts the pay periods up to the current one, so a refusal for a shift in a later period leaves I by design | RefreshRosterFormulas | confirm
 macro   | System check (expect 25 of 25 on v26.5, ThisWorkbook v26.5, frmEmployee + frmLeave v26.5) | SystemCheckOK
 macro   | Self test (expect 649 passed, 75 suites)                           | SelfTestOK
-manual  | KRONOS_PATH                                                       | In the VBA editor (Alt+F11), modOvertimeEntry near the top: point KRONOS_PATH at the Kronos EXPORT file (the "Employee Transactions and Totals" workbook), or at the folder the exports are saved in (ending in a backslash: the newest file is read; keep the folder for exports only). The pivot workbook still works but gives no per-period hours. Debug > Compile, Ctrl+S. Click Done.
+manual  | KRONOS_PATH                                                       | In the VBA editor (Alt+F11), modOvertimeEntry near the top: point KRONOS_PATH at the FOLDER the Kronos exports ("Employee Transactions and Totals") are saved in, ending in a backslash: the newest file is read, so keep that folder for exports only (decided Oct 19; a single file name works too). The pivot workbook still works but gives no per-period hours. Debug > Compile, Ctrl+S. Click Done.
 
 [4. Checks]
 macro   | Make a practice copy (it opens; leave it for the next rows)       | MakePracticeCopy | confirm

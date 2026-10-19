@@ -16,11 +16,10 @@ the month PDF masked) are BUILT and TAGGED, NOT installed: docs/INSTALL-v26.md t
 (v26.5 needs v26 first; both rebuild the members' template; v26.5 re-pastes ThisWorkbook, frmEmployee,
 frmLeave and MUST run RefreshRosterFormulas in group 3).
 
-Three things I still owe a decision on (ask me, recommended option first): (1) a call-out logged for a
-shift in a LATER pay period defers its refusal charges the same way as a posting (a charge carries its
-shift's period) - keep, or count call-outs at once? (2) the sign-up request files are named with the
-Windows login and sit in a folder every member can list - accept, or an access rule on the folder?
-(3) KRONOS_PATH: the exports' folder (newest file) or one fixed file name.
+Decided Oct 19 after the reviews (briefs/v26.5.md, the last section): one rule for call-outs and
+postings (a charge carries its shift's pay period and counts once that period starts); the sign-up
+files' login in a folder members can list is accepted for the beta; KRONOS_PATH = the exports' folder
+(newest file). Nothing is owed on v26.5.
 
 Then: install v26 + v26.5 on a copy, then the real roster; the first REAL export import is the test of
 the per-period hours (send me the "Premium hours per pay period" line). Alpha findings from Nov 1-15 =

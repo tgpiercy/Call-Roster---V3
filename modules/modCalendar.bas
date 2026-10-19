@@ -3153,9 +3153,9 @@ End Function
 '   staffed = scheduled - off + covered  <  minimum
 ' scheduled = the people on the crew that is on that shift holding a code
 ' in the unit (LoadEligible as of the date, CrewOn / CrewShiftOn: a DAYS
-' crew off on a plant holiday is not scheduled), plus anyone working a
-' switch that shift; off = booked off or sick for the shift (AbsentForShift)
-' or off in a switch; covered = the coverage lines a named person covers
+' crew off on a plant holiday is not scheduled); off = booked off or sick
+' on that shift (OffForStaffing) or off in a switch; covered = the coverage
+' lines a named person covers - a switch's own S/S line counts its worker
 ' (OPEN, NO TAKERS, POSTED and NCN add nobody). Shown on the calendar's
 ' date cell and in Needs Attention. Reads only; no rule changes.
 
@@ -3192,7 +3192,9 @@ Public Function MinStaffTable(Optional ByVal create As Boolean = False) As ListO
         If ws Is Nothing Then
             Dim was As Object: Set was = ActiveSheet
             Dim evWas As Boolean: evWas = Application.EnableEvents
+            Dim em As String, en As Long
             Application.EnableEvents = False                 ' review: made at open - no SheetActivate for the Add and the Activate back
+            On Error GoTo AddFailed
             UnlockStructure
             Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
             ws.Name = MINSTAFF_SHEET
@@ -3229,6 +3231,13 @@ Public Function MinStaffTable(Optional ByVal create As Boolean = False) As ListO
         If gDeskMode Then SetSheetVisible ws, xlSheetVeryHidden      ' review: an admin's Desk view hides the admin sheets (ApplyViewCore ran before)
     End If
     Set MinStaffTable = lo
+    Exit Function
+AddFailed:                                           ' re-review: events back on whatever failed, then the error goes up
+    en = Err.Number: em = Err.Description
+    On Error Resume Next
+    Application.EnableEvents = evWas
+    RelockStructure
+    Err.Raise en, , em
 End Function
 
 ' v26 (R4): the cells an admin may type into on the Min Staff sheet - Minimum and Note; everything else locked.
@@ -3336,7 +3345,7 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
             fb = ""                                         ' the roster crew as the fallback (no cell scan in CrewOn)
             If mShiftMap.Exists(nm) Then fb = CStr(mShiftMap(nm))
             onShift = (CrewShiftOn(CrewOn(nm, d, fb), d) = shiftLbl)
-            busy = mStaffBusy.Exists(nm)
+            If mStaffBusy Is Nothing Then busy = True Else busy = mStaffBusy.Exists(nm)    ' re-review: a sweep that failed half-way
             ' (review) the one WORKING a switch is not added here: every switch has its own S/S calendar line, which
             ' counts them below as a covered line; adding them here too counted every switch twice
             If onShift Then
@@ -3356,11 +3365,32 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
     For i = 1 To n
         rt = Trim$(slots(i).RightText)
         If rt <> "" Then
-            ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each
-            If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then covered = covered + UBound(Split(rt, " / ")) + 1
+            ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each; a
+            ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of a 12 h shift, rounded up
+            If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then covered = covered + CoveredCount(rt)
         End If
     Next i
 End Sub
+
+' v26 (re-review): how many people a covered-by text stands for: one per " / " part; a part ending in "Nh"
+' (a partial award) counts N / 12 of a person; the sum rounded up, at least 1
+Private Function CoveredCount(ByVal rt As String) As Long
+    Dim parts As Variant: parts = Split(rt, " / ")
+    Dim i As Long, part As String, p As Long, hrs As Double, total As Double
+    For i = LBound(parts) To UBound(parts)
+        part = Trim$(CStr(parts(i)))
+        hrs = 0
+        If LCase$(Right$(part, 1)) = "h" Then
+            p = InStrRev(part, " ")
+            If p > 0 Then
+                If IsNumeric(Mid$(part, p + 1, Len(part) - p - 1)) Then hrs = Val(Mid$(part, p + 1))
+            End If
+        End If
+        If hrs > 0 And hrs < USUAL_SHIFT_HOURS Then total = total + hrs / USUAL_SHIFT_HOURS Else total = total + 1
+    Next i
+    CoveredCount = CLng(-Int(-total))
+    If CoveredCount < 1 Then CoveredCount = 1
+End Function
 
 ' v26 (review): booked off or sick FOR THIS SHIFT, as the calendar draws it - a sick call sits on the shift it
 ' was booked for only; the 24 h window after it is an overtime-list rule (AbsentForShift), not a day off work
@@ -4821,7 +4851,7 @@ Public Sub CalShowDate(ByVal d As Date, Optional ByVal unit As String = "")
     If unit <> "" Then
         If Not UnitInGroup(unit, CalGroup()) Then MapWrite "Z2", GroupOfUnit(unit): moved = True
     End If
-    If moved Then MapWrite "Z8", ""
+    If moved Then MapWrite "Z8", "moved"              ' never equal to the Z7 counter (re-review: "" equals a never-marked map)
     ShowCalendar
     Exit Sub
 Oops:
@@ -5401,7 +5431,7 @@ Public Sub CalMenuGoto()
     If u <> "" Then
         If Not UnitInGroup(u, CalGroup()) Then MapWrite "Z2", GroupOfUnit(u): moved = True
     End If
-    If moved Then MapWrite "Z8", ""
+    If moved Then MapWrite "Z8", "moved"
     ShowCalendar
     On Error Resume Next
     Dim hit As Range

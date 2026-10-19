@@ -841,10 +841,9 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
                 If full Then
                     sd = CDate(lg(r, L_DATE))
                     keep = (Int(sd) >= Int(dFrom) And Int(sd) <= Int(dTo))
-                ElseIf SafeStr(lg(r, L_ENTRY)) <> "" And UCase$(Trim$(SafeStr(lg(r, L_STATUS)))) <> "VOID" Then
-                    If IsDate(lg(r, L_PERIOD)) Then
-                        sd = CDate(lg(r, L_PERIOD))
-                        keep = (Int(sd) >= Int(dFrom) And Int(sd) <= Int(dTo))
+                ElseIf SafeStr(lg(r, L_ENTRY)) <> "" And UCase$(SafeStr(lg(r, L_STATUS))) <> "VOID" Then   ' BuildLog's own tests
+                    If PeriodNumber(lg(r, L_PERIOD)) > 0 Then                 ' a date or a serial, as BuildLog's DateNumber reads it
+                        keep = (PeriodNumber(lg(r, L_PERIOD)) >= CLng(Int(dFrom)) And PeriodNumber(lg(r, L_PERIOD)) <= CLng(Int(dTo)))
                     End If
                 End If
                 If keep Then n = n + 1: idx(n) = r

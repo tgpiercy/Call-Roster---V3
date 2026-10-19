@@ -935,7 +935,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
     HelpAdd h, n, "Minimum staffing (admin)", _
         "The Min Staff sheet (admin) holds the minimum operators per unit and shift; blank = no minimum on that shift. For today and " & _
-        "the next 13 days the calendar's date cell shows a red SHORT line when a unit's day or night shift is below it, and Needs " & _
+        "the next 13 days the calendar's date cell shows a red N short flag when a unit's day or night shift is below it (click the date for which), and Needs " & _
         "Attention lists each short shift under BELOW MINIMUM STAFFING (double-click to open the calendar on that date). Staffed " & _
         "= the people on the crew that is on, holding a code in the unit, minus those booked off or sick for that shift or off in a " & _
         "switch, plus every coverage line a named person covers (a switch's own S/S line counts the one working it); an OPEN, " & _
@@ -946,8 +946,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "in red; a PDF goes beside the month calendars, then it asks whether to print. Nothing is changed: it is a picture of the " & _
         "calendar for the board in the control room."
     HelpAdd h, n, "Employee history (report)", _
-        "Employee history on the bar's FIND group or the Desk: part of a name, then a From and To date (the box opens on the roster year " & _
-        "to date), and the History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with " & _
+        "Employee history on the bar's FIND group or the Desk: part of a name, then a From and To date (the boxes open on the whole roster " & _
+        "year; the member-safe report takes the pay periods starting in the range, the full one the shift dates), and the History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with " & _
         "their place in the call order, postings, adjustments, the hours charged and a Why line on every charged row (for example Charged 21 h: 3rd " & _
         "called, Refused, 12 h offered x 1.75), then the charged hours per pay period and the total. An admin is asked for the full " & _
         "report (on the History Report (admin) tab: who logged each entry and when, a Why on every row, void rows struck through) or the " & _

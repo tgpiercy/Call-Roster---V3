@@ -23,12 +23,12 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v25.5 (Oct 18)"
-Public Const EXPECTED_RELEASE As String = "v25.5"
+Public Const SYS_VERSION As String = "System v26 (Oct 18)"
+Public Const EXPECTED_RELEASE As String = "v26"
 ' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
-Public Const WHATS_NEW As String = "The call-out pop-up: the person being called is the screen, one key per outcome (A R L U P), Call back for the left-message pile.|" & _
-                                   "Supervisors by login (the Desk, sick call, posting, award, print, Member View); Help tab from How do I ...; click a calendar line for its details.|" & _
-                                   "Keys: Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar, Ctrl+Shift+D the Desk."
+Public Const WHATS_NEW As String = "Employee history (FIND group, the Desk): one person, a date range, every entry with its place and a Why line, then the pay-period totals; a PDF.|" & _
+                                   "Why was I charged: click any OT Log row for the status bar line; the Refusals Report lists every charged row; members see it in My history.|" & _
+                                   "Board on the Calendar: the two-week board as a PDF. Minimum staffing: a red N short on a date cell and BELOW MINIMUM STAFFING on Needs Attention (admins set the minimums on the Min Staff sheet)."
 Private Const N_MODULES As Long = 25           ' v24.4: + modSmoke; v25.3: + modDesk
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v25.5"

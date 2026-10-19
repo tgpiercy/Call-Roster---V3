@@ -23,7 +23,7 @@ Option Explicit
 '     that have ended by that date are in Kronos, so they stop counting.
 ' ====================================================================
 
-Public Const KR_VERSION As String = "Kronos import v25.5 (Oct 18)"
+Public Const KR_VERSION As String = "Kronos import v26 (Oct 18)"
 Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
 Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)

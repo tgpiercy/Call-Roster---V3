@@ -173,7 +173,10 @@ Charged hours go into Refused, so they raise Total Hours.
 | A two-way swap pays back on the adjoining shift (nights given up, days paid back next morning) | Allowed: the shift given up was not worked, so the rest rule does not apply. |
 | The rotation looks wrong, for example the person is not on that shift | A warning. The supervisor can still save. |
 
-Needs Attention lists every payback still owed.
+Needs Attention lists every payback still owed, oldest first; one owed for more than 42 days (`PAYBACK_WARN_DAYS`) shows its age in red on amber, the Desk's tile says how many are overdue, and IntegrityCheck reports them (v26).
+
+### Minimum staffing (v26)
+The Min Staff sheet (admin) holds the minimum operators per unit and shift: Phosphine 2 (1 per train, which the roster cannot tell apart), Derivatives 3, Cypure 1, Material Handler 1, QC Derivatives 1, QC Gases 1 on days (the roster has no afternoon shift), Utilities 1 on days, SBP 1 on days; blank = no minimum on that shift. For today and the next 13 days a unit's shift is **short** when staffed is below the minimum, where staffed = the people on the crew that is on that shift who hold a code in the unit, minus those booked off, sick for that shift or off in a shift switch, plus every coverage line a named person covers (a switch's own S/S line counts the one working it; an OPEN, NO TAKERS, POSTED or NCN line adds nobody). A short shift shows a red SHORT line in the calendar's date cell and a row under BELOW MINIMUM STAFFING on Needs Attention. The check only reads; a short shift is fixed the usual way (a call-out, a posting, a switch).
 
 ## 10. Time off and privacy
 
@@ -291,7 +294,7 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | 2026 figures | They cover only what was logged from then on. |
 | First complete year | 2027 |
 | Paid sick days left | 5 minus the sick days used, and 0 once the person is waiting (over 5 combined), once a 4th occurrence has started, or once the 3rd occurrence has ended (they have worked a scheduled shift after its last sick day). |
-| Who sees the counts | The admin, on the Attendance sheet and in Needs Attention; and each member, as five counts on the Where I stand card for the name they pick (section 10). |
+| Who sees the counts | The admin, on the Attendance sheet and in Needs Attention; and each member, as five counts on the Where I stand card for the name they pick (section 10). The Attendance sheet also shows each person's last sick day and how the rule counted it (v26). |
 | What members see on the calendar | "Off" on the day. Never "Sick" or "Personal", no reasons. |
 | Known limit | Occurrences are grouped by the crew rotation. Shift switches are not taken into account. |
 
@@ -307,6 +310,8 @@ A person back from leave gets a top-up, so they do not return at the top of ever
 | Who can void | The admin, with Void Entry. A reason is required. |
 | Roster cells | Hours are never typed into the roster. The totals are formulas over the log. |
 | Refused by kind | Refused is one figure. For information it is also shown as call-out refusals, posting refusals and other (adjustments, opening balance), on the status bar for the selected person, in the members' file and in the Refusals Report. The parts always add up to Refused. |
+| Why was I charged (v26) | Every log row explains itself from its own fields: "Charged 21 h: 3rd called, Refused, 12 h offered x 1.75 (grade P2)", "Charged 21 h: #3 in call order, didn't sign up, posting hours 12 x 1.75 (grade P2)  (Posting - didn't sign up (#3, awarded #5))", "Not charged: accepted 12 h". It shows on the status bar when the row is selected, in the Refusals Report's second part, in the employee history report and, for charged rows, in the members' My history. It describes the row; the charge rules are the ones in section 7. |
+| Employee history (v26) | One person and a date range: every log row with its place in the call order, the outcome, the charge and the Why line, then the charged hours per pay period and the total. Supervisors draw the member-safe version (the members' My history columns); an admin may draw the full one with who logged each entry and when, void rows struck through. |
 | Name changes | Employee > Rename changes the name on the roster and in every table together: the log, postings, time off, switches, calendar lines, grade log, hours history and crew history. Hours do not change. Closed years keep the old name. |
 | Grade changes | A change to a unit code on the roster is logged with the old code, the new code, who and when. |
 
@@ -395,9 +400,10 @@ The steps are in docs/rollover-one-pager.md.
 | Roster | Everyone's hours and each unit's call order. A member can find their own name. |
 | Who's next | For a unit, date and shift in the next 14 days: who is free, in call order |
 | Calendar | Who is off and what needs cover, by month and unit. Leave shows as "Leave"; sick and personal days as "Off". |
-| Postings | Open postings with their closing dates and lists. With electronic sign-ups switched on, a Sign me up button. |
-| My history | For any name: this year's entries, outcomes and charges, by pay period, with Refused split into call-out, posting and other |
-| Where I stand | For the name picked with Find me: their call position in each unit, their open postings, and their five sick-time counts (section 10) |
+| Postings | Open postings with their closing dates and lists. With electronic sign-ups switched on, a Sign me up button. A member who moved unit shows no rank and no button on the old unit's list (v26). |
+| My history | For any name: this year's entries, outcomes and charges, by pay period, with Refused split into call-out, posting and other; since v26 each entry's place in the call order and a Why line for every charge, and a Print / PDF button |
+| Where I stand | For the name picked with Find me: their call position in each unit, **Am I next?** (the next shift they are listed for and their place; v26), their open postings, and their five sick-time counts (section 10) |
+| Larger type (v26) | A button on Home: every sheet at 130 % for the session |
 
 ## 18. Who can do what
 
@@ -416,12 +422,12 @@ The steps are in docs/rollover-one-pager.md.
 | Safeguard | What it does |
 |---|---|
 | Automatic save | The file saves after each entry, and again when it is closed. |
-| Daily backup | A dated copy is saved the first time an admin opens the live file each day. 30 days are kept. A backup, the frozen year-end file or a practice copy never takes that day's slot. |
+| Daily backup | A dated copy is saved the first time an admin opens the live file each day. 30 days are kept, of the daily copies and (v26) of the "Backup before ..." copies made before a people change. A backup, the frozen year-end file or a practice copy never takes that day's slot. SystemCheck says how many copies are kept and their size. |
 | Error log | A button or pop-up that fails part-way writes a line to the admin-only Error Log sheet (and a text file beside the roster) and shows "This didn't finish ... Error Log line N" instead of a code error. |
 | Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 19 steps (v25.5) through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos heading rule, a planted leave word stopping the publish, void, remove, integrity) and checks every total comes back. It never saves. |
 | One parser, one rule | Every date box reads through one parser; every rule (call order, who is free, closing, charging, the trim, the switch stops) lives in one module function the pop-ups call, with known answers in SelfTest. |
 | Checked changes | A change to the roster's layout is compared before and after. If the totals differ, saving is blocked. |
 | SystemCheck | Confirms the installed code is the right release and the data is in order. |
-| IntegrityCheck | Compares every roster total with the OT Log, and looks for typed numbers, missing formulas and duplicate IDs. It only reads. It runs each time an admin opens the file, and the result is on the roster's status line. |
+| IntegrityCheck | Compares every roster total with the OT Log, and looks for typed numbers, missing formulas, duplicate IDs and (v26) an ID counter below an archived year's highest number. It only reads. It runs each time an admin opens the file, and the result is on the roster's status line. |
 | Year-end checks | The rollover runs IntegrityCheck first and stops on any problem. It checks the frozen copy and the new roster before it saves. |
 | SelfTest | Runs known-answer cases against the rules. It writes nothing. |

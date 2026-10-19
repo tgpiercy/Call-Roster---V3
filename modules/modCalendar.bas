@@ -26,7 +26,7 @@ Public Const BOARD_SHEET As String = "Board"        ' v26: the two-week board (B
 Public Const BOARD_DAYS As Long = 14                 ' v26: today .. today + 13
 Private Const MAP_SHEET As String = "CalMap"
 Private Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v25.5 (Oct 18)"
+Public Const CAL_VERSION As String = "Calendar v26 (Oct 18)"
 ' v25.1.2: draw-time measurement (the v25.2 plan's step 1): seconds spent inside SlotsFor during the current
 ' draw, read by DrawCalendar / DrawNeeds for their breakdown lines (v25.5: the notes share is always 0 - no
 ' hover notes are made; the figure stays in the line so the numbers read the same)

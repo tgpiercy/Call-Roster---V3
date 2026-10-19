@@ -171,7 +171,8 @@ If any case fails, do not log on that file. Go back to your backup and report th
 | `BACKUP_FOLDER = ".\Backups"` | A subfolder of the roster's folder. It must already exist. |
 | `BACKUP_FOLDER = ""` | Backups are off. SystemCheck says so. |
 | A full path | That folder, for example a network folder |
-| How many are kept | 30 days (`BACKUP_KEEP_DAYS`). Older copies in that folder are deleted. |
+| How many are kept | 30 days (`BACKUP_KEEP_DAYS`). Older copies in that folder are deleted. **v26:** the "Backup before ..." copies beside the roster (saved before a rename, a removal, a planned move, the Home Unit set-up) are pruned at 30 days too, this roster's name only, by their exact name pattern; a copy whose stamp can't be read is never touched. |
+| What SystemCheck says (v26) | "Backups kept: N daily (M MB) in the backup folder, K pre-change (L MB) beside the roster; copies older than 30 days are removed on the first admin open of the day" |
 | If the folder cannot be reached | You get one warning. The roster opens as usual. |
 | Opening a backup to look at it | Fine. Since v24.3.1 a dated backup, the FINAL or a "Backup before" copy never takes that day's backup slot and Member View refuses to publish from it. Nothing you log in it reaches the roster. |
 
@@ -340,8 +341,12 @@ Restore the backup only if the reopened file is wrong.
 | Crew column (E) on the roster | Type the new crew. A box asks from which date; Cancel puts the old crew back. Earlier time off and switches stay on the old crew's shifts. |
 | **Full Access** | Puts the admin view back for a login on the admin list |
 | **Attendance** | Draws the sick and personal day sheet: one row per person, a column per occurrence, sorts and a filter |
-| **Refusals Report** (PRINT / PUBLISH) | Refused hours split into call-out and posting refusals, per person and per unit; printable, PDF |
-| Status bar (bottom left) | Click a roster row to see that person's Refused hours by kind |
+| **Refusals Report** (PRINT / PUBLISH) | Refused hours split into call-out and posting refusals, per person and per unit; printable, PDF. **v26:** a second part under the totals, "The charges behind the figures": one line per charged OT Log row with the sentence that explains it |
+| Status bar (bottom left) | Click a roster row to see that person's Refused hours by kind; **v26:** click an OT Log row to see why it was (or wasn't) charged |
+| **Employee history** (FIND group, the Desk; v26) | One person and a date range -> the History Report tab and a PDF: every log row with its call-order place, outcome, charge and Why line, then the pay-period totals. An admin picks **Full** (Logged by, When, Status, Void note, void rows struck through; the admin-only `History Report (admin)` tab) or **member-safe** (the members' My history columns, row for row); a supervisor gets member-safe only |
+| **Board** (Calendar's top row; v26) | The two-week board: today and the next 13 days, one page per unit group, PDF beside the month calendars, then print |
+| **Min Staff** sheet (v26) | The minimum operators per unit and shift (Unit, Shift, Minimum, Note). Made with the plant's numbers on an admin's first open after the install; type into Minimum and Note only; blank = no minimum on that shift. The calendar's date cells (a red SHORT line) and Needs Attention (BELOW MINIMUM STAFFING) flag a short shift for the next 14 days. It only reads. |
+| `RepairIdMarks` (Alt+F8; v26) | Raises the hidden ID counters (`IdMark_*`) to the highest number in the archived years and the live log when IntegrityCheck's IDs line says one is below an archive. It never lowers a counter. |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |
 | Employee > Move to unit with a later date | Plans the move. Nothing changes until the date; the first admin open on or after it asks "apply now?". Needs Attention > Planned unit moves cancels or applies one. |
 | `MakePracticeCopy`, `SmokeTest` (Alt+F8) | Section 3, step 14 |
@@ -372,6 +377,7 @@ IntegrityCheck reads the roster, the OT Log and the other tables. It reports any
 | Roster = log | PROBLEM | A pay-period cell, Refused, Provisional or Total that differs from what the OT Log gives |
 | Typed values | PROBLEM | A pay-period cell that holds a typed number, text, or no formula |
 | IDs | PROBLEM | An Entry ID used twice, the same posting, switch, absence or calendar-line ID on two rows, or a leave return logged twice |
+| IDs | PROBLEM (v26) | An ID counter (`IdMark_S`, `IdMark_P`, ..., the Entry ID counter) below an archived year's highest number: the next ID of that prefix could repeat an archived one. Fix: Alt+F8 > `RepairIdMarks`, then IntegrityCheck again. |
 | IDs | Check | One call-out or posting number covering rows with different dates, units or shifts |
 | Not on roster | Check | A name in this year's OT Log, an active booking or a coming switch that is not on the roster |
 | Postings | Check | An Open posting that already has log rows, a posting whose own list and the log disagree on hours charged, or list rows whose posting row is gone (a header deleted by hand) |

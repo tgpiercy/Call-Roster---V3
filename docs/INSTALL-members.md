@@ -28,10 +28,11 @@ At the network roll-out, change that one line to the members' folder. The commen
 1. **Home** shows "Updated <today's time> | Kronos data <date>".
 2. **Roster:** click a unit button. The list is in that unit's call order (1 = first). It matches the printed Call Out Roster for that unit. Click A - Z. Pick your name in Find me: your row is highlighted.
 3. **Who's next:** pick a unit, tomorrow and Days. The list matches what Log Call-Out shows in the master for that unit and shift.
-4. **Calendar:** pick this month and a unit. Off people and coverage lines appear. OPEN lines are red. Leave shows as "Leave", sick as "Sick", personal days as "Personal".
+4. **Calendar:** pick this month and a unit. Off people and coverage lines appear. OPEN lines are red. Leave shows as "Leave"; a sick call or a personal day shows as "Off" (v24.3.1).
 5. **Postings:** every open posting with its list.
-6. **My history:** pick a name: that person's entries this year and the pay-period totals.
+6. **My history:** pick a name: that person's entries this year with **Call order** and a **Why** line on every charged row (M3), and the pay-period totals. **Print / PDF** saves "History <name> <date>.pdf" beside the file.
 7. **Privacy:** Ctrl+F across the workbook (Options > Within: Workbook) for `@`, a phone number, `STD`, `PAR`, `LOA`, `WSIB`, `VOID`: nothing found.
+7a. **M3 (v26):** on Home, **Larger type** toggles every sheet to 130 % and back; with a name picked in Find me the card shows **Am I next?** (the next shift they are listed for and their place, or "Not listed in the next 14 days"). Postings: a member who moved unit shows "-" and "(not on this list now)" on the old unit's list, with no Sign me up. Who's next: `~` before the hours of a planned mover's estimate, with its legend.
 8. **Macros off:** close and reopen without enabling content. Roster shows A - Z with the filter arrows working.
 9. Next day in the master: Needs Attention shows "Members file: last published ...". Double-click it: it publishes again.
 
@@ -45,4 +46,6 @@ At the network roll-out, change that one line to the members' folder. The commen
 | The members' views look stale after a publish | Open the file with macros enabled once. It redraws on open. |
 
 ## When a later release changes the members' code
-The INSTALL note for that release says so. Open the TEMPLATE, Remove + Import `modMember`, re-paste `ThisWorkbook.txt` if it changed, Compile, Save. Then click Member View once in the master.
+The INSTALL note for that release says so. Open the TEMPLATE, Remove + Import `modMember`, re-paste `ThisWorkbook.txt` if it changed, Compile, Alt+F8 > BuildMemberTemplate, Save. Then click Member View once in the master. Since v24.4 the Install panel's `template` row does all of this.
+
+**v26 = Members M3 (Oct 18, 2026):** the template must be rebuilt (the master refuses an older one: "the template's code is Members M2.1 and this roster needs Members M3"). The tables grew: dLog has Kind, Call Order and Why; dPostList has Exempt; dNext has EstHrs; dMeta's "Signup folder" is relative (".\Signups" beside the members' file). The `PUBLISH_REASONS` setting is gone from the master.

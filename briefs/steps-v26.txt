@@ -1,0 +1,24 @@
+# Groups 3 and 4 of install-steps.txt for v26 (groups 1 and 2 are standard; tests/build_zip.py adds them,
+# the VERSION / EXPECT / MEMBER header, and the members' template step because member/ changed).
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+# The Roster Updater (v4.1) does not change. No form and no ThisWorkbook change (nothing re-pasted in the roster).
+
+[3. Run once]
+macro   | Rebuild the roster's bar (Employee history under Find a person) | ApplyRosterLayout
+macro   | System check (expect 25 of 25 on v26, ThisWorkbook v25.5, every form v25.5) | SystemCheckOK
+macro   | Self test (expect 644 passed, 74 suites)                           | SelfTestOK
+manual  | The Min Staff sheet                                               | After the reopen, Show everything, then the Min Staff tab (made on your first open with the plant's minimums: Phosphine 2/2, Derivatives 3/3, Cypure 1/1, Material Handler 1/1, QC Derivatives 1/1, QC Gases 1 days only, Utilities 1 days only, SBP 1 days only). Correct any Minimum cell (blank = no minimum on that shift); the Note cells are yours too. Nothing else on the sheet is typed into. Click Done.
+
+[4. Checks]
+macro   | Make a practice copy (it opens; leave it for the next rows)       | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY (19 steps)                                 | In the practice copy: Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, 19 steps. Then CLOSE THE COPY WITHOUT SAVING and come back to this sheet. Click Done.
+manual  | Needs Attention: paybacks and staffing                            | Needs Attention tab: SHIFT SWITCH PAYBACKS OWED is oldest first; a payback owed over 42 days reads "Payback owed N days" in red on amber (none today = fine). BELOW MINIMUM STAFFING lists each short unit / shift for the next 14 days, or "Every unit with a minimum is at or above it." Double-click a staffing row: the Calendar opens on that month. Click Done.
+manual  | The Calendar: the SHORT line and the Board                        | Calendar tab: a date in the next 14 days with a short shift shows a red SHORT line in its date cell (none = fine). Click Board (top row): the Board tab is drawn (one page per unit group, today .. +13, OPEN in red), "PDF saved" names the file, answer No to the printer. Click Done.
+manual  | Employee history (member-safe)                                    | OT Roster > FIND > Employee history: part of a name, the From / To boxes (OK, OK), answer No to Full: the History Report tab lists the person's entries with Call order and a Why line, then the pay-period totals. Save a PDF: Yes once (it names the file), close the box. Click Done.
+manual  | Employee history (full, admin)                                    | Employee history again for the same person, Yes to Full: the History Report (admin) tab adds Logged by, When, Status, Void note; void rows are struck through. Click Done.
+manual  | Why was I charged                                                 | OT Log tab: click a charged row: the status bar (bottom left) reads "<name>: <ref> <date> ... - Charged N h: ...". Refusals Report (all units, 1-current): under the totals, THE CHARGES BEHIND THE FIGURES lists one line per charged row with its sentence. Click Done.
+manual  | Attendance                                                        | Attendance: the last two columns are Last sick day and That day counted as (filled for anyone with a sick day logged). Click Done.
+macro   | Integrity check (expect no PROBLEM; the IDs line clean)           | IntegrityCheck
+manual  | System check: the backups line                                    | Alt+F8 > SystemCheck: "Backups kept: N daily (M MB) in the backup folder, K pre-change (L MB) beside the roster ...". Click Done.
+manual  | The members' file                                                 | Member View (publish), open Call Out Roster - Members.xlsm with the master closed, Enable Content. Home: Larger type toggles the zoom; pick a name in Find me: the card shows "Am I next?" with the next shift and place (or "Not listed in the next 14 days"). My history: the columns Call order and Why (every charged row has a sentence); Print / PDF saves a PDF beside the file. Postings: the lists as before. Close it. Click Done.
+manual  | A supervisor's login                                              | On a practice copy under a supervisor login: Employee history draws the member-safe report with no Full question; the Board draws; the FIND group (Find a person, Employee history) is on screen; no Min Staff, History Report (admin) or Refusal Report tab. If no such login can open a copy today, click Done and do this row when one can.

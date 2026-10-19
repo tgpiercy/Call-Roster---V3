@@ -1084,15 +1084,16 @@ def charge_why(typ: str, outcome: str, call_order: int, hours: float, charged: f
     o = outcome.strip().lower()
     oc = outcome.strip()
     grade_txt = "no code" if code.strip() == "" else f"grade {code.strip()}"
+    above_txt = "no code" if code.strip() == "" else f"{grade_txt} is above {hours_text(CHARGE_MAX_GRADE)}"
     mult = hours_text(CHARGE_MULTIPLIER)
     if t == "callout":
-        pos = f"{ordinal_text(call_order)} called, " if call_order > 0 else ""
+        pos = f"{ordinal_text(call_order)} on the call list, " if call_order > 0 else ""
         if charged != 0:
             return f"Charged {hours_text(charged)} h: {pos}{oc}, {hours_text(hours)} h offered x {mult} ({grade_txt})"
         if o == "accepted":
             return f"Not charged: {pos}accepted {hours_text(hours)} h"
         if o in ("refused", "left message") and dept_code_value(code) > CHARGE_MAX_GRADE:
-            return f"Not charged: {pos}{oc}, {grade_txt} is above {hours_text(CHARGE_MAX_GRADE)}"
+            return f"Not charged: {pos}{oc}, {above_txt}"
         return f"Not charged: {pos}{oc or 'no outcome'}"
     if t == "posting":
         pos = f"#{call_order} in call order, " if call_order > 0 else ""
@@ -1103,7 +1104,7 @@ def charge_why(typ: str, outcome: str, call_order: int, hours: float, charged: f
         if o == "signed up":
             return f"Not charged: {pos}signed up, not awarded"
         if o == "refused" and dept_code_value(code) > CHARGE_MAX_GRADE:
-            return f"Not charged: {pos}didn't sign up, {grade_txt} is above {hours_text(CHARGE_MAX_GRADE)}"
+            return f"Not charged: {pos}didn't sign up, {above_txt}"
         return f"Not charged: {pos}{oc or 'no outcome'}"
     head = typ.strip() or "Entry"
     sign = "+" if charged >= 0 else ""
@@ -1120,7 +1121,9 @@ def staff_short(scheduled: int, off: int, covered: int, minimum: int) -> str:
 
 def owed_status_text(days: int, warn_days: int) -> str:
     """modShiftSwitch.OwedStatusText (v26): the Needs Attention status for a payback owed `days` days."""
-    return f"Payback owed {days} days" if days > warn_days else "Payback owed"
+    if days <= warn_days:
+        return "Payback owed"
+    return f"Payback owed {days} {'day' if days == 1 else 'days'}"
 
 
 def refused_bucket(typ: str) -> str:

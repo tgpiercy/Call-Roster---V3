@@ -153,6 +153,25 @@ Public Function SwitchBatchActive() As Boolean
     SwitchBatchActive = mBatch
 End Function
 
+' v26 (the staffing sweep): the names on any non-void switch dated d1 .. d2 (the one off and the one
+' working), as a Dictionary (name -> True; case-insensitive). One read of the table.
+Public Function SwitchNamesBetween(ByVal d1 As Date, ByVal d2 As Date) As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1
+    Set SwitchNamesBetween = d
+    Dim v As Variant: v = SwitchData()
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long, nm As String
+    For i = 1 To UBound(v, 1)
+        If UCase$(SafeStr(v(i, SW_STATUS))) <> "VOID" And IsDate(v(i, SW_DATE)) Then
+            If Int(CDate(v(i, SW_DATE))) >= Int(d1) And Int(CDate(v(i, SW_DATE))) <= Int(d2) Then
+                nm = Trim$(SafeStr(v(i, SW_OFF))): If nm <> "" Then d(nm) = True
+                nm = Trim$(SafeStr(v(i, SW_WORKS))): If nm <> "" Then d(nm) = True
+            End If
+        End If
+    Next i
+End Function
+
 Private Function SwitchData() As Variant
     If mTestMode Then
         If IsArray(mTestRows) Then SwitchData = mTestRows
@@ -529,7 +548,7 @@ End Function
 ' Pure; mirrored (tests/rules.py owed_status_text, suite "payback").
 Public Function OwedStatusText(ByVal days As Long, ByVal warnDays As Long) As String
     If days > warnDays Then
-        OwedStatusText = "Payback owed " & days & " days"
+        OwedStatusText = "Payback owed " & days & IIf(days = 1, " day", " days")
     Else
         OwedStatusText = "Payback owed"
     End If

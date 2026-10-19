@@ -66,7 +66,6 @@ Private Const HIST_NAME As String = "B2"
 Private Const HOME_FIND As String = "C14"
 Private Const POST_PICK As String = "C2"           ' Postings: "show the list for"
 Private Const CARD_ROW As Long = 21                ' Home: the Where I stand card starts here
-Private mZoomBig As Boolean                        ' M3 (C2): Larger type is on (MemberZoomToggle)
 Private Const CAL_COLW As Double = 17              ' calendar: width of each half of a day
 Private Const CAL_MAX_LINES As Long = 6            ' calendar: lines shown per day half; the rest become "... and N more"
 Private Const US As String = "~|~"                 ' separators for the calendar's per-day line lists
@@ -374,6 +373,10 @@ Public Sub BuildMemberTemplate()
     LayoutPostings
     LayoutHistory
     MemberRefreshAll
+    For Each nm In Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)      ' M3: the template ships at 100 % (Larger type is per session)
+        ThisWorkbook.Worksheets(CStr(nm)).Activate
+        ActiveWindow.Zoom = 100
+    Next nm
     ThisWorkbook.Worksheets(SH_HOME).Activate
     Application.ScreenUpdating = True
     MsgBox "Template built (" & MEM_VERSION & "). Save it as 'Call Out Roster - Members TEMPLATE.xlsm' next to the master. " & _
@@ -2112,22 +2115,22 @@ Private Function NextForMe(ByVal who As String) As String
     End If
 End Function
 
-' M3 (C2) "Larger type": every view sheet at 130 % or back to 100 %, for this session (the file never saves).
-' (mZoomBig is declared at the module head: a variable after a procedure does not compile.)
+' M3 (C2) "Larger type": every view sheet at 130 % or back to 100 %, for this session (the file never saves)
 Public Sub MemberZoomToggle()
     On Error Resume Next
     Dim was As Worksheet: Set was = ActiveSheet
     Application.ScreenUpdating = False
-    mZoomBig = Not mZoomBig
+    Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
+    ws.Activate
+    Dim big As Boolean: big = (ActiveWindow.Zoom < 130)     ' the state is the window's zoom itself (review: no module flag to go stale)
     Dim nm As Variant
     For Each nm In Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)
         WsOf(CStr(nm)).Activate
-        ActiveWindow.Zoom = IIf(mZoomBig, 130, 100)
+        ActiveWindow.Zoom = IIf(big, 130, 100)
     Next nm
     If Not was Is Nothing Then was.Activate
-    Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
     UnprotectWs ws
-    Btn ws, "mb_zoom", IIf(mZoomBig, "Normal type", "Larger type"), "MemberZoomToggle", _
+    Btn ws, "mb_zoom", IIf(big, "Normal type", "Larger type"), "MemberZoomToggle", _
         ws.Range("B7").Left + 320, ws.Range("B7").Top + 54, 150, 44, LIGHT, INK
     ProtectWs ws
     Application.ScreenUpdating = True
@@ -2189,6 +2192,7 @@ Private Sub DrawHistory(ByVal nm As String)
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
     Dim yearTot As Double, ps As String, kCall As Double, kPost As Double, kOther As Double
     Dim hasM3 As Boolean: hasM3 = (UBound(v, 2) >= 13)
+    Dim kind As String
     For i = 1 To n
         out(i, 1) = Dt(v(idx(i), 1))
         out(i, 2) = Txt(v(idx(i), 2))
@@ -2203,7 +2207,8 @@ Private Sub DrawHistory(ByVal nm As String)
         ps = Format$(Dt(v(idx(i), 10)), "yyyy-mm-dd")
         totals(ps) = Num(totals(ps)) + Num(v(idx(i), 9))
         yearTot = yearTot + Num(v(idx(i), 9))
-        Select Case LCase$(IIf(hasM3, Txt(v(idx(i), 11)), ""))   ' M3: the master's Kind column (the bucket rule lives there)
+        If hasM3 Then kind = LCase$(Txt(v(idx(i), 11))) Else kind = ""    ' M3: the master's Kind column (the bucket rule lives there); not IIf (it reads column 11 either way)
+        Select Case kind
             Case "callout": kCall = kCall + Num(v(idx(i), 9))
             Case "posting": kPost = kPost + Num(v(idx(i), 9))
             Case Else: kOther = kOther + Num(v(idx(i), 9))

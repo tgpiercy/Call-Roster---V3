@@ -937,9 +937,9 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "The Min Staff sheet (admin) holds the minimum operators per unit and shift; blank = no minimum on that shift. For today and " & _
         "the next 13 days the calendar's date cell shows a red SHORT line when a unit's day or night shift is below it, and Needs " & _
         "Attention lists each short shift under BELOW MINIMUM STAFFING (double-click to open the calendar on that date). Staffed " & _
-        "= the people on the crew that is on, holding a code in the unit, minus those booked off or sick or off in a switch, plus " & _
-        "the ones working a switch and every coverage line a named person covers; an OPEN, NO TAKERS, POSTED or NCN line adds " & _
-        "nobody. It only reads: fix a short shift the usual way (a call-out, a posting, a switch)."
+        "= the people on the crew that is on, holding a code in the unit, minus those booked off or sick for that shift or off in a " & _
+        "switch, plus every coverage line a named person covers (a switch's own S/S line counts the one working it); an OPEN, " & _
+        "NO TAKERS, POSTED or NCN line adds nobody. It only reads: fix a short shift the usual way (a call-out, a posting, a switch)."
     HelpAdd h, n, "The two-week board", _
         "Board on the Calendar's top row (supervisors and admins): the Board tab is drawn for today and the next 13 days, one page " & _
         "per unit group, one row per date with the crews on and the Days and Nights lines as the calendar shows them, OPEN lines " & _
@@ -948,10 +948,10 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Employee history (report)", _
         "Employee history on the bar's FIND group or the Desk: part of a name, then a From and To date (the box opens on the roster year " & _
         "to date), and the History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with " & _
-        "their place in the call order, postings, adjustments, the hours charged and a Why line for each (for example Charged 21 h: 3rd " & _
+        "their place in the call order, postings, adjustments, the hours charged and a Why line on every charged row (for example Charged 21 h: 3rd " & _
         "called, Refused, 12 h offered x 1.75), then the charged hours per pay period and the total. An admin is asked for the full " & _
-        "report (who logged each entry and when, void rows struck through) or the member-safe one (the same columns the members' " & _
-        "file shows, so it matches My history there); a supervisor gets the member-safe one. Save a PDF as well? puts it in the " & _
+        "report (on the History Report (admin) tab: who logged each entry and when, a Why on every row, void rows struck through) or the " & _
+        "member-safe one (the same rows and columns the members' My history shows); a supervisor gets the member-safe one. Save a PDF as well? puts it in the " & _
         "reports folder (beside the roster until go-live). Click any OT Log row for its Why on the status bar."
     HelpAdd h, n, "Keyboard shortcuts", _
         "While the roster is the active workbook: Ctrl+Shift+S opens Sick Call, Ctrl+Shift+C the call-out, Ctrl+Shift+K the " & _

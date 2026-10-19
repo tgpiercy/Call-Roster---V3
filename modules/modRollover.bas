@@ -637,7 +637,7 @@ End Sub
 ' v26 (I8): the highest Ref ID number per prefix (into d) and the highest Entry ID (mxE)
 ' across every archived year's log (OT Log YYYY). Reads only. The marks must be at least
 ' these, or the next ID could repeat an archived one (IntegrityCheck's IDs line).
-Public Sub ArchiveMaxima(ByVal d As Object, ByRef mxE As Long, Optional ByRef sheets As String = "")
+Public Sub ArchiveMaxima(ByVal d As Object, ByRef mxE As Long, Optional ByRef arcList As String = "")
     Dim ws As Worksheet, lo As ListObject, v As Variant
     For Each ws In ThisWorkbook.Worksheets
         If ws.Name Like LOG_SHEET & " ####" Then
@@ -646,7 +646,7 @@ Public Sub ArchiveMaxima(ByVal d As Object, ByRef mxE As Long, Optional ByRef sh
                 If Not lo.DataBodyRange Is Nothing And lo.ListColumns.Count >= L_ENTRY Then
                     v = RangeTo2D(lo.DataBodyRange)
                     LogMaxima v, d, mxE
-                    sheets = sheets & IIf(sheets = "", "", ", ") & ws.Name
+                    arcList = arcList & IIf(arcList = "", "", ", ") & ws.Name
                 End If
             End If
         End If
@@ -662,8 +662,8 @@ Public Sub RepairIdMarks()
     If Not RequireWritable() Then Exit Sub
     Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
     d.CompareMode = 1
-    Dim mxE As Long, sheets As String, kk As Variant, was As Long, txt As String
-    ArchiveMaxima d, mxE, sheets
+    Dim mxE As Long, arcList As String, kk As Variant, was As Long, txt As String
+    ArchiveMaxima d, mxE, arcList
     Dim lo As ListObject: Set lo = LogTable()
     If Not lo Is Nothing Then
         If Not lo.DataBodyRange Is Nothing Then LogMaxima RangeTo2D(lo.DataBodyRange), d, mxE
@@ -684,7 +684,7 @@ Public Sub RepairIdMarks()
     End If
     If txt = "" Then
         MsgBox "Every ID counter is already at or above the highest number in " & _
-               IIf(sheets = "", "the OT Log (no archived year yet)", sheets & " and the OT Log") & ". Nothing changed.", _
+               IIf(arcList = "", "the OT Log (no archived year yet)", arcList & " and the OT Log") & ". Nothing changed.", _
                vbInformation, "Repair ID counters"
     Else
         SaveIfWritable

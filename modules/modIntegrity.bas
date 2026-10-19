@@ -452,17 +452,17 @@ Private Sub CheckIds()
     ' could repeat an archived one (the live log alone can't show it once the old rows have moved)
     Dim mx As Object: Set mx = CreateObject("Scripting.Dictionary")
     mx.CompareMode = 1
-    Dim mxE As Long, sheets As String, kk As Variant
-    ArchiveMaxima mx, mxE, sheets
+    Dim mxE As Long, arcList As String, kk As Variant
+    ArchiveMaxima mx, mxE, arcList
     For Each kk In mx.Keys
         If IdMark(CStr(kk)) < CLng(mx(kk)) Then
             AddIssue SEV_ERR, "IDs", "The ID counter for " & CStr(kk) & "- is " & Format$(IdMark(CStr(kk)), "0000") & _
-                     " but an archived year (" & sheets & ") holds " & CStr(kk) & "-" & Format$(CLng(mx(kk)), "0000") & _
+                     " but an archived year (" & arcList & ") holds " & CStr(kk) & "-" & Format$(CLng(mx(kk)), "0000") & _
                      ": the next " & CStr(kk) & "- ID could repeat an archived one", "Run RepairIdMarks (admin, Alt+F8), then IntegrityCheck again"
         End If
     Next kk
     If mxE > 0 And IdMark("ENTRY") < mxE Then
-        AddIssue SEV_ERR, "IDs", "The Entry ID counter is " & IdMark("ENTRY") & " but an archived year (" & sheets & ") holds #" & mxE & _
+        AddIssue SEV_ERR, "IDs", "The Entry ID counter is " & IdMark("ENTRY") & " but an archived year (" & arcList & ") holds #" & mxE & _
                  ": the next Entry ID could repeat an archived one", "Run RepairIdMarks (admin, Alt+F8), then IntegrityCheck again"
     End If
 End Sub

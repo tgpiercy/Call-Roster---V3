@@ -644,7 +644,7 @@ End Function
 
 ' v24.3.1: the calendar line's text as members may see it - "Smith P (Sick 8h)" becomes
 ' "Smith P (Off 8h)", a personal day the same; everything else as drawn
-Private Function PublicLeft(ByVal lt As String, ByVal code As String) As String
+Public Function PublicLeft(ByVal lt As String, ByVal code As String) As String     ' v26: the board prints it too
     Select Case UCase$(Trim$(code))
         Case "SIC": PublicLeft = Replace(lt, "(Sick", "(Off", 1, -1, vbTextCompare)
         Case "PER": PublicLeft = Replace(lt, "(Personal", "(Off", 1, -1, vbTextCompare)
@@ -877,7 +877,7 @@ Private Function PrivateDataIn(ByRef a As Variant, ByVal tableName As String) As
                     Exit Function
                 Case "phone"
                     PrivateDataIn = tableName & " row " & i & ", column " & j & ": looks like a phone number or an ID (" & _
-                                    MaskDigits(Left$(CStr(a(i, j)), 40)) & ")"
+                                    MaskDigits(Left$(CStr(a(i, j)), 40)) & "). A time range is written 0700-1900, never 700-1900."
                     Exit Function
                 Case "number"                      ' the value itself is not shown: it may be a Payroll #
                     PrivateDataIn = tableName & " row " & i & ", column " & j & ": a number of 7 or more digits (a Payroll # or a phone number?)"
@@ -935,8 +935,8 @@ Private Function DashedSeven(ByVal s As String) As Boolean
     Dim p As Long, before As String, after As String
     For p = 1 To Len(s) - 7
         If Mid$(s, p, 8) Like "###-####" Then
-            before = IIf(p > 1, Mid$(s, p - 1, 1), "")
-            after = IIf(p + 8 <= Len(s), Mid$(s, p + 8, 1), "")
+            If p > 1 Then before = Mid$(s, p - 1, 1) Else before = ""        ' not IIf: it evaluates Mid$(s, 0, 1) too (review)
+            If p + 8 <= Len(s) Then after = Mid$(s, p + 8, 1) Else after = ""
             If Not before Like "#" And Not after Like "#" Then DashedSeven = True: Exit Function
         End If
     Next p
@@ -987,7 +987,7 @@ End Function
 ' v24.3.1 (review M1): every piece of FREE TEXT the members' file carries is screened for a leave
 ' word - the calendar's Left and Right text (imported old-calendar lines are kept as written, a
 ' Need line's note and a "set by hand" covered-by are typed), a posting's Reason (printed,
-' emailed, drawn), and the log Note when PUBLISH_REASONS is on. Before this only the calendar's
+' emailed, drawn), and (v26) a charged log row's Why line, which carries its Note. Before this only the calendar's
 ' Left text was screened, and only for a bracketed code.
 Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef lg As Variant) As String
     Dim i As Long, t As String, w As String, onRight As Boolean

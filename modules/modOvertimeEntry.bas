@@ -1474,6 +1474,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     If SheetExists(CAL_SHEET) Then
         For Each shp In ThisWorkbook.Worksheets(CAL_SHEET).Shapes
             If Left$(shp.Name, 8) = "cal_adm_" Then shp.Visible = IIf(adminView, msoTrue, msoFalse)
+            If Left$(shp.Name, 8) = "cal_sup_" Then shp.Visible = IIf(supView, msoTrue, msoFalse)   ' v26: the Board button
         Next shp
     End If
     ProtectAll      ' v25: protects every sheet in every view
@@ -1602,10 +1603,11 @@ Public Sub AddRefMaxima(ByRef refs As Variant, ByVal d As Object)
         If twoD Then s = UCase$(Trim$(SafeStr(refs(i, 1)))) Else s = UCase$(Trim$(SafeStr(refs(i))))
         p = InStrRev(s, "-")
         If p > 1 And p < Len(s) Then
-            If IsNumeric(Mid$(s, p + 1)) Then
+            Dim tail As String: tail = Mid$(s, p + 1)
+            If Len(tail) <= 9 And tail Like String$(Len(tail), "#") Then      ' digits only, no overflow (review: IsNumeric takes "1E3")
                 pre = Left$(s, p - 1)
                 If IsPlainPrefix(pre) Then
-                    k = CLng(Val(Mid$(s, p + 1)))
+                    k = CLng(Val(tail))
                     If Not d.Exists(pre) Then
                         d.Add pre, k
                     ElseIf k > d(pre) Then

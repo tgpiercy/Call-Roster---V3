@@ -7,7 +7,7 @@ Option Explicit
 '  The members' workbook can't write to the master, and holds no rules.
 '  Its "Sign me up" / "Withdraw" buttons each drop ONE small text file
 '  into the inbox folder (SIGNUP_FOLDER, beside the members' file):
-'       P-0012__<login>__<yyyymmdd-hhmmss>.txt
+'       P-0012__<login>__<PC name>__<yyyymmdd-hhmmss>.txt   (the PC name since M3; older files had none)
 '       posting=P-0012
 '       employee=Smith, Joe
 '       hours=8            (blank = the whole shift)
@@ -333,7 +333,7 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
     summary = nTick & " electronic sign-up" & IIf(nTick = 1, "", "s") & " ticked" & IIf(nPart > 0, " (" & nPart & " partial)", "") & "." & _
               IIf(lateTxt <> "", "  AFTER CLOSING, not ticked: " & lateTxt & ".", "") & _
               IIf(outTxt <> "", "  Not on the list (out of department box): " & outTxt & ".", "") & _
-              IIf(wdTxt <> "", "  Withdrawn after signing, not ticked: " & wdTxt & ".", "") & _
+              IIf(wdTxt <> "", "  Withdrawn (newest file is a withdrawal), not ticked: " & wdTxt & ".", "") & _
               IIf(nUnknown > 0, "  " & nUnknown & " file(s) name someone who isn't on the roster: ignored.", "") & _
               IIf(skipped > 0, "  " & skipped & " file(s) couldn't be read: LOAD again in a minute.", "") & _
               "  Check them against the paper sheet."

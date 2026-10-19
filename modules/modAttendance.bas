@@ -649,7 +649,7 @@ Public Sub ShowAttendance()
     Next i
 
     ' ---- title, buttons, header ----
-    Dim nc As Long: nc = 3 + nOcc + 6
+    Dim nc As Long: nc = 3 + nOcc + 8                  ' v26: + Last sick day, That day counted as
     Dim cSick As Long: cSick = 3 + nOcc + 1
     ws.Range("A1").Value = "ATTENDANCE  -  sick and personal days (calendar year; " & PAID_SICK_DAYS & " paid sick in " & _
                            PAID_SICK_OCC & " occurrences, " & PERSONAL_DAYS & " personal; over " & COMBINED_LIMIT & _
@@ -673,6 +673,7 @@ Public Sub ShowAttendance()
     Next j
     heads(cSick) = "Sick days": heads(cSick + 1) = "Paid": heads(cSick + 2) = "Personal"
     heads(cSick + 3) = "Sick + personal": heads(cSick + 4) = "Status": heads(cSick + 5) = "Until / restarted"
+    heads(cSick + 6) = "Last sick day": heads(cSick + 7) = "That day counted as"     ' v26: LastReason surfaced
     ws.Range("A4").Resize(1, nc).Value = heads
     With ws.Range("A4").Resize(1, nc)
         .Font.Bold = True: .Interior.Color = RGB(230, 81, 0): .Font.Color = vbWhite
@@ -702,6 +703,13 @@ Public Sub ShowAttendance()
             Else
                 out(i, cSick + 5) = ""
             End If
+            ' v26: the newest sick shift and how the rule counted it (the sick-call preview's own words)
+            If sts(k).LastSick > 0 Then
+                out(i, cSick + 6) = Format$(sts(k).LastSick, "ddd mmm d, yyyy")
+                out(i, cSick + 7) = UCase$(Left$(sts(k).LastReason, 1)) & Mid$(sts(k).LastReason, 2)
+            Else
+                out(i, cSick + 6) = "": out(i, cSick + 7) = ""
+            End If
         Next i
         ws.Range("A5").Resize(n, 3 + nOcc).NumberFormat = "@"
         ws.Range(ws.Cells(5, cSick + 4), ws.Cells(4 + n, nc)).NumberFormat = "@"
@@ -730,6 +738,8 @@ Public Sub ShowAttendance()
     ws.Range(ws.Columns(cSick), ws.Columns(cSick + 3)).ColumnWidth = 10
     ws.Columns(cSick + 4).ColumnWidth = 24
     ws.Columns(cSick + 5).ColumnWidth = 22
+    ws.Columns(cSick + 6).ColumnWidth = 18
+    ws.Columns(cSick + 7).ColumnWidth = 44
     ws.Range(ws.Cells(5, cSick), ws.Cells(4 + IIf(n > 0, n, 1), cSick + 3)).HorizontalAlignment = xlCenter
     ws.Range(ws.Cells(5, 2), ws.Cells(4 + IIf(n > 0, n, 1), 2)).HorizontalAlignment = xlCenter
     ws.Range("A4").Resize(IIf(n > 0, n, 1) + 1, nc).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)

@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M2.1 (Jan 5)"
+Public Const MEM_VERSION As String = "Members M3 (Oct 18)"
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -66,6 +66,7 @@ Private Const HIST_NAME As String = "B2"
 Private Const HOME_FIND As String = "C14"
 Private Const POST_PICK As String = "C2"           ' Postings: "show the list for"
 Private Const CARD_ROW As Long = 21                ' Home: the Where I stand card starts here
+Private mZoomBig As Boolean                        ' M3 (C2): Larger type is on (MemberZoomToggle)
 Private Const CAL_COLW As Double = 17              ' calendar: width of each half of a day
 Private Const CAL_MAX_LINES As Long = 6            ' calendar: lines shown per day half; the rest become "... and N more"
 Private Const US As String = "~|~"                 ' separators for the calendar's per-day line lists
@@ -404,6 +405,7 @@ Private Sub LayoutHome()
     Btn ws, "mb_cal", "CALENDAR", "MemberGoCalendar", lft + 320, top, 150, 44, RGB(31, 56, 100), vbWhite
     Btn ws, "mb_post", "OPEN POSTINGS", "MemberGoPostings", lft, top + 54, 150, 44, RGB(93, 64, 55), vbWhite
     Btn ws, "mb_hist", "MY HISTORY", "MemberGoHistory", lft + 160, top + 54, 150, 44, RGB(106, 27, 154), vbWhite
+    Btn ws, "mb_zoom", "Larger type", "MemberZoomToggle", lft + 320, top + 54, 150, 44, LIGHT, INK     ' M3 (C2)
     Picker ws, HOME_FIND, "", "Find me:"
     ws.Range(HOME_FIND).ColumnWidth = 26
     ' 26 points clear of the box: Excel draws the drop-down arrow just outside its right edge
@@ -520,8 +522,42 @@ Private Sub LayoutHistory()
     ws.Columns("F").ColumnWidth = 14
     ws.Columns("G").ColumnWidth = 12
     ws.Columns("H").ColumnWidth = 14
+    ws.Columns("I").ColumnWidth = 11
+    ws.Columns("J").ColumnWidth = 62                     ' M3: the Why line
     Picker ws, HIST_NAME, "", "Name:"
+    ' M3: the same rows as the master's member-safe history report, printable from here too
+    Btn ws, "mb_hist_pdf", "Print / PDF", "MemberHistoryPrint", ws.Range("E2").Left, ws.Range("E2").Top - 1, 90, 20, NAVY, vbWhite
     ProtectWs ws
+End Sub
+
+' M3: My history as a PDF beside this file ("History <name> <date>.pdf"), then "print as well?"
+Public Sub MemberHistoryPrint()
+    Dim ws As Worksheet: Set ws = WsOf(SH_HIST)
+    Dim nm As String: nm = Txt(ws.Range(HIST_NAME).Value)
+    If nm = "" Then MsgBox "Pick a name above first.", vbInformation, "My history": Exit Sub
+    Dim pdfPath As String, em As String
+    pdfPath = ThisWorkbook.Path & Application.PathSeparator & "History " & SafeName(Replace(nm, " ", "_")) & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
+    On Error Resume Next
+    With ws.PageSetup
+        .Orientation = xlLandscape
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = False
+    End With
+    ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=pdfPath, Quality:=xlQualityStandard, _
+        IncludeDocProperties:=False, IgnorePrintAreas:=False, OpenAfterPublish:=False
+    If Err.Number <> 0 Then em = Err.Description
+    Err.Clear
+    If em <> "" Then
+        MsgBox "The PDF couldn't be saved here (" & em & "). Print instead?", vbExclamation, "My history"
+    Else
+        MsgBox "PDF saved: " & pdfPath, vbInformation, "My history"
+    End If
+    If MsgBox("Print My history as well?", vbYesNo + vbQuestion, "My history") = vbYes Then
+        ws.PrintOut Copies:=1
+        If Err.Number <> 0 Then MsgBox "It couldn't be printed: " & Err.Description, vbExclamation, "My history"
+    End If
+    On Error GoTo 0
 End Sub
 
 
@@ -1061,7 +1097,7 @@ Public Sub MemberShowNext()
     ClearBelow ws, 4
     Header ws, 5, Array("#", "Name", "Crew", "Code", "Total")
     Dim v As Variant: v = Data("dNext")
-    Dim i As Long, n As Long, out() As Variant
+    Dim i As Long, n As Long, out() As Variant, anyEst As Boolean
     If IsArray(v) And unit <> "" And dTxt <> "" And sh <> "" Then
         ReDim out(1 To UBound(v, 1), 1 To 5)
         For i = 2 To UBound(v, 1)
@@ -1070,12 +1106,16 @@ Public Sub MemberShowNext()
                 n = n + 1
                 out(n, 1) = Num(v(i, 4)): out(n, 2) = Txt(v(i, 5)): out(n, 3) = "": out(n, 4) = Txt(v(i, 8))
                 out(n, 5) = HoursText(v(i, 6), v(i, 7))
+                If UBound(v, 2) >= 9 Then                     ' M3 (M8): a planned mover's estimated hours, with ~ as the master shows them
+                    If StrComp(Txt(v(i, 9)), "Yes", vbTextCompare) = 0 Then out(n, 5) = "~" & NumTxt(Num(v(i, 6))): anyEst = True
+                End If
             End If
         Next i
     End If
     ws.Range("A3").Value = IIf(n = 0, "Nobody free", n & " free") & " for " & unit & ", " & dTxt & ", " & sh & _
                            ".  Order: grade code, then total hours, then plant seniority.  (as of " & _
-                           Format$(Dt(Meta("Published at")), "mmm d h:mm AM/PM") & ")"
+                           Format$(Dt(Meta("Published at")), "mmm d h:mm AM/PM") & ")" & _
+                           IIf(anyEst, "   ~ = estimated hours after a planned unit move.", "")
     If n > 0 Then
         ' crew from the roster
         Dim rv As Variant: rv = Data("dRoster")
@@ -1144,19 +1184,39 @@ Private Function LineColour(ByVal code As String) As Long
     End Select
 End Function
 
-' The month shown, as its first day (0 = can't be read)
+' The month shown, as its first day (0 = can't be read). M3 (M13): the label is matched against the
+' published dates' own "mmm yyyy" labels - never CDate on a plant PC whose locale may read it differently.
 Private Function CalMonthStart(ByVal ws As Worksheet) As Date
     Dim mTxt As String: mTxt = Txt(ws.Range(CAL_MONTH).Value)
     Dim m0 As Date
     If VarType(ws.Range(CAL_MONTH).Value) = vbDate Then
         m0 = ws.Range(CAL_MONTH).Value
     ElseIf mTxt <> "" Then
-        On Error Resume Next
-        m0 = CDate("1 " & mTxt)
-        If m0 = 0 Then m0 = CDate(mTxt)
-        On Error GoTo 0
+        Dim v As Variant: v = Data("dCal")
+        Dim i As Long, d As Date
+        If IsArray(v) Then
+            For i = 2 To UBound(v, 1)
+                d = Dt(v(i, 1))
+                If d <> 0 Then
+                    If StrComp(Format$(d, "mmm yyyy"), mTxt, vbTextCompare) = 0 Then m0 = d: Exit For
+                End If
+            Next i
+        End If
+        If m0 = 0 Then m0 = MonthFromLabel(mTxt)             ' a month with no published line at all
     End If
     If m0 <> 0 Then CalMonthStart = DateSerial(Year(m0), Month(m0), 1)
+End Function
+
+' "Oct 2026" -> Oct 1, 2026 by the English month names the picker itself was filled with (0 = not one)
+Private Function MonthFromLabel(ByVal mTxt As String) As Date
+    Dim parts As Variant: parts = Split(Trim$(mTxt), " ")
+    If UBound(parts) <> 1 Then Exit Function
+    Dim m As Long, k As Long
+    For k = 1 To 12
+        If StrComp(Left$(MonthName(k, True), 3), Left$(CStr(parts(0)), 3), vbTextCompare) = 0 Then m = k: Exit For
+    Next k
+    If m = 0 Or Not IsNumeric(parts(1)) Then Exit Function
+    MonthFromLabel = DateSerial(CLng(parts(1)), m, 1)
 End Function
 
 ' One day's lines for the group: each line = left US right US colour-code, joined
@@ -1427,6 +1487,8 @@ End Function
 
 ' The person's place on a posting's published list: their rank (1 = first), 0 = not
 ' on the list. signedTxt = what the master published for them ("" / "Yes" / "8 h").
+' The person's rank on a posting's published list; 0 = not on it; -1 (M3) = on it but EXEMPT (moved unit
+' or left: the master never charges them on it and they can't sign up for it here)
 Private Function MyPlace(ByRef l As Variant, ByVal postId As String, ByVal nm As String, ByRef signedTxt As String) As Long
     signedTxt = ""
     If Not IsArray(l) Then Exit Function
@@ -1434,10 +1496,16 @@ Private Function MyPlace(ByRef l As Variant, ByVal postId As String, ByVal nm As
     For j = 2 To UBound(l, 1)
         If StrComp(Txt(l(j, 1)), postId, vbTextCompare) = 0 And StrComp(Txt(l(j, 3)), nm, vbTextCompare) = 0 Then
             If UBound(l, 2) >= 5 Then signedTxt = Txt(l(j, 5))
+            If IsExemptRow(l, j) Then MyPlace = -1: Exit Function
             MyPlace = CLng(Num(l(j, 2)))
             Exit Function
         End If
     Next j
+End Function
+
+' M3: the Exempt column of a dPostList row ("Yes" = moved unit / left; no reason is published)
+Private Function IsExemptRow(ByRef l As Variant, ByVal j As Long) As Boolean
+    If UBound(l, 2) >= 6 Then IsExemptRow = (StrComp(Txt(l(j, 6)), "Yes", vbTextCompare) = 0)
 End Function
 
 ' The newest sign-up file this person has in the inbox for a posting (their own
@@ -1575,6 +1643,8 @@ Public Sub MemberShowPostings()
             placeTxt = ""
             If place > 0 Then
                 placeTxt = "#" & place & " on the list"
+            ElseIf place < 0 Then
+                placeTxt = "not on this list now (moved unit)"     ' M3: an Exempt row - no rank, no Sign me up
             ElseIf meRow > 0 Then
                 codeCol = UnitCodeCol(Txt(p(k, 2)))
                 If codeCol > 0 Then
@@ -1597,7 +1667,7 @@ Public Sub MemberShowPostings()
                 ws.Cells(r, 7).Value = Format$(Dt(p(k, 8)), "ddd mmm d") & " " & CloseTime() & IIf(isClosed, " (closed)", "")
                 ws.Cells(r, 8).Value = statusTxt
                 ws.Rows(r).RowHeight = 19
-                If SignupsOn() And Not isClosed Then
+                If SignupsOn() And Not isClosed And place >= 0 Then     ' M3: no button on an Exempt row
                     If isSigned Then
                         Btn ws, "mb_su" & nMine, "Withdraw", "'MemberWithdraw """ & idTxt & """'", _
                             ws.Cells(r, 9).Left + 2, ws.Cells(r, 9).Top + 2, 72, 15, LIGHT, INK
@@ -1667,8 +1737,14 @@ Public Sub MemberShowPostings()
         If IsArray(l) Then
             For j = 2 To UBound(l, 1)
                 If StrComp(Txt(l(j, 1)), pick, vbTextCompare) = 0 Then
-                    If Num(l(j, 2)) > 0 Then ws.Cells(r, 1).Value = Num(l(j, 2)) Else ws.Cells(r, 1).Value = "out of dept"
-                    ws.Cells(r, 2).Value = Txt(l(j, 3))
+                    If IsExemptRow(l, j) Then                      ' M3: moved unit / left - on the paper list, no rank here
+                        ws.Cells(r, 1).Value = "-"
+                        ws.Cells(r, 2).Value = Txt(l(j, 3)) & "  (not on this list now)"
+                        ws.Cells(r, 2).Font.Color = RGB(130, 130, 130)
+                    Else
+                        If Num(l(j, 2)) > 0 Then ws.Cells(r, 1).Value = Num(l(j, 2)) Else ws.Cells(r, 1).Value = "out of dept"
+                        ws.Cells(r, 2).Value = Txt(l(j, 3))
+                    End If
                     If Txt(l(j, 4)) <> "" Then ws.Cells(r, 3).Value = Num(l(j, 4))
                     If UBound(l, 2) >= 5 Then ws.Cells(r, 4).Value = Txt(l(j, 5))
                     ws.Cells(r, 1).HorizontalAlignment = xlCenter
@@ -1754,8 +1830,21 @@ Private Sub SendSignup(ByVal postId As String, ByVal action As String)
     Const TTL As String = "Overtime posting"
     Dim who As String: who = WhoAmI()
     If who = "" Then MsgBox "Pick your name in Find me on the Home sheet first.", vbInformation, TTL: Exit Sub
+    If RosterRowOf(Data("dRoster"), who) = 0 Then       ' M3 (M11): a typed "me" the roster doesn't know is never sent
+        MsgBox "'" & who & "' isn't on the published roster, so nothing was sent. Pick your name from the Find me list on the Home sheet.", vbExclamation, TTL
+        Exit Sub
+    End If
     If Not SignupsOn() Then MsgBox "Sign-up from this file isn't switched on. Sign up on the posted paper sheet.", vbInformation, TTL: Exit Sub
+    ' M3 (M10): the inbox folder is published as the setting reads (".\Signups" = beside this file), resolved here
     Dim folder As String: folder = Txt(Meta("Signup folder"))
+    If folder = "." Then
+        folder = ThisWorkbook.Path
+    ElseIf Left$(folder, 2) = ".\" Then
+        folder = ThisWorkbook.Path & Mid$(folder, 2)
+    End If
+    If folder <> "" Then
+        If Right$(folder, 1) <> Application.PathSeparator Then folder = folder & Application.PathSeparator
+    End If
     Dim ok As Boolean
     On Error Resume Next
     If folder <> "" Then ok = (Len(Dir$(folder, vbDirectory)) > 0)
@@ -1802,12 +1891,13 @@ Private Sub SendSignup(ByVal postId As String, ByVal action As String)
 
     ' one new file; never an existing one
     Dim login As String: login = SafeName(Environ$("USERNAME"))
+    Dim pc As String: pc = SafeName(Environ$("COMPUTERNAME"))      ' M3 (M12): two PCs on one login never share a name
     Dim stamp As Date: stamp = Now
     Dim path As String, n As Long, ff As Integer, em As String
-    path = folder & UCase$(postId) & "__" & login & "__" & Format$(stamp, "yyyymmdd-hhnnss") & ".txt"
+    path = folder & UCase$(postId) & "__" & login & "__" & pc & "__" & Format$(stamp, "yyyymmdd-hhnnss") & ".txt"
     Do While Len(Dir$(path)) > 0 And n < 20
         n = n + 1
-        path = folder & UCase$(postId) & "__" & login & "__" & Format$(stamp, "yyyymmdd-hhnnss") & "-" & n & ".txt"
+        path = folder & UCase$(postId) & "__" & login & "__" & pc & "__" & Format$(stamp, "yyyymmdd-hhnnss") & "-" & n & ".txt"
     Loop
     On Error GoTo Failed
     ff = FreeFile
@@ -1894,6 +1984,7 @@ Private Sub DrawHomeCard()
         End If
     Next i
     CardLine ws, r, "Call position", IIf(posTxt = "", "(no unit code on file)", posTxt)
+    CardLine ws, r, "Am I next?", NextForMe(who), True             ' M3 (C2): the next shift they are listed for
     r = r + 1
 
     ' sick time: counts only (decided Oct 12, 2026) - never a date of a sick day
@@ -1932,6 +2023,8 @@ Private Sub DrawHomeCard()
             placeTxt = ""
             If place > 0 Then
                 placeTxt = "#" & place & " on the list"
+            ElseIf place < 0 Then
+                placeTxt = ""                                  ' M3: Exempt - not one they can sign up for
             Else
                 codeCol = UnitCodeCol(Txt(p(i, 2)))
                 If codeCol > 0 And codeCol <= UBound(rv, 2) Then
@@ -1987,6 +2080,61 @@ Finish:
 End Sub
 
 
+' M3 (C2) "Am I next?": the earliest published shift (dNext, the master's Who's next window) this person is
+' listed for, with their place: "Tue Oct 21 Days, Phosphine - you are #2 of 9" (~ = an estimate after a
+' planned unit move). No rule: the master worked the order out.
+Private Function NextForMe(ByVal who As String) As String
+    Dim nv As Variant: nv = Data("dNext")
+    Dim i As Long, best As Long, d As Date, bestD As Date, bestN As Long, bestU As String, bestSh As String
+    Dim hasEst As Boolean
+    If IsArray(nv) Then hasEst = (UBound(nv, 2) >= 9)
+    If IsArray(nv) Then
+        For i = 2 To UBound(nv, 1)
+            If StrComp(Txt(nv(i, 5)), who, vbTextCompare) = 0 Then
+                d = Dt(nv(i, 2))
+                If best = 0 Or d < bestD Or (d = bestD And Txt(nv(i, 3)) = "Days" And bestSh = "Nights") Then
+                    best = i: bestD = d: bestU = Txt(nv(i, 1)): bestSh = Txt(nv(i, 3))
+                End If
+            End If
+        Next i
+    End If
+    If best = 0 Then
+        NextForMe = "Not listed in the next " & Txt(Meta("Who's next days")) & " days (not free, or no unit code)."
+        Exit Function
+    End If
+    For i = 2 To UBound(nv, 1)                              ' how many are listed on that shift
+        If StrComp(Txt(nv(i, 1)), bestU, vbTextCompare) = 0 And Int(Dt(nv(i, 2))) = Int(bestD) And _
+           StrComp(Txt(nv(i, 3)), bestSh, vbTextCompare) = 0 Then bestN = bestN + 1
+    Next i
+    NextForMe = Format$(bestD, "ddd mmm d") & " " & bestSh & ", " & bestU & "  -  you are #" & NumTxt(Num(nv(best, 4))) & " of " & bestN
+    If hasEst Then
+        If StrComp(Txt(nv(best, 9)), "Yes", vbTextCompare) = 0 Then NextForMe = NextForMe & "  (~ estimated hours after a planned unit move)"
+    End If
+End Function
+
+' M3 (C2) "Larger type": every view sheet at 130 % or back to 100 %, for this session (the file never saves).
+' (mZoomBig is declared at the module head: a variable after a procedure does not compile.)
+Public Sub MemberZoomToggle()
+    On Error Resume Next
+    Dim was As Worksheet: Set was = ActiveSheet
+    Application.ScreenUpdating = False
+    mZoomBig = Not mZoomBig
+    Dim nm As Variant
+    For Each nm In Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)
+        WsOf(CStr(nm)).Activate
+        ActiveWindow.Zoom = IIf(mZoomBig, 130, 100)
+    Next nm
+    If Not was Is Nothing Then was.Activate
+    Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
+    UnprotectWs ws
+    Btn ws, "mb_zoom", IIf(mZoomBig, "Normal type", "Larger type"), "MemberZoomToggle", _
+        ws.Range("B7").Left + 320, ws.Range("B7").Top + 54, 150, 44, LIGHT, INK
+    ProtectWs ws
+    Application.ScreenUpdating = True
+    MarkClean
+End Sub
+
+
 ' ====================================================================
 '  MY HISTORY
 ' ====================================================================
@@ -2008,15 +2156,10 @@ Private Sub DrawHistory(ByVal nm As String)
         ProtectWs ws: MarkClean: Application.ScreenUpdating = True: Application.EnableEvents = evWas: Exit Sub
     End If
     Dim v As Variant: v = Data("dLog")
-    Dim hasNote As Boolean
-    If IsArray(v) Then hasNote = (UBound(v, 2) >= 11)      ' Note is published only when the master says so
-    Dim nc As Long: nc = IIf(hasNote, 9, 8)
-    If hasNote Then
-        Header ws, 5, Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Outcome", "Charged", "Pay period", "Note")
-        ws.Columns("I").ColumnWidth = 36
-    Else
-        Header ws, 5, Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Outcome", "Charged", "Pay period")
-    End If
+    ' M3: dLog carries Kind, Call Order and Why (the master's charge sentence for a charged row); no rule is
+    ' worked out here. The same columns as the master's member-safe history report, row for row.
+    Dim nc As Long: nc = 10
+    Header ws, 5, Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Call order", "Outcome", "Charged", "Pay period", "Why")
     Dim perDays As Long: perDays = CLng(Num(Meta("Pay period days")))
     If perDays <= 0 Then perDays = 14
     Dim r As Long: r = 6
@@ -2045,20 +2188,22 @@ Private Sub DrawHistory(ByVal nm As String)
     Dim out() As Variant: ReDim out(1 To n, 1 To nc)
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
     Dim yearTot As Double, ps As String, kCall As Double, kPost As Double, kOther As Double
+    Dim hasM3 As Boolean: hasM3 = (UBound(v, 2) >= 13)
     For i = 1 To n
         out(i, 1) = Dt(v(idx(i), 1))
         out(i, 2) = Txt(v(idx(i), 2))
         out(i, 3) = Txt(v(idx(i), 3))
         out(i, 4) = Txt(v(idx(i), 4)) & " / " & Txt(v(idx(i), 5))
         out(i, 5) = Num(v(idx(i), 6))
-        out(i, 6) = Txt(v(idx(i), 8))
-        out(i, 7) = Num(v(idx(i), 9))
-        out(i, 8) = Format$(Dt(v(idx(i), 10)), "mmm d")
-        If hasNote Then out(i, 9) = Txt(v(idx(i), 11))
+        If hasM3 Then out(i, 6) = Txt(v(idx(i), 12))
+        out(i, 7) = Txt(v(idx(i), 8))
+        out(i, 8) = Num(v(idx(i), 9))
+        out(i, 9) = Format$(Dt(v(idx(i), 10)), "mmm d")
+        If hasM3 Then out(i, 10) = Txt(v(idx(i), 13))
         ps = Format$(Dt(v(idx(i), 10)), "yyyy-mm-dd")
         totals(ps) = Num(totals(ps)) + Num(v(idx(i), 9))
         yearTot = yearTot + Num(v(idx(i), 9))
-        Select Case LCase$(Txt(v(idx(i), 3)))              ' M2: Refused by kind
+        Select Case LCase$(IIf(hasM3, Txt(v(idx(i), 11)), ""))   ' M3: the master's Kind column (the bucket rule lives there)
             Case "callout": kCall = kCall + Num(v(idx(i), 9))
             Case "posting": kPost = kPost + Num(v(idx(i), 9))
             Case Else: kOther = kOther + Num(v(idx(i), 9))
@@ -2067,14 +2212,17 @@ Private Sub DrawHistory(ByVal nm As String)
     With ws.Range(ws.Cells(6, 1), ws.Cells(5 + n, nc))
         .Value = out
         .RowHeight = 17
+        .VerticalAlignment = xlTop
         .Borders(xlInsideHorizontal).LineStyle = xlContinuous
         .Borders(xlInsideHorizontal).Color = RGB(228, 232, 238)
     End With
     ws.Range(ws.Cells(6, 1), ws.Cells(5 + n, 1)).NumberFormat = "ddd mmm d"
-    ws.Range(ws.Cells(6, 5), ws.Cells(5 + n, 5)).HorizontalAlignment = xlCenter
-    ws.Range(ws.Cells(6, 7), ws.Cells(5 + n, 7)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(6, 5), ws.Cells(5 + n, 6)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(6, 8), ws.Cells(5 + n, 8)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(6, 10), ws.Cells(5 + n, 10)).WrapText = True
+    ws.Range(ws.Rows(6), ws.Rows(5 + n)).AutoFit
     r = 5 + n + 2
-    Header ws, r, Array("Pay period", "Charged hours", "", "", "", "", "", "")
+    Header ws, r, Array("Pay period", "Charged hours", "", "", "", "", "", "", "", "")
     r = r + 1
     Dim keys As Variant: keys = totals.Keys
     Dim ks() As String, nk As Long

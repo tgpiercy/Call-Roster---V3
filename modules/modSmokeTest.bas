@@ -333,6 +333,8 @@ Private Function SmkAward(ByRef st As SmkState, ByRef why As String) As Boolean
         Next i
         If iC = 0 Then
             futTxt = ", nobody charged (nothing to check for the later period)"
+        ElseIf OldRefusedFormula(ws.Cells(rowOf(iC), C_REFUSED)) Then
+            futTxt = ", later-period check SKIPPED: this copy's Refused formula is the pre-v26.5 one (run RefreshRosterFormulas)"
         Else
             Application.Calculate
             Dim cAfter As Double: cAfter = NumOr0(ws.Cells(rowOf(iC), pCol).Value2)

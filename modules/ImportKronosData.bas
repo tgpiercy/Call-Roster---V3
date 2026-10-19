@@ -377,6 +377,7 @@ Public Function KronosFilePath() As String
             at = FileDateTime(folder & f)
             If at > bestAt Then bestAt = at: best = f
         End If
+        f = ""                                           ' cleared first: under Resume Next a share dropping mid-listing must end the loop
         f = Dir$()
     Loop
     If best <> "" Then KronosFilePath = folder & best

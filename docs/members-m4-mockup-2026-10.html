@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Members M4 mock-up (Oct 19, 2026)</title>
+<style>
+  /* Layout: the members' Home as it draws today (Members M3.1), then the proposed M4 Home, then one
+     sheet with the shared header, then the what-changed table. Sizes are Excel points x 1.333. */
+  :root {
+    --page: #f3f4f6; --paper: #ffffff; --ink: #374151; --muted: #6e7887; --rule: #d6d9df; --grid: #e6e8ec;
+    --navy: #1e3864; --green: #008046; --brown: #5d4037; --purple: #6a1b9a; --blue: #1f3864; --orange: #e65100;
+    --light: #dee5f0; --lightink: #1e3864; --tile: #eef2f8; --tileink: #1e3864; --me: #fff3cd; --meink: #5a4300;
+    --font: "Segoe UI", "Segoe UI Variable", Arial, Helvetica, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --page: #15181d; --paper: #1e2229; --ink: #e3e6ea; --muted: #9aa3ad; --rule: #353b44; --grid: #262b33;
+    --navy: #2e4f8a; --light: #2a303a; --lightink: #c7d3e8; --tile: #262d38; --tileink: #c7d3e8; --me: #4a3d10; --meink: #ffe9a8;
+    color-scheme: dark } }
+  :root[data-theme="dark"] {
+    --page: #15181d; --paper: #1e2229; --ink: #e3e6ea; --muted: #9aa3ad; --rule: #353b44; --grid: #262b33;
+    --navy: #2e4f8a; --light: #2a303a; --lightink: #c7d3e8; --tile: #262d38; --tileink: #c7d3e8; --me: #4a3d10; --meink: #ffe9a8;
+    color-scheme: dark }
+  body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; text-wrap: balance; }
+  .lead { margin: 0 0 20px; color: var(--muted); max-width: 70ch; }
+  h2 { font-size: 16px; margin: 28px 0 6px; }
+  .note { color: var(--muted); font-size: 13px; margin: 0 0 10px; max-width: 85ch; }
+  .xl { background: var(--paper); border: 1px solid var(--rule); box-shadow: 0 2px 10px rgba(0,0,0,.08); overflow-x: auto; }
+  .sheet { position: relative; min-width: 900px; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 100% 20px, 64px 100%; padding: 14px 20px 18px; box-sizing: border-box; }
+  .tabs { display: flex; gap: 2px; background: var(--light); border-top: 1px solid var(--rule); padding: 4px 8px 0; font-size: 12px; overflow-x: auto; }
+  .tabs span { background: var(--paper); border: 1px solid var(--rule); border-bottom: none; padding: 3px 10px; white-space: nowrap; color: var(--muted); }
+  .tabs span.on { color: var(--navy); font-weight: 600; border-bottom: 2px solid var(--green); }
+  .ttl { font-size: 26.7px; font-weight: 700; color: var(--navy); }
+  .sub { font-size: 12px; color: var(--muted); margin: 2px 0; }
+  .btn { height: 58px; width: 200px; border-radius: 6px; color: #fff; font-size: 14.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-sizing: border-box; letter-spacing: .3px; }
+  .btn.sm { height: 27px; width: auto; padding: 0 12px; font-size: 12px; font-weight: 500; }
+  .n { background: var(--navy); } .g { background: var(--green); } .b { background: var(--blue); } .br { background: var(--brown); } .p { background: var(--purple); }
+  .lt { background: var(--light); color: var(--lightink); } .wh { background: var(--paper); color: var(--muted); border: 1px solid var(--rule); }
+  .row { display: flex; gap: 13px; flex-wrap: wrap; align-items: center; }
+  .pick { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+  .pick .box { border: 1px solid var(--rule); background: var(--paper); padding: 4px 8px; min-width: 220px; display: inline-flex; justify-content: space-between; }
+  .pick .box.big { min-width: 300px; padding: 8px 10px; font-size: 15px; }
+  .card { margin-top: 22px; }
+  .card .h { font-size: 17px; font-weight: 700; color: var(--navy); }
+  .card .l { display: grid; grid-template-columns: 150px 1fr; font-size: 13px; padding: 2px 0; }
+  .card .l b { font-weight: 600; }
+  .italic { font-size: 11px; color: var(--muted); font-style: italic; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0 6px; }
+  .tile { background: var(--tile); color: var(--tileink); border-radius: 8px; padding: 12px 14px; min-height: 86px; box-sizing: border-box; }
+  .tile .k { font-size: 11.5px; letter-spacing: .4px; text-transform: uppercase; opacity: .8; }
+  .tile .v { font-size: 24px; font-weight: 700; line-height: 1.15; margin-top: 4px; }
+  .tile .d { font-size: 12px; margin-top: 4px; opacity: .9; }
+  .tile.act { background: var(--green); color: #fff; }
+  .since { background: var(--me); color: var(--meink); border-radius: 6px; padding: 8px 12px; font-size: 13px; margin: 12px 0 4px; }
+  .hdr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--navy); padding-bottom: 8px; margin-bottom: 10px; }
+  .hdr .t { font-size: 20px; font-weight: 700; color: var(--navy); }
+  .hdr .right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .stamp { font-size: 11.5px; color: var(--muted); }
+  table.g { border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+  table.g th, table.g td { border: 1px solid var(--rule); padding: 4px 8px; white-space: nowrap; }
+  table.g th { background: var(--light); color: var(--lightink); }
+  table.g tr.me td { background: var(--me); color: var(--meink); font-weight: 600; }
+  table.cmp { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  table.cmp th, table.cmp td { border: 1px solid var(--rule); padding: 7px 10px; text-align: left; vertical-align: top; }
+  table.cmp th { background: var(--light); color: var(--lightink); }
+  table.cmp td:first-child { white-space: nowrap; font-weight: 600; }
+  .ex { font-size: 12px; color: var(--muted); }
+  @media (max-width: 700px) { .tiles { grid-template-columns: 1fr 1fr; } .sheet { min-width: 0; } .btn { width: 100%; } .card .l { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>Members M4 mock-up</h1>
+  <p class="lead">The members' file's Home as it draws today (Members M3.1) and the proposed M4 Home and sheet header. The same published data underneath; the change is order, wording and a few small features. Names and figures are examples.</p>
+
+  <h2>Today: Home (Members M3.1)</h2>
+  <p class="note">Measured from <code>modMember.LayoutHome</code> / <code>DrawHomeCard</code>: a 20 pt title, two 9 pt info lines, six 150 x 44 pt buttons, then Find me with two small buttons, an 8.5 pt note, and the WHERE I STAND card below all of it. The other five sheets have their own pickers and no Home button; Larger type is on Home only.</p>
+  <div class="xl"><div class="sheet">
+    <div class="ttl">OVERTIME CALL OUT ROSTER</div>
+    <div class="sub">Updated Mon Oct 19, 2026 7:12 AM &nbsp;|&nbsp; Kronos data Oct 9 &nbsp;|&nbsp; pay period Oct 11 - Oct 24</div>
+    <div class="sub">Roster v26.5 &nbsp;|&nbsp; charged: refused or left-message hours x 1.75 &nbsp;|&nbsp; members file Members M3.1 (Oct 19)</div>
+    <div class="row" style="margin-top:22px"><div class="btn n">ROSTER</div><div class="btn g">WHO'S NEXT</div><div class="btn b">CALENDAR</div></div>
+    <div class="row" style="margin-top:13px"><div class="btn br">OPEN POSTINGS</div><div class="btn p">MY HISTORY</div><div class="btn lt">Larger type</div></div>
+    <div class="row" style="margin-top:26px"><span class="pick">Find me: <span class="box">Operator, Pat <span>&#9662;</span></span></span><span class="btn sm lt">Show me on the roster</span><span class="btn sm wh">Not me (clear)</span></div>
+    <div class="italic" style="margin-top:14px;max-width:760px">Pick your name in Find me: every sheet opens on your home unit and your own figures show below. Hours and call order are worked out by the supervisors' roster and published here as values. Leave shows only as 'Leave'.</div>
+    <div class="card">
+      <div class="h">WHERE I STAND &nbsp;-&nbsp; Operator, Pat</div>
+      <div class="italic">As published Mon Oct 19, 7:12 AM, Kronos hours through Oct 9.</div>
+      <div class="l" style="margin-top:8px"><b>Crew / home unit</b><span>B &nbsp;|&nbsp; Phosphine</span></div>
+      <div class="l"><b>Total hours</b><span>412.5* &nbsp; (* includes 12 h accepted, not yet in Kronos)</span></div>
+      <div class="l"><b>Worked</b><span>358</span></div>
+      <div class="l"><b>Refused</b><span>42.5 &nbsp; = &nbsp; call-out 21, posting 21.5</span></div>
+      <div class="l"><b>Call position</b><span>Phosphine #4 (D2) &nbsp;&nbsp; Derivatives #9 (D1)</span></div>
+      <div class="l"><b>Am I next?</b><span>Tue Oct 20 Nights, Phosphine: you are 2nd on the list</span></div>
+      <div class="l"><b>Sick time</b><span>sick days used 3 &nbsp;|&nbsp; paid sick days left 7 &nbsp;|&nbsp; occurrences used 2 &nbsp;|&nbsp; personal days used 1</span></div>
+    </div>
+  </div>
+  <div class="tabs"><span class="on">Home</span><span>Roster</span><span>Who's next</span><span>Calendar</span><span>Postings</span><span>My history</span></div></div>
+
+  <h2>Proposed: Home (Members M4)</h2>
+  <p class="note">Me first. The name is remembered on this PC (Excel's per-user setting store, nothing written to the shared file), so the file opens on the member. Four tiles answer the four questions people open the file for, the next posting for me carries its own Sign me up, a "since you last looked" line says what changed, and the six buttons sit below. One header band on every sheet: Home, Larger type, the published stamp.</p>
+  <div class="xl"><div class="sheet">
+    <div class="hdr"><div class="t">OVERTIME CALL OUT ROSTER</div><div class="right"><span class="stamp">Published Mon Oct 19, 7:12 AM &middot; Kronos through Oct 9 &middot; pay period Oct 11 - 24</span><span class="btn sm lt">Larger type</span><span class="btn sm lt">How it works</span></div></div>
+    <div class="row"><span class="pick"><span class="box big">Operator, Pat <span>&#9662;</span></span></span><span class="btn sm wh">Not me</span><span class="stamp">Remembered on this PC. Crew B &middot; Phosphine</span></div>
+    <div class="since">Since you last looked (Fri Oct 16): 2 new postings in your units &middot; 1 posting awarded &middot; your Phosphine position moved from 5th to 4th.</div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Total hours</div><div class="v">412.5*</div><div class="d">358 worked + 42.5 charged (refusals) + 12 accepted, not yet in Kronos</div></div>
+      <div class="tile"><div class="k">My call position</div><div class="v">4th of 14</div><div class="d">Phosphine (D2) &middot; 9th of 22 in Derivatives (D1)</div></div>
+      <div class="tile act"><div class="k">Am I next?</div><div class="v">2nd</div><div class="d">Tue Oct 20 Nights, Phosphine &middot; open posting P-0412: <u>Sign me up</u></div></div>
+      <div class="tile"><div class="k">Sick time</div><div class="v">7 left</div><div class="d">3 used, 2 occurrences, 1 personal day &middot; counts only</div></div>
+    </div>
+    <div class="row" style="margin-top:16px"><div class="btn n">ROSTER</div><div class="btn g">WHO'S NEXT</div><div class="btn b">CALENDAR</div><div class="btn br">OPEN POSTINGS</div><div class="btn p">MY HISTORY</div></div>
+    <div class="italic" style="margin-top:12px">Hours and call order come from the supervisors' roster and are published here as values. Leave shows only as "Leave". Sick time is counts only.</div>
+  </div>
+  <div class="tabs"><span class="on">Home</span><span>Roster</span><span>Who's next</span><span>Calendar</span><span>Postings</span><span>My history</span><span>How it works</span></div></div>
+
+  <h2>Proposed: the same header on every sheet, and "highlight me"</h2>
+  <p class="note">Who's next shown as an example: the header band, the pickers preset to the member's unit and the next shift, and the member's own row shaded wherever it appears (Who's next, the Roster, the Calendar).</p>
+  <div class="xl"><div class="sheet">
+    <div class="hdr"><div class="t">WHO'S NEXT</div><div class="right"><span class="stamp">Published Mon Oct 19, 7:12 AM</span><span class="btn sm lt">Larger type</span><span class="btn sm n">&lt; Home</span></div></div>
+    <div class="row"><span class="pick">Unit: <span class="box" style="min-width:140px">Phosphine &#9662;</span></span><span class="pick">Date: <span class="box" style="min-width:140px">Tue Oct 20 &#9662;</span></span><span class="pick">Shift: <span class="box" style="min-width:100px">Nights &#9662;</span></span></div>
+    <table class="g">
+      <tr><th>#</th><th>Name</th><th>Code</th><th>Total hours</th><th>Crew</th><th>Note</th></tr>
+      <tr><td>1</td><td>Operator, Sam</td><td>D2</td><td>396</td><td>C</td><td></td></tr>
+      <tr class="me"><td>2</td><td>Operator, Pat &nbsp;(you)</td><td>D2</td><td>412.5*</td><td>B</td><td></td></tr>
+      <tr><td>3</td><td>Operator, Lee</td><td>D2</td><td>420</td><td>A</td><td>~ part shift</td></tr>
+      <tr><td>4</td><td>Operator, Kim</td><td>D1</td><td>388</td><td>D</td><td></td></tr>
+    </table>
+    <div class="italic" style="margin-top:10px">Free = not scheduled, not on the rest rule, not booked off, not on a shift switch. Top is called first.</div>
+  </div>
+  <div class="tabs"><span>Home</span><span>Roster</span><span class="on">Who's next</span><span>Calendar</span><span>Postings</span><span>My history</span><span>How it works</span></div></div>
+
+  <h2>What changes and why</h2>
+  <table class="cmp">
+    <tr><th>Change</th><th>Today (M3.1)</th><th>M4</th><th>Why</th></tr>
+    <tr><td>Order of Home</td><td>Buttons, then Find me, then the card</td><td>Me first: name, since-you-last-looked, four tiles, then the buttons</td><td>People open the file to see where they stand.</td></tr>
+    <tr><td>Remember me</td><td>Pick the name every time</td><td>Remembered per PC user in Excel's own setting store; "Not me" clears it</td><td>Nothing written to the shared file; no login stored in it.</td></tr>
+    <tr><td>Header</td><td>Each sheet its own; Larger type on Home only; back through the tabs</td><td>One band on all sheets: title, published stamp, Larger type, Home</td><td>The same place for the same things.</td></tr>
+    <tr><td>Wording</td><td>"Refused", "#4 (D2)"</td><td>"Charged (refusals)", "4th of 14 in Phosphine"</td><td>Plain words; a position means more with the list size.</td></tr>
+    <tr><td>Highlight me</td><td>The name read among the rows</td><td>The member's row shaded on Who's next, the Roster and the Calendar</td><td>One glance for "where am I".</td></tr>
+    <tr><td>Sign me up from Home</td><td>Postings sheet, then the row</td><td>The next open posting for me on the Am I next? tile with its own button</td><td>One click from opening the file.</td></tr>
+    <tr><td>Since you last looked</td><td>Nothing</td><td>New postings in my units, awards, my position change since this PC user's last open</td><td>The file answers "what changed" instead of being re-read.</td></tr>
+    <tr><td>How it works</td><td>The paper guide</td><td>A Help sheet in the file: the call order, why I was charged, Exempt and the tilde, sign-ups, the rest rule</td><td>Help that is always in the file; the Why lines explain each charge, this explains the rules once.</td></tr>
+    <tr><td>Publish digest by email</td><td>None</td><td>At publish, each member with an email on file gets their own tiles and their units' open postings</td><td>Reaches people who do not open the file. Only their own figures; leaves the shared folder, so the wording is checked by you first.</td></tr>
+  </table>
+  <p class="note" style="margin-top:14px">Built in v27 as a members' template rebuild (one members' install in November, with the master's v27). The requests for switches and time off and the phone page stay in v28.</p>
+  <p class="ex">Names and figures are examples. Oct 19, 2026.</p>
+</div>
+
+</body>
+</html>

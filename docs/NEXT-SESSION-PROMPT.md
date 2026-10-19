@@ -75,6 +75,19 @@ v28 = January after the rollover, with go-live: the members' requests (switches 
 v25.4 Payroll # as the key, the P: paths; one master + one members' install. Build order inside v27: Desk v2
 first (the boss sees it in the alpha pack), then Stats, tiles, since-last-here, the two pop-ups.
 
+MEMBERS M4 (Graeme, Oct 19) joins v27 as ONE members' install in November (so v27 = a master install + a
+members' template rebuild): mock-up docs/members-m4-mockup-2026-10.html is the spec. Scope, all four: (1)
+me-first Home (the name on top, remembered per PC user with SaveSetting / GetSetting - NOTHING written to the
+shared file; "Not me" clears it; four tiles Total hours / My call position "4th of 14" / Am I next? / Sick
+time; the buttons below) + one header band on every sheet (title, published stamp, Larger type, < Home);
+(2) highlight me (the member's row shaded on Who's next, the Roster, the Calendar) + wording ("Charged
+(refusals)") + a "How it works" Help sheet inside the file (call order, why charged, Exempt / ~, sign-ups,
+the rest rule); (3) Sign me up from the Am I next? tile + "since you last looked" (per-PC-user last-open
+stamp: new postings in my units, awards, my position change); (4) a publish DIGEST BY EMAIL to members with
+an email on file - their own tiles + their units' open postings only; it leaves the shared folder, so the
+wording and the recipient list are a brief decision Graeme signs before it is built. Requests (switches /
+time off) and the phone page stay in v28.
+
 In parallel, no code (docs/timeline-2026-10-18.md): the what-if scenario sheets, the four guides refreshed
 for v25.5 / v26 / v26.5, the Nov 15 presentation pack, the Dec 1 training plan - start them when I say.
 ```

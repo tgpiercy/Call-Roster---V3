@@ -50,6 +50,13 @@ Public Const SR_LOGIN As Long = 4
 Public Const SR_STAMP As Long = 5
 Public Const SR_N As Long = 5
 
+' v26 (M3, D-M4): rows WithdrawnSignups gives back (people whose newest action is a withdraw)
+Public Const WD_EMP As Long = 1
+Public Const WD_LOGIN As Long = 2       ' the login that withdrew
+Public Const WD_STAMP As Long = 3
+Public Const WD_MISMATCH As Long = 4    ' True = an earlier sign-up came from a different login
+Public Const WD_N As Long = 4
+
 
 ' ====================================================================
 '  PURE RULE
@@ -87,6 +94,51 @@ Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByR
         End If
     Next k
     ReduceSignups = m
+End Function
+
+' v26 (M3; D-M4, Oct 13: every withdrawal listed with login and time at LOAD). PURE (SelfTest
+' "withdrawn"): the people whose NEWEST action is a withdraw, in the order each name first appeared:
+' out(1..m, 1..WD_N) = name, the withdrawing login, its stamp, and whether a sign-up before it came
+' from a different login (a shared plant PC, or someone else's click). Nothing here changes a tick.
+Public Function WithdrawnSignups(ByRef rows As Variant, ByRef out() As Variant) As Long
+    If Not IsArray(rows) Then Exit Function
+    Dim newest As Object: Set newest = CreateObject("Scripting.Dictionary")
+    newest.CompareMode = 1
+    Dim i As Long, nm As String, k As Variant, m As Long, r As Long, mism As Boolean, wdLogin As String
+    For i = 1 To UBound(rows, 1)
+        nm = Trim$(SafeStr(rows(i, SG_EMP)))
+        If nm <> "" And IsDate(rows(i, SG_STAMP)) Then
+            If Not newest.Exists(nm) Then
+                newest.Add nm, i
+            ElseIf CDate(rows(i, SG_STAMP)) >= CDate(rows(CLng(newest(nm)), SG_STAMP)) Then
+                newest(nm) = i
+            End If
+        End If
+    Next i
+    If newest.Count = 0 Then Exit Function
+    ReDim out(1 To newest.Count, 1 To WD_N)
+    For Each k In newest.Keys
+        r = CLng(newest(k))
+        If LCase$(Trim$(SafeStr(rows(r, SG_ACTION)))) = "withdraw" Then
+            wdLogin = Trim$(SafeStr(rows(r, SG_LOGIN)))
+            mism = False
+            For i = 1 To UBound(rows, 1)                   ' any earlier sign-up by this name from another login
+                If StrComp(Trim$(SafeStr(rows(i, SG_EMP))), CStr(k), vbTextCompare) = 0 And i <> r Then
+                    If LCase$(Trim$(SafeStr(rows(i, SG_ACTION)))) = "signup" And IsDate(rows(i, SG_STAMP)) Then
+                        If CDate(rows(i, SG_STAMP)) <= CDate(rows(r, SG_STAMP)) Then
+                            If StrComp(Trim$(SafeStr(rows(i, SG_LOGIN))), wdLogin, vbTextCompare) <> 0 Then mism = True
+                        End If
+                    End If
+                End If
+            Next i
+            m = m + 1
+            out(m, WD_EMP) = Trim$(SafeStr(rows(r, SG_EMP)))
+            out(m, WD_LOGIN) = wdLogin
+            out(m, WD_STAMP) = CDate(rows(r, SG_STAMP))
+            out(m, WD_MISMATCH) = mism
+        End If
+    Next k
+    WithdrawnSignups = m
 End Function
 
 
@@ -268,9 +320,20 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
             nTick = nTick + 1
         End If
     Next k
+    ' v26 (M3, D-M4): every withdrawal named, with its login and time; a login other than the sign-up's is said
+    Dim wd() As Variant, nWd As Long, wdTxt As String
+    nWd = WithdrawnSignups(rows, wd)
+    For k = 1 To nWd
+        nm = CStr(wd(k, WD_EMP))
+        If onRoster.Exists(nm) Then nm = onRoster(nm)           ' the roster's spelling; an unknown name as typed is never shown
+        If Not onRoster.Exists(CStr(wd(k, WD_EMP))) Then nm = "(a name not on the roster)"
+        wdTxt = wdTxt & IIf(wdTxt = "", "", "; ") & nm & " (" & CStr(wd(k, WD_LOGIN)) & ", " & _
+                Format$(CDate(wd(k, WD_STAMP)), "mmm d h:nn AM/PM") & IIf(CBool(wd(k, WD_MISMATCH)), "; a DIFFERENT login than the sign-up", "") & ")"
+    Next k
     summary = nTick & " electronic sign-up" & IIf(nTick = 1, "", "s") & " ticked" & IIf(nPart > 0, " (" & nPart & " partial)", "") & "." & _
               IIf(lateTxt <> "", "  AFTER CLOSING, not ticked: " & lateTxt & ".", "") & _
               IIf(outTxt <> "", "  Not on the list (out of department box): " & outTxt & ".", "") & _
+              IIf(wdTxt <> "", "  Withdrawn after signing, not ticked: " & wdTxt & ".", "") & _
               IIf(nUnknown > 0, "  " & nUnknown & " file(s) name someone who isn't on the roster: ignored.", "") & _
               IIf(skipped > 0, "  " & skipped & " file(s) couldn't be read: LOAD again in a minute.", "") & _
               "  Check them against the paper sheet."

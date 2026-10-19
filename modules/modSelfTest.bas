@@ -246,6 +246,8 @@ Private Function RunCase(f() As String) As String
             RunCase = FmtD(SnapshotThroughForYear(ParseD(i1), CLng(i2), CLng(i3), ParseD(i4)))
         Case "signups"
             RunCase = CaseSignups(i1, i2)
+        Case "withdrawn"                           ' v26 (M3): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> name=login[!];... / none
+            RunCase = CaseWithdrawn(i1)
         Case "calloffer"
             RunCase = CaseCallOffer(CDbl(i1), i2)
         Case "attendocc"
@@ -589,6 +591,29 @@ Private Function CaseSignups(ByVal spec As String, ByVal closeTxt As String) As 
                       IIf(NumOr0(red(i, SR_HOURS)) = 0, "F", NumText(NumOr0(red(i, SR_HOURS)))) & IIf(CBool(red(i, SR_LATE)), "L", "")
     Next i
     If CaseSignups = "" Then CaseSignups = "none"
+End Function
+
+' v26 (M3): "name:S|W:hours:yyyy-mm-dd-hh:login;..." -> "name=login" per newest-withdraw, "!" when a sign-up
+' before it came from another login; "none"
+Private Function CaseWithdrawn(ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim rows() As Variant: ReDim rows(1 To n, 1 To SG_N)
+    Dim i As Long, p As Variant, wd() As Variant, m As Long
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        rows(i, SG_EMP) = CStr(p(0))
+        rows(i, SG_ACTION) = IIf(CStr(p(1)) = "S", "signup", "withdraw")
+        rows(i, SG_HOURS) = CDbl(p(2))
+        rows(i, SG_STAMP) = ParseD(CStr(p(3))) + TimeSerial(CLng(Mid$(CStr(p(3)), 12, 2)), 0, 0)
+        If UBound(p) >= 4 Then rows(i, SG_LOGIN) = CStr(p(4)) Else rows(i, SG_LOGIN) = ""
+    Next i
+    Dim v As Variant: v = rows
+    m = WithdrawnSignups(v, wd)
+    For i = 1 To m
+        CaseWithdrawn = CaseWithdrawn & IIf(i = 1, "", ";") & CStr(wd(i, WD_EMP)) & "=" & CStr(wd(i, WD_LOGIN)) & IIf(CBool(wd(i, WD_MISMATCH)), "!", "")
+    Next i
+    If CaseWithdrawn = "" Then CaseWithdrawn = "none"
 End Function
 
 ' hours, "outcome:taken;..." in call order (everyone grade 1) -> "offered=charged;..."
@@ -1486,5 +1511,18 @@ Private Sub LoadCases()
     AddCase "minstaff,nobody-scheduled,0,0,0,1,,SHORT 0/1"
     AddCase "minstaff,all-off,2,2,0,2,,SHORT 0/2"
     AddCase "minstaff,negative-minimum-is-none,1,1,0,-1,,ok"
+    AddCase "withdrawn,withdrawn-same-login,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:jdoe,,,,,Ann=jdoe"
+    AddCase "withdrawn,withdrawn-other-login,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:psmith,,,,,Ann=psmith!"
+    AddCase "withdrawn,signed-again-after,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:jdoe;Ann:S:8:2027-01-11-07:jdoe,,,,,none"
+    AddCase "withdrawn,withdraw-with-no-sign-up,Ann:W:0:2027-01-10-11:jdoe,,,,,Ann=jdoe"
+    AddCase "withdrawn,two-people-one-withdrawn,Ann:S:0:2027-01-10-09:jdoe;Bob:S:4:2027-01-10-10:bobk;Bob:W:0:2027-01-10-12:bobk,,,,,Bob=bobk"
+    AddCase "withdrawn,earlier-sign-up-other-login-whatever-the-file-order,Ann:W:0:2027-01-10-11:jdoe;Ann:S:0:2027-01-10-09:psmith,,,,,Ann=jdoe!"
+    AddCase "withdrawn,nobody,Ann:S:0:2027-01-10-09:jdoe,,,,,none"
+    AddCase "privacy,dashed-local-number,s:555-0142,,,,,phone"
+    AddCase "privacy,dashed-local-number-in-text,s:call ext 555-0142 after 4,,,,,phone"
+    AddCase "privacy,times-without-the-leading-zero-are-refused,s:700-1900,,,,,phone"
+    AddCase "privacy,digits-before-the-dash-group-are-fine,s:12345-6789,,,,,ok"
+    AddCase "privacy,date-then-local-number,s:2027-01-12 555-0142,,,,,phone"
+    AddCase "privacy,posting-hours-range,s:3-4 h,,,,,ok"
 ' <<< CASES
 End Sub

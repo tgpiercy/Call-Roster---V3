@@ -1185,6 +1185,32 @@ def reduce_signups(rows: list[tuple[str, str, float, datetime]], closes_at: date
     return out
 
 
+def withdrawn_signups(rows: list[tuple[str, str, float, datetime, str]]):
+    """modSignups.WithdrawnSignups (v26, M3): rows = (employee, action, hours, stamp, login). The people whose
+    newest action is a withdraw, in first-appearance order: [(employee, login, stamp, mismatch)], mismatch = a
+    sign-up at or before the withdraw came from a different login."""
+    newest: dict[str, int] = {}
+    for i, row in enumerate(rows):
+        key = row[0].strip().casefold()
+        if not key:
+            continue
+        if key not in newest:
+            newest[key] = i
+        elif row[3] >= rows[newest[key]][3]:
+            newest[key] = i
+    out = []
+    for key, i in newest.items():
+        emp, action, _hours, stamp, login = rows[i]
+        if action.strip().lower() != "withdraw":
+            continue
+        wd_login = login.strip()
+        mism = any(r[0].strip().casefold() == key and j != i and r[1].strip().lower() == "signup"
+                   and r[3] <= stamp and r[4].strip().casefold() != wd_login.casefold()
+                   for j, r in enumerate(rows))
+        out.append((emp.strip(), wd_login, stamp, mism))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # v24.2: the publish's privacy check (modPublish) and the Payroll # rules
 # (modOvertimeEntry)
@@ -1223,9 +1249,25 @@ def _joined_digits(s: str) -> int:
     return best
 
 
+def _dashed_seven(s: str) -> bool:
+    """modPublish.DashedSeven (v26, M4): '###-####' with no digit directly before or after it."""
+    digits = "0123456789"
+    for p in range(0, len(s) - 7):
+        seg = s[p:p + 8]
+        if seg[3] == "-" and all(c in digits for c in seg[0:3] + seg[4:8]):
+            before = s[p - 1] if p > 0 else ""
+            after = s[p + 8] if p + 8 < len(s) else ""
+            if (before == "" or before not in digits) and (after == "" or after not in digits):
+                return True
+    return False
+
+
 def longest_digit_run(s: str) -> int:
     joined = _joined_digits(s)
-    return joined if joined >= 10 else _single_run(s)
+    run = joined if joined >= 10 else _single_run(s)
+    if run < 7 and _dashed_seven(s):                        # v26 (M4): "555-0142" counts as 7
+        run = 7
+    return run
 
 
 def private_value_kind(x) -> str:

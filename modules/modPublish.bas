@@ -9,7 +9,7 @@ Option Explicit
 '      the roster and their call position per unit, who's free for each
 '      unit / date / shift for the next MEMBER_NEXT_DAYS days, calendar
 '      lines with leave masked, open postings and their lists, this
-'      year's non-void log rows (no notes unless PUBLISH_REASONS);
+'      year's non-void log rows (v26: with Kind, Call Order and a Why line for charged rows; no Note column);
 '   2. checks nothing private is in them (no "@", no phone-like numbers,
 '      no raw leave codes) and stops if anything is;
 '   3. opens the template next to this workbook, fills its data sheets,
@@ -30,7 +30,7 @@ Public Const DS_PLIST As String = "dPostList"
 Public Const DS_LOG As String = "dLog"
 Public Const DS_ATT As String = "dAttend"     ' v24.1 / M2: sick time COUNTS only (no dates)
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
-Private Const MEMBER_NEEDS As String = "Members M2.1" ' v24.2: the members' code this roster's tables are laid out for
+Private Const MEMBER_NEEDS As String = "Members M3"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3)
 
 ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
 Private Const ROSTER_FIXED As Long = 10
@@ -247,7 +247,8 @@ Public Sub PublishMembers()
 
     ' ---- 2. privacy check (nothing has been opened or written yet) ----
     Dim why As String
-    why = PrivateDataIn(roster, DS_ROSTER)
+    why = PrivateDataIn(meta, DS_META)                  ' v26 (M10): dMeta too (it carried a resolved folder path)
+    If why = "" Then why = PrivateDataIn(roster, DS_ROSTER)
     If why = "" Then why = PrivateDataIn(nxt, DS_NEXT)
     If why = "" Then why = PrivateDataIn(cal, DS_CAL)
     If why = "" Then why = PrivateDataIn(post, DS_POST)
@@ -460,7 +461,7 @@ Private Function BuildMeta() As Variant
     a(16, 1) = "Pay period days": a(16, 2) = 14
     a(2, 1) = "Published at": a(2, 2) = Now
     a(3, 1) = "Published by": a(3, 2) = ""                 ' v24.1: a Windows login is never published (nothing reads this row)
-    a(4, 1) = "Master version": a(4, 2) = EXPECTED_RELEASE & " M1  (" & CORE_VERSION & ")"
+    a(4, 1) = "Master version": a(4, 2) = EXPECTED_RELEASE & "  (" & CORE_VERSION & ")"     ' v26 (M10): no "M1" label
     a(5, 1) = "Kronos data date": a(5, 2) = KronosDataDate()
     a(6, 1) = "Kronos data through": a(6, 2) = KronosDataThrough()
     a(7, 1) = "Pay period start": a(7, 2) = ps
@@ -472,9 +473,11 @@ Private Function BuildMeta() As Variant
     a(13, 1) = "Charge rule": a(13, 2) = "grade " & CHARGE_MAX_GRADE & " and below, x" & CHARGE_MULTIPLIER
     ' v24.1 / M2
     a(17, 1) = "Sign-ups": a(17, 2) = IIf(SIGNUPS_ON, "on", "off")
-    a(18, 1) = "Signup folder": a(18, 2) = IIf(SIGNUPS_ON, SignupFolderPath(), "")
+    ' v26 (M10): the inbox folder as the setting reads (".\Signups" = beside the members' file, which resolves it
+    ' against its own folder) - never the master's resolved path (a user-profile path today)
+    a(18, 1) = "Signup folder": a(18, 2) = IIf(SIGNUPS_ON, SIGNUP_FOLDER, "")
     a(19, 1) = "Calendar groups": a(19, 2) = Join(CalGroups(), ";")
-    a(20, 1) = "Template needs": a(20, 2) = "M2"
+    a(20, 1) = "Template needs": a(20, 2) = MEMBER_NEEDS
     BuildMeta = a
 End Function
 
@@ -527,7 +530,9 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
                 RefusedSplitOf splitMap, nm, rc, rp, ro
                 out(k, 8) = rc: out(k, 9) = rp: out(k, 10) = ro
                 For u = 0 To nU - 1
-                    out(k, ROSTER_FIXED + 2 * u + 1) = Trim$(SafeStr(v(r, DeptCol(CStr(depts(u))))))
+                    ' v26 (M3): the code ON THE DATE (UnitCodeOn): a planned move due today that no admin has applied yet
+                    ' shows the new unit's code, as the # column (LoadEligible) already counts it
+                    out(k, ROSTER_FIXED + 2 * u + 1) = UnitCodeOn(nm, CStr(depts(u)), Date, Trim$(SafeStr(v(r, DeptCol(CStr(depts(u)))))))
                     If pos(u).Exists(nm) Then out(k, ROSTER_FIXED + 2 * u + 2) = pos(u)(nm) Else out(k, ROSTER_FIXED + 2 * u + 2) = ""
                 Next u
             End If
@@ -541,9 +546,10 @@ End Function
 Private Function BuildNext(ByRef nN As Long) As Variant
     Dim depts As Variant: depts = DeptList()
     Dim cap As Long: cap = CAP_ROWS
-    Dim out() As Variant: ReDim out(1 To cap, 1 To 8)
+    Dim out() As Variant: ReDim out(1 To cap, 1 To 9)
     out(1, 1) = "Unit": out(1, 2) = "Date": out(1, 3) = "Shift": out(1, 4) = "Rank"
     out(1, 5) = "Name": out(1, 6) = "Total": out(1, 7) = "Provisional": out(1, 8) = "Code"
+    out(1, 9) = "EstHrs"                                ' v26 (M3): "Yes" = a planned mover's estimated hours (shown with ~)
     Dim k As Long: k = 1
     RefreshCalCache
     BeginSwitchBatch
@@ -569,6 +575,7 @@ Private Function BuildNext(ByRef nN As Long) As Variant
                             out(k, 1) = depts(u): out(k, 2) = d: out(k, 3) = CStr(sh): out(k, 4) = i
                             out(k, 5) = recs(i).EmpName: out(k, 6) = recs(i).TotalHrs
                             out(k, 7) = recs(i).ProvHrs: out(k, 8) = recs(i).DeptCode
+                            out(k, 9) = IIf(recs(i).EstHrs, "Yes", "")
                         Next i
                     Next sh
                 End If
@@ -579,7 +586,7 @@ Done:
     EndSwitchBatch
     If Err.Number <> 0 Then Err.Raise Err.Number, , Err.Description
     nN = k - 1
-    BuildNext = Trimmed(out, k, 8)
+    BuildNext = Trimmed(out, k, 9)
 End Function
 
 ' Date, Shift, Unit, Left text, Right text, Type, Open - per unit; plus one holiday row per date (unit "*")
@@ -656,11 +663,12 @@ Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist A
     Dim capP As Long: capP = CAP_ROWS
     Dim capL As Long: capL = CAP_ROWS
     Dim p() As Variant: ReDim p(1 To capP, 1 To 10)
-    Dim l() As Variant: ReDim l(1 To capL, 1 To 5)
+    Dim l() As Variant: ReDim l(1 To capL, 1 To 6)
     p(1, 1) = "Posting ID": p(1, 2) = "Unit": p(1, 3) = "Date": p(1, 4) = "Shift"
     p(1, 5) = "Hours": p(1, 6) = "Positions": p(1, 7) = "Reason": p(1, 8) = "Closes"
     p(1, 9) = "Listed": p(1, 10) = "Signed up"
     l(1, 1) = "Posting ID": l(1, 2) = "Rank": l(1, 3) = "Name": l(1, 4) = "Hours posted": l(1, 5) = "Signed"
+    l(1, 6) = "Exempt"                                  ' v26 (M3): "Yes" = moved unit / left: not on this list any more (no reason)
     Dim kP As Long: kP = 1
     Dim kL As Long: kL = 1
     If IsArray(ids) Then
@@ -681,13 +689,14 @@ Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist A
                     kL = kL + 1: If kL > capL Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " posting list rows - raise CAP_ROWS in modPublish"
                     l(kL, 1) = pr.ID: l(kL, 2) = lst(j).Rank: l(kL, 3) = lst(j).EmpName: l(kL, 4) = lst(j).TotalHrs
                     l(kL, 5) = ""
+                    l(kL, 6) = IIf(Trim$(lst(j).ExemptNote) <> "", "Yes", "")
                     onList(Trim$(lst(j).EmpName)) = True
                     If sg.Exists(Trim$(lst(j).EmpName)) Then l(kL, 5) = sg(Trim$(lst(j).EmpName)): nSigned = nSigned + 1
                 Next j
                 For Each kk In sg.Keys                  ' signed up, not on the list: out of department
                     If Not onList.Exists(CStr(kk)) Then
                         kL = kL + 1: If kL > capL Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " posting list rows - raise CAP_ROWS in modPublish"
-                        l(kL, 1) = pr.ID: l(kL, 2) = 0: l(kL, 3) = CStr(kk): l(kL, 4) = "": l(kL, 5) = sg(kk)
+                        l(kL, 1) = pr.ID: l(kL, 2) = 0: l(kL, 3) = CStr(kk): l(kL, 4) = "": l(kL, 5) = sg(kk): l(kL, 6) = ""
                         nSigned = nSigned + 1
                     End If
                 Next kk
@@ -697,7 +706,7 @@ Private Sub BuildPostings(ByRef post As Variant, ByRef nP As Long, ByRef plist A
     End If
     nP = kP - 1: nPL = kL - 1
     post = Trimmed(p, kP, 10)
-    plist = Trimmed(l, kL, 5)
+    plist = Trimmed(l, kL, 6)
 End Sub
 
 ' v24.1 / M2 (decided Oct 12, 2026): sick time COUNTS for each person, so the
@@ -783,19 +792,19 @@ Public Function AttendStatusOk(ByVal s As String) As Boolean
 End Function
 
 ' This year's (by Period Start) non-void log rows: Shift Date, Ref ID, Type, Unit, Shift, Hours, Employee,
-' Outcome, Hours Charged, Period Start (+ Note when PUBLISH_REASONS)
+' Outcome, Hours Charged, Period Start, v26 (M3): Kind, Call Order, Why (charged rows; "" otherwise)
 Private Function BuildLog(ByRef nL As Long) As Variant
     Dim lo As ListObject: Set lo = LogTable()
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim yFrom As Double, yTo As Double
     yFrom = NumOr0(ws.Cells(PStartRow(), C_PERIOD1).Value2)
     yTo = NumOr0(ws.Cells(PEndRow(), PeriodLastCol()).Value2)
-    Dim nCols As Long: nCols = IIf(PUBLISH_REASONS, 11, 10)
+    Dim nCols As Long: nCols = 13                       ' v26 (M3): + Kind, Call Order, Why (the Note column of PUBLISH_REASONS is gone, D-M5)
     Dim cap As Long: cap = CAP_ROWS
     Dim out() As Variant: ReDim out(1 To cap, 1 To nCols)
     out(1, 1) = "Shift Date": out(1, 2) = "Ref ID": out(1, 3) = "Type": out(1, 4) = "Unit": out(1, 5) = "Shift"
     out(1, 6) = "Hours": out(1, 7) = "Employee": out(1, 8) = "Outcome": out(1, 9) = "Hours Charged": out(1, 10) = "Period Start"
-    If PUBLISH_REASONS Then out(1, 11) = "Note"
+    out(1, 11) = "Kind": out(1, 12) = "Call Order": out(1, 13) = "Why"
     Dim k As Long: k = 1
     If Not lo Is Nothing Then
         If Not lo.DataBodyRange Is Nothing Then
@@ -810,7 +819,12 @@ Private Function BuildLog(ByRef nL As Long) As Variant
                         out(k, 4) = SafeStr(v(r, L_DEPT)): out(k, 5) = SafeStr(v(r, L_SHIFTLBL)): out(k, 6) = NumOr0(v(r, L_BASEHRS))
                         out(k, 7) = SafeStr(v(r, L_EMP)): out(k, 8) = SafeStr(v(r, L_OUTCOME))
                         out(k, 9) = NumOr0(v(r, L_CHARGED)): out(k, 10) = v(r, L_PERIOD)
-                        If PUBLISH_REASONS Then out(k, 11) = PublicNote(SafeStr(v(r, L_REASON)))
+                        ' v26 (M3): the kind (so the members' file holds no bucket rule), the place in the call order,
+                        ' and "why was I charged" for a CHARGED row only (PublicWhy: the sentence from the row's fields
+                        ' + the Note with the sign-up login cut; nothing for an uncharged row)
+                        out(k, 11) = RefusedBucket(SafeStr(v(r, L_TYPE)))
+                        If NumOr0(v(r, L_ORDER)) > 0 Then out(k, 12) = CLng(NumOr0(v(r, L_ORDER))) Else out(k, 12) = ""
+                        out(k, 13) = PublicWhy(v, r)
                     End If
                 End If
             Next r
@@ -911,6 +925,21 @@ Private Function LongestDigitRun(ByVal s As String) As Long
     Else
         LongestDigitRun = oneRun
     End If
+    ' v26 (M4, decision 7): a dashed local number "555-0142" with no digit on either side counts as 7
+    ' ("0700-1900" is still fine: a digit sits before the dash group; "700-1900" is refused - write 0700-1900)
+    If LongestDigitRun < 7 And DashedSeven(s) Then LongestDigitRun = 7
+End Function
+
+' "###-####" with no digit directly before or after it (pure, mirrored)
+Private Function DashedSeven(ByVal s As String) As Boolean
+    Dim p As Long, before As String, after As String
+    For p = 1 To Len(s) - 7
+        If Mid$(s, p, 8) Like "###-####" Then
+            before = IIf(p > 1, Mid$(s, p - 1, 1), "")
+            after = IIf(p + 8 <= Len(s), Mid$(s, p + 8, 1), "")
+            If Not before Like "#" And Not after Like "#" Then DashedSeven = True: Exit Function
+        End If
+    Next p
 End Function
 
 ' longest run of digits with no separator at all
@@ -991,11 +1020,13 @@ Private Function LeaveCodesIn(ByRef cal As Variant, ByRef post As Variant, ByRef
         Next i
     End If
     If IsArray(lg) Then
-        If UBound(lg, 2) >= 11 Then                  ' the Note column is published only with PUBLISH_REASONS
+        If UBound(lg, 2) >= 13 Then                  ' v26 (M3): the Why column carries a charged row's Note (D-M5: no Note column)
             For i = 2 To UBound(lg, 1)
-                w = LeaveWordsIn(SafeStr(lg(i, 11)))
+                w = LeaveWordsIn(SafeStr(lg(i, 13)))
                 If w <> "" Then
-                    LeaveCodesIn = DS_LOG & " row " & i & " (" & SafeStr(lg(i, 2)) & ", Note): the text says '" & w & "'"
+                    LeaveCodesIn = DS_LOG & " row " & i & " (" & SafeStr(lg(i, 2)) & ", Why): the text says '" & w & "'" & vbNewLine & _
+                                   "That is the Note on OT Log entry " & SafeStr(lg(i, 2)) & " for " & SafeStr(lg(i, 7)) & _
+                                   ": void that entry (Void Entry) and log it again with a note that names no leave."
                     Exit Function
                 End If
             Next i
@@ -1083,6 +1114,26 @@ Private Sub WriteTable(ByVal wb As Workbook, ByVal sheetName As String, ByRef a 
     Dim ws As Worksheet: Set ws = wb.Worksheets(sheetName)
     ws.Unprotect Password:=MEMBER_PASSWORD
     ws.Cells.ClearContents
-    If IsArray(a) Then ws.Range("A1").Resize(UBound(a, 1), UBound(a, 2)).Value = a
+    ws.Cells.NumberFormat = "General"
+    If IsArray(a) Then
+        ' v26 (M5, convention 9): a column whose values are all text is written as text ("@") first, or Excel turns
+        ' a Reason like "3-4" or "Oct 12" into a date in the members' file. Numbers and dates keep General.
+        Dim i As Long, j As Long, allText As Boolean, hasText As Boolean
+        For j = 1 To UBound(a, 2)
+            allText = True: hasText = False
+            For i = 2 To UBound(a, 1)
+                If Not IsEmpty(a(i, j)) Then
+                    If VarType(a(i, j)) = vbString Then
+                        If CStr(a(i, j)) <> "" Then hasText = True
+                    Else
+                        allText = False
+                        Exit For
+                    End If
+                End If
+            Next i
+            If allText And hasText Then ws.Columns(j).NumberFormat = "@"
+        Next j
+        ws.Range("A1").Resize(UBound(a, 1), UBound(a, 2)).Value = a
+    End If
     ws.Protect Password:=MEMBER_PASSWORD, UserInterfaceOnly:=True
 End Sub

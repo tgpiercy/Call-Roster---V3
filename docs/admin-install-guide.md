@@ -219,7 +219,6 @@ The settings are constants at the top of `modOvertimeEntry`. Change them there a
 | `REPORT_FOLDER` | A network folder ending in `{YEAR}` | Where posting PDFs and calendar PDFs go. `{YEAR}` is replaced by the roster year. If the folder cannot be reached, PDFs go next to the roster. |
 | `PUBLISH_FOLDER` | . | Where the members' file is published. "." is the roster's own folder (the setting for now). At the network roll-out it becomes the members' network folder. |
 | `PUBLISH_FILE` | (old file name) | The old Member View file. No longer written. |
-| `PUBLISH_REASONS` | False | False keeps log notes out of the members' file (True sends them, screened for leave words) |
 | `REFUSAL_SHEET` | Refusal Report | The tab the Refusals Report is drawn on |
 | `SIGNUPS_ON` | False | True switches on electronic sign-ups from the members' file |
 | `SIGNUP_FOLDER` | Signups | The inbox folder for sign-up request files, inside the members' folder |

@@ -630,3 +630,16 @@ minstaff,no-minimum-never-short,0,0,0,0,,ok
 minstaff,nobody-scheduled,0,0,0,1,,SHORT 0/1
 minstaff,all-off,2,2,0,2,,SHORT 0/2
 minstaff,negative-minimum-is-none,1,1,0,-1,,ok
+withdrawn,withdrawn-same-login,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:jdoe,,,,,Ann=jdoe
+withdrawn,withdrawn-other-login,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:psmith,,,,,Ann=psmith!
+withdrawn,signed-again-after,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:jdoe;Ann:S:8:2027-01-11-07:jdoe,,,,,none
+withdrawn,withdraw-with-no-sign-up,Ann:W:0:2027-01-10-11:jdoe,,,,,Ann=jdoe
+withdrawn,two-people-one-withdrawn,Ann:S:0:2027-01-10-09:jdoe;Bob:S:4:2027-01-10-10:bobk;Bob:W:0:2027-01-10-12:bobk,,,,,Bob=bobk
+withdrawn,earlier-sign-up-other-login-whatever-the-file-order,Ann:W:0:2027-01-10-11:jdoe;Ann:S:0:2027-01-10-09:psmith,,,,,Ann=jdoe!
+withdrawn,nobody,Ann:S:0:2027-01-10-09:jdoe,,,,,none
+privacy,dashed-local-number,s:555-0142,,,,,phone
+privacy,dashed-local-number-in-text,s:call ext 555-0142 after 4,,,,,phone
+privacy,times-without-the-leading-zero-are-refused,s:700-1900,,,,,phone
+privacy,digits-before-the-dash-group-are-fine,s:12345-6789,,,,,ok
+privacy,date-then-local-number,s:2027-01-12 555-0142,,,,,phone
+privacy,posting-hours-range,s:3-4 h,,,,,ok

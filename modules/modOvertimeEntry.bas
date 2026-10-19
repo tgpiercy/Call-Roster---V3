@@ -67,7 +67,6 @@ Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-0
 '   "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\"
 Public Const PUBLISH_FOLDER As String = "."
 Public Const PUBLISH_FILE As String = "Call Out Roster - Member View.xlsx"   ' the old values-only file (no longer written from M1)
-Public Const PUBLISH_REASONS As Boolean = False   ' False = leave the OT Log's Note column out of the member view (a posting's Reason is always published, screened for leave words)
 
 ' Members' workbook (M1): the template sits next to this workbook; the published copy goes to PUBLISH_FOLDER
 Public Const MEMBER_TEMPLATE_NAME As String = "Call Out Roster - Members TEMPLATE.xlsm"

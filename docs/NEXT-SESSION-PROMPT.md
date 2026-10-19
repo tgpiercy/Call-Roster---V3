@@ -37,6 +37,18 @@ DeskTileText / DeskBtn / DeskLabel / the layout constants; the supervisor Desk k
 the admin-only buttons), no form re-paste; refresh docs/desk-guide.md, the Help text and the quick guide.
 UI_SCALE and the call-out form's fit still wait for the plant screen measurement.
 
+AFTER Desk v2 (decided Oct 19): the STATS REPORT - brief first (docs/stats-report-brief or briefs/vNN.md), I
+approve the counting rules before any code. One admin report sheet "Stats", unit x quarter + year to date,
+drawn like the Refusals Report, PDF beside the master, a member-safe cut (unit level only) for the members'
+file; pure counting functions with Python mirrors. Metrics, all four groups: (1) call-outs from the OT Log's
+Callout rows - sessions, filled vs unfilled, calls per fill (the accepting call order), outcome mix, hours
+offered vs accepted, charged hours, time of day / day of week; (2) postings - posted vs awarded, out of
+department, no takers, cancelled / reopened, sign-ups per posting, days to award, refusal charges generated;
+(3) sick days from Absences SIC + Attendance - shifts and rate per scheduled shift per unit, day vs night,
+weekend / beside-a-holiday share, occurrences vs days, how each was covered; by name on the admin sheet ONLY,
+never published; (4) overtime fairness from Worked Periods - the spread of premium hours per unit and the
+top-to-bottom gap (needs the export imports running). Honest from the first full quarter after go-live.
+
 In parallel, no code (docs/timeline-2026-10-18.md): the what-if scenario sheets, the four guides refreshed
 for v25.5 / v26 / v26.5, the Nov 15 presentation pack, the Dec 1 training plan - start them when I say.
 ```

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desk v2 mock-up (Oct 19, 2026)</title>
+<style>
+  /* Layout: two Excel-window frames stacked (today's admin Desk, then the proposed Desk v2), each at the
+     size Excel shows it at 100 percent (1 pt = 1.333 px), then a short what-changed table. */
+  :root {
+    --page: #f3f4f6; --paper: #ffffff; --ink: #374151; --muted: #6e7887; --rule: #d6d9df; --grid: #e6e8ec;
+    --navy: #1e3864; --green: #008046; --orange: #e65100; --amber: #b46400; --purple: #6a1b9a; --blue: #1565c0;
+    --red: #b00020; --grey: #eceff3; --greyink: #374151; --tileoff: #cfd5de; --tileoffink: #555b66;
+    --pill: #eef2f8; --pillink: #1e3864;
+    --font: "Segoe UI", "Segoe UI Variable", Arial, Helvetica, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --page: #15181d; --paper: #1e2229; --ink: #e3e6ea; --muted: #9aa3ad; --rule: #353b44; --grid: #262b33;
+    --grey: #2a303a; --greyink: #e3e6ea; --tileoff: #353b44; --tileoffink: #b4bbc4; --pill: #262d38; --pillink: #c7d3e8;
+    --navy: #2e4f8a; color-scheme: dark } }
+  :root[data-theme="dark"] {
+    --page: #15181d; --paper: #1e2229; --ink: #e3e6ea; --muted: #9aa3ad; --rule: #353b44; --grid: #262b33;
+    --grey: #2a303a; --greyink: #e3e6ea; --tileoff: #353b44; --tileoffink: #b4bbc4; --pill: #262d38; --pillink: #c7d3e8;
+    --navy: #2e4f8a; color-scheme: dark }
+  body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; text-wrap: balance; }
+  .lead { margin: 0 0 20px; color: var(--muted); max-width: 70ch; }
+  h2 { font-size: 16px; margin: 28px 0 6px; }
+  .note { color: var(--muted); font-size: 13px; margin: 0 0 10px; max-width: 80ch; }
+  .xl { background: var(--paper); border: 1px solid var(--rule); box-shadow: 0 2px 10px rgba(0,0,0,.08); overflow-x: auto; }
+  .sheet { position: relative; min-width: 1000px; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 100% 20px, 64px 100%; padding: 14px 20px 18px; box-sizing: border-box; }
+  .tabs { display: flex; gap: 2px; background: var(--grey); border-top: 1px solid var(--rule); padding: 4px 8px 0; font-size: 12px; overflow-x: auto; }
+  .tabs span { background: var(--paper); border: 1px solid var(--rule); border-bottom: none; padding: 3px 10px; white-space: nowrap; color: var(--muted); }
+  .tabs span.on { color: var(--navy); font-weight: 600; border-bottom: 2px solid var(--green); }
+
+  /* shared pieces, sized in Excel points x 1.333 */
+  .ttl { font-size: 24px; font-weight: 700; color: var(--navy); letter-spacing: .3px; }
+  .band { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .5px; margin: 16px 0 6px; }
+  .btn { height: 48px; width: 307px; border-radius: 8px; color: #fff; font-size: 15.5px; font-weight: 600; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box; }
+  .btn.half { width: 149px; }
+  .g { background: var(--green); } .o { background: var(--orange); } .n { background: var(--navy); } .a { background: var(--amber); }
+  .p { background: var(--purple); } .b { background: var(--blue); } .gr { background: var(--grey); color: var(--greyink); font-weight: 500; }
+  .tile { height: 83px; width: 273px; border-radius: 8px; color: #fff; display: flex; flex-direction: column; justify-content: center; padding: 0 14px; box-sizing: border-box; }
+  .tile b { font-size: 26px; line-height: 1; }
+  .tile span { font-size: 12.5px; opacity: .95; margin-top: 3px; }
+  .tile.off { background: var(--tileoff); color: var(--tileoffink); }
+  .row { display: flex; gap: 11px; flex-wrap: wrap; }
+  .col { display: flex; flex-direction: column; gap: 11px; }
+
+  /* today's Desk */
+  .t-info { font-size: 14.5px; margin: 4px 0 10px; }
+  .t-info .k { color: var(--red); }
+  .t-cols { display: grid; grid-template-columns: 627px 1fr; }
+  .keys { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  .links { display: flex; justify-content: space-between; margin-top: 26px; font-size: 13px; color: var(--navy); text-decoration: underline; }
+
+  /* Desk v2 */
+  .v2head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 2px solid var(--navy); padding-bottom: 10px; }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { background: var(--pill); color: var(--pillink); border-radius: 999px; padding: 6px 14px; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+  .pill.bad { background: var(--red); color: #fff; }
+  .pill small { font-weight: 400; opacity: .85; }
+  .v2tile { height: 92px; width: 273px; border-radius: 8px; color: #fff; display: flex; flex-direction: column; justify-content: center; padding: 0 14px; box-sizing: border-box; }
+  .v2tile b { font-size: 26px; line-height: 1; }
+  .v2tile .what { font-size: 13px; margin-top: 4px; }
+  .v2tile .act { font-size: 12px; margin-top: 6px; opacity: .9; text-decoration: underline; }
+  .v2tile.off { background: var(--tileoff); color: var(--tileoffink); }
+  .v2bands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 24px; margin-top: 4px; }
+  .v2bands .band { margin-top: 20px; }
+  .v2bands .btn { width: 100%; }
+  .v2foot { margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .v2foot .btn { height: 38px; width: auto; padding: 0 14px; font-size: 13.5px; }
+  .v2foot .sp { flex: 1; }
+  .v2foot .lnk { font-size: 13px; color: var(--navy); text-decoration: underline; white-space: nowrap; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { border: 1px solid var(--rule); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--grey); }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  .ex { font-size: 12px; color: var(--muted); }
+  @media (max-width: 700px) { .t-cols { grid-template-columns: 1fr; } .v2bands { grid-template-columns: 1fr; } .sheet { min-width: 0; } .btn, .tile, .v2tile { width: 100%; } .btn.half { width: calc(50% - 6px); } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>Desk v2 mock-up</h1>
+  <p class="lead">The admin Desk as it draws today (Oct 19, 2026, v26.5) above, and the proposed cleaned layout below. Same buttons, same pop-ups, same rights underneath. The figures and dates are examples; no plant names appear.</p>
+
+  <h2>Today: the admin Desk (v26.5)</h2>
+  <p class="note">Measured from <code>modDesk.DrawDesk</code>: 18 pt title, one 11 pt info line, four 205 x 62 pt tiles, fifteen 230 x 36 pt buttons under six band labels in two columns, a keys line, two footer links. Seven button colours.</p>
+  <div class="xl"><div class="sheet">
+    <div class="ttl">CALL OUT ROSTER</div>
+    <div class="t-info">Monday Oct 19, 2026 &nbsp;&nbsp;|&nbsp;&nbsp; Today: B on days, D on nights &nbsp;&nbsp;|&nbsp;&nbsp; Pay period Oct 11 - Oct 24 &nbsp;&nbsp;|&nbsp;&nbsp; <span class="k">Kronos data through Fri Oct 9</span></div>
+    <div class="band">TODAY</div>
+    <div class="row">
+      <div class="tile o"><b>3</b><span>shifts need cover<br>Tue Oct 20 Nights, Phosphine</span></div>
+      <div class="tile o"><b>1</b><span>posting ready to award</span></div>
+      <div class="tile a"><b>2</b><span>paybacks owed (1 overdue)</span></div>
+      <div class="tile off"><b style="font-size:14px">Members' file</b><span>updated today 7:12 AM</span></div>
+    </div>
+    <div class="t-cols">
+      <div>
+        <div class="band">RIGHT NOW</div>
+        <div class="col"><div class="btn o">Someone called in sick</div><div class="btn g">Fill a shift now (call-out)</div><div class="btn n">What needs cover (calendar)</div></div>
+        <div class="band">PEOPLE</div>
+        <div class="col"><div class="btn p">Leave: going or returning</div><div class="btn gr">Undo my last log entry</div></div>
+        <div class="band">HELP</div>
+        <div class="col"><div class="row" style="gap:9px"><div class="btn gr half">How do I ...</div><div class="btn gr half">Something went wrong</div></div><div class="btn gr">Suggest an improvement</div></div>
+        <div class="keys">Ctrl+Shift+S sick call &nbsp; Ctrl+Shift+C call-out &nbsp; Ctrl+Shift+K calendar &nbsp; Ctrl+Shift+D this Desk</div>
+      </div>
+      <div>
+        <div class="band">PLAN AHEAD</div>
+        <div class="col"><div class="btn g">Post a shift</div><div class="btn g">Award a posting</div><div class="btn n">Book time off</div><div class="btn a">Shift switch or payback</div></div>
+        <div class="band">WHEN YOU ARE DONE</div>
+        <div class="col"><div class="btn b">Update the members' file</div><div class="btn n">Print the call-out roster</div><div class="btn n">Employee history (report)</div></div>
+      </div>
+    </div>
+    <div class="links"><span>Full roster &gt;</span><span>Show everything (primary admin tools) &gt;</span></div>
+  </div>
+  <div class="tabs"><span class="on">Desk</span><span>OT Roster</span><span>Calendar</span><span>Needs Attention</span><span>Postings</span><span>OT Log</span><span>Shift Switches</span><span>Help</span></div></div>
+
+  <h2>Proposed: Desk v2</h2>
+  <p class="note">Four bands instead of six. Three colours plus grey: orange for right now, green for planning, navy for finishing. The header's three facts become three pills. Each tile names the next thing and says what a click does. Help, Undo and the links share one quiet footer row. Nothing the boss has rights to is removed.</p>
+  <div class="xl"><div class="sheet">
+    <div class="v2head">
+      <div class="ttl">CALL OUT ROSTER</div>
+      <div class="pills">
+        <span class="pill">Mon Oct 19 <small>&middot; B on days, D on nights</small></span>
+        <span class="pill">Pay period <small>Oct 11 - Oct 24</small></span>
+        <span class="pill bad">Kronos data 10 days old <small>&middot; import it</small></span>
+      </div>
+    </div>
+    <div class="band">TODAY</div>
+    <div class="row">
+      <div class="v2tile o"><b>3</b><div class="what">shifts need cover, next Tue Oct 20 Nights, Phosphine</div><div class="act">Open Needs Attention</div></div>
+      <div class="v2tile o"><b>1</b><div class="what">posting ready to award, closed 7:00 AM</div><div class="act">Award it</div></div>
+      <div class="v2tile a"><b>2</b><div class="what">paybacks owed, 1 over 42 days</div><div class="act">See the OWED list</div></div>
+      <div class="v2tile off"><b style="font-size:16px">Members' file</b><div class="what">updated today 7:12 AM</div><div class="act">Nothing to publish</div></div>
+    </div>
+    <div class="v2bands">
+      <div>
+        <div class="band">NOW</div>
+        <div class="col"><div class="btn o">Someone called in sick</div><div class="btn o">Fill a shift now (call-out)</div><div class="btn o">What needs cover (calendar)</div></div>
+      </div>
+      <div>
+        <div class="band">PLAN</div>
+        <div class="col"><div class="btn g">Post a shift</div><div class="btn g">Award a posting</div><div class="btn g">Book time off</div><div class="btn g">Shift switch or payback</div><div class="btn g">Leave: going or returning</div></div>
+      </div>
+      <div>
+        <div class="band">FINISH</div>
+        <div class="col"><div class="btn n">Update the members' file</div><div class="btn n">Print the call-out roster</div><div class="btn n">Employee history (report)</div></div>
+      </div>
+    </div>
+    <div class="v2foot">
+      <div class="btn gr">How do I ...</div><div class="btn gr">Something went wrong</div><div class="btn gr">Suggest an improvement</div><div class="btn gr">Undo my last log entry</div>
+      <div class="sp"></div>
+      <span class="lnk">Full roster &gt;</span><span class="lnk">Show everything &gt;</span>
+    </div>
+    <div class="keys">Ctrl+Shift+S sick call &nbsp; Ctrl+Shift+C call-out &nbsp; Ctrl+Shift+K calendar &nbsp; Ctrl+Shift+D this Desk</div>
+  </div>
+  <div class="tabs"><span class="on">Desk</span><span>OT Roster</span><span>Calendar</span><span>Needs Attention</span><span>Postings</span><span>OT Log</span><span>Shift Switches</span><span>Help</span></div></div>
+
+  <h2>What changes and why</h2>
+  <table>
+    <tr><th>Change</th><th>Today</th><th>Desk v2</th><th>Why</th></tr>
+    <tr><td>Bands</td><td>Six (RIGHT NOW, PEOPLE, HELP, PLAN AHEAD, WHEN YOU ARE DONE, plus TODAY)</td><td>Four (TODAY, NOW, PLAN, FINISH), three side by side</td><td>The eye finds the band first, then the button. Three columns keep every button above the fold.</td></tr>
+    <tr><td>Colours</td><td>Seven on buttons (orange, green, navy, purple, amber, blue, grey)</td><td>One per band: orange, green, navy; grey for help</td><td>Colour then means "when", not "which pop-up".</td></tr>
+    <tr><td>Header</td><td>One 11 pt line with bar separators</td><td>Three pills; the Kronos pill turns red and says "import it" when the data is old</td><td>Three facts read in one glance; the warning stands alone.</td></tr>
+    <tr><td>Tiles</td><td>A count and a caption; the cover tile names the next shift</td><td>A count, the next thing (the posting closing soonest, the overdue count), and the action a click takes</td><td>The tile is the task, not a statistic.</td></tr>
+    <tr><td>Help and Undo</td><td>Two bands in the left column</td><td>One footer row of grey buttons with the links and the keys</td><td>They are reached for rarely; a landing page should lead with the work.</td></tr>
+    <tr><td>Leave</td><td>Its own PEOPLE band</td><td>In PLAN</td><td>It is planned, like time off.</td></tr>
+    <tr><td>Rights</td><td>Full admin access; Show everything</td><td>Unchanged</td><td>The boss keeps every tool. Only grouping and colour change.</td></tr>
+  </table>
+  <p class="note" style="margin-top:14px">Not in this mock-up, by decision: the pop-ups' type size (<code>UI_SCALE</code>) and the call-out form's fit on the plant screen. Those wait for the screen measurement. Built as a UI-only item (code redraw, no form re-paste) after the boss's first alpha week.</p>
+  <p class="ex">Figures shown are examples. Oct 19, 2026.</p>
+</div>
+
+</body>
+</html>

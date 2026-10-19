@@ -1567,6 +1567,72 @@ Public Sub SetIdMark(ByVal prefix As String, ByVal n As Long)
     On Error GoTo 0
 End Sub
 
+' v26 (I8): a Ref ID prefix as the marks know it - letters only (S, P, ADJ, LV ...), at most 8
+' (was Private in modRollover; the integrity line and the repair need it too)
+Public Function IsPlainPrefix(ByVal s As String) As Boolean
+    Dim i As Long
+    If Len(s) = 0 Or Len(s) > 8 Then Exit Function
+    For i = 1 To Len(s)
+        If Not Mid$(s, i, 1) Like "[A-Z]" Then Exit Function
+    Next i
+    IsPlainPrefix = True
+End Function
+
+' v26 (I8): the highest number per plain prefix among these Ref IDs, added into d
+' (prefix -> number; a higher number already there wins). refs = a 2-D column array
+' (RangeTo2D) or a 1-D array of strings. The ONE parse of "S-0042": the rollover's
+' marks, the integrity line and RepairIdMarks all use it.
+Public Sub AddRefMaxima(ByRef refs As Variant, ByVal d As Object)
+    If Not IsArray(refs) Then Exit Sub
+    Dim i As Long, s As String, p As Long, pre As String, k As Long, twoD As Boolean
+    On Error Resume Next
+    twoD = (UBound(refs, 2) >= 1)
+    On Error GoTo 0
+    For i = LBound(refs, 1) To UBound(refs, 1)
+        If twoD Then s = UCase$(Trim$(SafeStr(refs(i, 1)))) Else s = UCase$(Trim$(SafeStr(refs(i))))
+        p = InStrRev(s, "-")
+        If p > 1 And p < Len(s) Then
+            If IsNumeric(Mid$(s, p + 1)) Then
+                pre = Left$(s, p - 1)
+                If IsPlainPrefix(pre) Then
+                    k = CLng(Val(Mid$(s, p + 1)))
+                    If Not d.Exists(pre) Then
+                        d.Add pre, k
+                    ElseIf k > d(pre) Then
+                        d(pre) = k
+                    End If
+                End If
+            End If
+        End If
+    Next i
+End Sub
+
+' PURE (SelfTest "idmark"): Ref IDs joined by | -> "LV=3|P=17|S=431" (prefixes A-Z sorted),
+' "" when none parses. Exercises AddRefMaxima on plain values.
+Public Function RefPrefixMaxText(ByVal refList As String) As String
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1
+    Dim refs As Variant: refs = Split(refList, "|")
+    AddRefMaxima refs, d
+    If d.Count = 0 Then Exit Function
+    Dim keys() As String, n As Long, kk As Variant, i As Long, j As Long, t As String
+    ReDim keys(1 To d.Count)
+    For Each kk In d.Keys
+        n = n + 1: keys(n) = CStr(kk)
+    Next kk
+    For i = 2 To n                                   ' insertion sort: a handful of prefixes
+        t = keys(i): j = i - 1
+        Do While j >= 1
+            If keys(j) <= t Then Exit Do
+            keys(j + 1) = keys(j): j = j - 1
+        Loop
+        keys(j + 1) = t
+    Next i
+    For i = 1 To n
+        RefPrefixMaxText = RefPrefixMaxText & IIf(i = 1, "", "|") & keys(i) & "=" & d(keys(i))
+    Next i
+End Function
+
 ' PURE (SelfTest "nextid"): the next number after the highest in the log and the mark
 Public Function NextNumber(ByVal maxInLog As Long, ByVal mark As Long) As Long
     If mark > maxInLog Then NextNumber = mark + 1 Else NextNumber = maxInLog + 1

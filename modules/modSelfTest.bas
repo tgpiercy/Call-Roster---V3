@@ -205,6 +205,9 @@ Private Function RunCase(f() As String) As String
             RunCase = HoursText(Val(i1))
         Case "payback"                             ' v26: days owed, warn days -> the Needs Attention status
             RunCase = OwedStatusText(CLng(Val(i1)), CLng(Val(i2)))
+        Case "idmark"                              ' v26 (I8): Ref IDs joined by | -> highest number per prefix, or none
+            RunCase = RefPrefixMaxText(i1)
+            If RunCase = "" Then RunCase = "none"
         Case "typetag"                             ' v25: absence code -> calendar tag / what members get
             RunCase = TypeTag(i1) & "/" & PublicType(i1)
         Case "planid"                              ' v25: an Exempt note -> the planned move's ID it carries / none
@@ -1430,5 +1433,12 @@ Private Sub LoadCases()
     AddCase "payback,long-overdue,120,42,,,,Payback owed 120 days"
     AddCase "payback,today,0,42,,,,Payback owed"
     AddCase "payback,limit-zero-flags-one-day,1,0,,,,Payback owed 1 days"
+    AddCase "idmark,three-prefixes,S-0042|S-0431|P-0017|LV-0003,,,,,LV=3|P=17|S=431"
+    AddCase "idmark,junk-skipped,S-0042|junk|S-x|-0012|S-,,,,,S=42"
+    AddCase "idmark,lower-case-and-spaces,s-0007| S-0009 ,,,,,S=9"
+    AddCase "idmark,entry-style-number-not-a-ref,#12|12,,,,,none"
+    AddCase "idmark,long-prefix-ignored,TOOLONGPRE-0001|ADJ-0100,,,,,ADJ=100"
+    AddCase "idmark,empty,,,,,,none"
+    AddCase "idmark,digit-in-prefix-ignored,P2-0005|P-0004,,,,,P=4"
 ' <<< CASES
 End Sub

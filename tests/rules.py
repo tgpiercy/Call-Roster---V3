@@ -1019,6 +1019,31 @@ def replace_name_token(txt: str, old: str, new: str) -> str:
 
 
 # ---------------------------------------------------------------- refused hours by kind (v24.1)
+def is_plain_prefix(s: str) -> bool:
+    """modOvertimeEntry.IsPlainPrefix (v26, was modRollover): letters A-Z only, 1 to 8 of them."""
+    return 1 <= len(s) <= 8 and all("A" <= ch <= "Z" for ch in s)
+
+
+def ref_prefix_max_text(ref_list: str) -> str:
+    """modOvertimeEntry.RefPrefixMaxText (v26, I8): Ref IDs joined by | -> 'LV=3|P=17|S=431', '' when none parses."""
+    d: dict[str, int] = {}
+    for raw in ref_list.split("|"):
+        s = raw.strip().upper()
+        p = s.rfind("-")
+        if p < 1 or p >= len(s) - 1:
+            continue
+        tail = s[p + 1:]
+        if not tail.isdigit():                              # VBA IsNumeric is wider, but the IDs are digits
+            continue
+        pre = s[:p]
+        if not is_plain_prefix(pre):
+            continue
+        k = int(tail)
+        if k > d.get(pre, -1):
+            d[pre] = k
+    return "|".join(f"{k}={d[k]}" for k in sorted(d))
+
+
 def owed_status_text(days: int, warn_days: int) -> str:
     """modShiftSwitch.OwedStatusText (v26): the Needs Attention status for a payback owed `days` days."""
     return f"Payback owed {days} days" if days > warn_days else "Payback owed"

@@ -15,7 +15,8 @@ Option Explicit
 '  Three levels:
 '    PROBLEM  totals can't be trusted until it is fixed (blocks the
 '             year-end rollover): roster <> log, a typed number or a
-'             missing formula in a pay-period cell, a duplicate ID.
+'             missing formula in a pay-period cell, a duplicate ID,
+'             an ID counter below an archived year's highest (v26).
 '    Check    worth a look, nothing is wrong with the hours: people
 '             no longer on the roster, a posting whose list and log
 '             disagree, a calendar line pointing at nothing, an old
@@ -446,6 +447,24 @@ Private Sub CheckIds()
     TableIdCheck SS_TABLE, SW_ID, "shift switch"
     TableIdCheck AB_TABLE, AB_ID, "absence / sick call"
     TableIdCheck CV_TABLE, CV_ID, "calendar line"
+    ' v26 (I8): the IdMark_ counters (written at the rollover, read by NextRefID / NextEntryID) against
+    ' the archived years' highest numbers: a counter below an archive means the next ID of that prefix
+    ' could repeat an archived one (the live log alone can't show it once the old rows have moved)
+    Dim mx As Object: Set mx = CreateObject("Scripting.Dictionary")
+    mx.CompareMode = 1
+    Dim mxE As Long, sheets As String, kk As Variant
+    ArchiveMaxima mx, mxE, sheets
+    For Each kk In mx.Keys
+        If IdMark(CStr(kk)) < CLng(mx(kk)) Then
+            AddIssue SEV_ERR, "IDs", "The ID counter for " & CStr(kk) & "- is " & Format$(IdMark(CStr(kk)), "0000") & _
+                     " but an archived year (" & sheets & ") holds " & CStr(kk) & "-" & Format$(CLng(mx(kk)), "0000") & _
+                     ": the next " & CStr(kk) & "- ID could repeat an archived one", "Run RepairIdMarks (admin, Alt+F8), then IntegrityCheck again"
+        End If
+    Next kk
+    If mxE > 0 And IdMark("ENTRY") < mxE Then
+        AddIssue SEV_ERR, "IDs", "The Entry ID counter is " & IdMark("ENTRY") & " but an archived year (" & sheets & ") holds #" & mxE & _
+                 ": the next Entry ID could repeat an archived one", "Run RepairIdMarks (admin, Alt+F8), then IntegrityCheck again"
+    End If
 End Sub
 
 Private Sub TableIdCheck(ByVal tableName As String, ByVal idCol As Long, ByVal what As String)

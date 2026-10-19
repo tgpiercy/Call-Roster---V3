@@ -609,43 +609,91 @@ End Function
 Private Sub RecordIdMarks(ByRef v As Variant)
     Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
     d.CompareMode = 1
-    Dim i As Long, s As String, p As Long, pre As String, k As Long, mxE As Long, kk As Variant
-    For i = 1 To UBound(v, 1)
-        s = UCase$(Trim$(SafeStr(v(i, L_REF))))
-        p = InStrRev(s, "-")
-        If p > 1 And p < Len(s) Then
-            If IsNumeric(Mid$(s, p + 1)) Then
-                pre = Left$(s, p - 1)
-                k = CLng(Val(Mid$(s, p + 1)))
-                If Not d.Exists(pre) Then
-                    d.Add pre, k
-                ElseIf k > d(pre) Then
-                    d(pre) = k
-                End If
-            End If
-        End If
-        If IsNumeric(v(i, L_ENTRY)) And Not IsEmpty(v(i, L_ENTRY)) Then
-            If CLng(v(i, L_ENTRY)) > mxE Then mxE = CLng(v(i, L_ENTRY))
-        End If
-    Next i
+    Dim mxE As Long, kk As Variant
+    LogMaxima v, d, mxE                 ' v26: the one parse (modOvertimeEntry.AddRefMaxima)
     For Each kk In d.Keys
-        If IsPlainPrefix(CStr(kk)) Then
-            SetIdMark CStr(kk), CLng(d(kk))
-            If IdMark(CStr(kk)) < CLng(d(kk)) Then Err.Raise vbObjectError + 731, , "the ID counter for " & CStr(kk) & "- couldn't be stored"
-        End If
+        SetIdMark CStr(kk), CLng(d(kk))
+        If IdMark(CStr(kk)) < CLng(d(kk)) Then Err.Raise vbObjectError + 731, , "the ID counter for " & CStr(kk) & "- couldn't be stored"
     Next kk
     SetIdMark "ENTRY", mxE
     If IdMark("ENTRY") < mxE Then Err.Raise vbObjectError + 732, , "the Entry ID counter couldn't be stored"
 End Sub
 
-Private Function IsPlainPrefix(ByVal s As String) As Boolean
-    Dim i As Long
-    If Len(s) = 0 Or Len(s) > 8 Then Exit Function
-    For i = 1 To Len(s)
-        If Not Mid$(s, i, 1) Like "[A-Z]" Then Exit Function
+' v26 (I8): the highest Ref ID number per plain prefix (into d) and the highest Entry ID
+' (mxE, only raised) among log rows in the OT Log layout
+Private Sub LogMaxima(ByRef v As Variant, ByVal d As Object, ByRef mxE As Long)
+    If Not IsArray(v) Then Exit Sub
+    Dim refs() As String, i As Long
+    ReDim refs(1 To UBound(v, 1))
+    For i = 1 To UBound(v, 1)
+        refs(i) = SafeStr(v(i, L_REF))
+        If IsNumeric(v(i, L_ENTRY)) And Not IsEmpty(v(i, L_ENTRY)) Then
+            If CLng(v(i, L_ENTRY)) > mxE Then mxE = CLng(v(i, L_ENTRY))
+        End If
     Next i
-    IsPlainPrefix = True
-End Function
+    AddRefMaxima refs, d
+End Sub
+
+' v26 (I8): the highest Ref ID number per prefix (into d) and the highest Entry ID (mxE)
+' across every archived year's log (OT Log YYYY). Reads only. The marks must be at least
+' these, or the next ID could repeat an archived one (IntegrityCheck's IDs line).
+Public Sub ArchiveMaxima(ByVal d As Object, ByRef mxE As Long, Optional ByRef sheets As String = "")
+    Dim ws As Worksheet, lo As ListObject, v As Variant
+    For Each ws In ThisWorkbook.Worksheets
+        If ws.Name Like LOG_SHEET & " ####" Then
+            If ws.ListObjects.Count > 0 Then
+                Set lo = ws.ListObjects(1)
+                If Not lo.DataBodyRange Is Nothing And lo.ListColumns.Count >= L_ENTRY Then
+                    v = RangeTo2D(lo.DataBodyRange)
+                    LogMaxima v, d, mxE
+                    sheets = sheets & IIf(sheets = "", "", ", ") & ws.Name
+                End If
+            End If
+        End If
+    Next ws
+End Sub
+
+' v26 (I8, admin, Alt+F8): raises every IdMark_ counter to the highest number found in the
+' archived years AND the live log, through SetIdMark (which never lowers one). Reports what it
+' raised. The fix IntegrityCheck's IDs line names when a counter is below an archive.
+Public Sub RepairIdMarks()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1
+    Dim mxE As Long, sheets As String, kk As Variant, was As Long, txt As String
+    ArchiveMaxima d, mxE, sheets
+    Dim lo As ListObject: Set lo = LogTable()
+    If Not lo Is Nothing Then
+        If Not lo.DataBodyRange Is Nothing Then LogMaxima RangeTo2D(lo.DataBodyRange), d, mxE
+    End If
+    For Each kk In d.Keys
+        was = IdMark(CStr(kk))
+        If was < CLng(d(kk)) Then
+            SetIdMark CStr(kk), CLng(d(kk))
+            If IdMark(CStr(kk)) < CLng(d(kk)) Then Err.Raise vbObjectError + 733, , "the ID counter for " & CStr(kk) & "- couldn't be stored"
+            txt = txt & vbNewLine & "  " & CStr(kk) & "-: " & Format$(was, "0000") & " -> " & Format$(CLng(d(kk)), "0000")
+        End If
+    Next kk
+    was = IdMark("ENTRY")
+    If was < mxE Then
+        SetIdMark "ENTRY", mxE
+        If IdMark("ENTRY") < mxE Then Err.Raise vbObjectError + 734, , "the Entry ID counter couldn't be stored"
+        txt = txt & vbNewLine & "  Entry ID: " & was & " -> " & mxE
+    End If
+    If txt = "" Then
+        MsgBox "Every ID counter is already at or above the highest number in " & _
+               IIf(sheets = "", "the OT Log (no archived year yet)", sheets & " and the OT Log") & ". Nothing changed.", _
+               vbInformation, "Repair ID counters"
+    Else
+        SaveIfWritable
+        MsgBox "Raised:" & txt & vbNewLine & vbNewLine & "Run IntegrityCheck to confirm the IDs line is clear.", vbInformation, "Repair ID counters"
+    End If
+    Exit Sub
+Oops:
+    ReportError "RepairIdMarks"
+End Sub
 
 ' The archive sheet "OT Log 2026": same columns, values only, a table
 ' named tblOTLog2026. arc = the rows (or Empty when nArc = 0).

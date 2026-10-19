@@ -586,3 +586,10 @@ payback,one-day-over,43,42,,,,Payback owed 43 days
 payback,long-overdue,120,42,,,,Payback owed 120 days
 payback,today,0,42,,,,Payback owed
 payback,limit-zero-flags-one-day,1,0,,,,Payback owed 1 days
+idmark,three-prefixes,S-0042|S-0431|P-0017|LV-0003,,,,,LV=3|P=17|S=431
+idmark,junk-skipped,S-0042|junk|S-x|-0012|S-,,,,,S=42
+idmark,lower-case-and-spaces,s-0007| S-0009 ,,,,,S=9
+idmark,entry-style-number-not-a-ref,#12|12,,,,,none
+idmark,long-prefix-ignored,TOOLONGPRE-0001|ADJ-0100,,,,,ADJ=100
+idmark,empty,,,,,,none
+idmark,digit-in-prefix-ignored,P2-0005|P-0004,,,,,P=4

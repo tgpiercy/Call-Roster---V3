@@ -251,6 +251,8 @@ def evaluate(row: dict) -> str:
         return rules.hours_text(float(i1))
     if suite == "payback":                       # v26: days owed, warn days -> the Needs Attention status
         return rules.owed_status_text(int(i1), int(i2))
+    if suite == "idmark":                        # v26 (I8): Ref IDs joined by | -> highest number per prefix, or none
+        return rules.ref_prefix_max_text(i1) or "none"
     if suite == "typetag":                       # v25: absence code -> calendar tag / what members get
         return rules.type_tag(i1) + "/" + rules.public_type(i1)
     if suite == "planid":                        # v25: an Exempt note -> the planned move's ID / none

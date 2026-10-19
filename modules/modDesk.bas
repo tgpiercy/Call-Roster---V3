@@ -275,6 +275,8 @@ Public Sub DrawDesk()
     DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xR, yR, dkBlue()   ' v25.5: on the supervisor Desk too (bundle item 8)
     yR = yR + BTN_H + GAP
     DeskBtn ws, "dk_btn_print", "Print the call-out roster", "modDesk.DeskPrint", xR, yR, dkNavy()
+    yR = yR + BTN_H + GAP
+    DeskBtn ws, "dk_btn_history", "Employee history (report)", "modDesk.DeskHistory", xR, yR, dkNavy()   ' v26: one person, a date range, a PDF
 
     ' ---- footer links ----
     Dim yF As Double: yF = IIf(yL > yR, yL, yR) + BTN_H + 22
@@ -626,6 +628,15 @@ Oops:
     ReportError "DeskRoster"
 End Sub
 
+' v26: the employee history report (modReports.EmployeeHistory; its own error frame)
+Public Sub DeskHistory()
+    On Error GoTo Oops
+    EmployeeHistory
+    Exit Sub
+Oops:
+    ReportError "DeskHistory"
+End Sub
+
 ' v25.5 (A9) "Undo my last log entry": the admin Desk; voids this login's newest entry of today through Void Entry's path
 Public Sub DeskUndo()
     On Error GoTo Oops
@@ -922,6 +933,14 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Supervisors and admins: click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
         "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _
         "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
+    HelpAdd h, n, "Employee history (report)", _
+        "Employee history on the bar's FIND group or the Desk: part of a name, then a From and To date (the box opens on the roster year " & _
+        "to date), and the History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with " & _
+        "their place in the call order, postings, adjustments, the hours charged and a Why line for each (for example Charged 21 h: 3rd " & _
+        "called, Refused, 12 h offered x 1.75), then the charged hours per pay period and the total. An admin is asked for the full " & _
+        "report (who logged each entry and when, void rows struck through) or the member-safe one (the same columns the members' " & _
+        "file shows, so it matches My history there); a supervisor gets the member-safe one. Save a PDF as well? puts it in the " & _
+        "reports folder (beside the roster until go-live). Click any OT Log row for its Why on the status bar."
     HelpAdd h, n, "Keyboard shortcuts", _
         "While the roster is the active workbook: Ctrl+Shift+S opens Sick Call, Ctrl+Shift+C the call-out, Ctrl+Shift+K the " & _
         "calendar, Ctrl+Shift+D the Desk. In the call-out pop-up the letters A R L U P record the outcome, K skips, B goes back, " & _

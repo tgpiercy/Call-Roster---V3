@@ -18,6 +18,7 @@ Public Const CALLOUT_SHEET As String = "Blank Call Out Roster"
 Public Const CALLOUT_PHONE_COL As Long = 5          ' phone column on the printed call out roster (hidden for non-admins) - v21
 Public Const POSTING_SHEET As String = "Overtime Posting"
 Public Const REFUSAL_SHEET As String = "Refusal Report"
+Public Const HISTORY_SHEET As String = "History Report"      ' v26: the employee history report (output only)
 
 Public Const SHEET_PASSWORD As String = "mytest"
 ' Windows usernames allowed to run admin macros (comma separated, any case)

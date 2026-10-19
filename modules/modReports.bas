@@ -638,7 +638,7 @@ Public Sub RefusalsReport()
 
     If n > 0 Then
         If MsgBox("The report is on the '" & ws.Name & "' tab (" & n & " people)." & vbNewLine & vbNewLine & _
-                  "Save a PDF as well?", vbYesNo + vbQuestion, "Refusals report") = vbYes Then ReportPdf ws, IIf(allUnits, "all units", unit)
+                  "Save a PDF as well?", vbYesNo + vbQuestion, "Refusals report") = vbYes Then ReportPdf ws, "Refused hours " & IIf(allUnits, "all units", unit)
     End If
     Exit Sub
 Failed:
@@ -666,20 +666,338 @@ Private Sub ReportTotalRow(ByVal ws As Worksheet, ByVal r As Long, ByVal label A
 End Sub
 
 Private Function ReportSheet() As Worksheet
-    If Not SheetExists(REFUSAL_SHEET) Then
+    Set ReportSheet = ReportSheetNamed(REFUSAL_SHEET)
+End Function
+
+' v26: an output-only report sheet by name, made on first use (the Refusals Report's pattern)
+Private Function ReportSheetNamed(ByVal sheetName As String) As Worksheet
+    If Not SheetExists(sheetName) Then
         Dim was As Object: Set was = ActiveSheet
         Dim ws As Worksheet
         UnlockStructure                                 ' v25: structure protection
         Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-        ws.Name = REFUSAL_SHEET
+        ws.Name = sheetName
         RelockStructure
         SetTabColor ws, RGB(30, 56, 100)                ' v25.1
         On Error Resume Next
         If Not was Is Nothing Then was.Activate
         On Error GoTo 0
     End If
-    Set ReportSheet = ThisWorkbook.Worksheets(REFUSAL_SHEET)
+    Set ReportSheetNamed = ThisWorkbook.Worksheets(sheetName)
 End Function
+
+
+' ====================================================================
+'  EMPLOYEE HISTORY REPORT (v26, kit item 1)
+' ====================================================================
+' One person, a date range -> the History Report sheet (+ PDF): every OT Log
+' row for them in the range, newest first, with the Why line, then the
+' charged hours per pay period and the total, as the members' My history
+' shows them. Two flavours: FULL (admin: who logged it and when, void rows
+' struck through) and MEMBER-SAFE (exactly the columns dLog carries, so it
+' matches the members' file row for row). Supervisors get member-safe only.
+' Reads the log; writes the output sheet. No rule.
+Public Sub EmployeeHistory()
+    On Error GoTo Oops
+    If Not IsSupervisor() Then Exit Sub                 ' the button is theirs (admins included)
+    If LogTable() Is Nothing Then Exit Sub
+    Const TTL As String = "Employee history"
+    Dim nm As String: nm = AskPersonName(TTL)
+    If nm = "" Then Exit Sub
+    Dim dFrom As Date, dTo As Date
+    If Not AskDateRange(dFrom, dTo, TTL) Then Exit Sub
+    Dim full As Boolean, ans As VbMsgBoxResult
+    If IsAdmin() Then
+        ans = MsgBox("Which report for " & nm & "?" & vbNewLine & vbNewLine & _
+                     "Yes = FULL (admin): who logged each entry and when, void rows struck through." & vbNewLine & _
+                     "No = MEMBER-SAFE: the columns the members' file shows (it matches My history there).", _
+                     vbYesNoCancel + vbQuestion, TTL)
+        If ans = vbCancel Then Exit Sub
+        full = (ans = vbYes)
+    End If
+    DrawHistoryReport nm, dFrom, dTo, full
+    Exit Sub
+Oops:
+    ReportError "EmployeeHistory"
+End Sub
+
+' v26: part of a name -> the roster name (the first match, as Find a person), or someone no longer on
+' the roster who has log rows; "" = cancelled or nobody
+Private Function AskPersonName(ByVal ttl As String) As String
+    Dim q As Variant
+    q = Application.InputBox(Prompt:="Whose history? Part of the name (the last name is enough):", Title:=ttl, Type:=2)
+    If VarType(q) = vbBoolean Then Exit Function
+    Dim t As String: t = Trim$(CStr(q))
+    If t = "" Then Exit Function
+    Dim rs As Worksheet: Set rs = RosterSheet()
+    Dim r As Long, nm As String, hit As String, nHits As Long
+    For r = R_FIRST To RosterLastRow()
+        nm = Trim$(SafeStr(rs.Cells(r, C_NAME).Value))
+        If nm <> "" Then
+            If InStr(1, nm, t, vbTextCompare) > 0 Then
+                nHits = nHits + 1
+                If hit = "" Then hit = nm
+            End If
+        End If
+    Next r
+    If hit = "" Then                                    ' someone who left: the log still holds their rows
+        Dim lg As Variant: lg = LogRowsNow()
+        Dim seen As Object: Set seen = CreateObject("Scripting.Dictionary")
+        seen.CompareMode = 1
+        If IsArray(lg) Then
+            For r = 1 To UBound(lg, 1)
+                nm = Trim$(SafeStr(lg(r, L_EMP)))
+                If nm <> "" And Not seen.Exists(nm) Then
+                    seen.Add nm, True
+                    If InStr(1, nm, t, vbTextCompare) > 0 Then
+                        nHits = nHits + 1
+                        If hit = "" Then hit = nm
+                    End If
+                End If
+            Next r
+        End If
+    End If
+    If hit = "" Then
+        MsgBox "Nobody on the roster or in the OT Log matches """ & t & """.", vbInformation, ttl
+        Exit Function
+    End If
+    If nHits > 1 Then
+        If MsgBox(nHits & " names match """ & t & """. Use the first, " & hit & "?" & vbNewLine & vbNewLine & _
+                  "No = type more of the name.", vbYesNo + vbQuestion, ttl) <> vbYes Then Exit Function
+    End If
+    AskPersonName = hit
+End Function
+
+' v26: From and To dates typed through the one parser (ParseTypedDate); the boxes open on the
+' roster year to date. False = cancelled. Shift dates, both ends included.
+Private Function AskDateRange(ByRef dFrom As Date, ByRef dTo As Date, ByVal ttl As String) As Boolean
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim y0 As Date, a As Variant, t As String
+    If IsDate(ws.Cells(PStartRow(), C_PERIOD1).Value) Then y0 = CDate(ws.Cells(PStartRow(), C_PERIOD1).Value) Else y0 = DateSerial(Year(Date), 1, 1)
+    Do
+        a = Application.InputBox(Prompt:="From (shift date, included). For example  Jan 5  or  2026-01-05:", Title:=ttl, Default:=DateText(y0), Type:=2)
+        If VarType(a) = vbBoolean Then Exit Function
+        t = Trim$(CStr(a))
+        If ParseTypedDate(t, dFrom) Then Exit Do
+        MsgBox "That isn't a date I can read: " & t, vbExclamation, ttl
+    Loop
+    Do
+        a = Application.InputBox(Prompt:="To (shift date, included):", Title:=ttl, Default:=DateText(Date), Type:=2)
+        If VarType(a) = vbBoolean Then Exit Function
+        t = Trim$(CStr(a))
+        If ParseTypedDate(t, dTo) Then
+            If dTo >= dFrom Then Exit Do
+            MsgBox "The To date is before the From date (" & DateText(dFrom) & ").", vbExclamation, ttl
+        Else
+            MsgBox "That isn't a date I can read: " & t, vbExclamation, ttl
+        End If
+    Loop
+    AskDateRange = True
+End Function
+
+' v26: the Why column as the members' file carries it: the sentence with the Note for a CHARGED row,
+' "" for any other (nothing about an uncharged call or an unavailable reason leaves the master)
+Public Function PublicWhy(ByRef lg As Variant, ByVal r As Long) As String
+    If NumOr0(lg(r, L_CHARGED)) <> 0 Then PublicWhy = WhyFromRow(lg, r, True)
+End Function
+
+Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo As Date, ByVal full As Boolean)
+    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim ws As Worksheet, em As String
+    On Error GoTo Failed
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+
+    ' ---- the rows: this person, shift date in the range, newest shift date first (ties keep the log's order) ----
+    Dim lg As Variant: lg = LogRowsNow()
+    Dim idx() As Long, n As Long, r As Long, i As Long, j As Long, t As Long, sd As Date
+    If IsArray(lg) Then
+        ReDim idx(1 To UBound(lg, 1))
+        For r = 1 To UBound(lg, 1)
+            If StrComp(Trim$(SafeStr(lg(r, L_EMP))), nm, vbTextCompare) = 0 And IsDate(lg(r, L_DATE)) Then
+                If full Or UCase$(Trim$(SafeStr(lg(r, L_STATUS)))) <> "VOID" Then
+                    sd = CDate(lg(r, L_DATE))
+                    If Int(sd) >= Int(dFrom) And Int(sd) <= Int(dTo) Then n = n + 1: idx(n) = r
+                End If
+            End If
+        Next r
+        For i = 2 To n
+            t = idx(i): j = i - 1
+            Do While j >= 1
+                If Int(CDate(lg(idx(j), L_DATE))) >= Int(CDate(lg(t, L_DATE))) Then Exit Do
+                idx(j + 1) = idx(j): j = j - 1
+            Loop
+            idx(j + 1) = t
+        Next i
+    End If
+
+    ' ---- the sheet ----
+    Set ws = ReportSheetNamed(HISTORY_SHEET)
+    SetSheetVisible ws, xlSheetVisible
+    UnlockSheet ws
+    ws.Cells.Clear
+    Dim nc As Long: nc = IIf(full, 14, 10)
+    ws.Range("A1").Value = "EMPLOYEE HISTORY  -  " & nm & "  -  " & DateText(dFrom) & " to " & DateText(dTo) & IIf(full, "  (FULL, admin)", "  (member-safe)")
+    ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 13
+    ws.Range("A2").Value = "Every OT Log entry for " & nm & " with a shift date in the range, newest first" & _
+                           IIf(full, ", void rows struck through (not counted)", " (void rows left out)") & ".  " & _
+                           "Why = what the row shows; the charge rules are the roster's.  Drawn " & Format$(Now, "mmm d, yyyy h:mm AM/PM") & "."
+    ws.Range("A2").Font.Italic = True: ws.Range("A2").Font.Size = 8.5
+    Dim heads As Variant
+    If full Then
+        heads = Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Call order", "Outcome", "Charged", "Why", "Pay period", _
+                      "Logged by", "When", "Status", "Void note")
+    Else
+        heads = Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Call order", "Outcome", "Charged", "Why", "Pay period")
+    End If
+    ws.Range("A4").Resize(1, nc).Value = heads
+    With ws.Range("A4").Resize(1, nc)
+        .Font.Bold = True: .Font.Color = vbWhite: .Interior.Color = RGB(30, 56, 100)
+        .WrapText = True: .VerticalAlignment = xlCenter: .HorizontalAlignment = xlCenter
+    End With
+    ws.Rows(4).RowHeight = 30
+
+    Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
+    Dim yearTot As Double, kCall As Double, kPost As Double, kOther As Double, ch As Double, ps As String, isVoid As Boolean
+    r = 5
+    If n = 0 Then
+        ws.Cells(r, 1).Value = "Nothing logged for " & nm & " between " & DateText(dFrom) & " and " & DateText(dTo) & "."
+        r = r + 1
+    End If
+    For i = 1 To n
+        t = idx(i)
+        isVoid = (UCase$(Trim$(SafeStr(lg(t, L_STATUS)))) = "VOID")
+        ws.Cells(r, 1).NumberFormat = "ddd mmm d"
+        ws.Cells(r, 1).Value = CDate(lg(t, L_DATE))
+        ws.Cells(r, 2).Value = SafeStr(lg(t, L_REF))
+        ws.Cells(r, 3).Value = SafeStr(lg(t, L_TYPE))
+        ws.Cells(r, 4).Value = SafeStr(lg(t, L_DEPT)) & " / " & SafeStr(lg(t, L_SHIFTLBL))
+        ws.Cells(r, 5).Value = NumOr0(lg(t, L_BASEHRS))
+        If NumOr0(lg(t, L_ORDER)) > 0 Then ws.Cells(r, 6).Value = CLng(NumOr0(lg(t, L_ORDER)))
+        ws.Cells(r, 7).Value = SafeStr(lg(t, L_OUTCOME))
+        ch = NumOr0(lg(t, L_CHARGED))
+        ws.Cells(r, 8).Value = ch
+        ws.Cells(r, 9).Value = IIf(full, WhyFromRow(lg, t, True), PublicWhy(lg, t))
+        ws.Cells(r, 10).NumberFormat = "@"
+        If IsDate(lg(t, L_PERIOD)) Then ws.Cells(r, 10).Value = Format$(CDate(lg(t, L_PERIOD)), "mmm d")
+        If full Then
+            ws.Cells(r, 11).Value = SafeStr(lg(t, L_USER))
+            If IsDate(lg(t, L_STAMP)) Then ws.Cells(r, 12).Value = Format$(CDate(lg(t, L_STAMP)), "mmm d, yyyy h:mm AM/PM")
+            ws.Cells(r, 13).Value = SafeStr(lg(t, L_STATUS))
+            ws.Cells(r, 14).Value = SafeStr(lg(t, L_VOIDNOTE))
+            If isVoid Then ws.Range(ws.Cells(r, 1), ws.Cells(r, nc)).Font.Strikethrough = True
+        End If
+        If Not isVoid Then
+            If IsDate(lg(t, L_PERIOD)) Then ps = Format$(CDate(lg(t, L_PERIOD)), "yyyy-mm-dd") Else ps = "(no period)"
+            If totals.Exists(ps) Then totals(ps) = totals(ps) + ch Else totals.Add ps, ch
+            yearTot = yearTot + ch
+            Select Case RefusedBucket(SafeStr(lg(t, L_TYPE)))
+                Case "callout": kCall = kCall + ch
+                Case "posting": kPost = kPost + ch
+                Case Else: kOther = kOther + ch
+            End Select
+        End If
+        r = r + 1
+    Next i
+    Dim rRowsEnd As Long: rRowsEnd = r - 1
+
+    ' ---- the totals, as the members' My history shows them ----
+    r = r + 1
+    ws.Range(ws.Cells(r, 1), ws.Cells(r, 2)).Value = Array("Pay period", "Charged hours")
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r, nc))
+        .Font.Bold = True: .Font.Color = vbWhite: .Interior.Color = RGB(30, 56, 100)
+    End With
+    r = r + 1
+    Dim ks() As String, nk As Long, kk As Variant, tk As String
+    If totals.Count > 0 Then
+        ReDim ks(1 To totals.Count)
+        For Each kk In totals.Keys
+            nk = nk + 1: ks(nk) = CStr(kk)
+        Next kk
+    End If
+    For i = 2 To nk                                     ' A-Z, then written newest first
+        tk = ks(i): j = i - 1
+        Do While j >= 1
+            If ks(j) <= tk Then Exit Do
+            ks(j + 1) = ks(j): j = j - 1
+        Loop
+        ks(j + 1) = tk
+    Next i
+    For i = nk To 1 Step -1
+        If ks(i) Like "####-##-##" Then
+            sd = DateSerial(CLng(Left$(ks(i), 4)), CLng(Mid$(ks(i), 6, 2)), CLng(Mid$(ks(i), 9, 2)))
+            ws.Cells(r, 1).Value = Format$(sd, "mmm d") & " - " & Format$(sd + 13, "mmm d")
+        Else
+            ws.Cells(r, 1).Value = ks(i)
+        End If
+        ws.Cells(r, 2).Value = totals(ks(i))
+        r = r + 1
+    Next i
+    ws.Cells(r, 1).Value = "Total for the range": ws.Cells(r, 1).Font.Bold = True
+    ws.Cells(r, 2).Value = yearTot: ws.Cells(r, 2).Font.Bold = True
+    r = r + 1
+    ws.Cells(r, 1).Value = "  call-out refusals": ws.Cells(r, 2).Value = kCall: r = r + 1
+    ws.Cells(r, 1).Value = "  posting refusals": ws.Cells(r, 2).Value = kPost: r = r + 1
+    If Abs(kOther) > 0.0001 Then ws.Cells(r, 1).Value = "  other (adjustments)": ws.Cells(r, 2).Value = kOther: r = r + 1
+
+    ' ---- layout ----
+    ws.Columns(1).ColumnWidth = 14
+    ws.Columns(2).ColumnWidth = 10
+    ws.Columns(3).ColumnWidth = 11
+    ws.Columns(4).ColumnWidth = 22
+    ws.Columns(5).ColumnWidth = 7
+    ws.Columns(6).ColumnWidth = 7
+    ws.Columns(7).ColumnWidth = 13
+    ws.Columns(8).ColumnWidth = 9
+    ws.Columns(9).ColumnWidth = 70
+    ws.Columns(10).ColumnWidth = 10
+    If full Then
+        ws.Columns(11).ColumnWidth = 14
+        ws.Columns(12).ColumnWidth = 20
+        ws.Columns(13).ColumnWidth = 8
+        ws.Columns(14).ColumnWidth = 30
+    End If
+    If rRowsEnd >= 5 Then
+        ws.Range(ws.Cells(5, 9), ws.Cells(rRowsEnd, 9)).WrapText = True
+        ws.Range(ws.Cells(5, 1), ws.Cells(rRowsEnd, nc)).VerticalAlignment = xlTop
+        ws.Range(ws.Cells(5, 5), ws.Cells(rRowsEnd, 8)).HorizontalAlignment = xlCenter
+        ws.Range(ws.Cells(4, 1), ws.Cells(rRowsEnd, nc)).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
+        ws.Range(ws.Rows(5), ws.Rows(rRowsEnd)).AutoFit
+    End If
+    ws.Range(ws.Cells(rRowsEnd + 3, 2), ws.Cells(r, 2)).HorizontalAlignment = xlCenter
+    On Error Resume Next
+    With ws.PageSetup
+        .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, nc)).Address
+        .PrintTitleRows = "$4:$4"
+        .Orientation = xlLandscape
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = False
+    End With
+    On Error GoTo Failed
+    ProtectSheet ws
+    ws.Activate
+    ReleaseStatusBar                        ' the tab changed with events off
+    ActiveWindow.DisplayGridlines = False
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+
+    If MsgBox("The report is on the '" & ws.Name & "' tab (" & n & " entries)." & vbNewLine & vbNewLine & _
+              "Save a PDF as well?", vbYesNo + vbQuestion, "Employee history") = vbYes Then
+        ReportPdf ws, "History " & nm & " " & Format$(dFrom, "yyyy-mm-dd") & " to " & Format$(dTo, "yyyy-mm-dd") & _
+                      IIf(full, " FULL", ""), "Employee history"
+    End If
+    Exit Sub
+Failed:
+    em = Err.Description
+    LogError "DrawHistoryReport", Err.Number, em
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+    MsgBox "The history report couldn't be drawn: " & em, vbExclamation, "Employee history"
+End Sub
 
 ' Numbered pick: 0 = all units, 1..8 = one unit. False = cancelled.
 Private Function AskReportUnit(ByRef unit As String, ByRef allUnits As Boolean) As Boolean
@@ -707,10 +1025,11 @@ Private Function AskReportUnit(ByRef unit As String, ByRef allUnits As Boolean) 
     Loop
 End Function
 
-Private Sub ReportPdf(ByVal ws As Worksheet, ByVal what As String)
+' v26: fileBase is the PDF's name before the date (was fixed to "Refused hours <what>"); ttl the box title
+Private Sub ReportPdf(ByVal ws As Worksheet, ByVal fileBase As String, Optional ByVal ttl As String = "Refusals report")
     Dim folder As String: folder = EnsureSlash(ReportFolder())
     If Not FolderExists(folder) Then folder = EnsureSlash(ThisWorkbook.Path)
-    Dim pdfPath As String: pdfPath = folder & "Refused hours " & what & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
+    Dim pdfPath As String: pdfPath = folder & fileBase & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
     Dim em As String
     On Error Resume Next
     ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=pdfPath, Quality:=xlQualityStandard, _
@@ -718,8 +1037,8 @@ Private Sub ReportPdf(ByVal ws As Worksheet, ByVal what As String)
     If Err.Number <> 0 Then em = Err.Description
     On Error GoTo 0
     If em = "" Then
-        MsgBox "PDF saved:" & vbNewLine & pdfPath, vbInformation, "Refusals report"
+        MsgBox "PDF saved:" & vbNewLine & pdfPath, vbInformation, ttl
     Else
-        MsgBox "The PDF couldn't be saved (" & em & "). Is it open?", vbExclamation, "Refusals report"
+        MsgBox "The PDF couldn't be saved (" & em & "). Is it open?", vbExclamation, ttl
     End If
 End Sub

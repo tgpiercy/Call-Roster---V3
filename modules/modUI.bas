@@ -342,6 +342,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     ' --- Find (v25.5, A10: supervisors and admins; every other group was full) ---
     GroupLabel ws, "ui_sup_lbl_find", "FIND", x, y0, wP
     Btn ws, "ui_sup_Find", "Find a person", "modReports.FindPerson", x, y(1), wP, vbWhite, NAVY, False
+    Btn ws, "ui_sup_History", "Employee history", "modReports.EmployeeHistory", x, y(2), wP, vbWhite, NAVY, False   ' v26: the report (admin: full or member-safe; supervisor: member-safe)
 End Sub
 
 Private Sub GroupLabel(ByVal ws As Worksheet, ByVal nm As String, ByVal txt As String, _

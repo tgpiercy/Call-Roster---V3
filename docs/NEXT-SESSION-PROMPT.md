@@ -27,6 +27,11 @@ v26.5.5 or v27 (one commit per finding, the four checkers after each, read-only 
 worktrees told to review `main`, re-review the fixes, INSTALL note, steps file, stamps, tag, zip, push from
 my Terminal panel). Never git add -A. Update docs/NEXT-SESSION-PROMPT.md at the end of the session.
 
+Desk v2 (decided Oct 19): docs/desk-v2-mockup-2026-10.html is the mock-up (four bands NOW / PLAN / FINISH
++ TODAY, three colours, header pills, action tiles; same buttons and rights). No code until the boss's first
+alpha week (Nov 1-7) has shaped it; then a UI-only item (DrawDesk redraw, no form re-paste) in v26.5.5.
+UI_SCALE and the call-out form's fit wait for the plant screen measurement.
+
 In parallel, no code (docs/timeline-2026-10-18.md): the what-if scenario sheets, the four guides refreshed
 for v25.5 / v26 / v26.5, the Nov 15 presentation pack, the Dec 1 training plan - start them when I say.
 ```

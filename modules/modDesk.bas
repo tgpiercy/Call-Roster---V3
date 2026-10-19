@@ -941,8 +941,9 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
     HelpAdd h, n, "Minimum staffing (admin)", _
         "The Min Staff sheet (admin) holds the minimum operators per unit and shift; blank = no minimum on that shift. For today and " & _
-        "the next 13 days the calendar's date cell shows a red N short flag when a unit's day or night shift is below it (click the date for which), and Needs " & _
-        "Attention lists each short shift under BELOW MINIMUM STAFFING (double-click to open the calendar on that date). Staffed " & _
+        "the next 13 days the calendar's date cell shows a red N short flag when any unit's day or night shift is below it, whatever unit group the " & _
+        "calendar shows (click the date for which), and Needs Attention lists each short shift under BELOW MINIMUM STAFFING, every unit " & _
+        "(double-click to open the calendar on that date). Staffed " & _
         "= the people on the crew that is on, holding a code in the unit, minus those booked off or sick for that shift or off in a " & _
         "switch, plus every coverage line a named person covers (a switch's own S/S line counts the one working it); an OPEN, " & _
         "NO TAKERS, POSTED or NCN line adds nobody. It only reads: fix a short shift the usual way (a call-out, a posting, a switch)."

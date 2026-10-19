@@ -2040,7 +2040,7 @@ Public Sub DrawCalendar()
                 numTxt = CStr(Day(d)): flagTxt = ""
                 If nOpen(k) > 0 Then flagTxt = "   " & ChrW(9679) & " " & nOpen(k) & " open"
                 If Int(d) >= Int(Date) And Int(d) < Int(Date) + BOARD_DAYS Then     ' v26: minimum staffing, the next 14 days
-                    shortTxt = StaffShortText(d, grp, nShortD)        ' the cell keeps a short flag (review: the cell is half a day wide);
+                    shortTxt = StaffShortText(d, "", nShortD)         ' v26.5: EVERY unit, whatever group is shown (Graeme, Oct 19); the cell keeps a short flag;
                     If nShortD > 0 Then flagTxt = flagTxt & "   " & ChrW(9650) & " " & nShortD & " short"   ' a click shows which (LineDetails)
                 End If
                 vals(1, 2 * k + 1) = numTxt & flagTxt & vbLf & "Days: " & DaysCrew(d) & " Shift"
@@ -3868,7 +3868,7 @@ Private Function LineDetails(ByVal keyTxt As String, Optional ByVal useCache As 
     If Left$(slotKey, 2) = "D:" Then                    ' v26: the date cell - the crews on, and the short shifts behind its flag
         s = Format$(d, "dddd mmm d") & "  -  Days " & DaysCrew(d) & ", Nights " & NightsCrew(d)
         If Int(d) >= Int(Date) And Int(d) < Int(Date) + BOARD_DAYS Then
-            Dim shortTxt As String: shortTxt = StaffShortText(d, CalGroup())
+            Dim shortTxt As String: shortTxt = StaffShortText(d, "")          ' v26.5: every unit, whatever group is shown
             If shortTxt <> "" Then s = s & vbLf & "BELOW MINIMUM STAFFING  -  " & shortTxt
         End If
         LineDetails = s
@@ -4223,7 +4223,7 @@ Public Sub DrawNeeds()
 
     ' B2. below minimum staffing (v26): today .. today + nDays - 1, the group's units that have a minimum
     StaffSweepBegin Date
-    Dim ms As Variant: ms = StaffShortList(Date, IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS), grp)   ' the brief's 14 days, whatever the box's window
+    Dim ms As Variant: ms = StaffShortList(Date, IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS), "")    ' the brief's 14 days, whatever the box's window; v26.5: every unit, whatever group is picked
     If IsArray(ms) Then
         For i = 1 To UBound(ms, 1)
             d = CDate(CDbl(ms(i, 2)))
@@ -4458,7 +4458,7 @@ Public Sub DrawNeeds()
                   Array("Date", "Shift", "Crew", "Unit", "Who's off / need", "Type", "Status", "When"))
     r = NARows(ws, r, lr, nL, "Nothing open - every line in the window is covered, posted or NCN.")
     If nShort > 0 Or MinStaffCount() > 0 Then       ' v26: only once the Min Staff sheet holds a minimum
-        r = NASection(ws, r, "BELOW MINIMUM STAFFING  -  next " & IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS) & " days (double-click for the calendar on that date)", nShort, thOpen(), _
+        r = NASection(ws, r, "BELOW MINIMUM STAFFING  -  every unit, next " & IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS) & " days (double-click for the calendar on that date)", nShort, thOpen(), _
                       Array("Shift date", "Shift", "Crew", "Unit", "Staffed", "Type", "Status", "When"))
         r = NARows(ws, r, shortRows, nShort, "Every unit with a minimum is at or above it.")
     End If

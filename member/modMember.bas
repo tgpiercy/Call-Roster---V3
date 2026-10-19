@@ -338,7 +338,7 @@ Public Sub BuildMemberTemplate()
     Application.ScreenUpdating = False
     Dim nm As Variant, ws As Worksheet
     ' data sheets (very hidden)
-    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", "dAttend", SH_LISTS)
+    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", "dAttend", "dWorked", SH_LISTS)   ' M3.1: + dWorked
         Set ws = WsOf(CStr(nm), True)
         UnprotectWs ws
         ws.Visible = xlSheetVeryHidden
@@ -2229,8 +2229,21 @@ Private Sub DrawHistory(ByVal nm As String)
     ws.Range(ws.Cells(6, 10), ws.Cells(5 + n, 10)).WrapText = True
     ws.Range(ws.Rows(6), ws.Rows(5 + n)).AutoFit
     r = 5 + n + 2
-    ' M3.1 (v26.5, Graeme Oct 19): per pay period the total charged, the posting refusals and the call-out refusals
-    Header ws, r, Array("Pay period", "Charged hours", "Posting refusals", "Call-out refusals", "", "", "", "", "", "")
+    ' M3.1 (v26.5, Graeme Oct 19): per pay period the total charged, the posting refusals, the call-out refusals and the
+    ' premium hours worked (dWorked, from the Kronos export; a dash until an export has been imported)
+    Dim wkd As Variant: wkd = Data("dWorked")
+    Dim worked As Object: Set worked = CreateObject("Scripting.Dictionary")
+    Dim hasWorked As Boolean
+    If IsArray(wkd) Then
+        For i = 2 To UBound(wkd, 1)
+            If StrComp(Txt(wkd(i, 1)), nm, vbTextCompare) = 0 Then
+                ps = Format$(Dt(wkd(i, 2)), "yyyy-mm-dd")
+                worked(ps) = Num(worked(ps)) + Num(wkd(i, 3)): hasWorked = True
+                If Not totals.Exists(ps) Then totals(ps) = 0        ' a period with hours worked but nothing charged still gets a row
+            End If
+        Next i
+    End If
+    Header ws, r, Array("Pay period", "Charged hours", "Posting refusals", "Call-out refusals", "Worked (Kronos)", "", "", "", "", "")
     r = r + 1
     Dim keys As Variant: keys = totals.Keys
     Dim ks() As String, nk As Long
@@ -2246,18 +2259,29 @@ Private Sub DrawHistory(ByVal nm As String)
             ws.Cells(r, 2).Value = Num(totals(ks(i)))
             ws.Cells(r, 3).Value = Num(totalsP(ks(i)))
             ws.Cells(r, 4).Value = Num(totalsC(ks(i)))
-            ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).HorizontalAlignment = xlCenter
+            If hasWorked Then ws.Cells(r, 5).Value = Num(worked(ks(i))) Else ws.Cells(r, 5).Value = "-"
+            ws.Range(ws.Cells(r, 2), ws.Cells(r, 5)).HorizontalAlignment = xlCenter
             r = r + 1
         Next i
     End If
+    Dim wkTot As Double, wk As Variant
+    For Each wk In worked.Keys
+        wkTot = wkTot + Num(worked(wk))
+    Next wk
     ws.Cells(r, 1).Value = "Year to date"
     ws.Cells(r, 1).Font.Bold = True
     ws.Cells(r, 2).Value = yearTot
     ws.Cells(r, 3).Value = kPost
     ws.Cells(r, 4).Value = kCall
-    ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).Font.Bold = True
-    ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).HorizontalAlignment = xlCenter
+    If hasWorked Then ws.Cells(r, 5).Value = wkTot Else ws.Cells(r, 5).Value = "-"
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, 5)).Font.Bold = True
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, 5)).HorizontalAlignment = xlCenter
     r = r + 1
+    If Not hasWorked Then
+        ws.Cells(r, 1).Value = "Worked (Kronos) shows once the supervisors import a Kronos export (premium hours per pay period)."
+        ws.Cells(r, 1).Font.Size = 8: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = RGB(100, 100, 100)
+        r = r + 1
+    End If
     ws.Cells(r, 1).Value = "  call-out refusals": ws.Cells(r, 2).Value = kCall: ws.Cells(r, 2).HorizontalAlignment = xlCenter
     r = r + 1
     ws.Cells(r, 1).Value = "  posting refusals": ws.Cells(r, 2).Value = kPost: ws.Cells(r, 2).HorizontalAlignment = xlCenter

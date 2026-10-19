@@ -27,6 +27,16 @@ Public Const KR_VERSION As String = "Kronos import v26 (Oct 18)"
 Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
 Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)
+' v26.5: premium hours per person per pay period, from the Kronos EXPORT's dated transactions
+' (Graeme, Oct 19: the roster reads the export itself; the pivot workbook's "Sorted Data Here" stays
+' as the fall-back). Rebuilt in full at every import of an export (it spans the year).
+Public Const WP_SHEET As String = "Worked Periods"
+Public Const WP_TABLE As String = "tblWorkedPeriods"
+Private Const WP_NCOLS As Long = 6          ' Payroll #, Employee, Period Start, Hours, Codes, Imported At
+Private mTxPeriods As Object                ' this import's per-period sums: "namekey|serial" -> hours
+Private mTxCodes As Object                  ' "namekey|serial" -> "code h; code h"
+Private mTxRaw As Object                    ' namekey -> the name as the export spells it
+Private mTxPay As Object                    ' namekey -> Global ID (the Payroll #)
 
 ' v25: the by-heading rule on its own (D-I4): "" when 'Employee Name' and 'Grand Total' are both found
 ' on one heading row within the first 10 rows of src (a 2-D array of the sheet), else what is missing.
@@ -50,8 +60,14 @@ Sub SyncKronosData()
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Sub
 
-    ' ---- open (or reuse) the Kronos workbook ----
-    Dim fileName As String: fileName = Mid$(KRONOS_PATH, InStrRev(KRONOS_PATH, "\") + 1)
+    ' ---- open (or reuse) the Kronos workbook (v26.5: KRONOS_PATH may name a folder or a wildcard - the newest file) ----
+    Dim srcPath As String: srcPath = KronosFilePath()
+    If srcPath = "" Then
+        MsgBox "No Kronos file was found at" & vbNewLine & KRONOS_PATH & vbNewLine & vbNewLine & _
+               "KRONOS_PATH (modOvertimeEntry) names the export file, or the folder the exports are saved in (the newest is read).", vbCritical, "Kronos import"
+        Exit Sub
+    End If
+    Dim fileName As String: fileName = Mid$(srcPath, InStrRev(srcPath, "\") + 1)
     Dim wbSource As Workbook, openedHere As Boolean
     On Error Resume Next
     Set wbSource = Workbooks(fileName)
@@ -59,23 +75,29 @@ Sub SyncKronosData()
     If wbSource Is Nothing Then
         Application.EnableEvents = False          ' don't run the Kronos file's own macros
         On Error Resume Next
-        Set wbSource = Workbooks.Open(Filename:=KRONOS_PATH, ReadOnly:=True, UpdateLinks:=0)
+        Set wbSource = Workbooks.Open(Filename:=srcPath, ReadOnly:=True, UpdateLinks:=0)
         On Error GoTo Oops
         Application.EnableEvents = True
         If wbSource Is Nothing Then
-            MsgBox "Could not open the Kronos file:" & vbNewLine & KRONOS_PATH, vbCritical
+            MsgBox "Could not open the Kronos file:" & vbNewLine & srcPath, vbCritical
             Exit Sub
         End If
         openedHere = True
     End If
 
-    Dim wsSource As Worksheet
-    On Error Resume Next
-    Set wsSource = wbSource.Worksheets(KRONOS_SHEET)
-    On Error GoTo Oops
+    ' v26.5: the EXPORT (one dated row per transaction) is read when it is there; the pivot sheet otherwise
+    Dim wsSource As Worksheet, txHdr As Long, fromExport As Boolean
+    Set wsSource = TransactionsSheet(wbSource, txHdr)
+    fromExport = Not wsSource Is Nothing
+    If Not fromExport Then
+        On Error Resume Next
+        Set wsSource = wbSource.Worksheets(KRONOS_SHEET)
+        On Error GoTo Oops
+    End If
     If wsSource Is Nothing Then
         If openedHere Then wbSource.Close SaveChanges:=False
-        MsgBox "Sheet '" & KRONOS_SHEET & "' not found in " & fileName, vbCritical
+        MsgBox "Neither the Kronos export's transactions (a heading row with Employee, Date, Pay Code and Hours) nor a sheet '" & _
+               KRONOS_SHEET & "' was found in " & fileName, vbCritical
         Exit Sub
     End If
 
@@ -99,6 +121,7 @@ Sub SyncKronosData()
     If lastSrc < 2 Then lastSrc = 2                   ' always a 2-D array below
     If lastCol < 2 Then lastCol = 2
     Dim src As Variant: src = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(lastSrc, lastCol)).Value
+    If fromExport Then src = PivotFromTransactions(src, txHdr)      ' v26.5: the export's rows summed per person (and per period, kept aside)
     Dim i As Long, k As String, raw As String, a As String
     Dim nameCol As Long, totCol As Long, hdrName As Long, hdrTot As Long, missingHdr As String
     missingHdr = KronosHeadingProblem(src, nameCol, totCol, hdrName, hdrTot)     ' v25: the rule on its own (SmokeTest runs it)
@@ -141,7 +164,7 @@ Sub SyncKronosData()
     Next i
     Dim fileDate As Date
     On Error Resume Next
-    fileDate = FileDateTime(KRONOS_PATH)
+    fileDate = FileDateTime(srcPath)
     If fileDate = 0 Then fileDate = FileDateTime(wbSource.FullName)
     On Error GoTo Oops
     If openedHere Then wbSource.Close SaveChanges:=False
@@ -179,6 +202,7 @@ Sub SyncKronosData()
     End If
     Dim histN As Long, histName() As String, histHrs() As Double
     ReDim histName(1 To lastRow - R_FIRST + 1): ReDim histHrs(1 To lastRow - R_FIRST + 1)
+    Dim rosterOf As Object: Set rosterOf = CreateObject("Scripting.Dictionary")   ' v26.5: Kronos key -> the roster's spelling (the per-period rows)
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value))
         If nm <> "" Then
@@ -215,6 +239,7 @@ Sub SyncKronosData()
                     End If
                 End If
                 used(hit) = True
+                rosterOf(hit) = nm
                 kVal = dict(hit)
                 If Not IsError(kVal) And IsNumeric(kVal) And Not IsEmpty(kVal) Then
                     wsDest.Cells(r, C_WORKED).Value = CDbl(kVal)
@@ -252,6 +277,8 @@ Sub SyncKronosData()
     If awaitFrom > 0 Then ClearKronosAwait      ' v23: the new year's hours are in
     Dim histId As String
     If histN > 0 Then histId = AppendHoursHistory(stamp, fileDate, through, histName, histHrs, histN)
+    Dim wpTxt As String                        ' v26.5: the per-period premium hours (from the export only)
+    If fromExport Then wpTxt = WriteWorkedPeriods(rosterOf, stamp)
     Application.CalculateFull                 ' provisional (C) and Total (G) pick up the new date
     Application.ScreenUpdating = True
     wsDest.Activate
@@ -283,6 +310,7 @@ Sub SyncKronosData()
           Format$(through, "ddd mmm d") & "." & vbNewLine & _
           "Accepted / awarded shifts that ended by then now count from Kronos instead of as provisional." & _
           IIf(histId <> "", vbNewLine & "Snapshot " & histId & " added to Hours History.", "") & _
+          IIf(fromExport, vbNewLine & "Read from the Kronos export's transactions. " & wpTxt, vbNewLine & "Read from the pivot sheet '" & KRONOS_SHEET & "' (no per-period hours: point KRONOS_PATH at the export for those).") & _
           IIf(awaitFrom > 0, vbNewLine & vbNewLine & "FIRST IMPORT OF THE NEW YEAR: check two or three people's Worked hours against Kronos. " & _
                              "They should be this year's hours only, not last year's total.", "")
     If pCol = 0 Then
@@ -312,6 +340,225 @@ Oops:
     ReportError "SyncKronosData"
     KronosCleanUp wsDest, wbSource, openedHere
 End Sub
+
+' ====================================================================
+'  v26.5: THE KRONOS EXPORT READ DIRECTLY, AND THE PREMIUM HOURS PER PAY PERIOD
+' ====================================================================
+' KRONOS_PATH resolved: a file as it is; a folder (ending in \) or a wildcard
+' ("...\*.xlsx") = the newest matching file by its saved time ("" = nothing)
+Public Function KronosFilePath() As String
+    Dim p As String: p = Trim$(KRONOS_PATH)
+    If p = "" Then Exit Function
+    Dim pattern As String, folder As String
+    If Right$(p, 1) = "\" Then
+        folder = p: pattern = "*.xls*"
+    ElseIf InStr(p, "*") > 0 Or InStr(p, "?") > 0 Then
+        folder = Left$(p, InStrRev(p, "\")): pattern = Mid$(p, InStrRev(p, "\") + 1)
+    Else
+        If Dir$(p) <> "" Then KronosFilePath = p
+        Exit Function
+    End If
+    Dim f As String, best As String, bestAt As Date, at As Date
+    On Error Resume Next
+    f = Dir$(folder & pattern)
+    Do While f <> ""
+        If Left$(f, 2) <> "~$" Then                      ' not Excel's lock files
+            at = FileDateTime(folder & f)
+            If at > bestAt Then bestAt = at: best = f
+        End If
+        f = Dir$()
+    Loop
+    If best <> "" Then KronosFilePath = folder & best
+End Function
+
+' The sheet that holds the export's transactions: a heading row within the first 15 rows with
+' Employee, Date, Pay Code and Hours (Nothing when no sheet has one); hdrRow = that row
+Private Function TransactionsSheet(ByVal wb As Workbook, ByRef hdrRow As Long) As Worksheet
+    Dim ws As Worksheet, r As Long, c As Long, v As Variant, lastC As Long
+    Dim hasEmp As Boolean, hasDate As Boolean, hasCode As Boolean, hasHrs As Boolean
+    For Each ws In wb.Worksheets
+        On Error Resume Next
+        lastC = ws.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious).Column
+        On Error GoTo 0
+        If lastC < 4 Then lastC = 4
+        v = ws.Range(ws.Cells(1, 1), ws.Cells(15, lastC)).Value
+        For r = 1 To UBound(v, 1)
+            hasEmp = False: hasDate = False: hasCode = False: hasHrs = False
+            For c = 1 To UBound(v, 2)
+                If IsHeaderMatch(SafeStr(v(r, c)), "Employee") Then hasEmp = True
+                If IsHeaderMatch(SafeStr(v(r, c)), "Date") Then hasDate = True
+                If IsHeaderMatch(SafeStr(v(r, c)), "Pay Code") Then hasCode = True
+                If IsHeaderMatch(SafeStr(v(r, c)), "Hours") Then hasHrs = True
+            Next c
+            If hasEmp And hasDate And hasCode And hasHrs Then
+                hdrRow = r
+                Set TransactionsSheet = ws
+                Exit Function
+            End If
+        Next r
+    Next ws
+End Function
+
+' The export's transactions (src, heading row hdrRow: Global ID, Employee, Date, Pay Code, Hours)
+' summed per person into the shape the pivot sheet has - Payroll #, Employee Name, Grand Total - so
+' the import below runs unchanged. The per-pay-period sums are kept aside for WriteWorkedPeriods.
+Private Function PivotFromTransactions(ByRef src As Variant, ByVal hdrRow As Long) As Variant
+    Dim c As Long, cId As Long, cEmp As Long, cDt As Long, cCode As Long, cHrs As Long
+    For c = 1 To UBound(src, 2)
+        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Global ID") Then cId = c
+        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Employee") Then cEmp = c
+        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Date") Then cDt = c
+        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Pay Code") Then cCode = c
+        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Hours") Then cHrs = c
+    Next c
+    Set mTxPeriods = CreateObject("Scripting.Dictionary"): mTxPeriods.CompareMode = 1
+    Set mTxCodes = CreateObject("Scripting.Dictionary"): mTxCodes.CompareMode = 1
+    Set mTxRaw = CreateObject("Scripting.Dictionary"): mTxRaw.CompareMode = 1
+    Set mTxPay = CreateObject("Scripting.Dictionary"): mTxPay.CompareMode = 1
+    Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
+    totals.CompareMode = 1
+    Dim i As Long, raw As String, k As String, hrs As Double, d As Date, pk As String, code As String
+    For i = hdrRow + 1 To UBound(src, 1)
+        raw = Trim$(SafeStr(src(i, cEmp)))
+        k = NameKey(raw)
+        If k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) Then
+            hrs = CDbl(src(i, cHrs))
+            If Not totals.Exists(k) Then
+                totals.Add k, 0#
+                mTxRaw(k) = raw
+                If cId > 0 Then mTxPay(k) = PayrollText(src(i, cId))
+            End If
+            totals(k) = totals(k) + hrs
+            If IsDate(src(i, cDt)) Then
+                d = CDate(src(i, cDt))
+                pk = k & "|" & CLng(Int(CDbl(PeriodStartFor(d))))
+                If mTxPeriods.Exists(pk) Then mTxPeriods(pk) = mTxPeriods(pk) + hrs Else mTxPeriods.Add pk, hrs
+                code = Trim$(SafeStr(src(i, cCode)))
+                If code <> "" Then mTxCodes(pk) = SafeStr(mTxCodes(pk)) & IIf(SafeStr(mTxCodes(pk)) = "", "", "; ") & code & " " & HoursText(hrs)
+            End If
+        End If
+    Next i
+    Dim out() As Variant: ReDim out(1 To totals.Count + 1, 1 To 3)
+    out(1, 1) = "Payroll #": out(1, 2) = "Employee Name": out(1, 3) = "Grand Total"
+    Dim kk As Variant, n As Long
+    n = 1
+    For Each kk In totals.Keys
+        n = n + 1
+        out(n, 1) = SafeStr(mTxPay(kk)): out(n, 2) = mTxRaw(kk): out(n, 3) = totals(kk)
+    Next kk
+    PivotFromTransactions = out
+End Function
+
+' The Worked Periods sheet's table, made on first use (admin-only, never published as a sheet)
+Public Function WorkedPeriodsTable(Optional ByVal create As Boolean = False) As ListObject
+    Dim ws As Worksheet, lo As ListObject
+    If SheetExists(WP_SHEET) Then
+        Set ws = ThisWorkbook.Worksheets(WP_SHEET)
+        On Error Resume Next
+        Set lo = ws.ListObjects(WP_TABLE)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            UnlockStructure
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = WP_SHEET
+            RelockStructure
+            SetTabColor ws, RGB(96, 125, 139)
+        End If
+        UnlockSheet ws
+        ws.Range("A1").Resize(1, WP_NCOLS).Value = Array("Payroll #", "Employee", "Period Start", "Hours", "Codes", "Imported At")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, WP_NCOLS), , xlYes)
+        lo.Name = WP_TABLE
+        lo.TableStyle = "TableStyleLight9"
+        ws.Columns("A").ColumnWidth = 11: ws.Columns("B").ColumnWidth = 24: ws.Columns("C").ColumnWidth = 13
+        ws.Columns("D").ColumnWidth = 9: ws.Columns("E").ColumnWidth = 60: ws.Columns("F").ColumnWidth = 17
+        ProtectSheet ws
+    End If
+    Set WorkedPeriodsTable = lo
+End Function
+
+' Rebuilds the table from this import's per-period sums: one row per person per pay period, the
+' roster's spelling where the name matched (rosterOf), the export's otherwise. Returns the message line.
+Private Function WriteWorkedPeriods(ByVal rosterOf As Object, ByVal stamp As Date) As String
+    If mTxPeriods Is Nothing Then Exit Function
+    Dim lo As ListObject: Set lo = WorkedPeriodsTable(True)
+    If lo Is Nothing Then WriteWorkedPeriods = "The Worked Periods sheet couldn't be made.": Exit Function
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Dim n As Long: n = mTxPeriods.Count
+    Dim outA() As Variant, kk As Variant, p As Long, k As String, nm As String, i As Long, people As Object
+    Set people = CreateObject("Scripting.Dictionary"): people.CompareMode = 1
+    If n > 0 Then
+        ReDim outA(1 To n, 1 To WP_NCOLS)
+        For Each kk In mTxPeriods.Keys
+            i = i + 1
+            p = InStr(CStr(kk), "|")
+            k = Left$(CStr(kk), p - 1)
+            If rosterOf.Exists(k) Then nm = CStr(rosterOf(k)) Else nm = CStr(mTxRaw(k))
+            people(nm) = True
+            outA(i, 1) = SafeStr(mTxPay(k))
+            outA(i, 2) = nm
+            outA(i, 3) = CDate(CDbl(Mid$(CStr(kk), p + 1)))
+            outA(i, 4) = mTxPeriods(kk)
+            outA(i, 5) = SafeStr(mTxCodes(kk))
+            outA(i, 6) = stamp
+        Next kk
+    End If
+    Dim em As String
+    On Error GoTo Fail
+    UnlockSheet ws
+    If Not lo.DataBodyRange Is Nothing Then lo.DataBodyRange.Delete
+    If n > 0 Then
+        lo.Resize lo.HeaderRowRange.Resize(n + 1)
+        With lo.HeaderRowRange.Offset(1, 0).Resize(n, WP_NCOLS)
+            .Columns(1).NumberFormat = "@"
+            .Value = outA
+            .Columns(3).NumberFormat = "mmm d, yyyy"
+            .Columns(6).NumberFormat = "mmm d, yyyy h:mm"
+        End With
+    End If
+    ProtectSheet ws
+    WriteWorkedPeriods = "Premium hours per pay period: " & people.Count & " people, " & n & " person-periods (Worked Periods sheet)."
+    Exit Function
+Fail:
+    em = Err.Description
+    LogError "WriteWorkedPeriods", Err.Number, em
+    On Error Resume Next
+    ProtectSheet ws
+    WriteWorkedPeriods = "The per-period hours could NOT be written: " & em
+End Function
+
+' One person's premium hours per pay period, period serial -> hours (empty when none / no table)
+Public Function WorkedPeriodsFor(ByVal emp As String) As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    Set WorkedPeriodsFor = d
+    Dim lo As ListObject: Set lo = WorkedPeriodsTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long, ps As Long
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, 2))), Trim$(emp), vbTextCompare) = 0 And IsDate(v(i, 3)) Then
+            ps = CLng(Int(CDbl(CDate(v(i, 3)))))
+            If d.Exists(ps) Then d(ps) = d(ps) + NumOr0(v(i, 4)) Else d.Add ps, NumOr0(v(i, 4))
+        End If
+    Next i
+End Function
+
+' Every row as Employee, Period Start, Hours (the members' dWorked); Empty when there is none
+Public Function WorkedPeriodRows() As Variant
+    Dim lo As ListObject: Set lo = WorkedPeriodsTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim out() As Variant: ReDim out(1 To UBound(v, 1) + 1, 1 To 3)
+    out(1, 1) = "Employee": out(1, 2) = "Period Start": out(1, 3) = "Hours"
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        out(i + 1, 1) = SafeStr(v(i, 2)): out(i + 1, 2) = v(i, 3): out(i + 1, 3) = NumOr0(v(i, 4))
+    Next i
+    WorkedPeriodRows = out
+End Function
 
 ' After an error part-way through the import: the roster is protected again and
 ' the Kronos file is closed if the import opened it. Quiet.

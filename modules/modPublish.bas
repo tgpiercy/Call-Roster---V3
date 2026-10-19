@@ -29,8 +29,9 @@ Public Const DS_POST As String = "dPost"
 Public Const DS_PLIST As String = "dPostList"
 Public Const DS_LOG As String = "dLog"
 Public Const DS_ATT As String = "dAttend"     ' v24.1 / M2: sick time COUNTS only (no dates)
+Public Const DS_WORKED As String = "dWorked"  ' v26.5 / M3.1: premium hours worked per pay period, from the Kronos export (Employee, Period Start, Hours)
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
-Private Const MEMBER_NEEDS As String = "Members M3"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3)
+Private Const MEMBER_NEEDS As String = "Members M3.1" ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked)
 
 ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
 Private Const ROSTER_FIXED As Long = 10
@@ -242,6 +243,7 @@ Public Sub PublishMembers()
     BuildPostings post, nP, plist, nPL
     lg = BuildLog(nL)
     att = BuildAttend(nA)
+    Dim wkd As Variant: wkd = BuildWorked()               ' v26.5: the per-period Kronos hours (an empty table until an export is imported)
     If SIGNUPS_ON And Not gSmokeRun Then EnsureSignupFolder
     On Error GoTo 0
 
@@ -257,6 +259,7 @@ Public Sub PublishMembers()
     If why = "" Then why = LeaveCodesIn(cal, post, lg)
     If why = "" Then why = PrivateDataIn(att, DS_ATT)
     If why = "" Then why = AttendPrivacy(att)
+    If why = "" Then why = PrivateDataIn(wkd, DS_WORKED)
     If why <> "" Then
         Application.StatusBar = False
         Application.ScreenUpdating = True
@@ -317,6 +320,7 @@ Public Sub PublishMembers()
     WriteTable wb, DS_PLIST, plist
     WriteTable wb, DS_LOG, lg
     WriteTable wb, DS_ATT, att
+    WriteTable wb, DS_WORKED, wkd
 
     ' the members' own code draws Home and the Roster (so the file reads right even with macros off);
     ' it is saved on the Roster, A-Z, so a macros-off open lands on something useful
@@ -1100,7 +1104,7 @@ End Function
 ' ====================================================================
 Private Function HasDataSheets(ByVal wb As Workbook) As Boolean
     Dim nm As Variant, sh As Object
-    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG, DS_ATT)
+    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG, DS_ATT, DS_WORKED)
         Set sh = Nothing
         On Error Resume Next
         Set sh = wb.Worksheets(CStr(nm))
@@ -1108,6 +1112,36 @@ Private Function HasDataSheets(ByVal wb As Workbook) As Boolean
         If sh Is Nothing Then Exit Function
     Next nm
     HasDataSheets = True
+End Function
+
+' v26.5: Employee, Period Start, Hours for everyone on the roster (the Worked Periods table the Kronos
+' import fills from the export; a name not on the roster is left out). The heading row alone until an
+' export has been imported.
+Private Function BuildWorked() As Variant
+    Dim rows As Variant: rows = WorkedPeriodRows()
+    Dim onRoster As Object: Set onRoster = CreateObject("Scripting.Dictionary")
+    onRoster.CompareMode = 1
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long, nm As String
+    For r = R_FIRST To RosterLastRow()
+        nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
+        If nm <> "" Then onRoster(nm) = True
+    Next r
+    Dim out() As Variant, k As Long, i As Long
+    Dim cap As Long: cap = 1
+    If IsArray(rows) Then cap = UBound(rows, 1)
+    ReDim out(1 To cap, 1 To 3)
+    out(1, 1) = "Employee": out(1, 2) = "Period Start": out(1, 3) = "Hours"
+    k = 1
+    If IsArray(rows) Then
+        For i = 2 To UBound(rows, 1)
+            If onRoster.Exists(Trim$(SafeStr(rows(i, 1)))) Then
+                k = k + 1
+                out(k, 1) = Trim$(SafeStr(rows(i, 1))): out(k, 2) = rows(i, 2): out(k, 3) = NumOr0(rows(i, 3))
+            End If
+        Next i
+    End If
+    BuildWorked = Trimmed(out, k, 3)
 End Function
 
 Private Sub WriteTable(ByVal wb As Workbook, ByVal sheetName As String, ByRef a As Variant)

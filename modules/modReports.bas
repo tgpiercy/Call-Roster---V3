@@ -937,8 +937,17 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
 
     ' ---- the totals, as the members' My history shows them ----
     r = r + 1
-    ' v26.5: per pay period the total charged, the posting refusals and the call-out refusals (as My history shows them)
-    ws.Range(ws.Cells(r, 1), ws.Cells(r, 4)).Value = Array("Pay period", "Charged hours", "Posting refusals", "Call-out refusals")
+    ' v26.5: per pay period the total charged, the posting refusals, the call-out refusals and the premium hours worked
+    ' (the Worked Periods table the Kronos export fills; "-" until one is imported), as My history shows them
+    Dim worked As Object: Set worked = WorkedPeriodsFor(nm)
+    Dim hasWorked As Boolean: hasWorked = (worked.Count > 0)
+    Dim wk As Variant, wkTot As Double
+    For Each wk In worked.Keys
+        wkTot = wkTot + worked(wk)
+        ps = Format$(CDate(CDbl(wk)), "yyyy-mm-dd")
+        If Not totals.Exists(ps) Then totals.Add ps, 0#            ' a period with hours worked but nothing charged still gets a row
+    Next wk
+    ws.Range(ws.Cells(r, 1), ws.Cells(r, 5)).Value = Array("Pay period", "Charged hours", "Posting refusals", "Call-out refusals", "Worked (Kronos)")
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, nc))
         .Font.Bold = True: .Font.Color = vbWhite: .Interior.Color = RGB(30, 56, 100)
     End With
@@ -968,11 +977,17 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
         ws.Cells(r, 2).Value = totals(ks(i))
         If totalsP.Exists(ks(i)) Then ws.Cells(r, 3).Value = totalsP(ks(i)) Else ws.Cells(r, 3).Value = 0
         If totalsC.Exists(ks(i)) Then ws.Cells(r, 4).Value = totalsC(ks(i)) Else ws.Cells(r, 4).Value = 0
+        If hasWorked Then
+            If ks(i) Like "####-##-##" And worked.Exists(CLng(Int(CDbl(sd)))) Then ws.Cells(r, 5).Value = worked(CLng(Int(CDbl(sd)))) Else ws.Cells(r, 5).Value = 0
+        Else
+            ws.Cells(r, 5).Value = "-"
+        End If
         r = r + 1
     Next i
     ws.Cells(r, 1).Value = "Total for the range": ws.Cells(r, 1).Font.Bold = True
     ws.Cells(r, 2).Value = yearTot: ws.Cells(r, 3).Value = kPost: ws.Cells(r, 4).Value = kCall
-    ws.Range(ws.Cells(r, 2), ws.Cells(r, 4)).Font.Bold = True
+    If hasWorked Then ws.Cells(r, 5).Value = wkTot Else ws.Cells(r, 5).Value = "-"
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, 5)).Font.Bold = True
     r = r + 1
     ws.Cells(r, 1).Value = "  call-out refusals": ws.Cells(r, 2).Value = kCall: r = r + 1
     ws.Cells(r, 1).Value = "  posting refusals": ws.Cells(r, 2).Value = kPost: r = r + 1
@@ -1002,7 +1017,7 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
         ws.Range(ws.Cells(4, 1), ws.Cells(rRowsEnd, nc)).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)
         ws.Range(ws.Rows(5), ws.Rows(rRowsEnd)).AutoFit
     End If
-    ws.Range(ws.Cells(rRowsEnd + 3, 2), ws.Cells(r, 4)).HorizontalAlignment = xlCenter
+    ws.Range(ws.Cells(rRowsEnd + 3, 2), ws.Cells(r, 5)).HorizontalAlignment = xlCenter
     On Error Resume Next
     With ws.PageSetup
         .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, nc)).Address

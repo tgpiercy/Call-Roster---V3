@@ -276,14 +276,20 @@ Private Sub CheckRosterVsLog()
         If IsNumeric(hv) And Not IsEmpty(hv) Then per(c) = CLng(Int(CDbl(hv)))
     Next c
     Dim provLive As Boolean: provLive = ProvisionalLive()
+    Dim nOldForm As Long                                 ' v26.5: rows whose Refused formula is the pre-v26.5 kind
     Dim r As Long, expSum As Double, expCell As Double, act As Variant, bad As String, nBad As Long
     Dim vI As Variant, vG As Variant, vH As Variant, vC As Variant
     For r = 1 To mRows
         If mNames(r) <> "" Then
             expSum = 0: bad = "": nBad = 0
+            ' v26.5: I counts the periods up to the current one - unless the row still carries the pre-v26.5 =SUM(...)
+            ' formula (the first open after the install, before RefreshRosterFormulas): then the old rule is the
+            ' expected figure and one Check line says to run the refresh
+            Dim oldForm As Boolean: oldForm = OldRefusedFormula(ws.Cells(R_FIRST + r - 1, C_REFUSED))
+            If oldForm Then nOldForm = nOldForm + 1
             For c = C_PERIOD1 To mLastPer
                 expCell = NumOr0(sums(mNames(r) & "|" & per(c)))
-                If RefusedCounts(CDate(per(c)), RefusedThrough()) Then expSum = expSum + expCell   ' v26.5: I counts the periods up to the current one
+                If oldForm Or RefusedCounts(CDate(per(c)), RefusedThrough()) Then expSum = expSum + expCell
                 act = mVals(r, c)
                 If IsError(act) Then
                     nBad = nBad + 1
@@ -328,6 +334,10 @@ Private Sub CheckRosterVsLog()
     If nOut > 0 Then
         AddIssue SEV_INFO, "Roster = log", nOut & " log row(s) belong to a pay period that isn't on this roster", _
                  "Expected for entries logged for another year; they don't count in these totals"
+    End If
+    If nOldForm > 0 Then                                 ' v26.5
+        AddIssue SEV_WARN, "Roster = log", nOldForm & " roster row(s) still carry the pre-v26.5 Refused formula (every period summed)", _
+                 "Run RefreshRosterFormulas once (Refused then counts the pay periods up to the current one)"
     End If
 End Sub
 

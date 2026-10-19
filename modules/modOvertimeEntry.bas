@@ -904,6 +904,13 @@ Public Function RefusedFormula(ByVal r As Long) As String
         LOG_TABLE & "[[Period Start]:[Period Start]],""<=""&" & REFUSED_NAME & ")"
 End Function
 
+' True when a Refused cell still holds the pre-v26.5 formula (=SUM of the period cells) - the first open after
+' the v26.5 install, before RefreshRosterFormulas rewrites it (IntegrityCheck then expects the old rule)
+Public Function OldRefusedFormula(ByVal cel As Range) As Boolean
+    If Not cel.HasFormula Then Exit Function
+    OldRefusedFormula = (InStr(1, cel.Formula, "SUM(", vbTextCompare) > 0 And InStr(1, cel.Formula, LOG_TABLE, vbTextCompare) = 0)
+End Function
+
 ' Refused (column I): v26.5 the charges up to the current period (RefusedFormula); was =SUM of the
 ' row's pay-period cells. Sheet must be unprotected.
 Public Sub WriteRefusedRow(ByVal ws As Worksheet, ByVal r As Long)

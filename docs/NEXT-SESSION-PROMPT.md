@@ -14,12 +14,10 @@ v26 is BUILT and TAGGED (Oct 18): docs/INSTALL-v26.md, briefs/steps-v26.txt, dis
 (the members' template is rebuilt by the panel: Members M3). It is NOT installed yet. Four read-only
 reviews + one re-review: four HIGH found and fixed before the tag (the CHANGELOG's review paragraph).
 
-Open for me (ask as multiple-choice questions, recommended first): (1) a person holding codes in TWO
-units counts in both units' minimum staffing (as briefed) - or once, in their home unit? (2) a sick call
-counts the person off on the booked shift only (built; the 24 h window is an overtime-list rule) - right?
-(3) the month calendar's own PDF (CalPrintPdf, older code) prints "(Sick)" as the calendar shows it; the
-new board masks it to "Off" - mask the month PDF too (v26.5)? (4) whether the call-out pop-up's bottom is
-cut off on any plant PC and whether the FIND group is on screen for a supervisor (still open from Oct 18).
+Decided Oct 18 night (briefs/v26.md decision 9): a cross-coded person counts in BOTH units' minimum
+staffing; a sick call = off on the booked shift only; the month calendar's own PDF (CalPrintPdf prints
+"(Sick)") is MASKED to "Off" in v26.5 = the first v26.5 item. Still open: whether the call-out pop-up's
+bottom is cut off on any plant PC and whether the FIND group is on screen for a supervisor.
 
 Then: install v26 on a copy, then the real roster (the panel; group 3 asks you to check the Min Staff
 sheet's numbers); alpha findings + what the Nov 15 review asks for = v26.5 (one commit per finding, the

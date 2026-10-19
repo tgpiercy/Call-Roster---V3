@@ -908,6 +908,32 @@ def date_serial(y: int, m: int, d: int) -> date:
     return first + timedelta(days=d - 1)
 
 
+def pre_change_copy_date(file_name: str, roster_name: str) -> date | None:
+    """modSystem.PreChangeCopyDate (v26): 'Backup before <what> yyyy-mm-dd hhmm[ss] - <roster>' -> its date, else None."""
+    head = "Backup before "
+    tail = " - " + roster_name
+    if not roster_name or len(file_name) <= len(head) + len(tail):
+        return None
+    if file_name[:len(head)].upper() != head.upper() or file_name[-len(tail):].upper() != tail.upper():
+        return None
+    core = file_name[:len(file_name) - len(tail)]
+    p = core.rfind(" ")
+    if p < 0:
+        return None
+    tm = core[p + 1:]
+    digits = "0123456789"
+    if len(tm) not in (4, 6) or not all(c in digits for c in tm):
+        return None
+    core = core[:p]
+    p = core.rfind(" ")
+    if p < len(head):                                       # VBA: p <= Len(HEAD) with p 1-based
+        return None
+    ds = core[p + 1:]
+    if len(ds) != 10 or ds[4] != "-" or ds[7] != "-" or not all(c in digits for c in ds[0:4] + ds[5:7] + ds[8:10]):
+        return None
+    return date_serial(int(ds[0:4]), int(ds[5:7]), int(ds[8:10]))
+
+
 def is_backup_copy_name(file_name: str) -> bool:
     """modSystem.IsBackupCopyName (v24.3.1): a daily backup, the FINAL, a 'Backup before ...' copy."""
     if backup_file_date(file_name) is not None:

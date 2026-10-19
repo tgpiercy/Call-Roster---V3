@@ -208,6 +208,9 @@ Private Function RunCase(f() As String) As String
         Case "idmark"                              ' v26 (I8): Ref IDs joined by | -> highest number per prefix, or none
             RunCase = RefPrefixMaxText(i1)
             If RunCase = "" Then RunCase = "none"
+        Case "prechange"                           ' v26: file name, roster file name -> the date a pre-change copy carries / none
+            Dim pcD As Date: pcD = PreChangeCopyDate(i1, i2)
+            RunCase = IIf(pcD = 0, "none", FmtD(pcD))
         Case "typetag"                             ' v25: absence code -> calendar tag / what members get
             RunCase = TypeTag(i1) & "/" & PublicType(i1)
         Case "planid"                              ' v25: an Exempt note -> the planned move's ID it carries / none
@@ -1440,5 +1443,14 @@ Private Sub LoadCases()
     AddCase "idmark,long-prefix-ignored,TOOLONGPRE-0001|ADJ-0100,,,,,ADJ=100"
     AddCase "idmark,empty,,,,,,none"
     AddCase "idmark,digit-in-prefix-ignored,P2-0005|P-0004,,,,,P=4"
+    AddCase "prechange,six-digit-time,Backup before planned moves 2026-10-13 091500 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-10-13"
+    AddCase "prechange,four-digit-time,Backup before Home Unit 2026-10-12 0915 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-10-12"
+    AddCase "prechange,another-rosters-copy,Backup before planned moves 2026-10-13 091500 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster COPY 2026-10-13 0915.xlsm,,,,none"
+    AddCase "prechange,daily-backup-is-not-one,Call Out Roster 2026-10-12.xlsm,V2 - Call Out Roster.xlsm,,,,none"
+    AddCase "prechange,no-time,Backup before migration 2026-10-13 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
+    AddCase "prechange,no-what,Backup before 2026-10-13 0915 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
+    AddCase "prechange,lower-case-head,backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-09-30"
+    AddCase "prechange,letters-in-the-date,Backup before rename 2026-O9-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
+    AddCase "prechange,no-roster-name,Backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,,,,,none"
 ' <<< CASES
 End Sub

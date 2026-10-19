@@ -593,3 +593,12 @@ idmark,entry-style-number-not-a-ref,#12|12,,,,,none
 idmark,long-prefix-ignored,TOOLONGPRE-0001|ADJ-0100,,,,,ADJ=100
 idmark,empty,,,,,,none
 idmark,digit-in-prefix-ignored,P2-0005|P-0004,,,,,P=4
+prechange,six-digit-time,Backup before planned moves 2026-10-13 091500 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-10-13
+prechange,four-digit-time,Backup before Home Unit 2026-10-12 0915 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-10-12
+prechange,another-rosters-copy,Backup before planned moves 2026-10-13 091500 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster COPY 2026-10-13 0915.xlsm,,,,none
+prechange,daily-backup-is-not-one,Call Out Roster 2026-10-12.xlsm,V2 - Call Out Roster.xlsm,,,,none
+prechange,no-time,Backup before migration 2026-10-13 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none
+prechange,no-what,Backup before 2026-10-13 0915 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none
+prechange,lower-case-head,backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-09-30
+prechange,letters-in-the-date,Backup before rename 2026-O9-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none
+prechange,no-roster-name,Backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,,,,,none

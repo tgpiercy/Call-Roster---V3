@@ -645,7 +645,82 @@ Public Sub BackupOnOpen()
         Exit Sub
     End If
     PruneBackups folder
+    PrunePreChangeCopies EnsureSlash(ThisWorkbook.Path)      ' v26: the "Backup before ..." copies live beside the roster
 End Sub
+
+' v26 (backup housekeeping). PURE (SelfTest "prechange"): the date in a pre-change copy's
+' name, "Backup before <what> yyyy-mm-dd hhmm[ss] - <roster file name>" (modPeople, modCalendar,
+' modUI, modMigration write them), or 0 when the name isn't exactly that for THIS roster's name.
+' A practice copy's own name never matches the real roster's copies, and a copy whose stamp
+' can't be read is never touched.
+Public Function PreChangeCopyDate(ByVal fileName As String, ByVal rosterName As String) As Date
+    Const HEAD As String = "Backup before "
+    Dim tail As String: tail = " - " & rosterName
+    If rosterName = "" Then Exit Function
+    If Len(fileName) <= Len(HEAD) + Len(tail) Then Exit Function
+    If StrComp(Left$(fileName, Len(HEAD)), HEAD, vbTextCompare) <> 0 Then Exit Function
+    If StrComp(Right$(fileName, Len(tail)), tail, vbTextCompare) <> 0 Then Exit Function
+    Dim core As String: core = Left$(fileName, Len(fileName) - Len(tail))    ' "Backup before planned moves 2026-10-13 091500"
+    Dim p As Long: p = InStrRev(core, " ")
+    If p = 0 Then Exit Function
+    Dim tm As String: tm = Mid$(core, p + 1)
+    If Not (tm Like "####" Or tm Like "######") Then Exit Function
+    core = Left$(core, p - 1)
+    p = InStrRev(core, " ")
+    If p <= Len(HEAD) Then Exit Function                  ' no "what" between the head and the date
+    Dim ds As String: ds = Mid$(core, p + 1)
+    If Not ds Like "####-##-##" Then Exit Function
+    PreChangeCopyDate = DateSerial(CLng(Left$(ds, 4)), CLng(Mid$(ds, 6, 2)), CLng(Mid$(ds, 9, 2)))
+End Function
+
+' v26: deletes this roster's "Backup before ..." copies older than BACKUP_KEEP_DAYS from the
+' folder they are written to (beside the roster), matched by PreChangeCopyDate. Returns how many.
+Public Function PrunePreChangeCopies(ByVal folder As String) As Long
+    On Error Resume Next
+    Dim names() As String, n As Long, f As String, d As Date, i As Long, removed As Long
+    f = Dir$(folder & "Backup before * - " & ThisWorkbook.Name)
+    Do While f <> ""
+        n = n + 1
+        ReDim Preserve names(1 To n)
+        names(n) = f
+        f = Dir$()
+    Loop
+    For i = 1 To n
+        d = PreChangeCopyDate(names(i), ThisWorkbook.Name)
+        If d > 0 Then
+            If d < Date - BACKUP_KEEP_DAYS Then
+                Err.Clear
+                Kill folder & names(i)
+                If Err.Number = 0 Then removed = removed + 1
+                Err.Clear
+            End If
+        End If
+    Next i
+    PrunePreChangeCopies = removed
+End Function
+
+' v26: how many daily backups (in the backup folder) and pre-change copies (beside the roster)
+' there are, and their size in bytes
+Private Sub BackupInventory(ByVal folder As String, ByRef nDaily As Long, ByRef bDaily As Double, _
+                            ByRef nPre As Long, ByRef bPre As Double)
+    On Error Resume Next
+    Dim f As String, here As String
+    f = Dir$(folder & BACKUP_BASENAME & " ????-??-??.xlsm")
+    Do While f <> ""
+        If BackupFileDate(f) > 0 Then nDaily = nDaily + 1: bDaily = bDaily + FileLen(folder & f)
+        f = Dir$()
+    Loop
+    here = EnsureSlash(ThisWorkbook.Path)
+    f = Dir$(here & "Backup before * - " & ThisWorkbook.Name)
+    Do While f <> ""
+        If PreChangeCopyDate(f, ThisWorkbook.Name) > 0 Then nPre = nPre + 1: bPre = bPre + FileLen(here & f)
+        f = Dir$()
+    Loop
+End Sub
+
+Private Function MbText(ByVal bytes As Double) As String
+    MbText = Format$(bytes / 1048576, "0") & " MB"
+End Function
 
 ' Deletes copies older than BACKUP_KEEP_DAYS in the backup folder only,
 ' matched by the exact name pattern. Returns how many were removed.
@@ -700,4 +775,10 @@ Private Sub BackupStatus(ByRef warn As String, ByRef info As String)
     Else
         info = info & "Backup: today's copy is in " & folder & vbNewLine
     End If
+    ' v26: what the folders hold (the prune runs after the day's backup is saved)
+    Dim nDaily As Long, bDaily As Double, nPre As Long, bPre As Double
+    BackupInventory folder, nDaily, bDaily, nPre, bPre
+    info = info & "Backups kept: " & nDaily & " daily (" & MbText(bDaily) & ") in the backup folder, " & nPre & _
+           " pre-change (" & MbText(bPre) & ") beside the roster; copies older than " & BACKUP_KEEP_DAYS & _
+           " days are removed on the first admin open of the day" & vbNewLine
 End Sub

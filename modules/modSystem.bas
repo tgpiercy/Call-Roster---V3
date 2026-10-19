@@ -31,10 +31,10 @@ Public Const WHATS_NEW As String = "Employee history (FIND group, the Desk): one
                                    "Board on the Calendar: the two-week board as a PDF. Minimum staffing: a red N short on a date cell and BELOW MINIMUM STAFFING on Needs Attention (admins set the minimums on the Min Staff sheet)."
 Private Const N_MODULES As Long = 25           ' v24.4: + modSmoke; v25.3: + modDesk
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v25.5"
+Private Const THISWB_RELEASE As String = "v26.5"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v25.5,frmNewPosting|v25.5,frmPostingEntry|v25.5,frmShiftSwitch|v25.5," & _
-                                        "frmTimeOff|v25.5,frmLeave|v25.5,frmSickCall|v25.5,frmConvert|v25.5,frmEmployee|v25.5"   ' v25.5: every form re-pasted (UI_SCALE)
+                                        "frmTimeOff|v25.5,frmLeave|v25.5,frmSickCall|v25.5,frmConvert|v25.5,frmEmployee|v26.5"   ' v25.5: every form re-pasted (UI_SCALE); v26.5: frmEmployee (Edit) and ThisWorkbook (the roster double-click)
 
 Private mBackupWarned As Boolean
 

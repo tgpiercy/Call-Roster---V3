@@ -36,7 +36,7 @@ Public Const SMK_VERSION As String = "Smoke test v26 (Oct 18)"
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
 Private Const SMK_WHY As String = "SmokeTest"
-Private Const SMK_STEPS As Long = 19          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words; v25.3: + the Desk; v25.5: the two v25.2 draw compares out with the legacy writers
+Private Const SMK_STEPS As Long = 20          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words; v25.3: + the Desk; v25.5: the two v25.2 draw compares out with the legacy writers; v26.5: + the Employee pop-up's Edit
 
 Private Type SmkState
     Emp As String           ' the test person's current name
@@ -49,10 +49,10 @@ Private Type SmkState
     PostShift As String
     PostId As String
     PostId2 As String       ' v24.3.1: step 9's open posting in Unit (a list row is added by the plan and removed by the cancel)
-    PostId3 As String       ' v25: step 12's posting - no takers, voided, reopened; step 15 plants a leave word on it
-    PostId4 As String       ' v25: step 12's posting awarded out of department to the test person
-    LeaveAbsId As String    ' v25: step 13's leave booking
-    LeaveRef As String      ' v25: step 13's leave-return log ref (LV-)
+    PostId3 As String       ' v25: step 13's posting - no takers, voided, reopened; step 16 plants a leave word on it
+    PostId4 As String       ' v25: step 13's posting awarded out of department to the test person
+    LeaveAbsId As String    ' v25: step 14's leave booking
+    LeaveRef As String      ' v25: step 14's leave-return log ref (LV-)
     SessionId As String
     AbsId As String
     SickId As String
@@ -188,16 +188,17 @@ Private Function SmkName(ByVal k As Long) As String
         Case 7: SmkName = "crew change from a date"
         Case 8: SmkName = "move to another unit"
         Case 9: SmkName = "plan a move for tomorrow (+ crew, old-unit posting), cancel it through a filtered list"
-        Case 10: SmkName = "rename"
-        Case 11: SmkName = "publish to a scratch file and read it back"
-        Case 12: SmkName = "no takers, award out of dept, void, reopen"
-        Case 13: SmkName = "leave going and returning (top-up logged)"
-        Case 14: SmkName = "Kronos headings on a made-up sheet (good, then one missing)"
-        Case 15: SmkName = "a planted leave word stops the publish (Reason, then a calendar line)"
-        Case 16: SmkName = "void everything it logged"
-        Case 17: SmkName = "remove the test employee"
-        Case 18: SmkName = "integrity check"
-        Case 19: SmkName = "the Desk's figures follow the data"
+        Case 10: SmkName = "edit a person's details through the Employee pop-up (v26.5)"
+        Case 11: SmkName = "rename"
+        Case 12: SmkName = "publish to a scratch file and read it back"
+        Case 13: SmkName = "no takers, award out of dept, void, reopen"
+        Case 14: SmkName = "leave going and returning (top-up logged)"
+        Case 15: SmkName = "Kronos headings on a made-up sheet (good, then one missing)"
+        Case 16: SmkName = "a planted leave word stops the publish (Reason, then a calendar line)"
+        Case 17: SmkName = "void everything it logged"
+        Case 18: SmkName = "remove the test employee"
+        Case 19: SmkName = "integrity check"
+        Case 20: SmkName = "the Desk's figures follow the data"
     End Select
 End Function
 
@@ -214,16 +215,17 @@ Private Function SmkStep(ByVal k As Long, ByRef st As SmkState, ByVal nErr0 As L
         Case 7: SmkStep = SmkCrew(st, why)
         Case 8: SmkStep = SmkMove(st, why)
         Case 9: SmkStep = SmkPlanned(st, why)
-        Case 10: SmkStep = SmkRename(st, why)
-        Case 11: SmkStep = SmkPublish(st, why)
-        Case 12: SmkStep = SmkOutcomes(st, why)
-        Case 13: SmkStep = SmkLeaveReturn(st, why)
-        Case 14: SmkStep = SmkKronosHeadings(st, why)
-        Case 15: SmkStep = SmkPlantedWords(st, why)
-        Case 16: SmkStep = SmkVoid(st, why)
-        Case 17: SmkStep = SmkRemove(st, why)
-        Case 18: SmkStep = SmkIntegrity(st, nErr0, why)
-        Case 19: SmkStep = SmkDesk(st, why)
+        Case 10: SmkStep = SmkEdit(st, why)
+        Case 11: SmkStep = SmkRename(st, why)
+        Case 12: SmkStep = SmkPublish(st, why)
+        Case 13: SmkStep = SmkOutcomes(st, why)
+        Case 14: SmkStep = SmkLeaveReturn(st, why)
+        Case 15: SmkStep = SmkKronosHeadings(st, why)
+        Case 16: SmkStep = SmkPlantedWords(st, why)
+        Case 17: SmkStep = SmkVoid(st, why)
+        Case 18: SmkStep = SmkRemove(st, why)
+        Case 19: SmkStep = SmkIntegrity(st, nErr0, why)
+        Case 20: SmkStep = SmkDesk(st, why)
     End Select
     If Not SmkStep And why = "" Then why = "the function returned False (a message above says why)"
     Exit Function
@@ -771,8 +773,8 @@ End Function
 ' ---- 12. no takers, award out of dept, void, reopen (v25) ----
 ' Two more postings in Unit (the test person holds no code there since step 8, so they are OUT of
 ' department for them). Posting 3: No takers (everyone on the list charged), its rows voided, then
-' reopened (ReopenPostingById) and left Open for step 15. Posting 4: awarded out of department to
-' the test person (an Awarded row under their name, voided in step 16).
+' reopened (ReopenPostingById) and left Open for step 16. Posting 4: awarded out of department to
+' the test person (an Awarded row under their name, voided in step 17).
 Private Function SmkOutcomes(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim p As PostRec, lst() As PListRec, n As Long, dd As Long, d As Date, found As Boolean, report As String, calN As Long
     If RosterRowOf(st.Emp) = 0 Then why = st.Emp & " isn't on the roster": Exit Function
@@ -866,10 +868,10 @@ End Function
 ' ---- 15. a planted leave word stops the publish (v25) ----
 ' The posting Reason first, then a calendar line's covered-by; each publish must write nothing and
 ' must have refused for the planted word (gSmokeRefusal). The words are taken back and posting 3 is
-' cancelled (step 16 cancels it when this step is skipped; a FAILED step stops the run, saving blocked).
+' cancelled (step 17 cancels it when this step is skipped; a FAILED step stops the run, saving blocked).
 Private Function SmkPlantedWords(ByRef st As SmkState, ByRef why As String) As Boolean
     If Not MemberTemplateExists() Then st.Note = "SKIPPED: no members' template beside this copy": SmkPlantedWords = True: Exit Function
-    If st.PostId3 = "" Then st.Note = "SKIPPED: no open posting from step 12": SmkPlantedWords = True: Exit Function
+    If st.PostId3 = "" Then st.Note = "SKIPPED: no open posting from step 13": SmkPlantedWords = True: Exit Function
     If PostingStatus(st.PostId3) <> "Open" Then st.Note = "SKIPPED: " & st.PostId3 & " isn't open": SmkPlantedWords = True: Exit Function
     Dim folder As String: folder = EnsureSlash(Environ$("TEMP")) & "RosterSmoke\"
     On Error Resume Next
@@ -939,10 +941,10 @@ Private Function SmkVoid(ByRef st As SmkState, ByRef why As String) As Boolean
     If st.SickId <> "" Then
         If Not VoidAbsence(st.SickId, SMK_WHY) Then why = "VoidAbsence " & st.SickId & " returned False": Exit Function
     End If
-    If st.LeaveAbsId <> "" Then                      ' v25: step 13's leave (its LV- row went with the refs above)
+    If st.LeaveAbsId <> "" Then                      ' v25: step 14's leave (its LV- row went with the refs above)
         If Not VoidAbsence(st.LeaveAbsId, SMK_WHY) Then why = "VoidAbsence " & st.LeaveAbsId & " returned False": Exit Function
     End If
-    ' v25: posting 3 is still Open when step 15 was skipped (no template): cancelled here so nothing of the run stays Open
+    ' v25: posting 3 is still Open when step 16 was skipped (no template): cancelled here so nothing of the run stays Open
     Dim p As PostRec, lst() As PListRec
     If st.PostId3 <> "" Then
         If PostingStatus(st.PostId3) = "Open" Then
@@ -990,6 +992,41 @@ End Function
 ' a day shift inside the window adds at least one open line; a posting closing today adds one ready to award
 ' once the closing moment has passed; both are taken back and the figures return; ViewModeFor on four logins (v25.5:
 ' + a named supervisor).
+' ---- 10. v26.5: the Employee pop-up's Edit, through its one write path: a new phone, a new seniority date and a code
+'          added in the second unit; the cells show it, the totals come back (SaveEmployeeEdit's own check), the Grade Log grew ----
+Private Function SmkEdit(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long: r = RosterRowOf(st.Emp)
+    If r = 0 Then why = st.Emp & " isn't on the roster": Exit Function
+    Dim homeUnit As String, crewTxt As String, phone As String, email As String, sen As String, codes() As String
+    If Not PersonDetails(st.Emp, homeUnit, crewTxt, phone, email, sen, codes) Then why = "PersonDetails returned False": Exit Function
+    Dim glBefore As Long
+    If Not GradeLogTable(False) Is Nothing Then
+        If Not GradeLogTable(False).DataBodyRange Is Nothing Then glBefore = GradeLogTable(False).ListRows.Count
+    End If
+    ' the code goes into the FIRST unit's column (cleared by step 8's move) and is cleared again by a second save, so the
+    ' later steps find the person as they expect (out of department in Unit since step 8)
+    Dim c1 As Long, addedCode As Boolean
+    c1 = DeptCol(st.Unit) - UnitColFirst()
+    If codes(c1) = "" Then codes(c1) = "Z9": addedCode = True
+    Dim report As String, senDate As Date: senDate = DateSerial(2011, 3, 3)
+    If Not SaveEmployeeEdit(st.Emp, "", "", 0, "ext 0100", email, senDate, codes, report) Then why = "SaveEmployeeEdit returned False (a message above says why)": Exit Function
+    If Trim$(SafeStr(ws.Cells(r, C_PHONE).Value)) <> "ext 0100" Then why = "the phone didn't change": Exit Function
+    If Not IsDate(ws.Cells(r, C_SENIORITY).Value) Then why = "the seniority date isn't a date": Exit Function
+    If Int(CDate(ws.Cells(r, C_SENIORITY).Value)) <> senDate Then why = "the seniority date didn't change": Exit Function
+    If addedCode Then
+        If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "Z9" Then why = "the " & st.Unit & " code wasn't written": Exit Function
+        If Not GradeLogTable(False) Is Nothing Then
+            If GradeLogTable(False).ListRows.Count <= glBefore Then why = "the Grade Log didn't get a row for the new code": Exit Function
+        End If
+        codes(c1) = ""                               ' and back off again: the person holds no Unit code for the steps that follow
+        If Not SaveEmployeeEdit(st.Emp, "", "", 0, "ext 0100", email, senDate, codes, report) Then why = "the second save (clearing the code) returned False": Exit Function
+        If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "" Then why = "the " & st.Unit & " code wasn't cleared again": Exit Function
+    End If
+    st.Note = "phone, seniority" & IIf(addedCode, ", a " & st.Unit & " code added then cleared (Grade Log + 2)", "") & " - totals unchanged"
+    SmkEdit = True
+End Function
+
 Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
     If ViewModeFor("boss", "ann,boss", "boss", "sue") <> "desk" Or ViewModeFor("ann", "ann,boss", "boss", "sue") <> "admin" Or _
        ViewModeFor("boss", "ann", "boss", "sue") <> "user" Or ViewModeFor("sue", "ann,boss", "boss", "sue") <> "supervisor" Then _

@@ -929,6 +929,12 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "blank), SAVE LEAVE. Returning: pick who is back, type the first day back, click Work out the top-up, read the peers, " & _
         "the average and the hours before and after, then SAVE TOP-UP. A return date in the future, or after the roster's last " & _
         "pay period, is refused."
+    HelpAdd h, n, "Changing a person's details (admin)", _
+        "Nothing on the roster is typed into. Double-click a person's row (or click it and press Employee): the pop-up opens on Edit " & _
+        "with their home unit, crew, phone, email, seniority date and unit codes. Change what you need and SAVE CHANGES: the box lists " & _
+        "every change first; code changes go in the Grade Log, a crew change is dated and goes in the crew history, and nobody's hours " & _
+        "move. Worked hours come from the Kronos import. A full move to another unit is Move to unit (it tops up the hours); a new " & _
+        "person is Add; someone leaving is Remove."
     HelpAdd h, n, "Find a person", _
         "Supervisors and admins: click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
         "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _

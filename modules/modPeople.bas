@@ -3171,11 +3171,178 @@ Public Sub ShowEmployeeForm()
         MsgBox "Run Alt+F8 > SetupPeople once first (it adds the Crew History and Former sheets).", vbExclamation, "Employee"
         Exit Sub
     End If
+    ' v26.5: with a person's row selected on the roster the pop-up opens on Edit for them
+    Dim nm As String
+    On Error Resume Next
+    If ActiveSheet Is RosterSheet() Then
+        If ActiveCell.Row >= R_FIRST Then nm = Trim$(SafeStr(RosterSheet().Cells(ActiveCell.Row, C_NAME).Value))
+    End If
+    On Error GoTo Oops
+    If nm <> "" Then frmEmployee.StartEdit nm
     frmEmployee.Show
     Exit Sub
 Oops:
     ReportError "ShowEmployeeForm"
 End Sub
+
+
+' ====================================================================
+'  EDIT A PERSON'S DETAILS (v26.5, admin)
+'  Graeme, Oct 19: nothing on the roster is typed into any more (the cells
+'  B, E, F, H, J, K and L:S that v25 left open for an admin are locked).
+'  A double-click on a person's row, or Employee with the row selected,
+'  opens the pop-up on Edit, pre-filled; SaveEmployeeEdit writes home unit,
+'  crew (dated, through the crew history), phone, email, plant seniority
+'  and the unit codes with events off, logs the code changes in the Grade
+'  Log, checks that nobody's hours moved, and saves. Worked (H) is the
+'  Kronos import's alone.
+' ====================================================================
+' Routed from ThisWorkbook's SheetBeforeDoubleClick: an admin's double-click on a named roster row
+Public Sub PeopleRosterDoubleClick(ByVal Sh As Object, ByVal Target As Range, ByRef Cancel As Boolean)
+    If Target Is Nothing Then Exit Sub
+    If Not Sh Is RosterSheet() Then Exit Sub
+    If Target.Row < R_FIRST Then Exit Sub
+    If Target.Column > UnitColLast() Then Exit Sub          ' the pay-period cells: nothing to edit there
+    Dim nm As String: nm = Trim$(SafeStr(Sh.Cells(Target.Row, C_NAME).Value))
+    If nm = "" Then Exit Sub
+    If Not IsAdmin() Then Exit Sub                           ' a supervisor's double-click does what Excel does on a protected sheet: nothing
+    Cancel = True
+    OpenEmployeeEdit nm
+End Sub
+
+Public Sub OpenEmployeeEdit(ByVal emp As String)
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If CrewTable(False) Is Nothing Or FormerTable(False) Is Nothing Then
+        MsgBox "Run Alt+F8 > SetupPeople once first (it adds the Crew History and Former sheets).", vbExclamation, "Employee"
+        Exit Sub
+    End If
+    frmEmployee.StartEdit emp
+    frmEmployee.Show
+    Exit Sub
+Oops:
+    ReportError "OpenEmployeeEdit"
+End Sub
+
+' What the roster holds for a person, for the Edit boxes. codes(0 .. units - 1) follow the unit columns.
+Public Function PersonDetails(ByVal emp As String, ByRef homeUnit As String, ByRef crewTxt As String, ByRef phone As String, _
+                              ByRef email As String, ByRef seniority As String, ByRef codes() As String) As Boolean
+    ReDim codes(0 To UnitColLast() - UnitColFirst())
+    Dim r As Long: r = RosterRowOf(emp)
+    If r = 0 Then Exit Function
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    homeUnit = Trim$(SafeStr(ws.Cells(r, C_HOME).Value))
+    Dim found As Boolean
+    crewTxt = NewestCrew(emp, found)
+    If Not found Then crewTxt = Trim$(SafeStr(ws.Cells(r, C_SHIFT).Value))
+    phone = Trim$(SafeStr(ws.Cells(r, C_PHONE).Value))
+    email = Trim$(SafeStr(ws.Cells(r, C_EMAIL).Value))
+    If IsDate(ws.Cells(r, C_SENIORITY).Value) Then
+        seniority = Format$(CDate(ws.Cells(r, C_SENIORITY).Value), "mmm d, yyyy")
+    Else
+        seniority = Trim$(SafeStr(ws.Cells(r, C_SENIORITY).Value))
+    End If
+    Dim c As Long
+    For c = UnitColFirst() To UnitColLast()
+        codes(c - UnitColFirst()) = Trim$(SafeStr(ws.Cells(r, c).Value))
+    Next c
+    PersonDetails = True
+End Function
+
+' The one write path for a person's details. crewTxt "" = no crew change; a crew change is dated
+' crewFrom (the crew history row; column E shows the newest crew as it always has). seniority: a
+' date, or "" to leave it. codes(0 .. units - 1): every unit column, "" = no code. The totals
+' before and after must agree (nothing here touches hours); saving is blocked otherwise.
+Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, ByVal crewTxt As String, ByVal crewFrom As Date, _
+                                 ByVal phone As String, ByVal email As String, ByVal seniority As Variant, ByRef codes() As String, _
+                                 ByRef report As String) As Boolean
+    If Not RequireAdmin() Then Exit Function
+    If Not RequireWritable() Then Exit Function
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long: r = RosterRowOf(emp)
+    If r = 0 Then MsgBox emp & " isn't on the roster.", vbExclamation, "Edit employee": Exit Function
+    crewTxt = NormCrew(crewTxt)
+    If homeUnit <> "" Then
+        If DeptCol(homeUnit) = 0 Then MsgBox "Pick the home unit.", vbExclamation, "Edit employee": Exit Function
+    End If
+    If crewTxt <> "" Then
+        If Not IsCrewCode(crewTxt) Then MsgBox "Pick the crew.", vbExclamation, "Edit employee": Exit Function
+    End If
+    Dim found As Boolean, crewNow As String
+    crewNow = NormCrew(NewestCrew(emp, found))
+    If Not found Then crewNow = NormCrew(Trim$(SafeStr(ws.Cells(r, C_SHIFT).Value)))
+    Dim crewChange As Boolean: crewChange = (crewTxt <> "" And StrComp(crewTxt, crewNow, vbTextCompare) <> 0)
+    If crewChange And crewFrom = 0 Then MsgBox "Enter the date the crew change starts.", vbExclamation, "Edit employee": Exit Function
+
+    Dim evWas As Boolean, scrWas As Boolean, calcWas As Long
+    QuietOn evWas, scrWas, calcWas
+    Dim before As Object, logBefore As Double, em As String, diff As String, c As Long, changed As String, codeTxt As String
+    Application.Calculate
+    Set before = RosterTotalsMap()
+    logBefore = LogChargedTotal()
+    On Error GoTo Failed
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    mBusy = True
+    UnlockSheet ws
+    If homeUnit <> "" Then
+        If StrComp(Trim$(SafeStr(ws.Cells(r, C_HOME).Value)), homeUnit, vbTextCompare) <> 0 Then
+            ws.Cells(r, C_HOME).Value = homeUnit: changed = changed & "home unit " & homeUnit & "; "
+        End If
+    End If
+    If Trim$(SafeStr(ws.Cells(r, C_PHONE).Value)) <> Trim$(phone) Then ws.Cells(r, C_PHONE).Value = Trim$(phone): changed = changed & "phone; "
+    If Trim$(SafeStr(ws.Cells(r, C_EMAIL).Value)) <> Trim$(email) Then ws.Cells(r, C_EMAIL).Value = Trim$(email): changed = changed & "email; "
+    If IsDate(seniority) Then
+        If Not IsDate(ws.Cells(r, C_SENIORITY).Value) Or Int(CDate(seniority)) <> Int(NumOr0(ws.Cells(r, C_SENIORITY).Value2)) Then
+            ws.Cells(r, C_SENIORITY).Value = Int(CDate(seniority)): changed = changed & "seniority " & Format$(CDate(seniority), "mmm d, yyyy") & "; "
+        End If
+    End If
+    For c = UnitColFirst() To UnitColLast()
+        codeTxt = Trim$(codes(c - UnitColFirst()))
+        If StrComp(Trim$(SafeStr(ws.Cells(r, c).Value)), codeTxt, vbBinaryCompare) <> 0 Then
+            ws.Cells(r, c).Value = codeTxt
+            changed = changed & DeptOfCol(c) & " " & IIf(codeTxt = "", "(cleared)", codeTxt) & "; "
+        End If
+    Next c
+    If crewChange Then
+        ws.Cells(r, C_SHIFT).Value = crewTxt
+        If Not AddCrewRow(emp, crewTxt, crewFrom) Then Err.Raise vbObjectError + 716, , "the crew history row couldn't be written"
+        changed = changed & "crew " & crewTxt & " from " & Format$(crewFrom, "mmm d, yyyy") & "; "
+    End If
+    ProtectSheet ws
+    RecordGradeRows r, r, CurrentUser()                 ' the Grade Log sees the code changes as a typed change did
+    Application.Calculate
+    diff = TotalsDifference(before, RosterTotalsMap())
+    If Abs(LogChargedTotal() - logBefore) > 0.0001 Then diff = diff & "  OT Log total Hours Charged changed" & vbNewLine
+    QuietOff evWas, scrWas, calcWas
+    If diff <> "" Then
+        MarkNoSave
+        MsgBox "Editing " & emp & " did NOT verify (nobody's hours may change):" & vbNewLine & diff & vbNewLine & _
+               "Saving is blocked. Close WITHOUT saving and reopen.", vbCritical, "Edit employee"
+        Exit Function
+    End If
+    AfterPeopleChange
+    SaveIfWritable
+    If changed = "" Then
+        report = emp & ": nothing changed."
+    Else
+        report = emp & " updated: " & Left$(changed, Len(changed) - 2) & "." & _
+                 IIf(InStr(changed, "(cleared)") > 0 Or InStr(changed, "home unit") > 0, _
+                     vbNewLine & "The call lists follow from the next load; an open posting's frozen list does not change.", "")
+    End If
+    SaveEmployeeEdit = True
+    Exit Function
+Failed:
+    em = Err.Description
+    LogError "SaveEmployeeEdit", Err.Number, em
+    MarkNoSave                                  ' first: nothing below can stop the save block going on
+    QuietOff evWas, scrWas, calcWas
+    On Error Resume Next
+    ProtectSheet ws
+    MsgBox "Editing " & emp & " stopped part-way: " & em & vbNewLine & vbNewLine & _
+           "Saving is blocked. Close WITHOUT saving and reopen.", vbCritical, "Edit employee"
+End Function
 
 ' The old Rename Employee macro: the pop-up opens on Rename with that person picked
 Public Sub ShowEmployeeRename(ByVal emp As String)

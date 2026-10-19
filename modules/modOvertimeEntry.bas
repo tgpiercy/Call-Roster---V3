@@ -1304,15 +1304,11 @@ End Sub
 ' Worked (H) is unlocked too (v25 review): today the hours are typed from the Kronos PDF by hand and
 ' only the Excel import writes H in code; lock it again when the daily import is running.
 Public Sub LockRosterCells(ByVal rs As Worksheet, ByVal adminView As Boolean)
-    Dim lastRow As Long: lastRow = RosterLastRow()
+    ' v26.5 (Graeme, Oct 19): nothing on the roster is typed into any more, in any view. A person's details
+    ' change through the Employee pop-up's Edit (a double-click on the row); Worked (H) comes from the
+    ' Kronos import. (v25 R4 had left B, E, F, H, J, K and L:S open for an admin.) adminView is kept for
+    ' the callers; every cell is locked either way.
     rs.Cells.Locked = True
-    If Not adminView Or lastRow < R_FIRST Then Exit Sub
-    Dim cols As Variant: cols = Array(C_HOME, C_SHIFT, C_PHONE, C_WORKED, C_SENIORITY, C_EMAIL)
-    Dim c As Variant
-    For Each c In cols
-        rs.Range(rs.Cells(R_FIRST, CLng(c)), rs.Cells(lastRow, CLng(c))).Locked = False
-    Next c
-    rs.Range(rs.Cells(R_FIRST, UnitColFirst()), rs.Cells(lastRow, UnitColLast())).Locked = False
 End Sub
 
 ' v25: how many sheets are protected, for SystemCheck ("" = as expected; otherwise the odd ones out)

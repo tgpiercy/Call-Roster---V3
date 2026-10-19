@@ -1,5 +1,5 @@
 Option Explicit
-' @version v25.5 (Oct 18)
+' @version v26.5 (Oct 19)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object
@@ -55,7 +55,7 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v25.5 (Oct 18)"
+    CodeVersion = "ThisWorkbook v26.5 (Oct 19)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the
@@ -168,6 +168,7 @@ End Sub
 
 Private Sub Workbook_SheetBeforeDoubleClick(ByVal Sh As Object, ByVal Target As Range, Cancel As Boolean)
     On Error GoTo Oops
+    PeopleRosterDoubleClick Sh, Target, Cancel     ' v26.5: an admin's double-click on a roster row = Edit that person (modPeople)
     CalSheetDoubleClick Sh, Target, Cancel
     Exit Sub
 Oops:

@@ -1,8 +1,13 @@
 Option Explicit
-' @version v25.5 (Oct 18)
+' @version v26.5 (Oct 19)
 
 ' ================================================================
-' EMPLOYEE (v24, admin) - five jobs in one pop-up
+' EMPLOYEE (v24, admin) - six jobs in one pop-up (v26.5: + Edit)
+'  Edit          v26.5: a person's details - home unit, crew (dated), phone,
+'                email, seniority date, the unit codes - through one save
+'                (SaveEmployeeEdit) that logs the code changes and checks
+'                nobody's hours moved. Nothing on the roster is typed into
+'                any more; a double-click on a row opens this, pre-filled.
 '  Add employee  roster row with formulas, crew history row, and starting
 '                hours = the home unit's average Total Hours (grade 2 and
 '                below, not on leave) on the start date: ONE Adjustment,
@@ -11,7 +16,7 @@ Option Explicit
 '                changed, Grade Log rows, crew change if any, and hours
 '                raised to the highest Total Hours among grade 2 and below
 '                in the new unit (never lowered): ONE Adjustment, UM-####.
-'                An extra sign-off is NOT a move: type the code on the roster.
+'                An extra sign-off is NOT a move: add the code with Edit.
 '                v24.3: a date AFTER today plans the move (SavePlannedMove):
 '                nothing on the roster changes until that day.
 '  Rename        every table together, with a backup and a check.
@@ -28,14 +33,23 @@ Private WithEvents mOptMove As MSForms.OptionButton
 Private WithEvents mOptRename As MSForms.OptionButton
 Private WithEvents mOptRemove As MSForms.OptionButton
 Private WithEvents mOptBack As MSForms.OptionButton
+Private WithEvents mOptEdit As MSForms.OptionButton      ' v26.5
+Private WithEvents mEditEmp As MSForms.ComboBox          ' v26.5
 Private WithEvents mMoveEmp As MSForms.ComboBox
 Private WithEvents mCalcBtn As MSForms.CommandButton
 Private WithEvents mSave As MSForms.CommandButton
 Private WithEvents mClose As MSForms.CommandButton
 
-Private mGroups As Object               ' "A" / "M" / "R" / "X" / "B" -> Collection of controls
+Private mGroups As Object               ' "A" / "M" / "R" / "X" / "B" / "E" -> Collection of controls
 Private mMoveUnits() As String          ' units behind the "codes to clear" list
 Private mMoveN As Long
+Private mEdCrew As String               ' v26.5: what the Edit boxes were filled with (to say what changes)
+Private mEdHome As String
+Private mEdPhone As String
+Private mEdEmail As String
+Private mEdSen As String
+Private mEdCodes() As String
+Private mEdN As Long                    ' unit columns
 
 Private Const LBL_L As Long = 14
 Private Const BOX_L As Long = 128
@@ -104,6 +118,8 @@ Private Function ModeKey() As String
         ModeKey = "X"
     ElseIf mOptBack.Value Then
         ModeKey = "B"
+    ElseIf mOptEdit.Value Then
+        ModeKey = "E"
     Else
         ModeKey = "A"
     End If
@@ -119,23 +135,58 @@ Private Sub UserForm_Initialize()
         old.Visible = False: old.Enabled = False
     Next old
     Set mGroups = CreateObject("Scripting.Dictionary")
-    For Each k In Array("A", "M", "R", "X", "B")
+    For Each k In Array("A", "M", "R", "X", "B", "E")
         mGroups.Add CStr(k), New Collection
     Next k
     Me.Caption = "Employee"
     Me.Width = 500
     Me.Height = 530
 
-    Set mOptAdd = AddCtl("Forms.OptionButton.1", "optA", LBL_L, 10, 70, 18)
+    Set mOptEdit = AddCtl("Forms.OptionButton.1", "optE", LBL_L, 10, 50, 18)       ' v26.5: first - the everyday job
+    mOptEdit.Caption = "Edit"
+    Set mOptAdd = AddCtl("Forms.OptionButton.1", "optA", 66, 10, 50, 18)
     mOptAdd.Caption = "Add"
-    Set mOptMove = AddCtl("Forms.OptionButton.1", "optM", 86, 10, 100, 18)
+    Set mOptMove = AddCtl("Forms.OptionButton.1", "optM", 118, 10, 96, 18)
     mOptMove.Caption = "Move to unit"
-    Set mOptRename = AddCtl("Forms.OptionButton.1", "optR", 190, 10, 80, 18)
+    Set mOptRename = AddCtl("Forms.OptionButton.1", "optR", 216, 10, 70, 18)
     mOptRename.Caption = "Rename"
-    Set mOptRemove = AddCtl("Forms.OptionButton.1", "optX", 272, 10, 80, 18)
+    Set mOptRemove = AddCtl("Forms.OptionButton.1", "optX", 288, 10, 72, 18)
     mOptRemove.Caption = "Remove"
-    Set mOptBack = AddCtl("Forms.OptionButton.1", "optB", 354, 10, 100, 18)
+    Set mOptBack = AddCtl("Forms.OptionButton.1", "optB", 362, 10, 90, 18)
     mOptBack.Caption = "Bring back"
+
+    ' ---- Edit (v26.5) ----
+    AddLabel "eLEmp", "Employee", LBL_L, RowT(1) + 3, 110, "E"
+    Set mEditEmp = AddCombo("eEmp", BOX_L, RowT(1), 250, "E", RosterNames())
+    Set o = AddLabel("eHEmp", "", BOX_L, RowT(1) + 22, 350, "E")
+    o.Height = 24: o.WordWrap = True
+    AddLabel "eLHome", "Home unit", LBL_L, RowT(3) + 3, 110, "E"
+    AddCombo "eHome", BOX_L, RowT(3), 150, "E", DeptList()
+    AddLabel "eLCrew", "Crew", BOX_L + 162, RowT(3) + 3, 40, "E"
+    AddCombo "eCrew", BOX_L + 204, RowT(3), 70, "E", ShiftList()
+    AddLabel "eLFrom", "Crew change from", LBL_L, RowT(4) + 3, 110, "E"
+    Set o = AddText("eFrom", BOX_L, RowT(4), 110, "E")
+    o.Text = Format$(Date, "mmm d, yyyy")
+    AddLabel "eHFrom", "only read when the crew changes", BOX_L + 118, RowT(4) + 3, 220, "E"
+    AddLabel "eLPhone", "Phone", LBL_L, RowT(5) + 3, 110, "E"
+    AddText "ePhone", BOX_L, RowT(5), 110, "E"
+    AddLabel "eLEmail", "Email", BOX_L + 122, RowT(5) + 3, 34, "E"
+    AddText "eEmail", BOX_L + 158, RowT(5), 180, "E"
+    AddLabel "eLSen", "Seniority date", LBL_L, RowT(6) + 3, 110, "E"
+    AddText "eSen", BOX_L, RowT(6), 110, "E"
+    AddLabel "eHSen", "with the year, e.g. Mar 3, 2011", BOX_L + 118, RowT(6) + 3, 220, "E"
+    Dim u As Long, colX As Single
+    mEdN = UnitColLast() - UnitColFirst() + 1
+    For u = 0 To mEdN - 1
+        colX = IIf(u Mod 2 = 0, 0, 236)
+        AddLabel "eLC" & u, DeptOfCol(UnitColFirst() + u), LBL_L + colX, RowT(7 + u \ 2) + 3, 110, "E"
+        AddText "eC" & u, BOX_L + colX, RowT(7 + u \ 2), 60, "E"
+    Next u
+    Set o = AddLabel("eInfo", "Unit codes: a grade code like D2 in the units the person holds, blank where they hold none (an extra sign-off " & _
+                     "goes in here; a FULL move uses Move to unit, which also tops up the hours). Code changes are logged in the Grade Log; a crew " & _
+                     "change is dated and goes in the crew history. Nobody's hours change here: Worked comes from the Kronos import.", _
+                     LBL_L, RowT(11) + 6, 460, "E")
+    o.Height = 50: o.WordWrap = True
 
     ' ---- Add ----
     AddLabel "aLName", "Name", LBL_L, RowT(1) + 3, 110, "A"
@@ -224,7 +275,7 @@ Private Sub UserForm_Initialize()
     AddText "aOver", BOX_L, RowT(13) + 9, 60, "A"
     AddLabel "aLWhy", "reason", BOX_L + 68, RowT(13) + 12, 40, "A"
     AddText "aWhy", BOX_L + 110, RowT(13) + 9, 230, "A"
-    Set o = AddLabel("mInfo", "A FULL move only. An extra sign-off isn't a move: type the code on the roster, no hours change.", _
+    Set o = AddLabel("mInfo", "A FULL move only. An extra sign-off isn't a move: add the code with Edit, no hours change.", _
                      LBL_L, RowT(13) + 12, 460, "M")
     o.ForeColor = RGB(190, 30, 30)
 
@@ -239,19 +290,61 @@ Private Sub UserForm_Initialize()
 
     ApplyFormTheme Me
     mSave.BackColor = RGB(30, 56, 100): mSave.ForeColor = vbWhite
-    For Each k In Array("optA", "optM", "optR", "optX", "optB")
+    For Each k In Array("optA", "optM", "optR", "optX", "optB", "optE")
         C(CStr(k)).BackStyle = 0
         C(CStr(k)).Font.Bold = True
     Next k
-    For Each k In Array("aHName", "aHCode", "mHEmp", "mHClear", "xHDate")
+    For Each k In Array("aHName", "aHCode", "mHEmp", "mHClear", "xHDate", "eHEmp", "eHFrom", "eHSen")
         C(CStr(k)).Font.Size = 8: C(CStr(k)).ForeColor = RGB(120, 120, 120)
     Next k
-    For Each k In Array("rInfo", "xInfo", "bInfo")
+    For Each k In Array("rInfo", "xInfo", "bInfo", "eInfo")
         C(CStr(k)).Font.Size = 8.5: C(CStr(k)).ForeColor = RGB(30, 56, 100)
     Next k
-    mOptAdd.Value = True
+    mOptEdit.Value = True                        ' v26.5: opens on Edit
     SetMode
     ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
+End Sub
+
+' v26.5: a double-click on a roster row (modPeople.OpenEmployeeEdit) opens straight on Edit for one person
+Public Sub StartEdit(ByVal emp As String)
+    On Error Resume Next
+    mOptEdit.Value = True
+    SetMode
+    SelectIn mEditEmp, emp                       ' its Change event fills the boxes
+    On Error GoTo 0
+End Sub
+
+' Edit: the boxes follow the person picked
+Private Sub mEditEmp_Change()
+    FillEdit
+End Sub
+
+Private Sub FillEdit()
+    Dim u As Long
+    mEdHome = "": mEdCrew = "": mEdPhone = "": mEdEmail = "": mEdSen = ""
+    ReDim mEdCodes(0 To mEdN - 1)
+    C("eHEmp").Caption = ""
+    If mEditEmp.ListIndex < 0 Then
+        C("eHome").ListIndex = -1: C("eCrew").ListIndex = -1
+        C("ePhone").Text = "": C("eEmail").Text = "": C("eSen").Text = ""
+        For u = 0 To mEdN - 1
+            C("eC" & u).Text = ""
+        Next u
+        Exit Sub
+    End If
+    Dim codes() As String
+    If Not PersonDetails(mEditEmp.Text, mEdHome, mEdCrew, mEdPhone, mEdEmail, mEdSen, codes) Then Exit Sub
+    C("eHEmp").Caption = PersonSummary(mEditEmp.Text)
+    SelectIn C("eHome"), mEdHome
+    SelectIn C("eCrew"), mEdCrew
+    C("ePhone").Text = mEdPhone
+    C("eEmail").Text = mEdEmail
+    C("eSen").Text = mEdSen
+    C("eFrom").Text = Format$(Date, "mmm d, yyyy")
+    For u = 0 To mEdN - 1
+        mEdCodes(u) = codes(u)
+        C("eC" & u).Text = codes(u)
+    Next u
 End Sub
 
 ' RenameEmployee (the old macro name) opens straight on Rename for one person
@@ -289,6 +382,7 @@ Private Sub SetMode()
         Case "R": Me.Caption = "Employee - rename": mSave.Caption = "RENAME"
         Case "X": Me.Caption = "Employee - remove": mSave.Caption = "REMOVE FROM ROSTER"
         Case "B": Me.Caption = "Employee - bring back": mSave.Caption = "BRING BACK"
+        Case "E": Me.Caption = "Employee - edit details": mSave.Caption = "SAVE CHANGES"
     End Select
     C("result").Caption = IIf(key = "A" Or key = "M", "Fill in the boxes, then click Work out the hours. Nothing is saved until you click " & mSave.Caption & ".", "")
     C("result").ForeColor = RGB(30, 56, 100)
@@ -311,6 +405,10 @@ Private Sub mOptRemove_Click()
 End Sub
 
 Private Sub mOptBack_Click()
+    SetMode
+End Sub
+
+Private Sub mOptEdit_Click()
     SetMode
 End Sub
 
@@ -412,14 +510,66 @@ Private Sub mSave_Click()
         Case "R": SaveRename
         Case "X": SaveRemove
         Case "B": SaveBack
+        Case "E": SaveEdit
     End Select
+End Sub
+
+' v26.5: Edit - what differs from the boxes' starting values is listed, confirmed, then saved by
+' modPeople.SaveEmployeeEdit (events off, the Grade Log, the crew history, the totals check)
+Private Sub SaveEdit()
+    If mEditEmp.ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Edit employee": Exit Sub
+    Dim emp As String: emp = mEditEmp.Text
+    Dim homeUnit As String, crewTxt As String, crewFrom As Date, sen As Variant, senDate As Date, u As Long
+    Dim codes() As String: ReDim codes(0 To mEdN - 1)
+    Dim what As String
+    If C("eHome").ListIndex >= 0 Then homeUnit = C("eHome").Text
+    If homeUnit <> "" And StrComp(homeUnit, mEdHome, vbTextCompare) <> 0 Then what = what & "- home unit: " & mEdHome & " -> " & homeUnit & vbNewLine
+    If C("eCrew").ListIndex >= 0 Then crewTxt = C("eCrew").Text
+    If crewTxt <> "" And StrComp(NormCrew(crewTxt), NormCrew(mEdCrew), vbTextCompare) <> 0 Then
+        If Not ParseTypedDate(C("eFrom").Text, crewFrom) Then
+            MsgBox "Enter the date the crew change starts, e.g. " & Format$(Date, "mmm d, yyyy") & ".", vbExclamation, "Edit employee"
+            Exit Sub
+        End If
+        what = what & "- crew: " & mEdCrew & " -> " & crewTxt & " from " & Format$(crewFrom, "ddd mmm d, yyyy") & vbNewLine
+    End If
+    If Trim$(C("ePhone").Text) <> mEdPhone Then what = what & "- phone: " & IIf(mEdPhone = "", "(none)", mEdPhone) & " -> " & IIf(Trim$(C("ePhone").Text) = "", "(none)", Trim$(C("ePhone").Text)) & vbNewLine
+    If Trim$(C("eEmail").Text) <> mEdEmail Then what = what & "- email: " & IIf(mEdEmail = "", "(none)", mEdEmail) & " -> " & IIf(Trim$(C("eEmail").Text) = "", "(none)", Trim$(C("eEmail").Text)) & vbNewLine
+    sen = ""
+    If Trim$(C("eSen").Text) <> "" Then
+        If Not ParseFullDate(C("eSen").Text, senDate) Then
+            MsgBox "The seniority date needs the year, e.g. Mar 3, 2011.", vbExclamation, "Edit employee"
+            Exit Sub
+        End If
+        sen = senDate
+        If Format$(senDate, "mmm d, yyyy") <> mEdSen Then what = what & "- seniority date: " & IIf(mEdSen = "", "(none)", mEdSen) & " -> " & Format$(senDate, "mmm d, yyyy") & vbNewLine
+    End If
+    For u = 0 To mEdN - 1
+        codes(u) = Trim$(C("eC" & u).Text)
+        If StrComp(codes(u), mEdCodes(u), vbBinaryCompare) <> 0 Then
+            what = what & "- " & DeptOfCol(UnitColFirst() + u) & " code: " & IIf(mEdCodes(u) = "", "(none)", mEdCodes(u)) & " -> " & IIf(codes(u) = "", "(cleared)", codes(u)) & vbNewLine
+        End If
+    Next u
+    If what = "" Then MsgBox "Nothing has changed for " & emp & ".", vbInformation, "Edit employee": Exit Sub
+    If MsgBox("Save these changes for " & emp & "?" & vbNewLine & vbNewLine & what & vbNewLine & _
+              "Code changes go in the Grade Log; a crew change goes in the crew history from its date. Nobody's hours change.", _
+              vbOKCancel + vbQuestion, "Confirm changes") <> vbOK Then Exit Sub
+    Dim report As String
+    Me.MousePointer = fmMousePointerHourGlass
+    Dim ok As Boolean: ok = SaveEmployeeEdit(emp, homeUnit, crewTxt, crewFrom, C("ePhone").Text, C("eEmail").Text, sen, codes, report)
+    Me.MousePointer = fmMousePointerDefault
+    If Not ok Then Exit Sub
+    FillEdit                                     ' the boxes show what is saved now
+    Finished report, "Edit employee"
 End Sub
 
 Private Sub Finished(ByVal report As String, ByVal title As String)
     C("status").Caption = Split(report, vbNewLine)(0)
     ' the lists follow the roster
     Dim keepMove As String: keepMove = mMoveEmp.Text
+    Dim keepEdit As String: keepEdit = mEditEmp.Text
     FillCombo mMoveEmp, RosterNames()
+    FillCombo mEditEmp, RosterNames()
+    If keepEdit <> "" Then SelectIn mEditEmp, keepEdit
     FillCombo C("rEmp"), RosterNames()
     FillCombo C("xEmp"), RosterNames()
     FillCombo C("bEmp"), FormerNames()
@@ -494,7 +644,7 @@ Private Sub SaveMove()
     Dim posts As String
     If clearTxt <> "" Then posts = ExemptFromOpenPostings(pc.Emp, pc.AsOf, "|" & clearTxt & "|", "", True)
     If posts <> "" Then msg = msg & "Open posting(s) in the old unit where they will not be charged: " & posts & vbNewLine
-    If clearTxt = "" Then msg = msg & vbNewLine & "NOTE: no code is being cleared. If this is only an extra sign-off, Cancel and type the code on the roster instead." & vbNewLine
+    If clearTxt = "" Then msg = msg & vbNewLine & "NOTE: no code is being cleared. If this is only an extra sign-off, Cancel and add the code with Edit instead." & vbNewLine
     msg = msg & vbNewLine & IIf(pc.AddHours > 0, "This logs one Adjustment (Ref UM-####, Reason 'Unit move'). Void Entry undoes the hours.", "No hours are logged.") & _
           vbNewLine & "The code changes go in the Grade Log." & vbNewLine & vbNewLine & "Save?"
     If MsgBox(msg, vbOKCancel + vbQuestion, "Confirm unit move") <> vbOK Then Exit Sub

@@ -1110,6 +1110,14 @@ def charge_why(typ: str, outcome: str, call_order: int, hours: float, charged: f
     return f"{head}: {sign}{hours_text(charged)} h" + (f" ({oc})" if oc else "")
 
 
+def staff_short(scheduled: int, off: int, covered: int, minimum: int) -> str:
+    """modCalendar.StaffShort (v26): '' or 'SHORT staffed/minimum'; staffed = scheduled - off + covered; no minimum = never short."""
+    if minimum <= 0:
+        return ""
+    staffed = scheduled - off + covered
+    return f"SHORT {staffed}/{minimum}" if staffed < minimum else ""
+
+
 def owed_status_text(days: int, warn_days: int) -> str:
     """modShiftSwitch.OwedStatusText (v26): the Needs Attention status for a payback owed `days` days."""
     return f"Payback owed {days} days" if days > warn_days else "Payback owed"

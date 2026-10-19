@@ -933,6 +933,13 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Supervisors and admins: click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
         "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _
         "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
+    HelpAdd h, n, "Minimum staffing (admin)", _
+        "The Min Staff sheet (admin) holds the minimum operators per unit and shift; blank = no minimum on that shift. For today and " & _
+        "the next 13 days the calendar's date cell shows a red SHORT line when a unit's day or night shift is below it, and Needs " & _
+        "Attention lists each short shift under BELOW MINIMUM STAFFING (double-click to open the calendar on that date). Staffed " & _
+        "= the people on the crew that is on, holding a code in the unit, minus those booked off or sick or off in a switch, plus " & _
+        "the ones working a switch and every coverage line a named person covers; an OPEN, NO TAKERS, POSTED or NCN line adds " & _
+        "nobody. It only reads: fix a short shift the usual way (a call-out, a posting, a switch)."
     HelpAdd h, n, "The two-week board", _
         "Board on the Calendar's top row (supervisors and admins): the Board tab is drawn for today and the next 13 days, one page " & _
         "per unit group, one row per date with the crews on and the Days and Nights lines as the calendar shows them, OPEN lines " & _

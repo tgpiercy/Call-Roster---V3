@@ -18,7 +18,10 @@ Public Const CALLOUT_SHEET As String = "Blank Call Out Roster"
 Public Const CALLOUT_PHONE_COL As Long = 5          ' phone column on the printed call out roster (hidden for non-admins) - v21
 Public Const POSTING_SHEET As String = "Overtime Posting"
 Public Const REFUSAL_SHEET As String = "Refusal Report"
-Public Const HISTORY_SHEET As String = "History Report"      ' v26: the employee history report (output only)
+Public Const HISTORY_SHEET As String = "History Report"      ' v26: the employee history report, member-safe (output only; supervisors and admins)
+Public Const HISTORY_ADMIN_SHEET As String = "History Report (admin)"   ' v26: the FULL flavour (who logged, when): admin only, like the Refusal Report
+Public Const MINSTAFF_SHEET As String = "Min Staff"           ' v26: minimum staffing per unit and shift (admin-typed settings table)
+Public Const MINSTAFF_TABLE As String = "tblMinStaff"
 
 Public Const SHEET_PASSWORD As String = "mytest"
 ' Windows usernames allowed to run admin macros (comma separated, any case)
@@ -1422,7 +1425,8 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     gDeskMode = adminView And deskMode
     If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4
+    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums
         If SheetExists(CStr(nm)) Then
             Dim showIt As Boolean
             showIt = adminView And Not gDeskMode
@@ -1435,10 +1439,15 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     ' supervisor keeps them; the next open applies the opener's own view)
     Dim supView As Boolean: supView = adminView Or IsSupervisor()
     If SheetExists(DESK_SHEET) Then SetSheetVisible ThisWorkbook.Worksheets(DESK_SHEET), IIf(adminView Or (SUPERVISOR_DESK And supView), xlSheetVisible, xlSheetVeryHidden)   ' v25.3: admins' and supervisors' Desk
+    ' v26: the member-safe history report and the board are a supervisor's output sheets (hidden from a plain user)
+    For Each nm In Array(HISTORY_SHEET, BOARD_SHEET)
+        If SheetExists(CStr(nm)) Then SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(supView, xlSheetVisible, xlSheetVeryHidden)
+    Next nm
     Dim rs As Worksheet: Set rs = RosterSheet()
     UnlockSheet rs
     LockRosterCells rs, adminView                   ' v25 (R4)
     If SheetExists(HOL_SHEET) Then LockHolidayCells adminView
+    If SheetExists(MINSTAFF_SHEET) Then LockMinStaffCells adminView   ' v26: the Minimum / Note cells open for an admin
     Dim leftWas As Double: leftWas = rs.Cells(1, C_SHIFT).Left
     rs.Columns(C_PHONE).Hidden = Not adminView
     rs.Columns(C_EMAIL).Hidden = Not adminView Or gDeskMode          ' v25.3: a Desk user keeps Phone, not these two
@@ -1458,6 +1467,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     If adminView And Not gDeskMode Then fx = fx + 187          ' 2 * wA + G + GG in BuildCommandBar
     rs.Shapes("ui_sup_lbl_find").Left = fx
     rs.Shapes("ui_sup_Find").Left = fx
+    rs.Shapes("ui_sup_History").Left = fx              ' v26: the group's second button moves with it
     On Error GoTo 0
     If SheetExists(CALLOUT_SHEET) Then
         ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView

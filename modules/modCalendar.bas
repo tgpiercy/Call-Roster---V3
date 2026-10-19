@@ -91,6 +91,9 @@ Public gCalPostShift As String
 
 ' calendar menu / redraw state
 Private mPostV As Variant           ' tblPostings snapshot for the details text and the attention box
+Private mStaffMin As Object         ' v26: "unit|Days" -> minimum, read once per sweep (StaffSweepBegin)
+Private mStaffNames As Object       ' v26: unit (or unit|date) -> the names holding a code, one LoadEligible each per sweep
+Private mStaffPerDate As Boolean    ' v26: a planned unit move inside the window: the names are per unit AND date
 Private mMenuKey As String          ' line (or "P:P-0001") the double-click menu is for
 Private mDrawing As Boolean
 Private mEventsSeen As Boolean      ' True once ThisWorkbook's tab-switch / change events have fired
@@ -1872,7 +1875,7 @@ Public Sub DrawCalendar()
     Dim drawnFrom As String: drawnFrom = SafeStr(mp.Range("Z7").Value)
     ' v25.1.2: draw-time measurement, one Timer reading per phase (kept in CalMap Z13 / Z14, shown in F3)
     Dim t0 As Double, tA As Double, tB As Double, tC As Double, tD As Double, tE As Double, tF As Double, tG As Double
-    Dim nLines As Long
+    Dim nLines As Long, shortTxt As String             ' v26: shortTxt = the date's SHORT line (minimum staffing)
     t0 = Timer
     mTimeSlots = 0: mTimeNotes = 0
 
@@ -1890,6 +1893,7 @@ Public Sub DrawCalendar()
     mp.Range("Z2").Value = grp
     LoadCache
     LoadPostCache
+    StaffSweepBegin Date                            ' v26: the minimums and the names per unit, once per draw
     tA = Timer                                      ' caches loaded
 
     ' ---- wipe the grid and the click map (controls are rebuilt at the end) ----
@@ -2031,6 +2035,10 @@ Public Sub DrawCalendar()
                 sv = CLng(Int(d))
                 numTxt = CStr(Day(d)): flagTxt = ""
                 If nOpen(k) > 0 Then flagTxt = "   " & ChrW(9679) & " " & nOpen(k) & " open"
+                If Int(d) >= Int(Date) And Int(d) < Int(Date) + BOARD_DAYS Then     ' v26: minimum staffing, the next 14 days
+                    shortTxt = StaffShortText(d, grp)
+                    If shortTxt <> "" Then flagTxt = flagTxt & "   " & ChrW(9650) & " SHORT  " & shortTxt
+                End If
                 vals(1, 2 * k + 1) = numTxt & flagTxt & vbLf & "Days: " & DaysCrew(d) & " Shift"
                 holTxt = HolidayLabel(d)
                 t = "Nights: " & NightsCrew(d) & " Shift"
@@ -3125,6 +3133,266 @@ Private Function BoardSheet() As Worksheet
     Set BoardSheet = ThisWorkbook.Worksheets(BOARD_SHEET)
 End Function
 
+
+' ====================================================================
+'  MINIMUM STAFFING (v26, kit item 2; the numbers from Graeme, Oct 18)
+' ====================================================================
+' The Min Staff sheet (admin-typed: Unit, Shift, Minimum, Note) holds the
+' plant's minimums. For today .. today + 13 a unit's shift is SHORT when
+'   staffed = scheduled - off + covered  <  minimum
+' scheduled = the people on the crew that is on that shift holding a code
+' in the unit (LoadEligible as of the date, CrewOn / CrewShiftOn: a DAYS
+' crew off on a plant holiday is not scheduled), plus anyone working a
+' switch that shift; off = booked off or sick for the shift (AbsentForShift)
+' or off in a switch; covered = the coverage lines a named person covers
+' (OPEN, NO TAKERS, POSTED and NCN add nobody). Shown on the calendar's
+' date cell and in Needs Attention. Reads only; no rule changes.
+
+' PURE (SelfTest "minstaff"): "" (fine, or no minimum) / "SHORT staffed/minimum"
+Public Function StaffShort(ByVal scheduled As Long, ByVal off As Long, ByVal covered As Long, ByVal minimum As Long) As String
+    If minimum <= 0 Then Exit Function
+    Dim staffed As Long: staffed = scheduled - off + covered
+    If staffed < minimum Then StaffShort = "SHORT " & staffed & "/" & minimum
+End Function
+
+' The plant's minimums on first use (Graeme, Oct 18, 2026): unit, days, nights (0 = none), note
+Private Function MinStaffDefaults() As Variant
+    MinStaffDefaults = Array( _
+        Array("Phosphine", 2, 2, "1 per train (train 1 + train 2); the roster cannot tell the trains apart, so 2 is the check"), _
+        Array("Derivatives", 3, 3, ""), _
+        Array("Cypure", 1, 1, ""), _
+        Array("Material Handler", 1, 1, "fumigation"), _
+        Array("QC Derivatives", 1, 1, "the QC lab; blank the Nights minimum if the lab runs no nights"), _
+        Array("QC Gases", 1, 0, "1 on days and 1 on afternoons; the roster has no afternoon shift, so only days are checked"), _
+        Array("Utilities", 1, 0, "days only"), _
+        Array("SBP", 1, 0, "days only"))
+End Function
+
+' The settings table, made on first use with the defaults (an admin corrects the Minimum cells)
+Public Function MinStaffTable(Optional ByVal create As Boolean = False) As ListObject
+    Dim ws As Worksheet, lo As ListObject
+    If SheetExists(MINSTAFF_SHEET) Then
+        Set ws = ThisWorkbook.Worksheets(MINSTAFF_SHEET)
+        On Error Resume Next
+        Set lo = ws.ListObjects(MINSTAFF_TABLE)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            Dim was As Object: Set was = ActiveSheet
+            UnlockStructure
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = MINSTAFF_SHEET
+            RelockStructure
+            SetTabColor ws, RGB(176, 0, 32)
+            On Error Resume Next
+            If Not was Is Nothing Then was.Activate
+            On Error GoTo 0
+        End If
+        UnlockSheet ws
+        Dim defs As Variant: defs = MinStaffDefaults()
+        Dim n As Long: n = 2 * (UBound(defs) - LBound(defs) + 1)
+        Dim rows() As Variant: ReDim rows(1 To n, 1 To 4)
+        Dim i As Long, k As Long, row As Variant
+        For i = LBound(defs) To UBound(defs)
+            row = defs(i)
+            k = k + 1: rows(k, 1) = row(0): rows(k, 2) = "Days": rows(k, 4) = row(3)
+            If CLng(row(1)) > 0 Then rows(k, 3) = CLng(row(1))
+            k = k + 1: rows(k, 1) = row(0): rows(k, 2) = "Nights": rows(k, 4) = row(3)
+            If CLng(row(2)) > 0 Then rows(k, 3) = CLng(row(2))
+        Next i
+        ws.Range("A1").Resize(1, 4).Value = Array("Unit", "Shift", "Minimum", "Note")
+        ws.Range("A2").Resize(n, 4).Value = rows
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(n + 1, 4), , xlYes)
+        lo.Name = MINSTAFF_TABLE
+        lo.TableStyle = "TableStyleMedium3"
+        ws.Columns(1).ColumnWidth = 18: ws.Columns(2).ColumnWidth = 8: ws.Columns(3).ColumnWidth = 10: ws.Columns(4).ColumnWidth = 90
+        ws.Range("A" & (n + 3)).Value = "Minimum operators per unit and shift (admin). Blank = no minimum on that shift. The calendar's date cells and " & _
+                                        "Needs Attention flag a shift below its minimum for the next " & BOARD_DAYS & " days. Type into Minimum and Note only."
+        ws.Range("A" & (n + 3)).Font.Italic = True: ws.Range("A" & (n + 3)).Font.Size = 8.5
+        LockMinStaffCells gAdminUnlocked
+        ProtectSheet ws
+    End If
+    Set MinStaffTable = lo
+End Function
+
+' v26 (R4): the cells an admin may type into on the Min Staff sheet - Minimum and Note; everything else locked.
+' Called by ApplyViewCore (the sheet is re-protected by ProtectAll after it) and at the table's making.
+Public Sub LockMinStaffCells(ByVal adminView As Boolean)
+    Dim lo As ListObject: Set lo = MinStaffTable(False)
+    If lo Is Nothing Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    UnlockSheet ws
+    ws.Cells.Locked = True
+    If adminView Then
+        On Error Resume Next
+        If Not lo.DataBodyRange Is Nothing Then
+            lo.ListColumns("Minimum").DataBodyRange.Locked = False
+            lo.ListColumns("Note").DataBodyRange.Locked = False
+        End If
+        On Error GoTo 0
+    End If
+    ProtectSheet ws
+End Sub
+
+' "unit|Days" -> minimum (only > 0), from the table; empty when the sheet isn't made yet
+Public Function MinStaffMap() As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1
+    Set MinStaffMap = d
+    Dim lo As ListObject: Set lo = MinStaffTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long, u As String, sh As String, m As Long
+    For i = 1 To UBound(v, 1)
+        u = Trim$(SafeStr(v(i, 1))): sh = Trim$(SafeStr(v(i, 2)))
+        m = CLng(NumOr0(v(i, 3)))
+        If u <> "" And m > 0 Then
+            If UCase$(Left$(sh, 1)) = "N" Then sh = "Nights" Else sh = "Days"
+            d(u & "|" & sh) = m
+        End If
+    Next i
+End Function
+
+' One sweep's caches (the start of DrawCalendar / DrawNeeds): the minimums, the names per unit
+Private Sub StaffSweepBegin(ByVal d0 As Date)
+    Set mStaffMin = MinStaffMap()
+    Set mStaffNames = CreateObject("Scripting.Dictionary")
+    mStaffNames.CompareMode = 1
+    mStaffPerDate = PlannedWithin(d0, d0 + BOARD_DAYS - 1)
+End Sub
+
+Private Function MinStaffCount() As Long
+    If mStaffMin Is Nothing Then Exit Function
+    MinStaffCount = mStaffMin.Count
+End Function
+
+' Everyone holding a code in the unit (any grade, any crew; a planned move counts from its date), as names
+Private Function StaffNames(ByVal unit As String, ByVal d As Date) As Variant
+    If mStaffNames Is Nothing Then StaffSweepBegin Date
+    Dim key As String: key = unit & IIf(mStaffPerDate, "|" & CLng(Int(d)), "")
+    If mStaffNames.Exists(key) Then StaffNames = mStaffNames(key): Exit Function
+    Dim recs() As EmpRec, n As Long, i As Long, names() As String
+    If mStaffPerDate Then
+        n = LoadEligible(unit, "ALL", recs, 999, True, d)
+    Else
+        n = LoadEligible(unit, "ALL", recs, 999, True)
+    End If
+    If n > 0 Then
+        ReDim names(1 To n)
+        For i = 1 To n
+            names(i) = recs(i).EmpName
+        Next i
+        mStaffNames(key) = names
+        StaffNames = names
+    Else
+        mStaffNames(key) = Empty
+    End If
+End Function
+
+' The counts behind one unit / date / shift (reads the caches only; switch reads batched by the caller)
+Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, _
+                        ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long)
+    scheduled = 0: off = 0: covered = 0
+    Dim names As Variant: names = StaffNames(unit, d)
+    Dim i As Long, nm As String, onShift As Boolean
+    If IsArray(names) Then
+        For i = LBound(names) To UBound(names)
+            nm = CStr(names(i))
+            onShift = (CrewShiftOn(CrewOn(nm, d), d) = shiftLbl)
+            If Not onShift Then onShift = (SwitchWorkingOn(nm, d, shiftLbl) <> "")
+            If onShift Then
+                scheduled = scheduled + 1
+                If AbsentForShift(nm, d, shiftLbl) Then
+                    off = off + 1
+                ElseIf SwitchOffOn(nm, d, shiftLbl) <> "" Then
+                    off = off + 1
+                End If
+            End If
+        Next i
+    End If
+    Dim slots() As CalSlot, n As Long, rt As String
+    n = SlotsFor(d, shiftLbl, unit, slots, True)
+    For i = 1 To n
+        rt = Trim$(slots(i).RightText)
+        If rt <> "" Then
+            If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then covered = covered + 1
+        End If
+    Next i
+End Sub
+
+' The short shifts of one date inside a calendar group, for the date cell:
+' "Days: Phosphine 1/2, Cypure 0/1   Nights: Derivatives 2/3" ("" = none, or no minimums)
+Public Function StaffShortText(ByVal d As Date, ByVal groupName As String) As String
+    If mStaffMin Is Nothing Then StaffSweepBegin Date
+    If mStaffMin.Count = 0 Then Exit Function
+    Dim mine As Boolean
+    If Not SwitchBatchActive() Then BeginSwitchBatch: mine = True
+    On Error GoTo Done
+    Dim sh As Variant, kk As Variant, u As String, s As Long, o As Long, c As Long, t As String, part As String
+    For Each sh In Array("Days", "Nights")
+        part = ""
+        For Each kk In mStaffMin.Keys
+            If Right$(CStr(kk), Len(CStr(sh)) + 1) = "|" & CStr(sh) Then
+                u = Left$(CStr(kk), Len(CStr(kk)) - Len(CStr(sh)) - 1)
+                If UnitInGroup(u, groupName) Then
+                    StaffCounts u, d, CStr(sh), s, o, c
+                    t = StaffShort(s, o, c, CLng(mStaffMin(kk)))
+                    If t <> "" Then part = part & IIf(part = "", "", ", ") & u & " " & Mid$(t, 7)
+                End If
+            End If
+        Next kk
+        If part <> "" Then StaffShortText = StaffShortText & IIf(StaffShortText = "", "", "   ") & CStr(sh) & ": " & part
+    Next sh
+Done:
+    If mine Then EndSwitchBatch
+    If Err.Number <> 0 Then Err.Raise Err.Number, , Err.Description
+End Function
+
+' Every short unit / shift from d0 for nDays inside a group, for Needs Attention: a 2-D array
+' (1..n, 1..5) = unit, date serial, shift, "staffed 1 of 2 (3 on, 2 off, 0 covered)", "SHORT 1/2"; Empty = none
+Private Function StaffShortList(ByVal d0 As Date, ByVal nDays As Long, ByVal groupName As String) As Variant
+    If mStaffMin Is Nothing Then StaffSweepBegin d0
+    If mStaffMin.Count = 0 Then Exit Function
+    Dim mine As Boolean
+    If Not SwitchBatchActive() Then BeginSwitchBatch: mine = True
+    On Error GoTo Done
+    Dim out() As Variant, n As Long, cap As Long: cap = 2 * nDays * mStaffMin.Count + 1
+    ReDim out(1 To cap, 1 To 5)
+    Dim dd As Long, d As Date, kk As Variant, u As String, sh As String, s As Long, o As Long, c As Long, t As String
+    For dd = 0 To nDays - 1
+        d = d0 + dd
+        For Each kk In mStaffMin.Keys
+            u = Left$(CStr(kk), InStr(CStr(kk), "|") - 1)
+            sh = Mid$(CStr(kk), InStr(CStr(kk), "|") + 1)
+            If UnitInGroup(u, groupName) Then
+                StaffCounts u, d, sh, s, o, c
+                t = StaffShort(s, o, c, CLng(mStaffMin(kk)))
+                If t <> "" Then
+                    n = n + 1
+                    out(n, 1) = u: out(n, 2) = CDbl(Int(d)): out(n, 3) = sh
+                    out(n, 4) = "staffed " & (s - o + c) & " of " & CLng(mStaffMin(kk)) & "  (" & s & " on, " & o & " off, " & c & " covered)"
+                    out(n, 5) = t
+                End If
+            End If
+        Next kk
+    Next dd
+    If n > 0 Then
+        Dim res() As Variant, i As Long, j As Long
+        ReDim res(1 To n, 1 To 5)
+        For i = 1 To n
+            For j = 1 To 5
+                res(i, j) = out(i, j)
+            Next j
+        Next i
+        StaffShortList = res
+    End If
+Done:
+    If mine Then EndSwitchBatch
+    If Err.Number <> 0 Then Err.Raise Err.Number, , Err.Description
+End Function
+
 Public Sub ShowTimeOffForm()
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
@@ -3780,6 +4048,8 @@ Public Sub DrawNeeds()
     ' ---- gather ----
     Dim pr() As NARow, nP As Long, lr() As NARow, nL As Long, sr() As NARow, nS As Long, br() As NARow, nB As Long
     ReDim pr(1 To 50): ReDim lr(1 To 50): ReDim sr(1 To 50): ReDim br(1 To 50)
+    Dim shortRows() As NARow, nShort As Long          ' v26: below minimum staffing
+    ReDim shortRows(1 To 50)
     Dim i As Long, j As Long, m As Long, cl As Date, sd As Date, d As Date, sh As Variant, rt As String
     Dim nReady As Long, tier As Long, st As String, stC As Long, stF As Long, id As String, txt As String
 
@@ -3831,6 +4101,19 @@ Public Sub DrawNeeds()
             Next j
         Next sh
     Next i
+
+    ' B2. below minimum staffing (v26): today .. today + nDays - 1, the group's units that have a minimum
+    StaffSweepBegin Date
+    Dim ms As Variant: ms = StaffShortList(Date, nDays, grp)
+    If IsArray(ms) Then
+        For i = 1 To UBound(ms, 1)
+            d = CDate(CDbl(ms(i, 2)))
+            NAAdd shortRows, nShort, Format$(d, "ddd mmm d"), CStr(ms(i, 3)), IIf(CStr(ms(i, 3)) = "Days", DaysCrew(d), NightsCrew(d)), CStr(ms(i, 1)), _
+                  CStr(ms(i, 4)), "Staffing", CStr(ms(i, 5)), WhenText(d), "N:" & CStr(ms(i, 1)) & "|" & CLng(Int(d)) & "|" & CStr(ms(i, 3)), _
+                  CDbl(Int(d)), thOpen(), thOpen(), thOpenFill(), WhenColor(d)
+        Next i
+        NASort shortRows, nShort
+    End If
 
     ' C. shift switch paybacks still owed (v26: oldest first; one owed longer than PAYBACK_WARN_DAYS
     '    gets its age in the status, in red on amber)
@@ -4055,6 +4338,11 @@ Public Sub DrawNeeds()
     r = NASection(ws, r, "OPEN LINES  -  need cover in the next " & nDays & " days", nL, thOpen(), _
                   Array("Date", "Shift", "Crew", "Unit", "Who's off / need", "Type", "Status", "When"))
     r = NARows(ws, r, lr, nL, "Nothing open - every line in the window is covered, posted or NCN.")
+    If nShort > 0 Or MinStaffCount() > 0 Then       ' v26: only once the Min Staff sheet holds a minimum
+        r = NASection(ws, r, "BELOW MINIMUM STAFFING  -  next " & nDays & " days (double-click for the calendar on that date)", nShort, thOpen(), _
+                      Array("Shift date", "Shift", "Crew", "Unit", "Staffed", "Type", "Status", "When"))
+        r = NARows(ws, r, shortRows, nShort, "Every unit with a minimum is at or above it.")
+    End If
     rowP = r
     r = NASection(ws, r, "POSTINGS  -  open postings, oldest closing first", nP, thPosted(), _
                   Array("Shift date", "Shift", "Crew", "Unit", "Posting", "Type", "Status", "Closes"))
@@ -4434,7 +4722,31 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         ShowAttendance
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "N:" Then              ' v26: below minimum staffing - the calendar on that date
+        CalShowDate NADateInKey(keyTxt)
+        Exit Sub
+    End If
     ShowLineMenu keyTxt
+End Sub
+
+' v26: the date serial in a "N:<unit>|<serial>|<shift>" key (0 when it can't be read)
+Private Function NADateInKey(ByVal keyTxt As String) As Date
+    Dim parts As Variant: parts = Split(keyTxt, "|")
+    If UBound(parts) >= 1 Then
+        If IsNumeric(parts(1)) Then NADateInKey = CDate(CDbl(parts(1)))
+    End If
+End Function
+
+' v26: the Calendar opened on the month that holds d (today's month when d is 0), redrawn
+Public Sub CalShowDate(ByVal d As Date)
+    On Error GoTo Oops
+    If d = 0 Then d = Date
+    CalendarSheet
+    MapWrite "Z1", DateSerial(Year(d), Month(d), 1)
+    ShowCalendar
+    Exit Sub
+Oops:
+    ReportError "CalShowDate"
 End Sub
 
 Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
@@ -4467,6 +4779,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "T:" Then
         ShowAttendance
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "N:" Then              ' v26
+        CalShowDate NADateInKey(keyTxt)
         Exit Sub
     End If
     ShowLineMenu keyTxt
@@ -5028,6 +5344,7 @@ Public Sub CalOnOpen()
     On Error Resume Next
     If Not SheetExists(CAL_SHEET) Then Exit Sub
     CalendarSheet
+    If gAdminUnlocked Then MinStaffTable True       ' v26: the Min Staff sheet made with the plant's numbers on an admin's first open
     Dim m0 As Date: m0 = DateSerial(Year(Date), Month(Date), 1)
     If CalMonth() <> m0 Then
         MapWrite "Z1", m0

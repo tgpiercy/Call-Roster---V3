@@ -208,6 +208,9 @@ Private Function RunCase(f() As String) As String
         Case "idmark"                              ' v26 (I8): Ref IDs joined by | -> highest number per prefix, or none
             RunCase = RefPrefixMaxText(i1)
             If RunCase = "" Then RunCase = "none"
+        Case "minstaff"                            ' v26: scheduled, off, covered, minimum -> ok / SHORT staffed/minimum
+            RunCase = StaffShort(CLng(Val(i1)), CLng(Val(i2)), CLng(Val(i3)), CLng(Val(i4)))
+            If RunCase = "" Then RunCase = "ok"
         Case "chargewhy"                           ' v26: type, outcome, call order, hours|charged, code -> the sentence
             Dim hc As Variant: hc = Split(i4 & "|", "|")
             RunCase = Replace(ChargeWhy(i1, i2, CLng(Val(i3)), Val(hc(0)), Val(hc(1)), i5), ",", ";")   ' ; for , (no commas in a case)
@@ -1475,5 +1478,13 @@ Private Sub LoadCases()
     AddCase "chargewhy,ordinal-101st,Callout,Unavailable,101,8|0,P2,Not charged: 101st called; Unavailable"
     AddCase "chargewhy,ordinal-112th,Callout,Unavailable,112,8|0,P2,Not charged: 112th called; Unavailable"
     AddCase "chargewhy,ordinal-23rd,Callout,Unavailable,23,8|0,P2,Not charged: 23rd called; Unavailable"
+    AddCase "minstaff,at-minimum,4,0,0,4,,ok"
+    AddCase "minstaff,one-short,4,1,0,4,,SHORT 3/4"
+    AddCase "minstaff,covered-back-up,4,1,1,4,,ok"
+    AddCase "minstaff,extra-cover-over,3,0,2,4,,ok"
+    AddCase "minstaff,no-minimum-never-short,0,0,0,0,,ok"
+    AddCase "minstaff,nobody-scheduled,0,0,0,1,,SHORT 0/1"
+    AddCase "minstaff,all-off,2,2,0,2,,SHORT 0/2"
+    AddCase "minstaff,negative-minimum-is-none,1,1,0,-1,,ok"
 ' <<< CASES
 End Sub

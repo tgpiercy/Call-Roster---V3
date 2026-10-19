@@ -833,7 +833,7 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
     End If
 
     ' ---- the sheet ----
-    Set ws = ReportSheetNamed(HISTORY_SHEET)
+    Set ws = ReportSheetNamed(IIf(full, HISTORY_ADMIN_SHEET, HISTORY_SHEET))   ' the FULL flavour (logins) on its admin-only sheet
     SetSheetVisible ws, xlSheetVisible
     UnlockSheet ws
     ws.Cells.Clear

@@ -622,3 +622,11 @@ chargewhy,ordinal-13th,Callout,Refused,13,8|14,P2,Charged 14 h: 13th called; Ref
 chargewhy,ordinal-101st,Callout,Unavailable,101,8|0,P2,Not charged: 101st called; Unavailable
 chargewhy,ordinal-112th,Callout,Unavailable,112,8|0,P2,Not charged: 112th called; Unavailable
 chargewhy,ordinal-23rd,Callout,Unavailable,23,8|0,P2,Not charged: 23rd called; Unavailable
+minstaff,at-minimum,4,0,0,4,,ok
+minstaff,one-short,4,1,0,4,,SHORT 3/4
+minstaff,covered-back-up,4,1,1,4,,ok
+minstaff,extra-cover-over,3,0,2,4,,ok
+minstaff,no-minimum-never-short,0,0,0,0,,ok
+minstaff,nobody-scheduled,0,0,0,1,,SHORT 0/1
+minstaff,all-off,2,2,0,2,,SHORT 0/2
+minstaff,negative-minimum-is-none,1,1,0,-1,,ok

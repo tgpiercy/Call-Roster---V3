@@ -209,6 +209,13 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     On Error GoTo Failed
     If IsArray(pmRows) Then nPm = UBound(pmRows, 1)
     info = info & "Planned unit moves waiting: " & nPm & vbNewLine
+    ' v26: minimum staffing (the Min Staff sheet; made with the plant's numbers on the first calendar draw by an admin)
+    Dim nMin As Long
+    On Error Resume Next
+    nMin = MinStaffMap().Count
+    On Error GoTo Failed
+    info = info & "Minimum staffing: " & IIf(SheetExists(MINSTAFF_SHEET), nMin & " unit / shift minimum(s) on the " & MINSTAFF_SHEET & " sheet", _
+                                           "the " & MINSTAFF_SHEET & " sheet is made on the next calendar draw by an admin") & vbNewLine
     If Not PostingListCurrent() Then warn = warn & "- posting lists need their Signup Hours column: run SetupPeople" & vbNewLine
     ' M1: members' file
     If Not MemberTemplateExists() Then

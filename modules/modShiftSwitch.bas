@@ -148,6 +148,11 @@ Public Sub EndSwitchBatch()
     mBatchRows = Empty
 End Sub
 
+' v26: True while a batch is on, so a sweep inside another sweep neither re-reads nor ends the outer batch
+Public Function SwitchBatchActive() As Boolean
+    SwitchBatchActive = mBatch
+End Function
+
 Private Function SwitchData() As Variant
     If mTestMode Then
         If IsArray(mTestRows) Then SwitchData = mTestRows

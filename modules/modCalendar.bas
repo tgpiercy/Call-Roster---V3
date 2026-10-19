@@ -97,6 +97,7 @@ Private mStaffPerDate As Boolean    ' v26: a planned unit move inside the window
 Private mStaffBusy As Object        ' v26: names with any absence row or a switch near the window - the only ones the off / switch lookups run for
 Private mMenuKey As String          ' line (or "P:P-0001") the double-click menu is for
 Private mDrawing As Boolean
+Private mPublicDraw As Boolean      ' v26.5: True while the calendar is drawn as members may see it (the printed month: CalPrintPdf)
 Private mEventsSeen As Boolean      ' True once ThisWorkbook's tab-switch / change events have fired
 Private mDetailStamp As String      ' v25.5: the change counter + draw context the caches were loaded under for a click's details
 Private Const MENU_NAME As String = "CalLineMenu"
@@ -1921,7 +1922,7 @@ Public Sub DrawCalendar()
     ws.Range("A1:P1").Interior.Color = thBand()
     With ws.Range("B1:C1")
         .Merge
-        .Value = "COVERAGE CALENDAR"
+        .Value = "COVERAGE CALENDAR" & IIf(mPublicDraw, "   -   members' copy", "")   ' v26.5: the printed month is masked
         .Font.Name = CAL_FONT_B: .Font.Size = 15: .Font.Color = vbWhite
         .VerticalAlignment = xlCenter
     End With
@@ -2311,6 +2312,21 @@ Private Sub AddToRange(ByRef rg As Range, ByVal part As Range)
     If rg Is Nothing Then Set rg = part Else Set rg = Union(rg, part)
 End Sub
 
+' v26.5: a line's texts as members may see them, only while the members' copy is drawn (CalPrintPdf): a sick
+' call or a personal day reads "Off" (PublicLeft, as the members' file), and a text with a leave word in it
+' is not printed as written. On screen (mPublicDraw off) the texts are as drawn for supervisors.
+Private Function PublicSlotLeft(ByVal lt As String, ByVal code As String) As String
+    If Not mPublicDraw Then PublicSlotLeft = lt: Exit Function
+    PublicSlotLeft = PublicLeft(lt, code)
+    If LeaveWordsIn(PublicSlotLeft) <> "" Then PublicSlotLeft = "(see the roster)"
+End Function
+
+Private Function PublicSlotRight(ByVal rt As String) As String
+    PublicSlotRight = rt
+    If Not mPublicDraw Then Exit Function
+    If rt <> "" And LeaveWordsIn(rt) <> "" Then PublicSlotRight = "(see the roster)"
+End Function
+
 ' v25.2 (item 3): one calendar line into the block's arrays (its texts and its click-map key) and its two
 ' cells into the class ranges the block formats in one go. v25.5 (bundle item 0, Graeme Oct 17): no hover
 ' note on any line - a click shows the line's details in row 3 (CalSelectionChanged); the v25.2 numbers put
@@ -2321,8 +2337,8 @@ Private Sub SlotIntoArrays(ByVal ws As Worksheet, ByRef vals() As Variant, ByRef
                            ByRef rgNcn As Range, ByRef rgCov As Range, ByVal rgLeft As Object)
     Dim a As Range: Set a = ws.Cells(sheetRow, c)
     Dim b As Range: Set b = ws.Cells(sheetRow, c + 1)
-    vals(ar, 2 * k + 1) = "'" & s.LeftText
-    Dim t As String: t = s.RightText
+    vals(ar, 2 * k + 1) = "'" & PublicSlotLeft(s.LeftText, s.TypeCode)     ' v26.5: masked while the members' copy is drawn
+    Dim t As String: t = PublicSlotRight(s.RightText)
     If t = "" Or UCase$(t) Like "NO TAKERS*" Then
         vals(ar, 2 * k + 2) = IIf(t = "", "OPEN", "NO TAKERS")
         AddToRange rgOpen, b
@@ -2911,6 +2927,11 @@ Public Sub CalPrintPdf()
     End If
     Dim fName As String: fName = "Calendar " & Replace(Replace(CalGroup(), "/", "-"), "&", "and") & " " & Format$(CalMonth(), "yyyy-mm") & ".pdf"
     Dim msg As String
+    ' v26.5: the printed month is the MEMBERS' copy - a sick call or a personal day reads "Off", a text with a leave
+    ' word is not printed as written (decided Oct 18 after the v26 reviews; the board and the members' file do the
+    ' same). Drawn masked, exported / printed, then drawn again as supervisors see it.
+    mPublicDraw = True
+    DrawCalendar
     On Error Resume Next
     ' the admin toolbar and the needs-attention box are screen-only
     Dim hideTo As Long: hideTo = CLng(Val(MapSheet().Range("Z4").Value))
@@ -2928,9 +2949,12 @@ Public Sub CalPrintPdf()
     ws.Rows("3:" & hideTo).Hidden = False
     ProtectSheet ws
     On Error GoTo Oops
-    MsgBox msg, vbInformation, "Calendar"
+    mPublicDraw = False
+    DrawCalendar
+    MsgBox msg & vbNewLine & vbNewLine & "The printed copy is the members' copy: a sick call or a personal day reads Off.", vbInformation, "Calendar"
     Exit Sub
 Oops:
+    mPublicDraw = False                         ' never leave the masked draw as the working calendar
     ReportError "CalPrintPdf"
 End Sub
 

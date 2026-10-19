@@ -225,7 +225,10 @@ Public Function SplitNow() As Object
     Dim lg As Variant: lg = LogRowsNow()
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim sRow As Long: sRow = PStartRow()
-    Set SplitNow = SplitTotals(lg, CLng(ws.Cells(sRow, C_PERIOD1).Value2), CLng(ws.Cells(sRow, PeriodLastCol()).Value2))
+    ' v26.5: the split adds up to Refused (I), which counts the periods up to the current one (RefusedThrough)
+    Dim lastStart As Long: lastStart = CLng(Int(CDbl(RefusedThrough())))
+    If lastStart = 0 Then lastStart = CLng(ws.Cells(sRow, PeriodLastCol()).Value2)
+    Set SplitNow = SplitTotals(lg, CLng(ws.Cells(sRow, C_PERIOD1).Value2), lastStart)
 End Function
 
 ' v24.2: the same split for part of the year (period start numbers, both ends included)

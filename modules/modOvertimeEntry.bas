@@ -86,6 +86,7 @@ Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)
+Public Const REFUSED_NAME As String = "RefusedThrough"  ' v26.5 hidden name: the current pay period's start - Refused (I) counts the periods up to it
 
 ' Daily backup (v21): the first admin open each day saves "Call Out Roster yyyy-mm-dd.xlsm"
 ' here and deletes copies older than BACKUP_KEEP_DAYS. Blank = backups off (SystemCheck says so).
@@ -860,10 +861,59 @@ Public Sub WritePeriodRow(ByVal ws As Worksheet, ByVal r As Long)
     End With
 End Sub
 
-' Refused (column I) = the sum of the row's pay-period cells. Sheet must be unprotected.
+' --------------------------------------------------------------------
+'  REFUSED (I) COUNTS THE PERIODS UP TO THE CURRENT ONE (v26.5, Graeme Oct 19)
+'  A posting's refusal charges carry the SHIFT's pay period (Period
+'  Start). Until v26.5 Refused summed every period column, so a charge
+'  for a shift two periods out counted in Total Hours and the call order
+'  today. Now Refused = the charges whose Period Start is on or before
+'  the current period's start (the hidden name RefusedThrough, kept by
+'  EnsureRefusedThrough on every open and formula refresh); a future
+'  period's charges show in their column and start counting when that
+'  period begins. Call-outs carry the call-out date's period, so nothing
+'  changes for them. Provisional accepted OT (C) is untouched (v21).
+' --------------------------------------------------------------------
+' PURE (SelfTest "refthrough"): does a charge with this Period Start count today?
+Public Function RefusedCounts(ByVal periodStart As Date, ByVal through As Date) As Boolean
+    RefusedCounts = (Int(periodStart) <= Int(through))
+End Function
+
+Public Function RefusedThrough() As Date
+    RefusedThrough = GetDateName(REFUSED_NAME)
+End Function
+
+' The current period's start into the hidden name (when it moved, or is missing). Safe any time;
+' a read-only copy keeps what it has (the formulas then read the last saved value).
+Public Function EnsureRefusedThrough() As Date
+    Dim want As Date: want = PeriodStartFor(Date)
+    Dim have As Date: have = RefusedThrough()
+    If have <> want And Not ThisWorkbook.ReadOnly Then SetDateName REFUSED_NAME, want: have = want
+    If have = 0 Then have = want
+    EnsureRefusedThrough = have
+End Function
+
+' One roster row's Refused formula: the log's non-void charges for the name whose Period Start lies
+' in this roster's year and on or before RefusedThrough (same test as RefusedCounts)
+Public Function RefusedFormula(ByVal r As Long) As String
+    Dim yearFrom As String: yearFrom = "$" & ColLetter(C_PERIOD1) & "$" & PStartRow()
+    RefusedFormula = "=SUMIFS(" & _
+        LOG_TABLE & "[[Hours Charged]:[Hours Charged]]," & _
+        LOG_TABLE & "[[Employee]:[Employee]],$" & ColLetter(C_NAME) & r & "," & _
+        LOG_TABLE & "[[Status]:[Status]],""<>VOID""," & _
+        LOG_TABLE & "[[Period Start]:[Period Start]],"">=""&" & yearFrom & "," & _
+        LOG_TABLE & "[[Period Start]:[Period Start]],""<=""&" & REFUSED_NAME & ")"
+End Function
+
+' Refused (column I): v26.5 the charges up to the current period (RefusedFormula); was =SUM of the
+' row's pay-period cells. Sheet must be unprotected.
 Public Sub WriteRefusedRow(ByVal ws As Worksheet, ByVal r As Long)
-    ws.Cells(r, C_REFUSED).Formula = "=SUM(" & ColLetter(C_PERIOD1) & r & ":" & ColLetter(PeriodLastCol()) & r & ")"
-    ws.Cells(r, C_REFUSED).Locked = True
+    EnsureRefusedThrough
+    With ws.Cells(r, C_REFUSED)
+        .NumberFormat = "General"
+        .Formula = RefusedFormula(r)
+        .NumberFormat = "#,##0"
+        .Locked = True
+    End With
 End Sub
 
 ' Non-void hours charged in the OT Log for one employee, across the pay

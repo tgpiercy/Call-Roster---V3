@@ -326,7 +326,7 @@ End Sub
 ' ====================================================================
 '  IMPORT DATE / STALE CHECK (v20)
 ' ====================================================================
-Private Sub SetDateName(ByVal nmName As String, ByVal d As Date)
+Public Sub SetDateName(ByVal nmName As String, ByVal d As Date)     ' v26.5: Public (RefusedThrough uses it too)
     Dim ref As String: ref = "=" & Replace(Format$(CDbl(d), "0.00000"), ",", ".")
     Dim nmObj As Name
     On Error Resume Next
@@ -342,7 +342,7 @@ Private Sub SetDateName(ByVal nmName As String, ByVal d As Date)
     On Error GoTo 0
 End Sub
 
-Private Function GetDateName(ByVal nmName As String) As Date
+Public Function GetDateName(ByVal nmName As String) As Date
     Dim nmObj As Name
     On Error Resume Next
     Set nmObj = ThisWorkbook.Names(nmName)

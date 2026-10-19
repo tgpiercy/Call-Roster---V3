@@ -643,3 +643,8 @@ privacy,times-without-the-leading-zero-are-refused,s:700-1900,,,,,phone
 privacy,digits-before-the-dash-group-are-fine,s:12345-6789,,,,,ok
 privacy,date-then-local-number,s:2027-01-12 555-0142,,,,,phone
 privacy,posting-hours-range,s:3-4 h,,,,,ok
+refthrough,current-period,2026-10-11,2026-10-11,,,,counts
+refthrough,last-period,2026-09-27,2026-10-11,,,,counts
+refthrough,next-period-waits,2026-10-25,2026-10-11,,,,waits
+refthrough,two-periods-out-waits,2026-11-08,2026-10-11,,,,waits
+refthrough,year-start,2025-12-28,2026-10-11,,,,counts

@@ -30,7 +30,7 @@ Private Sub OpenStep(ByVal k As Long)
         Case 1: BackupOnOpen           ' v21: first admin open of the day saves a dated copy (never blocks)
         Case 2: ProtectAll
         Case 3: ApplyView IsAdmin(), IsDeskUser()      ' v25.3: a Desk user gets the Desk view (modDesk)
-        Case 4: EnsureDataThrough      ' v21: the provisional-OT formulas need the data-through name
+        Case 4: EnsureDataThrough: EnsureRefusedThrough   ' v21: the provisional-OT formulas need the data-through name; v26.5: Refused counts the periods up to the current one
         Case 5: GradeLogOnOpen         ' v21: grade-change snapshot (and anything changed with macros off)
         Case 6: PeopleOnOpen           ' v24: crew history (new names, a crew changed with macros off)
         Case 7: HolidaysOnOpen         ' v20: this year's and next year's holidays listed (admins)

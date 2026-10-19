@@ -283,7 +283,7 @@ Private Sub CheckRosterVsLog()
             expSum = 0: bad = "": nBad = 0
             For c = C_PERIOD1 To mLastPer
                 expCell = NumOr0(sums(mNames(r) & "|" & per(c)))
-                expSum = expSum + expCell
+                If RefusedCounts(CDate(per(c)), RefusedThrough()) Then expSum = expSum + expCell   ' v26.5: I counts the periods up to the current one
                 act = mVals(r, c)
                 If IsError(act) Then
                     nBad = nBad + 1

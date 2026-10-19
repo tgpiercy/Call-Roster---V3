@@ -167,10 +167,21 @@ Public Function ConvertRosterToFormulas(ByVal entryType As String, ByVal refPref
             Next c
             expG = NumOr0(ws.Cells(r, C_WORKED).Value2) + NumOr0(ws.Cells(r, C_REFUSED).Value2) + NumOr0(ws.Cells(r, C_PROV).Value2)
             provTot = provTot + NumOr0(ws.Cells(r, C_PROV).Value2)
+            ' v26.5: Refused (I) = the period cells up to the current period (RefusedThrough), no longer every cell -
+            ' so the check is against that sum, not against the old I (the first refresh after v26.5 moves future
+            ' periods' charges out of I by design)
+            Dim expI As Double: expI = 0
+            For c = C_PERIOD1 To lastPer
+                v = ws.Cells(r, c).Value2
+                If IsRealNumber(v) Then
+                    If RefusedCounts(CDate(ws.Cells(sRow, c).Value), RefusedThrough()) Then expI = expI + CDbl(v)
+                End If
+            Next c
             If Abs(afterSum - before(k)) > 0.0001 Then
                 mism = mism & "  " & nm & ": periods were " & before(k) & ", now " & afterSum & vbNewLine
-            ElseIf Not SameNumber(oldI(k), ws.Cells(r, C_REFUSED).Value2) Then
-                mism = mism & "  " & nm & ": Refused (I) was " & SafeStr(oldI(k)) & ", now " & SafeStr(ws.Cells(r, C_REFUSED).Value) & vbNewLine
+            ElseIf Not SameNumber(expI, ws.Cells(r, C_REFUSED).Value2) Then
+                mism = mism & "  " & nm & ": Refused (I) is " & SafeStr(ws.Cells(r, C_REFUSED).Value) & ", expected " & expI & _
+                       " (the periods through " & Format$(RefusedThrough(), "mmm d") & "); was " & SafeStr(oldI(k)) & vbNewLine
             ElseIf IsError(ws.Cells(r, C_PROV).Value2) Or IsError(ws.Cells(r, C_TOTAL).Value2) Then
                 mism = mism & "  " & nm & ": Provisional (C) or Total (G) shows an error" & vbNewLine
             ElseIf Not SameNumber(expG, ws.Cells(r, C_TOTAL).Value2) Then

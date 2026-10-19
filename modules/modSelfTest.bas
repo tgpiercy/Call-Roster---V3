@@ -208,6 +208,8 @@ Private Function RunCase(f() As String) As String
         Case "idmark"                              ' v26 (I8): Ref IDs joined by | -> highest number per prefix, or none
             RunCase = RefPrefixMaxText(i1)
             If RunCase = "" Then RunCase = "none"
+        Case "refthrough"                          ' v26.5: period start, the current period's start -> counts / waits
+            RunCase = IIf(RefusedCounts(ParseD(i1), ParseD(i2)), "counts", "waits")
         Case "minstaff"                            ' v26: scheduled, off, covered, minimum -> ok / SHORT staffed/minimum
             RunCase = StaffShort(CLng(Val(i1)), CLng(Val(i2)), CLng(Val(i3)), CLng(Val(i4)))
             If RunCase = "" Then RunCase = "ok"
@@ -1524,5 +1526,10 @@ Private Sub LoadCases()
     AddCase "privacy,digits-before-the-dash-group-are-fine,s:12345-6789,,,,,ok"
     AddCase "privacy,date-then-local-number,s:2027-01-12 555-0142,,,,,phone"
     AddCase "privacy,posting-hours-range,s:3-4 h,,,,,ok"
+    AddCase "refthrough,current-period,2026-10-11,2026-10-11,,,,counts"
+    AddCase "refthrough,last-period,2026-09-27,2026-10-11,,,,counts"
+    AddCase "refthrough,next-period-waits,2026-10-25,2026-10-11,,,,waits"
+    AddCase "refthrough,two-periods-out-waits,2026-11-08,2026-10-11,,,,waits"
+    AddCase "refthrough,year-start,2025-12-28,2026-10-11,,,,counts"
 ' <<< CASES
 End Sub

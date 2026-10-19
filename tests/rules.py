@@ -657,6 +657,12 @@ def merge_runs(dates: list[date]) -> list[tuple[date, date]]:
 
 
 # ---------------------------------------------------------------- provisional OT
+def refused_counts(period_start: date, through: date) -> bool:
+    """modOvertimeEntry.RefusedCounts (v26.5, Graeme Oct 19): a charge counts in Refused and Total Hours once the pay
+    period it carries (its Period Start) has started, i.e. period_start <= the current period's start."""
+    return period_start <= through
+
+
 def provisional_covered(shift_date: date, is_night: bool, data_through: date) -> bool:
     """modOvertimeEntry.ProvisionalCovered: the shift has fully ended by the
     end of the data-through date (day: D <= through; night: D + 1 <= through)."""

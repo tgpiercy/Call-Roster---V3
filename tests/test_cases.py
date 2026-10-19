@@ -253,6 +253,8 @@ def evaluate(row: dict) -> str:
         return rules.owed_status_text(int(i1), int(i2))
     if suite == "idmark":                        # v26 (I8): Ref IDs joined by | -> highest number per prefix, or none
         return rules.ref_prefix_max_text(i1) or "none"
+    if suite == "refthrough":                    # v26.5: period start, the current period's start -> counts / waits
+        return "counts" if rules.refused_counts(d(i1), d(i2)) else "waits"
     if suite == "minstaff":                      # v26: scheduled, off, covered, minimum -> '' (shown as ok) / SHORT staffed/minimum
         return rules.staff_short(int(i1), int(i2), int(i3), int(i4)) or "ok"
     if suite == "chargewhy":                     # v26: type, outcome, call order, 'hours|charged', code -> the sentence

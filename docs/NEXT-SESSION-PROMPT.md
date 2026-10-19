@@ -49,6 +49,22 @@ weekend / beside-a-holiday share, occurrences vs days, how each was covered; by 
 never published; (4) overtime fairness from Worked Periods - the spread of premium hours per unit and the
 top-to-bottom gap (needs the export imports running). Honest from the first full quarter after go-live.
 
+AFTER the Stats report, in this order (Graeme, Oct 19; each briefed first, one commit per item, the
+four checkers, read-only reviewers, re-review): (a) two Desk tiles - Kronos "Import now" when a newer
+export sits in KRONOS_PATH's folder (one click imports) + the admin's morning tile (integrity result, backup
+taken, error-log rows unseen, members' file age; reads what the open already knows); (b) "Since you were
+last here" on the Desk - what other logins did since this login's last open (call-outs, awards, sick calls,
+switches) from the logs' Logged By + timestamps, a hidden name per login for the last-open stamp; (c) nothing
+typed anywhere - small pop-ups for the Holidays "Observed on" and the Min Staff Minimum / Note, the last two
+typed sheets locked; (d) members' requests - shift switch and time off from the members' file on the sign-up
+inbox pattern (a request file, LOAD pre-fills, the supervisor's tick is what counts; same privacy screen;
+members' template rebuild); (e) after the alpha: a phone-readable members' page - at every publish also write
+a static HTML page (Who's next, open postings, my place; no macros; the same privacy screen as dLog) into a
+folder members can reach from a phone (SharePoint or the share) - a cheap test before the Q2 2027 platform
+gate. Also on the list, undated: the December rollover dry run on a copy with the v26.5 rule; v25.4 Payroll #
+as the key (needs column A from a real import); B4 usage counts; A4 the plain-language audit; a board PDF at
+every publish; a restore drill; D1 the sit-with sessions.
+
 In parallel, no code (docs/timeline-2026-10-18.md): the what-if scenario sheets, the four guides refreshed
 for v25.5 / v26 / v26.5, the Nov 15 presentation pack, the Dec 1 training plan - start them when I say.
 ```

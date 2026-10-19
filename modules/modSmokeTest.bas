@@ -155,7 +155,7 @@ Public Sub SmokeTest()
         head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
     Else
         head = "SMOKE TEST PASSED: all " & SMK_STEPS & " steps OK, totals unchanged."
-        ' v25.2: 19 step names don't fit a MsgBox with the closing text; a passed run's box shows the skipped
+        ' v25.2: 20 step names don't fit a MsgBox with the closing text; a passed run's box shows the skipped
         ' steps (a failed run's box lists the steps: rep)
         rep = IIf(repSkips = "", "No step skipped." & vbNewLine, repSkips)
     End If
@@ -325,7 +325,7 @@ Private Function SmkAward(ByRef st As SmkState, ByRef why As String) As Boolean
     If Not SubmitAward(p, lst, n) Then Exit Function
     If PostingStatus(st.PostId) = "Open" Then why = st.PostId & " is still Open after the award": Exit Function
     If Not HasActiveLogRows(st.PostId) Then why = "the award wrote no OT Log rows": Exit Function
-    Dim futTxt As String: futTxt = ", the shift's period is beyond this roster"
+    Dim futTxt As String: futTxt = IIf(n > 2, ", the shift's period is beyond this roster", ", nobody above the sign-ups to charge")
     If n > 2 And pCol > 0 Then
         Dim iC As Long: iC = 0
         For i = 1 To n - 2
@@ -338,13 +338,23 @@ Private Function SmkAward(ByRef st As SmkState, ByRef why As String) As Boolean
             Dim cAfter As Double: cAfter = NumOr0(ws.Cells(rowOf(iC), pCol).Value2)
             If cAfter - cBefore(iC) < 0.0001 Then why = lst(iC).EmpName & "'s " & Format$(PeriodStartFor(st.PostDate), "mmm d") & " period cell didn't grow with the refusal charge": Exit Function
             If Abs(NumOr0(ws.Cells(rowOf(iC), C_REFUSED).Value2) - iBefore(iC)) > 0.0001 Then why = lst(iC).EmpName & ": Refused (I) counted a refusal for a later pay period": Exit Function
+            ' moving the cap to the shift's period brings in every period cell between the old cap and that period
+            ' (on a copy of the real roster those may hold other charges), so the expected figure is read from the row
             Dim thrWas As Date: thrWas = RefusedThrough()
+            Dim expMoved As Double, cc As Long, hd As Variant
+            expMoved = iBefore(iC)
+            For cc = C_PERIOD1 To PeriodLastCol()
+                hd = ws.Cells(PStartRow(), cc).Value2
+                If IsNumeric(hd) Then
+                    If CDbl(hd) > CDbl(thrWas) And CDbl(hd) <= CDbl(PeriodStartFor(st.PostDate)) Then expMoved = expMoved + NumOr0(ws.Cells(rowOf(iC), cc).Value2)
+                End If
+            Next cc
             SetDateName REFUSED_NAME, PeriodStartFor(st.PostDate)
             Application.Calculate
             Dim iMoved As Double: iMoved = NumOr0(ws.Cells(rowOf(iC), C_REFUSED).Value2)
             SetDateName REFUSED_NAME, thrWas
             Application.Calculate
-            If Abs(iMoved - iBefore(iC) - (cAfter - cBefore(iC))) > 0.0001 Then why = "with RefusedThrough moved to " & Format$(PeriodStartFor(st.PostDate), "mmm d") & ", " & lst(iC).EmpName & "'s Refused showed " & iMoved & ", expected " & (iBefore(iC) + cAfter - cBefore(iC)): Exit Function
+            If Abs(iMoved - expMoved) > 0.0001 Then why = "with RefusedThrough moved to " & Format$(PeriodStartFor(st.PostDate), "mmm d") & ", " & lst(iC).EmpName & "'s Refused showed " & iMoved & ", expected " & expMoved: Exit Function
             If Abs(NumOr0(ws.Cells(rowOf(iC), C_REFUSED).Value2) - iBefore(iC)) > 0.0001 Then why = "Refused (I) didn't come back after RefusedThrough was restored": Exit Function
             futTxt = ", " & lst(iC).EmpName & "'s " & HoursText(cAfter - cBefore(iC)) & " h refusal waits for its period"
         End If

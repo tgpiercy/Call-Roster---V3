@@ -225,9 +225,11 @@ Public Function SplitNow() As Object
     Dim lg As Variant: lg = LogRowsNow()
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim sRow As Long: sRow = PStartRow()
-    ' v26.5: the split adds up to Refused (I), which counts the periods up to the current one (RefusedThrough)
-    Dim lastStart As Long: lastStart = CLng(Int(CDbl(RefusedThrough())))
-    If lastStart = 0 Then lastStart = CLng(ws.Cells(sRow, PeriodLastCol()).Value2)
+    ' v26.5: the split adds up to Refused (I), which counts the periods up to the current one (RefusedThrough) and
+    ' never past this roster's last period (from Dec 27 the current period is next year's first)
+    Dim lastStart As Long: lastStart = CLng(ws.Cells(sRow, PeriodLastCol()).Value2)
+    Dim thr As Long: thr = CLng(Int(CDbl(RefusedThrough())))
+    If thr > 0 And thr < lastStart Then lastStart = thr
     Set SplitNow = SplitTotals(lg, CLng(ws.Cells(sRow, C_PERIOD1).Value2), lastStart)
 End Function
 

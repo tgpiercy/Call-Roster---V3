@@ -198,7 +198,7 @@ End Sub
 Private Sub mEmp_Change()
     If mEmp.ListIndex < 0 Then C("hEmp").Caption = "": Exit Sub
     Dim hu As String: hu = HomeUnitOf(mEmp.Text)
-    C("hEmp").Caption = IIf(hu = "", "NO HOME UNIT on the roster (column B) - fill it in first, the return top-up needs it", "home unit: " & hu)
+    C("hEmp").Caption = IIf(hu = "", "NO HOME UNIT on the roster - set it with Employee > Edit first, the return top-up needs it", "home unit: " & hu)
     C("hEmp").ForeColor = IIf(hu = "", RGB(190, 30, 30), RGB(120, 120, 120))
 End Sub
 

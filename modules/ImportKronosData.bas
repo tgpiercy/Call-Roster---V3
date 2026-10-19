@@ -359,13 +359,15 @@ Public Function KronosFilePath() As String
     Dim p As String: p = Trim$(KRONOS_PATH)
     If p = "" Then Exit Function
     On Error Resume Next                                     ' an unreachable drive: "" (the caller says no file was found)
+    Dim hit As String
     Dim pattern As String, folder As String
     If Right$(p, 1) = "\" Then
         folder = p: pattern = "*.xls*"
     ElseIf InStr(p, "*") > 0 Or InStr(p, "?") > 0 Then
         folder = Left$(p, InStrRev(p, "\")): pattern = Mid$(p, InStrRev(p, "\") + 1)
     Else
-        If Dir$(p) <> "" Then KronosFilePath = p
+        hit = Dir$(p)                                        ' on its own line: under Resume Next an error inside an If's test would run the Then part
+        If hit <> "" Then KronosFilePath = p
         Exit Function
     End If
     Dim f As String, best As String, bestAt As Date, at As Date
@@ -427,6 +429,7 @@ Private Function PivotFromTransactions(ByRef src As Variant, ByVal hdrRow As Lon
     Set mTxPay = CreateObject("Scripting.Dictionary"): mTxPay.CompareMode = 1
     Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
     totals.CompareMode = 1
+    mTxSkipped = 0
     Dim i As Long, raw As String, k As String, hrs As Double, d As Date, pk As String, code As String
     For i = hdrRow + 1 To UBound(src, 1)
         raw = Trim$(SafeStr(src(i, cEmp)))

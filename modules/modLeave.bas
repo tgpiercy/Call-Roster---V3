@@ -421,7 +421,7 @@ Public Function ComputeLeaveReturn(ByVal absId As String, ByVal returnDate As Da
     If Int(returnDate) <= Int(dStart) Then lc.Warnings = "The return date must be after the first day off (" & Format$(dStart, "mmm d, yyyy") & ")": Exit Function
     If Int(returnDate) > Date Then lc.Warnings = "The return date is after today: log the return on or after the first day back.": Exit Function    ' v25 (D-C7), in the rule itself (review)
     If home = "" Then home = HomeUnitOf(emp)
-    If home = "" Then lc.Warnings = emp & " has no Home Unit (roster column B) and none was locked in on the booking - fill it in first": Exit Function
+    If home = "" Then lc.Warnings = emp & " has no Home Unit on the roster and none was locked in on the booking - set it with Employee > Edit first": Exit Function
     lc.AbsId = absId: lc.Emp = emp: lc.HomeUnit = home: lc.FirstOff = Int(dStart): lc.ReturnDate = Int(returnDate)
 
     On Error GoTo Failed

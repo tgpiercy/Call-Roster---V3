@@ -1522,6 +1522,9 @@ Private Function SignupFolderPath() As String
     ElseIf Left$(folder, 2) = ".\" Then
         folder = ThisWorkbook.Path & Mid$(folder, 2)
     End If
+    If folder <> "" Then
+        If Right$(folder, 1) <> Application.PathSeparator Then folder = folder & Application.PathSeparator
+    End If
     SignupFolderPath = folder
 End Function
 

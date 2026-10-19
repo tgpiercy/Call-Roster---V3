@@ -66,10 +66,10 @@ The system works out the same 11 holidays for any year: New Year's Day, Family D
 ### Provisional accepted overtime
 
 - An Accepted call-out or an Awarded posting counts from the moment it is logged.
-- A refusal's charge carries the pay period of the shift it was for and counts in Refused and Total Hours once that period has started (v26.5); it is logged at once and shows in its period's column.
 - It counts even when the shift is in the future.
 - The amount is the shift hours, not hours x 1.75.
 - It stops counting when Kronos covers the shift. From then on the hours are in Worked.
+- A refusal's charge is different (v26.5): it carries the pay period of the shift it was for, is logged at once and shows in its period's column, but counts in Refused and Total Hours only once that period has started.
 
 ### The data-through rule
 

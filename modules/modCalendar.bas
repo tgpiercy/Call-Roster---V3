@@ -224,7 +224,7 @@ End Function
 Public Function TypeColor(ByVal code As String) As Long
     Select Case UCase$(code)
         Case "VAC": TypeColor = RGB(21, 101, 192)              ' blue
-        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV": TypeColor = RGB(106, 27, 154) ' purple
+        Case "LOA", "STD", "PAR", "WSIB", "LTD", "OLV", "LV": TypeColor = RGB(106, 27, 154) ' purple ("LV" = PublicType's leave, v26.5)
         Case "SIC": TypeColor = RGB(230, 81, 0)                ' orange
         Case "PER": TypeColor = RGB(69, 90, 100)               ' blue-grey (v22.1 personal day)
         Case "TRN": TypeColor = RGB(0, 121, 107)               ' teal

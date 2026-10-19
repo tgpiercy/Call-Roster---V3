@@ -890,6 +890,7 @@ Public Function EnsureRefusedThrough() As Date
     Dim have As Date: have = RefusedThrough()
     If have <> want And Not ThisWorkbook.ReadOnly Then
         SetDateName REFUSED_NAME, want: have = want
+        Application.Calculate                                ' whoever reads I or G next sees the new cap, manual calculation included
         MarkMembersDirty                                     ' every I, G and the call order moved: the members' file is out of date
     End If
     If have = 0 Then have = want

@@ -240,7 +240,7 @@ End Function
 
 
 ' --------------------------------------------------------------------
-'  Run after adding a new employee row, or if someone typed into a
+'  Run after adding a new employee row, or if a formula was lost in a
 '  pay-period cell. Typed values are kept (moved into the log as
 '  "Manual Entry") before the formulas are restored.
 ' --------------------------------------------------------------------

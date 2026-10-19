@@ -277,7 +277,7 @@ Private Sub CheckRosterVsLog()
     Next c
     Dim provLive As Boolean: provLive = ProvisionalLive()
     Dim nOldForm As Long                                 ' v26.5: rows whose Refused formula is the pre-v26.5 kind
-    Dim thr As Date: thr = EnsureRefusedThrough()        ' v26.5: once, not per cell
+    Dim thr As Date: thr = RefusedThrough()              ' v26.5: the STORED cap, as the formulas read it (the check changes nothing)
     Dim r As Long, expSum As Double, expCell As Double, act As Variant, bad As String, nBad As Long
     Dim vI As Variant, vG As Variant, vH As Variant, vC As Variant
     For r = 1 To mRows
@@ -543,8 +543,8 @@ Private Sub CheckLogTypes()
     ' v26.5: Refused (I) counts the periods up to the current one, so the split is capped the same way (SplitNow's
     ' rule); a row still carrying the pre-v26.5 =SUM formula is compared with the whole year
     Dim capStart As Long: capStart = CLng(mLastStart)
-    Dim thrI As Long: thrI = CLng(Int(EnsureRefusedThrough()))
-    If thrI < capStart Then capStart = thrI
+    Dim thrI As Long: thrI = CLng(Int(RefusedThrough()))   ' the stored cap, as the formulas read it
+    If thrI > 0 And thrI < capStart Then capStart = thrI
     Set splitMap = SplitTotals(mLog, CLng(mYearFrom), capStart)
     Set splitAll = SplitTotals(mLog, CLng(mYearFrom), CLng(mLastStart))
     Dim wsR As Worksheet: Set wsR = RosterSheet()

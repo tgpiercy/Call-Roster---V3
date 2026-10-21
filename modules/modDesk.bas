@@ -191,10 +191,10 @@ Public Sub DrawDesk()
 
     xx = x0: yy = ws.Cells(2, 1).Top + 3
     ' v25.5 (A8): today's shifts - the crews on days and nights - in the header
+    If nsTxt <> "" Then xx = DeskPill(ws, "dk_pill_save", nsTxt, xx, yy, True)          ' first: it must never run off the right edge (review)
     xx = DeskPill(ws, "dk_pill_today", Format$(Date, "ddd mmm d") & " - " & DaysCrew(Date) & " on days, " & NightsCrew(Date) & " on nights", xx, yy, False)
     xx = DeskPill(ws, "dk_pill_period", "Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d"), xx, yy, False)
     xx = DeskPill(ws, "dk_pill_kronos", kTxt, xx, yy, kOld)
-    If nsTxt <> "" Then xx = DeskPill(ws, "dk_pill_save", nsTxt, xx, yy, True)
 
     ' ---- the layout: the admin Desk (every job) or the supervisor Desk (a supervisor's jobs) ----
     Dim sup As Boolean: sup = Not gAdminUnlocked
@@ -209,18 +209,18 @@ Public Sub DrawDesk()
     If nCover > 0 Then nextTxt = NextOpenLine(DESK_AHEAD_DAYS)
     DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover") & IIf(nextTxt <> "", ", next " & nextTxt, ""), _
              IIf(sup, "modDesk.DeskCalendar", "modDesk.DeskNeeds"), tileX, yy, tw, IIf(nCover > 0, dkOrange(), 0), _
-             IIf(sup, "Open the Calendar", "Open Needs Attention")   ' Needs Attention is admin: a supervisor's tile opens the Calendar
+             IIf(nCover = 0, "", IIf(sup, "Open the Calendar", "Open Needs Attention"))   ' Needs Attention is admin: a supervisor's tile opens the Calendar; no verb on a grey tile
     tileX = tileX + tw + GAP
     Dim oldest As Date: If nReady > 0 Then oldest = ReadyToAwardOldest()      ' v27: the posting that has waited longest
     DeskTile ws, "dk_tile_award", nReady, IIf(nReady = 1, "posting ready to award", "postings ready to award") & _
              IIf(oldest > 0, ", closed " & Format$(oldest, "ddd mmm d") & " " & POSTING_CLOSE_TIME, ""), "modDesk.DeskAward", _
-             tileX, yy, tw, IIf(nReady > 0, dkOrange(), 0), IIf(nReady = 1, "Award it", "Award them")
+             tileX, yy, tw, IIf(nReady > 0, dkOrange(), 0), IIf(nReady = 0, "", IIf(nReady = 1, "Award it", "Award them"))
     tileX = tileX + tw + GAP
     If Not sup Then
         Dim nOver As Long: nOver = OwedOverdueCount()      ' v26 (payback aging): owed longer than PAYBACK_WARN_DAYS
         DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed") & _
                  IIf(nOver > 0, ", " & nOver & " over " & PAYBACK_WARN_DAYS & " days", ""), "modDesk.DeskSwitch", _
-                 tileX, yy, tw, IIf(nOwed > 0, dkGreen(), 0), "See the OWED list"
+                 tileX, yy, tw, IIf(nOwed > 0, dkGreen(), 0), IIf(nOwed = 0, "", "See the OWED list")
         tileX = tileX + tw + GAP
     End If
     Dim pubTxt As String, pubCol As Long
@@ -935,10 +935,11 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "The Desk", _
         "A supervisor on the list, and an admin on the Desk list, open on the Desk tab (the primary admin opens on the roster and reaches it with < Desk). " & _
         "The three pills at the top say which crews are on today, the pay period, and how old the Kronos worked hours are (red when they " & _
-        "need an import). The TODAY tiles say what is waiting - shifts needing cover, postings ready to award, the members' file's age - " & _
+        "need an import). The TODAY tiles say what is waiting - shifts needing cover, postings ready to award, paybacks owed (admin), the members' file's age - " & _
         "each with the next thing and what a click does. Under them the jobs sit in three bands by WHEN you reach for them: NOW (orange: " & _
         "Someone called in sick, Fill a shift now, What needs cover), PLAN (green: Post a shift, Award a posting, and for an admin time " & _
-        "off, switches and leave) and FINISH (navy: Update the members' file, Print the call-out roster, Employee history). The grey row " & _
+        "off, switches and leave) and FINISH (navy: Update the members' file, Print the call-out roster, Employee history, and for an admin Reconcile with the paper roster " & _
+        "and Stats). The grey row " & _
         "at the foot is help: How do I ..., Something went wrong, Suggest an improvement, Practice on a copy (and Undo for an admin). " & _
         "Full roster > goes to the roster; the Desk tab brings it back. Anyone not on the supervisor list opens on the roster and can log " & _
         "call-outs and look at the calendar."
@@ -986,7 +987,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Click Print the call-out roster (Call Out Roster on the bar). It is redrawn in call order from the roster; answer Yes " & _
         "to print."
     HelpAdd h, n, "Practice on a copy", _
-        "Click Practice on a copy (Desk, under HELP). A separate file opens with the roster as it is right now, a red " & _
+        "Click Practice on a copy (the grey row at the foot of the Desk). A separate file opens with the roster as it is right now, a red " & _
         "PRACTICE COPY banner on every sheet and COPY in its title: nothing you do in it counts, reaches the roster or the " & _
         "members' file. Log a call-out, award a posting, book a sick call - whatever you want to try. Close it when you are " & _
         "done; copies older than a day are deleted with the roster's daily backup (the first open of the day). (v26.5.5)"
@@ -1053,6 +1054,15 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "report (on the History Report (admin) tab: who logged each entry and when, a Why on every row, void rows struck through) or the " & _
         "member-safe one (the same rows and columns the members' My history shows); a supervisor gets the member-safe one. Save a PDF as well? puts it in the " & _
         "reports folder (beside the roster until go-live). Click any OT Log row for its Why on the status bar."
+    HelpAdd h, n, "Reconcile with the paper roster (admin)", _
+        "While paper runs alongside the roster, Reconcile (the admin Desk's FINISH band) puts the paper call order beside the roster's: pick the unit and the day the paper " & _
+        "was good for, type the paper's names top to bottom in column B, click Compare. The roster's order for that unit is drawn beside them (Total Hours as of now; the crews and a " & _
+        "planned move as of that day) and every position that differs says why - where the roster puts the paper's person and which key decided it (grade code, Total Hours, seniority). " & _
+        "Type a Decision (Paper wrong / Rule missing / Data error / Agreed) and a Note per line; Save PDF files the page beside the roster for the Nov 15 pack. Nothing here changes data."
+    HelpAdd h, n, "Stats (quarterly report, admin)", _
+        "Stats (the admin Desk's FINISH band) draws the Stats tab: unit by quarter plus the year to date, in four groups - call-outs (sessions, filled, calls per fill, the outcomes, " & _
+        "hours offered / accepted / charged), postings (posted, awarded, no takers, cancelled, sign-ups, days to award), sick days (shifts, the rate per scheduled shift from the rotation, nights, " & _
+        "weekends, holidays) and fairness today (the spread of Total Hours and of worked premium hours per unit, the refusal rate). A PDF beside the roster on request. Figures are honest from the first full quarter after go-live."
     HelpAdd h, n, "Keyboard shortcuts", _
         "While the roster is the active workbook: Ctrl+Shift+S opens Sick Call, Ctrl+Shift+C the call-out, Ctrl+Shift+K the " & _
         "calendar, Ctrl+Shift+D the Desk. In the call-out pop-up the letters A R L U P record the outcome, K skips, B goes back, " & _

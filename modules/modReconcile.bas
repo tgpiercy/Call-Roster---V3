@@ -124,7 +124,7 @@ Private Sub DrawFrame(ByVal ws As Worksheet)
     ws.Range("B4").Value = "Unit:": ws.Range("B5").Value = "Paper good for (date):": ws.Range("B6").Value = "Paper roster (which sheet):"
     ws.Range("B4:B6").Font.Bold = True
     ws.Range("D4").Value = "pick the unit the paper sheet is for"
-    ws.Range("D5").Value = "the day the paper order was read (type it as Oct 12, 12 Oct 2026 or 10/12); the roster's order is drawn as of that day"
+    ws.Range("D5").Value = "the day the paper order was read (type it as Oct 12, 12 Oct 2026 or 10/12): crews and planned moves as of that day; Total Hours as of now"
     ws.Range("D6").Value = "optional: which paper sheet, who read it"
     ws.Range("D4:D6").Font.Color = RGB(120, 130, 140): ws.Range("D4:D6").Font.Italic = True
     ws.Range(RC_UNIT & ":" & RC_PAPER).NumberFormat = "@"
@@ -166,11 +166,17 @@ Private Sub DrawFrame(ByVal ws As Worksheet)
     ws.Columns(5).ColumnWidth = 8: ws.Columns(6).ColumnWidth = 13: ws.Columns(7).ColumnWidth = 8: ws.Columns(8).ColumnWidth = 60
     ws.Columns(9).ColumnWidth = 13: ws.Columns(10).ColumnWidth = 36
     ws.Range(ws.Cells(RC_FIRST, 8), ws.Cells(RC_FIRST + RC_POSITIONS - 1, 8)).WrapText = True
-    ' the buttons (shapes, as the Desk's)
-    Dim x As Double: x = ws.Range("F4").Left
-    RcButton ws, "rc_btn_compare", "Compare", "modReconcile.ReconcileCompare", x, ws.Range("F4").Top, RGB(0, 128, 70)
-    RcButton ws, "rc_btn_pdf", "Save PDF", "modReconcile.ReconcilePdf", x + 110, ws.Range("F4").Top, RGB(30, 56, 100)
-    RcButton ws, "rc_btn_clear", "Clear the page", "modReconcile.ReconcileClear", x + 220, ws.Range("F4").Top, RGB(120, 130, 140)
+    ' the buttons (shapes, as the Desk's), on row 3 so the hints in column D stay readable (review)
+    ws.Rows(3).RowHeight = 28
+    Dim x As Double: x = ws.Range("B3").Left
+    RcButton ws, "rc_btn_compare", "Compare", "modReconcile.ReconcileCompare", x, ws.Range("B3").Top + 2, RGB(0, 128, 70)
+    RcButton ws, "rc_btn_pdf", "Save PDF", "modReconcile.ReconcilePdf", x + 110, ws.Range("B3").Top + 2, RGB(30, 56, 100)
+    RcButton ws, "rc_btn_clear", "Clear the page", "modReconcile.ReconcileClear", x + 220, ws.Range("B3").Top + 2, RGB(120, 130, 140)
+    ' the summary line wraps across the page (review M4: a one-cell line is cut off in the PDF)
+    With ws.Range("A7:J7")
+        .Merge: .WrapText = True: .VerticalAlignment = xlTop
+    End With
+    ws.Rows(7).RowHeight = 54
     ws.Range(RC_SUMMARY).Value = "Not compared yet."
     ws.Range(RC_SUMMARY).Font.Italic = True
     ' the page
@@ -261,12 +267,17 @@ Public Sub ReconcileCompare()
         paper = paper & IIf(i = 1, "", ";") & Trim$(SafeStr(paperV(i, 1)))
     Next i
     If nPaper = 0 Then MsgBox "Type the paper roster's names in column B first (top to bottom).", vbExclamation, "Reconcile": Exit Sub
-    ' the roster's list: the same call as the printed call-out roster, for that day
-    Dim recs() As EmpRec, n As Long
-    n = LoadEligible(unit, "ALL", recs, 999, True, d)
-    If n > RC_POSITIONS Then n = RC_POSITIONS
+    If d > Date Then
+        If Ask("The date in C5 is in the future (" & Format$(d, "ddd mmm d, yyyy") & "). Compare as of that day anyway?", vbYesNo + vbQuestion + vbDefaultButton2, "Reconcile", vbNo) <> vbYes Then Exit Sub
+    End If
+    ' the roster's list: the same call as the printed call-out roster, for that day (the crews and a planned move as of the
+    ' day; Total Hours as of now - the sheet says so)
+    Dim recs() As EmpRec, n As Long, nAll As Long
+    nAll = LoadEligible(unit, "ALL", recs, 999, True, d)
+    n = nAll
+    If n > RC_POSITIONS Then n = RC_POSITIONS            ' the drawn rows; the list and posOf keep everyone (review)
     Dim roster As String, posOf As Object: Set posOf = CreateObject("Scripting.Dictionary"): posOf.CompareMode = 1
-    For i = 1 To n
+    For i = 1 To nAll
         roster = roster & IIf(i = 1, "", ";") & recs(i).EmpName
         posOf(recs(i).EmpName) = i
     Next i
@@ -308,7 +319,8 @@ Public Sub ReconcileCompare()
         If diffPos.Exists(i) Then ws.Range(ws.Cells(RC_FIRST + i - 1, 7), ws.Cells(RC_FIRST + i - 1, 8)).Font.Color = RGB(176, 0, 32)
     Next i
     Dim summ As String
-    summ = "Compared " & Format$(Now, "ddd mmm d, h:mm AM/PM") & ": " & unit & " as of " & Format$(d, "ddd mmm d, yyyy") & " - paper " & nPaper & " names, roster " & n & _
+    summ = "Compared " & Format$(Now, "ddd mmm d, h:mm AM/PM") & ": " & unit & ", crews and planned moves as of " & Format$(d, "ddd mmm d, yyyy") & ", Total Hours as of now - paper " & nPaper & " names, roster " & nAll & _
+           IIf(nAll > RC_POSITIONS, " (the first " & RC_POSITIONS & " drawn)", "") & _
            ". " & IIf(nDiff = 0, "Every position agrees.", nDiff & " position(s) differ.") & _
            IIf(CStr(parts(1)) <> "-", " On the paper, not listed by the roster: " & Replace(CStr(parts(1)), ";", ", ") & ".", "") & _
            IIf(CStr(parts(2)) <> "-", " Listed by the roster, not on the paper: " & Replace(CStr(parts(2)), ";", ", ") & ".", "") & _

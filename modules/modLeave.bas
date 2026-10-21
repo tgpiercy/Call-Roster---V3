@@ -566,12 +566,28 @@ Oops:
     ReportError "ShowSickCallForm"
 End Sub
 
+' v26.5.5 (B9): the first shift start a sick call leaves free (SickBlocks: any shift starting within 24 h
+' after the sick shift ends is blocked): a day sick call on d frees the night of d + 1 (7 PM), a night
+' sick call frees the day of d + 2 (7 AM)
+Public Function SickFreeFrom(ByVal d As Date, ByVal sickNight As Boolean) As Date
+    If sickNight Then
+        SickFreeFrom = Int(d) + 2 + TimeSerial(7, 0, 0)
+    Else
+        SickFreeFrom = Int(d) + 1 + TimeSerial(19, 0, 0)
+    End If
+End Function
+
 ' Books the sick shift (Absence ID SC-####, type SIC) and makes sure the
-' calendar shows an OPEN line for it. Returns the SC id.
+' calendar shows an OPEN line for it. Returns the SC id ("" = refused or not confirmed).
 Public Function SaveSickCall(ByVal emp As String, ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String, _
                              ByVal hrs As Variant, ByVal note As String) As String
     Dim id As String
     If HasSickRow(emp, d, shiftLbl) Then Exit Function   ' v25 (L7): never a second row for the same shift, whoever calls
+    ' v26.5.5 (B9): the confirm. A sick call is a booking plus a calendar line that only an admin can void
+    ' (Graeme, Oct 20: the undo stays admin-only), so it is read back first. SmokeTest answers Yes (Ask).
+    If Ask("Book " & emp & " sick for " & Format$(d, "ddd mmm d") & " " & shiftLbl & ", " & unit & "?" & vbNewLine & vbNewLine & _
+           "They come off call lists until " & Format$(SickFreeFrom(d, IsNightShift(shiftLbl)), "ddd h AM/PM") & ".", _
+           vbYesNo + vbQuestion + vbDefaultButton2, "Sick call", vbYes) = vbNo Then Exit Function
     id = SaveAbsence(emp, unit, "SIC", d, d, hrs, "", note, HomeUnitOf(emp), "", shiftLbl, "SC", True)
     If id = "" Then Exit Function
     ' v24.3.1 (review C1): the absence row carries the shift (AB_SHIFT) and SlotsFor draws a sick

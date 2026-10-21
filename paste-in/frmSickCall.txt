@@ -212,7 +212,8 @@ Private Sub mSaveOnly_Click()
     If id = "" Then Exit Sub
     Dim d0 As Date: PickedDate d0
     MsgBox "Saved: " & mEmp.Text & " is off " & Format$(d0, "ddd mmm d") & " " & mShift.Text & _
-           " and the 24 h after it. The line is OPEN on the calendar.  (" & id & ")", vbInformation, "Sick Call"
+           " and the 24 h after it. The line is OPEN on the calendar.  (" & id & ")" & _
+           IIf(IsAdmin(), "", vbNewLine & vbNewLine & "Wrong person? Ask " & PRIMARY_ADMIN_NAME & " to void it."), vbInformation, "Sick Call"   ' v26.5.5 (B9)
     Unload Me
 End Sub
 
@@ -222,11 +223,12 @@ Private Sub mSave_Click()
     Dim unit As String: unit = C("cboUnit").Text
     Dim d As Date: If Not PickedDate(d) Then Exit Sub
     Dim sh As String: sh = mShift.Text
+    Dim hv As Double: hv = Val(C("txtHours").Text)           ' v26.5.5 (B8): the sick call's hours go to the call-out
     Unload Me
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     Load frmOvertimeEntry
-    frmOvertimeEntry.Prefill unit, d, sh
+    frmOvertimeEntry.Prefill unit, d, sh, "", hv
     frmOvertimeEntry.Show
 End Sub
 

@@ -251,13 +251,17 @@ End Sub
 ' v22: a sick call opens this form already filled in (unit, date, Days / Nights);
 ' the crew fills from the rotation as usual, then the supervisor clicks LOAD LIST
 ' v25: statusTxt names who pre-filled it (the Install panel); "" keeps the sick-call wording
-Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, Optional ByVal statusTxt As String = "")
+' v26.5.5 (B8): hrs > 0 = the hours carried from the sick call (typed, so the date / shift defaults leave them alone)
+Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, Optional ByVal statusTxt As String = "", _
+                   Optional ByVal hrs As Double = 0)
     On Error Resume Next
     C("cmbDept").Value = unit
     C("txtDate").Value = DateText(d)
     C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
+    If hrs > 0 Then C("txtHours").Value = HoursText(hrs): mAutoHours = ""
     If statusTxt = "" Then statusTxt = "Sick call"
-    C("lblStatus").Caption = statusTxt & ": " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - enter the hours and click LOAD LIST."
+    C("lblStatus").Caption = statusTxt & ": " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - check the hours and click LOAD LIST." & _
+                             IIf(statusTxt = "Sick call" And Not IsAdmin(), "  Wrong person? Ask " & PRIMARY_ADMIN_NAME & " to void the sick call.", "")
     On Error GoTo 0
 End Sub
 
@@ -288,17 +292,14 @@ Private Sub AutoCrew()
     night = IsNightShift(C("cmbDN").Text)
     crew = AvailableCrew(d, night, note)
     If C("cmbShift").Value = "" Then C("cmbShift").Value = CREW_ALL
-    ' v21: clock-change night -> default the hours (13 / 11) and say so
+    ' v21: clock-change night -> the actual hours (13 / 11) and a warning
+    ' v26.5.5 (B8): the Hours box defaults on EVERY date / shift change (12, or the DST night's 13 / 11) unless the
+    ' hours were typed by hand (the mAutoHours rule New Posting uses): a 3 AM call-out no longer waits on a typed 12
     Dim dst As String
     If night Then dst = DstNote(d)
-    Dim want As String
-    If night And IsDstNight(d) Then want = CStr(DefaultShiftHours(d, True, USUAL_SHIFT_HOURS))
+    Dim want As String: want = HoursText(DefaultShiftHours(d, night, USUAL_SHIFT_HOURS))
     If Trim$(C("txtHours").Value) = "" Or (mAutoHours <> "" And Trim$(C("txtHours").Value) = mAutoHours) Then
-        If want <> "" And want <> CStr(USUAL_SHIFT_HOURS) Then
-            C("txtHours").Value = want: mAutoHours = want
-        ElseIf mAutoHours <> "" Then
-            C("txtHours").Value = "": mAutoHours = ""           ' no longer a DST night - back to blank
-        End If
+        C("txtHours").Value = want: mAutoHours = want
     End If
     ' two lines: rotation on the first, the DST warning (or the list note) on the second
     If dst <> "" Then

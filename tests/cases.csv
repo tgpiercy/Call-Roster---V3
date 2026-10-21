@@ -770,3 +770,6 @@ sspread,three,120;140;160,,,,,120.0|160.0|140.0|16.3|40.0
 sspread,one,100,,,,,100.0|100.0|100.0|0.0|0.0
 sspread,none,,,,,,-|-|-|-|-
 sspread,two-equal,50;50,,,,,50.0|50.0|50.0|0.0|0.0
+kperiod,digits-glued,110/17/2026 - 1/2/3/2026,,,,,no dates
+kkind,starts-last-year,2025-12-01,2026-10-17,2025-12-28,2026-12-26,,outside
+kweight,blank-hours,CA OVERTIME=,,,,,0

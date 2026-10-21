@@ -2665,7 +2665,7 @@ End Sub
 ' The tables and columns a person's full name lives in. Fills los / cols /
 ' labels (1..n) and returns n. Tables that don't exist yet are left out.
 Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, ByRef labels() As String) As Long
-    ReDim los(1 To 12): ReDim cols(1 To 12): ReDim labels(1 To 12)
+    ReDim los(1 To 16): ReDim cols(1 To 16): ReDim labels(1 To 16)      ' v27 review H1: 13 tables now (room for more)
     Dim n As Long
     AddNameCol los, cols, labels, n, TableOn(LOG_SHEET, LOG_TABLE), L_EMP, "OT Log"
     AddNameCol los, cols, labels, n, TableOn(POSTINGS_SHEET, PL_TABLE), PL_EMP, "Posting lists"

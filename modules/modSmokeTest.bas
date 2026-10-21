@@ -954,7 +954,24 @@ Private Function SmkKronosHeadings(ByRef st As SmkState, ByRef why As String) As
     If ReportKindCore(fromD, toD, DateSerial(2025, 12, 28), DateSerial(2026, 12, 26)) <> "day" Then why = "a one-day report is not a day": Exit Function
     If ReportKindCore(DateSerial(2026, 1, 11), DateSerial(2026, 10, 17), DateSerial(2025, 12, 28), DateSerial(2026, 12, 26)) <> "cumulative" Then why = "Jan 11 .. Oct 17 is not the year to date": Exit Function
     If ReportKindCore(DateSerial(2026, 10, 13), DateSerial(2026, 10, 19), DateSerial(2025, 12, 28), DateSerial(2026, 12, 26)) <> "range" Then why = "a week is not refused as a range": Exit Function
-    st.Note = "found by heading; 'Total' for 'Grand Total' refused; headings on two rows refused; v27: multipliers, the weighted total, the Time Period line, day / cumulative / range"
+    ' v27 (review M9): a made-up three-block report - the dated Transactions rows (edits, one negative) must NOT be in the
+    ' Totals sum; the Totals block's shifted heading is read by name
+    Dim rp(1 To 12, 1 To 13) As Variant
+    rp(1, 1) = "Employee Transactions and Totals"
+    rp(2, 1) = "Time Period :": rp(2, 4) = "01/11/2026 - 10/17/2026"
+    rp(3, 1) = "Query :": rp(3, 4) = "Location - Welland Hourly"
+    rp(4, 1) = "Transactions:"
+    rp(5, 1) = "Global ID": rp(5, 4) = "Employee": rp(5, 6) = "Date": rp(5, 7) = "Day": rp(5, 8) = "Pay Code": rp(5, 9) = "Earnings Amount": rp(5, 10) = "Hours": rp(5, 11) = "Wages": rp(5, 12) = "Edited By"
+    rp(6, 1) = "12345678": rp(6, 4) = "Test, Someone": rp(6, 6) = DateSerial(2026, 3, 2): rp(6, 7) = "Mon": rp(6, 8) = "CA OVERTIME": rp(6, 9) = 0: rp(6, 10) = 12: rp(6, 11) = 0: rp(6, 12) = "Editor, Some"
+    rp(7, 1) = "12345678": rp(7, 4) = "Test, Someone": rp(7, 6) = DateSerial(2026, 3, 2): rp(7, 7) = "Mon": rp(7, 8) = "CA OVERTIME": rp(7, 9) = 0: rp(7, 10) = -12: rp(7, 11) = 0: rp(7, 12) = "Editor, Some"
+    rp(8, 1) = "Totals:"
+    rp(9, 1) = "Global ID": rp(9, 4) = "Employee": rp(9, 6) = "Pay Code": rp(9, 7) = "Earnings Amount": rp(9, 8) = "Hours": rp(9, 9) = "Wages"
+    rp(10, 1) = "12345678": rp(10, 4) = "Test, Someone": rp(10, 6) = "CA OVERTIME": rp(10, 7) = 0: rp(10, 8) = 40: rp(10, 9) = 0
+    rp(11, 1) = "12345678": rp(11, 4) = "Test, Someone": rp(11, 6) = "CA MIN 4": rp(11, 7) = 0: rp(11, 8) = 8: rp(11, 9) = 0
+    rp(12, 1) = "Summary Totals:"
+    w = KronosArrayCheck(rp, "12345678")
+    If w <> "2026-01-11|2026-10-17|2|2|48" Then why = "the made-up report read as " & w & ", not 2026-01-11|2026-10-17|2|2|48 (the edits must stay out of the Totals)": Exit Function
+    st.Note = "found by heading; 'Total' for 'Grand Total' refused; headings on two rows refused; v27: multipliers, the weighted total, the Time Period line, day / cumulative / range, a three-block report read from its Totals only"
     SmkKronosHeadings = True
 End Function
 

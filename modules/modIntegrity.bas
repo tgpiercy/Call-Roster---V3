@@ -945,7 +945,7 @@ Private Sub CheckKronos()
         Dim first As Date: first = lf
         If cum + 1 > first Then first = cum + 1
         Dim missing As String, nMiss As Long
-        For d = first To Date - 1
+        For d = first To Date - 2                            ' (review) yesterday's report arrives this morning: not missing yet
             If Not days.Exists(CLng(Int(CDbl(d)))) Then
                 nMiss = nMiss + 1
                 If nMiss <= 10 Then missing = missing & IIf(missing = "", "", ", ") & Format$(d, "ddd mmm d")

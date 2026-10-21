@@ -1706,5 +1706,8 @@ Private Sub LoadCases4()
     AddCase "sspread,one,100,,,,,100.0|100.0|100.0|0.0|0.0"
     AddCase "sspread,none,,,,,,-|-|-|-|-"
     AddCase "sspread,two-equal,50;50,,,,,50.0|50.0|50.0|0.0|0.0"
+    AddCase "kperiod,digits-glued,110/17/2026 - 1/2/3/2026,,,,,no dates"
+    AddCase "kkind,starts-last-year,2025-12-01,2026-10-17,2025-12-28,2026-12-26,,outside"
+    AddCase "kweight,blank-hours,CA OVERTIME=,,,,,0"
 ' <<< CASES
 End Sub

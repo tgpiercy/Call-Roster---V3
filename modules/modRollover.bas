@@ -283,6 +283,7 @@ Public Sub RolloverYear()
     Next r
     SetKronosAwait DateSerial(newYear, 1, 1)
     If KronosAwaitFrom() <> DateSerial(newYear, 1, 1) Then Err.Raise vbObjectError + 713, , "the 'awaiting " & newYear & " Kronos' marker couldn't be stored"
+    ClearKronosTables                                 ' v27 (review H3): the Kronos Totals snapshot, the Worked Days ledger and their two dates are last year's
     StampHoursHistoryYear oldYear
     ProtectSheet ws
 

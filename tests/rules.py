@@ -1574,15 +1574,23 @@ def premium_multiplier(code: str, codes: str = PREMIUM_CODES, mults: str = PREMI
     ms = [x.strip() for x in mults.split(",")]
     for i, x in enumerate(cs):
         if x.lower() == c.lower():
-            return float(ms[i]) if i < len(ms) else -1
+            return _val(ms[i]) if i < len(ms) else -1
     return -1
+
+
+def _val(s: str) -> float:
+    """VBA's Val: the leading number of a string, 0 when there is none."""
+    import re as _re
+    m = _re.match(r"\s*[-+]?\d*\.?\d+", s)
+    return float(m.group(0)) if m else 0.0
 
 
 def round_half_up(x: float) -> float:
     """ImportKronosData.RoundHalfUp: Excel's ROUND(x, 0), half away from zero (VBA's Round is half-to-even)."""
     import math
     sign = -1 if x < 0 else 1
-    return float(math.floor(abs(x) + 0.5000001)) * sign
+    out = float(math.floor(abs(x) + 0.5000001)) * sign
+    return 0.0 if out == 0 else out          # never -0.0 (VBA prints 0)
 
 
 def weighted_total(spec: str, codes: str = PREMIUM_CODES, mults: str = PREMIUM_MULTIPLIERS) -> str:
@@ -1598,7 +1606,7 @@ def weighted_total(spec: str, codes: str = PREMIUM_CODES, mults: str = PREMIUM_M
         if m < 0:
             other.append(code.strip())
         else:
-            tot += float(hrs) * m
+            tot += _val(hrs) * m
     out = f"{round_half_up(tot):g}"
     return out + ("|" + ";".join(other) if other else "")
 
@@ -1608,8 +1616,14 @@ def time_period(text: str) -> str:
     'yyyy-mm-dd|yyyy-mm-dd', or 'no dates' / 'end before start'."""
     import re as _re
     found: list[date] = []
-    for tok in _re.findall(r"\d{1,2}/\d{1,2}/\d{4}", text):
-        m, d_, y = (int(x) for x in tok.split("/"))
+    # as the VBA: every run of digits and slashes is a token; a token is a date only when it is exactly m/d/yyyy
+    for tok in _re.findall(r"[\d/]+", text):
+        parts = tok.split("/")
+        if len(parts) != 3 or not all(parts):
+            continue
+        m, d_, y = (int(x) for x in parts)
+        if not (1900 <= y <= 2999 and 1 <= m <= 12 and 1 <= d_ <= 31):
+            continue
         try:
             found.append(date(y, m, d_))
         except ValueError:
@@ -1625,7 +1639,9 @@ def time_period(text: str) -> str:
 def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str:
     """ImportKronosData.ReportKindCore: 'day' (one day: a snapshot), 'cumulative' (starts within KRONOS_YEAR_SLACK of
     the year's first day), 'range' (several days, not the year to date: refused), 'outside' (not this year)."""
-    if to_d < year_from or from_d > year_to:
+    if from_d is None or to_d is None:
+        return "outside"
+    if from_d < year_from or to_d < year_from or from_d > year_to:
         return "outside"
     if from_d == to_d:
         return "day"

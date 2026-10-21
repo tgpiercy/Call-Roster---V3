@@ -43,6 +43,20 @@ def test_selftest_block_matches_cases_csv():
     assert pasted_rows == csv_rows, "modSelfTest.bas is out of date: run python tests/gen_selftest_cases.py"
 
 
+def test_loadcases_chunks_stay_under_the_procedure_limit():
+    """v27 (review C4): VBA refuses a procedure over 64 KB; LoadCases reached 57 KB, so the generator writes
+    LoadCases1..N of 200 cases each. Every chunk stays well under the limit, and LoadCases only calls them."""
+    bas = vba("modSelfTest.bas")
+    procs = re.findall(r"Private Sub (LoadCases\d*)\(\)(.*?)End Sub", bas, re.S)
+    names = [p[0] for p in procs]
+    assert "LoadCases" in names and "LoadCases1" in names
+    for name, body in procs:
+        assert len(body) < 56 * 1024, f"{name} is {len(body)} bytes: raise the chunk count in gen_selftest_cases.py"
+        if name == "LoadCases":
+            calls = [ln.strip() for ln in body.split("\n") if ln.strip() and not ln.strip().startswith("'")]
+            assert calls == [f"LoadCases{i + 1}" for i in range(len(names) - 1)], "LoadCases must call every chunk in order"
+
+
 def test_charging_constants_match_vba():
     assert float(vba_const("modOvertimeEntry.bas", "CHARGE_MULTIPLIER")) == rules.CHARGE_MULTIPLIER
     assert float(vba_const("modOvertimeEntry.bas", "CHARGE_MAX_GRADE")) == rules.CHARGE_MAX_GRADE

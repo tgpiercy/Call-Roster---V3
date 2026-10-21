@@ -899,6 +899,13 @@ End Sub
 ' Fields: suite,case,in1,in2,in3,in4,in5,expected  (no commas inside a field)
 Private Sub LoadCases()
 ' >>> CASES (generated from tests/cases.csv by tests/gen_selftest_cases.py - do not edit by hand)
+    LoadCases1
+    LoadCases2
+    LoadCases3
+    LoadCases4
+End Sub
+
+Private Sub LoadCases1()
     AddCase "rotation,2025-12-28,2025-12-28,,,,,B/A"
     AddCase "rotation,2025-12-29,2025-12-29,,,,,D/C"
     AddCase "rotation,2025-12-31,2025-12-31,,,,,A/B"
@@ -1099,6 +1106,9 @@ Private Sub LoadCases()
     AddCase "attend,sixth-day-unpaid-and-wait,A,2026-01-05:N;2026-01-06:N;2026-01-09:D;2026-01-10:D;2026-01-11:D;2026-01-14:N,,2026-03-01,,6/5/0/1/0/WAIT 2027-01-05/UNPAID"
     AddCase "attend,fourth-occurrence-unpaid,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-20:D,,2026-03-01,,4/3/0/4/0/ENT/UNPAID"
     AddCase "attend,personal-pushes-over,A,2026-01-14:N;2026-01-15:N,2026-01-05;2026-01-06;2026-01-09;2026-01-10,2026-03-01,,2/1/0/1/4/WAIT 2027-01-14/UNPAID"
+End Sub
+
+Private Sub LoadCases2()
     AddCase "attend,wait-from-second-occurrence,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-19:D;2026-01-20:D;2026-01-23:N,,2026-03-01,,6/5/0/3/0/WAIT 2027-01-10/UNPAID"
     AddCase "attend,still-waiting-after-jan-1,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-19:D;2026-01-20:D;2026-01-23:N,,2027-01-05,,0/0/0/0/0/WAIT 2027-01-10/UNPAID"
     AddCase "attend,reset-at-anniversary,A,2026-01-05:N;2026-01-10:D;2026-01-15:N;2026-01-19:D;2026-01-20:D;2026-01-23:N;2027-01-12:D,,2027-01-15,,1/1/4/1/0/ENT/PAID"
@@ -1299,6 +1309,9 @@ Private Sub LoadCases()
     AddCase "krhdr,total-colon,Grand Total:,Grand Total,,,,yes"
     AddCase "krhdr,total-hours-is-not-it,Total Hours,Grand Total,,,,no"
     AddCase "krhdr,empty-cell,,Grand Total,,,,no"
+End Sub
+
+Private Sub LoadCases3()
     AddCase "payroll,no-number-yet,,N,N,,,name"
     AddCase "payroll,number-not-in-kronos,10045678,N,N,,,name"
     AddCase "payroll,number-and-name-agree,10045678,Y,Y,,,number"
@@ -1499,6 +1512,9 @@ Private Sub LoadCases()
     AddCase "prechange,daily-backup-is-not-one,Call Out Roster 2026-10-12.xlsm,V2 - Call Out Roster.xlsm,,,,none"
     AddCase "prechange,no-time,Backup before migration 2026-10-13 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
     AddCase "prechange,no-what,Backup before 2026-10-13 0915 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
+End Sub
+
+Private Sub LoadCases4()
     AddCase "prechange,lower-case-head,backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-09-30"
     AddCase "prechange,letters-in-the-date,Backup before rename 2026-O9-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
     AddCase "prechange,no-roster-name,Backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,,,,,none"

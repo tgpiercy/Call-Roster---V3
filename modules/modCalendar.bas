@@ -2658,6 +2658,24 @@ Public Function ReadyToAwardCount() As Long
     Next i
 End Function
 
+' v27 (Desk v2): the closing date of the ready-to-award posting that has waited longest (0 when none) - the Desk's
+' award tile names it; the same test as ReadyToAwardCount, never a rule of its own
+Public Function ReadyToAwardOldest() As Date
+    LoadPostCache
+    If Not IsArray(mPostV) Then Exit Function
+    Dim i As Long, cl As Date
+    For i = 1 To UBound(mPostV, 1)
+        If SafeStr(mPostV(i, PS_STATUS)) = "Open" Then
+            cl = AsDate(mPostV(i, PS_CLOSES))
+            If cl > 0 Then
+                If PostingClosed(cl) Then
+                    If ReadyToAwardOldest = 0 Or cl < ReadyToAwardOldest Then ReadyToAwardOldest = cl
+                End If
+            End If
+        End If
+    Next i
+End Function
+
 ' button centred in its cell(s), fixed height so the text never clips
 Private Sub CalBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
                    ByVal cel As Range, ByVal col As Long)

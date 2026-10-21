@@ -24,6 +24,14 @@ Option Explicit
 '  ViewModeFor is the one pure decision (SelfTest suite "viewmode"). The admin
 '  Desk's view is ApplyViewCore's desk mode; the supervisor Desk is the
 '  ordinary view with the Desk sheet in front.
+'
+'  v27 (Desk v2, the approved mock-up docs/desk-v2-mockup-2026-10.html): four
+'  bands - TODAY's tiles, then NOW | PLAN | FINISH side by side, one colour per
+'  band (orange, green, navy; grey for help) so colour says WHEN; the header's
+'  facts as three pills (the Kronos pill red with "import it" when old); every
+'  tile names the next thing and the verb a click takes; Help, the two emails,
+'  Undo and Practice in one grey footer row. Same buttons, same macros, same
+'  rights: a UI-only redraw.
 ' ====================================================================
 
 Public Const DESK_VERSION As String = "Desk v26.5.5 (Oct 21)"
@@ -38,11 +46,11 @@ Private mZoomChecked As String                      ' sheets whose left-behind 1
 Private Const DK_FONT As String = "Segoe UI"
 Private Const DK_FONT_B As String = "Segoe UI Semibold"
 Private Const BTN_H As Double = 36
-Private Const BTN_W As Double = 230
-Private Const TILE_H As Double = 62                 ' v25.5: room for the cover tile's third line (the next uncovered shift)
-Private Const TILE_W As Double = 205
+Private Const BTN_W As Double = 270                 ' v27 (Desk v2): one band per column, three columns side by side
+Private Const TILE_H As Double = 76                 ' v27: three lines - the count, the next thing, the verb a click takes
 Private Const GAP As Double = 8
-Private Const COL2 As Double = 470                  ' the right column's left edge, points from the sheet's left margin
+Private Const COLGAP As Double = 12                 ' v27: between the three band columns
+Private Const PILL_H As Double = 20                 ' v27: the header's three pills
 
 ' ---- colours (the mock-up's) ----
 Private Function dkNavy() As Long
@@ -62,15 +70,6 @@ Private Function dkOrange() As Long
 End Function
 Private Function dkGreen() As Long
     dkGreen = RGB(0, 128, 70)
-End Function
-Private Function dkSwitch() As Long
-    dkSwitch = RGB(180, 100, 0)
-End Function
-Private Function dkBlue() As Long
-    dkBlue = RGB(21, 101, 192)
-End Function
-Private Function dkLeave() As Long
-    dkLeave = RGB(106, 27, 154)
 End Function
 Private Function dkRed() As Long
     dkRed = RGB(176, 0, 32)
@@ -153,20 +152,25 @@ Public Sub DrawDesk()
     End With
     ws.Columns(1).ColumnWidth = 2
     ws.Rows(1).RowHeight = 34
-    ws.Rows(2).RowHeight = 24
+    ws.Rows(2).RowHeight = 28
 
-    ' ---- header: the title, then today | the pay period | the Kronos data's age ----
+    ' ---- header (v27, Desk v2: docs/desk-v2-mockup-2026-10.html): the title, then three pills - today's crews |
+    '      the pay period | the Kronos data's age (red with "import it" when old) - and a red save warning when one is up ----
     Dim nCover As Long, nReady As Long, nOwed As Long, pubAt As Date
     DeskCounts nCover, nReady, nOwed, pubAt
     Dim ps As Date: ps = PeriodStartFor(Date)
     Dim dt As Date: dt = KronosDataThrough()
+    Dim kOld As Boolean: kOld = (dt = 0 Or KronosIsStale())      ' the status line's one rule (review)
     Dim kTxt As String
     If dt = 0 Then
         kTxt = "Kronos data: none imported yet"
+    ElseIf kOld Then
+        kTxt = "Kronos data " & (Int(Date) - Int(dt)) & " days old"
     Else
         kTxt = "Kronos data through " & Format$(dt, "ddd mmm d")
     End If
-    Dim kOld As Boolean: kOld = (dt = 0 Or KronosIsStale())      ' the status line's one rule (review)
+    ' the remedy belongs to whoever may run it: an admin imports, a supervisor asks (B5)
+    If kOld Then kTxt = kTxt & IIf(gAdminUnlocked, " - import it", " - ask " & PRIMARY_ADMIN_NAME & " to import it")
     Dim nsTxt As String                            ' v26.5.5 (A1): a failed save stays on the header until a save goes through
     If NoSave() Then
         nsTxt = "SAVING IS BLOCKED - close WITHOUT saving, reopen, log again"
@@ -178,120 +182,125 @@ Public Sub DrawDesk()
         .Font.Name = DK_FONT_B: .Font.Size = 18: .Font.Color = dkNavy()
         .VerticalAlignment = xlCenter
     End With
-    Dim info As String
-    ' v25.5 (A8): today's shifts - the crews on days and nights - in the header
-    info = Format$(Date, "dddd mmm d, yyyy") & "    |    Today: " & DaysCrew(Date) & " on days, " & NightsCrew(Date) & " on nights" & _
-           "    |    Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & "    |    " & kTxt & _
-           IIf(nsTxt <> "", "    |    " & nsTxt, "")
-    With ws.Cells(2, 2)
-        .NumberFormat = "@"
-        .Value = info
-        .Font.Size = 11: .Font.Color = dkInk()
-        .VerticalAlignment = xlCenter
-        If kOld Then .Characters(InStr(info, kTxt), Len(kTxt)).Font.Color = dkRed()
-        If nsTxt <> "" Then .Characters(InStr(info, nsTxt), Len(nsTxt)).Font.Color = dkRed()
-    End With
 
-    ' ---- positions: everything hangs off the top-left of row 3 ----
+    ' ---- positions: the pills on row 2, everything else hangs off the top-left of row 3 ----
     Dim x0 As Double: x0 = ws.Cells(1, 2).Left
     Dim y0 As Double: y0 = ws.Cells(3, 1).Top + 6
-    Dim yy As Double
+    Dim yy As Double, xx As Double
+    Dim bandW As Double: bandW = 3 * BTN_W + 2 * COLGAP     ' the three columns' span: the tiles and the footer share it
+
+    xx = x0: yy = ws.Cells(2, 1).Top + 3
+    ' v25.5 (A8): today's shifts - the crews on days and nights - in the header
+    xx = DeskPill(ws, "dk_pill_today", Format$(Date, "ddd mmm d") & " - " & DaysCrew(Date) & " on days, " & NightsCrew(Date) & " on nights", xx, yy, False)
+    xx = DeskPill(ws, "dk_pill_period", "Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d"), xx, yy, False)
+    xx = DeskPill(ws, "dk_pill_kronos", kTxt, xx, yy, kOld)
+    If nsTxt <> "" Then xx = DeskPill(ws, "dk_pill_save", nsTxt, xx, yy, True)
 
     ' ---- the layout: the admin Desk (every job) or the supervisor Desk (a supervisor's jobs) ----
     Dim sup As Boolean: sup = Not gAdminUnlocked
-    Dim tileX As Double: tileX = x0
 
-    ' ---- TODAY: the tiles ----
+    ' ---- TODAY: the tiles (four for an admin, three for a supervisor), each the count, the next thing, the verb ----
     DeskLabel ws, "dk_lbl_today", "TODAY", x0, y0
     yy = y0 + 16
+    Dim nTiles As Long: nTiles = IIf(sup, 3, 4)
+    Dim tw As Double: tw = (bandW - (nTiles - 1) * GAP) / nTiles
+    Dim tileX As Double: tileX = x0
     Dim nextTxt As String                          ' v25.5 (A8): the next uncovered shift under the count
     If nCover > 0 Then nextTxt = NextOpenLine(DESK_AHEAD_DAYS)
-    DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover") & IIf(nextTxt <> "", vbCr & nextTxt, ""), _
-             IIf(sup, "modDesk.DeskCalendar", "modDesk.DeskNeeds"), tileX, yy, IIf(nCover > 0, dkOrange(), 0)   ' Needs Attention is admin: a supervisor's tile opens the Calendar
-    tileX = tileX + TILE_W + GAP
-    DeskTile ws, "dk_tile_award", nReady, IIf(nReady = 1, "posting ready to award", "postings ready to award"), "modDesk.DeskAward", _
-             tileX, yy, IIf(nReady > 0, dkOrange(), 0)
-    tileX = tileX + TILE_W + GAP
+    DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover") & IIf(nextTxt <> "", ", next " & nextTxt, ""), _
+             IIf(sup, "modDesk.DeskCalendar", "modDesk.DeskNeeds"), tileX, yy, tw, IIf(nCover > 0, dkOrange(), 0), _
+             IIf(sup, "Open the Calendar", "Open Needs Attention")   ' Needs Attention is admin: a supervisor's tile opens the Calendar
+    tileX = tileX + tw + GAP
+    Dim oldest As Date: If nReady > 0 Then oldest = ReadyToAwardOldest()      ' v27: the posting that has waited longest
+    DeskTile ws, "dk_tile_award", nReady, IIf(nReady = 1, "posting ready to award", "postings ready to award") & _
+             IIf(oldest > 0, ", closed " & Format$(oldest, "ddd mmm d") & " " & POSTING_CLOSE_TIME, ""), "modDesk.DeskAward", _
+             tileX, yy, tw, IIf(nReady > 0, dkOrange(), 0), IIf(nReady = 1, "Award it", "Award them")
+    tileX = tileX + tw + GAP
     If Not sup Then
         Dim nOver As Long: nOver = OwedOverdueCount()      ' v26 (payback aging): owed longer than PAYBACK_WARN_DAYS
         DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed") & _
-                 IIf(nOver > 0, " (" & nOver & " overdue)", ""), "modDesk.DeskSwitch", _
-                 tileX, yy, IIf(nOwed > 0, dkSwitch(), 0)
-        tileX = tileX + TILE_W + GAP
+                 IIf(nOver > 0, ", " & nOver & " over " & PAYBACK_WARN_DAYS & " days", ""), "modDesk.DeskSwitch", _
+                 tileX, yy, tw, IIf(nOwed > 0, dkGreen(), 0), "See the OWED list"
+        tileX = tileX + tw + GAP
     End If
     Dim pubTxt As String, pubCol As Long
     If pubAt = 0 Then
-        pubTxt = "never published": pubCol = dkBlue()
+        pubTxt = "never published": pubCol = dkNavy()
     ElseIf Int(Date) - Int(pubAt) >= MEMBERS_STALE_DAYS Then
-        pubTxt = "updated " & Format$(pubAt, "ddd mmm d"): pubCol = dkBlue()
+        pubTxt = "updated " & Format$(pubAt, "ddd mmm d"): pubCol = dkNavy()
     Else
         pubTxt = "updated today " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
     End If
     ' v25.5 (bundle item 8): the tile is live for a supervisor too - they publish (coloured = work to do)
-    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, "modDesk.DeskPublish", tileX, yy, pubCol
+    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, "modDesk.DeskPublish", tileX, yy, tw, pubCol, _
+                 IIf(pubCol <> 0, "Update it", "Click to update again")
 
-    ' ---- RIGHT NOW (left column) ----
+    ' ---- the three bands side by side: NOW (orange) | PLAN (green) | FINISH (navy) - colour says WHEN, not which pop-up ----
     yy = yy + TILE_H + 18
-    Dim yL As Double: yL = yy
-    DeskLabel ws, "dk_lbl_now", "RIGHT NOW", x0, yL
-    yL = yL + 16
-    DeskBtn ws, "dk_btn_sick", "Someone called in sick", "modDesk.DeskSick", x0, yL, dkOrange()
-    yL = yL + BTN_H + GAP
-    DeskBtn ws, "dk_btn_callout", "Fill a shift now (call-out)", "modDesk.DeskCallout", x0, yL, dkGreen()
-    yL = yL + BTN_H + GAP
-    DeskBtn ws, "dk_btn_cal", "What needs cover (calendar)", "modDesk.DeskCalendar", x0, yL, dkNavy()
-    yL = yL + BTN_H + 18
+    Dim yN As Double, yP As Double, yF As Double
+    Dim xN As Double, xP As Double, xF As Double
+    xN = x0: xP = x0 + BTN_W + COLGAP: xF = x0 + 2 * (BTN_W + COLGAP)
+    yN = yy: yP = yy: yF = yy
+    DeskLabel ws, "dk_lbl_now", "NOW", xN, yN
+    DeskLabel ws, "dk_lbl_plan", "PLAN", xP, yP
+    DeskLabel ws, "dk_lbl_finish", "FINISH", xF, yF
+    yN = yN + 16: yP = yP + 16: yF = yF + 16
+    ' NOW
+    DeskBtn ws, "dk_btn_sick", "Someone called in sick", "modDesk.DeskSick", xN, yN, dkOrange()
+    yN = yN + BTN_H + GAP
+    DeskBtn ws, "dk_btn_callout", "Fill a shift now (call-out)", "modDesk.DeskCallout", xN, yN, dkOrange()
+    yN = yN + BTN_H + GAP
+    DeskBtn ws, "dk_btn_cal", "What needs cover (calendar)", "modDesk.DeskCalendar", xN, yN, dkOrange()
+    yN = yN + BTN_H + GAP
+    ' PLAN
+    DeskBtn ws, "dk_btn_post", "Post a shift", "modDesk.DeskPost", xP, yP, dkGreen()
+    yP = yP + BTN_H + GAP
+    DeskBtn ws, "dk_btn_award", "Award a posting", "modDesk.DeskAward", xP, yP, dkGreen()
+    yP = yP + BTN_H + GAP
     If Not sup Then
-        DeskLabel ws, "dk_lbl_people", "PEOPLE", x0, yL
-        yL = yL + 16
-        DeskBtn ws, "dk_btn_leave", "Leave: going or returning", "modDesk.DeskLeave", x0, yL, dkLeave()
-        yL = yL + BTN_H + GAP
-        DeskBtn ws, "dk_btn_undo", "Undo my last log entry", "modDesk.DeskUndo", x0, yL, dkGrey(), BTN_W, dkInk()   ' v25.5 (A9): admin only (void); "log entry": it undoes OT Log rows only (review)
-        yL = yL + BTN_H + 18
+        DeskBtn ws, "dk_btn_timeoff", "Book time off", "modDesk.DeskTimeOff", xP, yP, dkGreen()
+        yP = yP + BTN_H + GAP
+        DeskBtn ws, "dk_btn_switch", "Shift switch or payback", "modDesk.DeskSwitch", xP, yP, dkGreen()
+        yP = yP + BTN_H + GAP
+        DeskBtn ws, "dk_btn_leave", "Leave: going or returning", "modDesk.DeskLeave", xP, yP, dkGreen()   ' v27: planned, like time off
+        yP = yP + BTN_H + GAP
     End If
-    DeskLabel ws, "dk_lbl_help", "HELP", x0, yL
-    yL = yL + 16
-    DeskBtn ws, "dk_btn_guide", "How do I ...", "modDesk.DeskGuide", x0, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
-    DeskBtn ws, "dk_btn_report", "Something went wrong", "modDesk.DeskReport", x0 + (BTN_W + GAP) / 2, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
+    ' FINISH
+    DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xF, yF, dkNavy()   ' v25.5: on the supervisor Desk too (bundle item 8)
+    yF = yF + BTN_H + GAP
+    DeskBtn ws, "dk_btn_print", "Print the call-out roster", "modDesk.DeskPrint", xF, yF, dkNavy()
+    yF = yF + BTN_H + GAP
+    DeskBtn ws, "dk_btn_history", "Employee history (report)", "modDesk.DeskHistory", xF, yF, dkNavy()   ' v26: one person, a date range, a PDF
+    yF = yF + BTN_H + GAP
+
+    ' ---- the footer row: help, the two emails, Undo (admin), Practice - grey, reached for rarely ----
+    yy = yN: If yP > yy Then yy = yP
+    If yF > yy Then yy = yF
+    yy = yy + 10
+    Dim nFoot As Long: nFoot = IIf(sup, 4, 5)
+    Dim fw As Double: fw = (bandW - (nFoot - 1) * GAP) / nFoot
+    xx = x0
+    DeskBtn ws, "dk_btn_guide", "How do I ...", "modDesk.DeskGuide", xx, yy, dkGrey(), fw, dkInk(), 10
+    xx = xx + fw + GAP
+    DeskBtn ws, "dk_btn_report", "Something went wrong", "modDesk.DeskReport", xx, yy, dkGrey(), fw, dkInk(), 10
+    xx = xx + fw + GAP
     ' v25.5 (A8): a suggestion goes the same way as a fault, with its own subject
-    yL = yL + BTN_H + GAP
-    DeskBtn ws, "dk_btn_suggest", "Suggest an improvement", "modDesk.DeskSuggest", x0, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
-    ' v26.5.5 (5.4): a practice copy for anyone who may log - nothing done in it counts
-    DeskBtn ws, "dk_btn_practice", "Practice on a copy", "modDesk.DeskPractice", x0 + (BTN_W + GAP) / 2, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
-    ' v25.5 (A5): the shortcut keys, under the help buttons
-    yL = yL + BTN_H + 6
-    DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yL
-    ws.Shapes("dk_lbl_keys").Width = 440
-    yL = yL + 14 - BTN_H                            ' the footer adds BTN_H below the taller column
-
-    ' ---- PLAN AHEAD / WHEN YOU ARE DONE (right column) ----
-    Dim yR As Double: yR = yy
-    Dim xR As Double: xR = x0 + COL2
-    DeskLabel ws, "dk_lbl_plan", "PLAN AHEAD", xR, yR
-    yR = yR + 16
-    DeskBtn ws, "dk_btn_post", "Post a shift", "modDesk.DeskPost", xR, yR, dkGreen()
-    yR = yR + BTN_H + GAP
-    DeskBtn ws, "dk_btn_award", "Award a posting", "modDesk.DeskAward", xR, yR, dkGreen()
-    yR = yR + BTN_H + GAP
+    DeskBtn ws, "dk_btn_suggest", "Suggest an improvement", "modDesk.DeskSuggest", xx, yy, dkGrey(), fw, dkInk(), 10
+    xx = xx + fw + GAP
     If Not sup Then
-        DeskBtn ws, "dk_btn_timeoff", "Book time off", "modDesk.DeskTimeOff", xR, yR, dkNavy()
-        yR = yR + BTN_H + GAP
-        DeskBtn ws, "dk_btn_switch", "Shift switch or payback", "modDesk.DeskSwitch", xR, yR, dkSwitch()
-        yR = yR + BTN_H + GAP
+        DeskBtn ws, "dk_btn_undo", "Undo my last log entry", "modDesk.DeskUndo", xx, yy, dkGrey(), fw, dkInk(), 10   ' v25.5 (A9): admin only (void); "log entry": it undoes OT Log rows only (review)
+        xx = xx + fw + GAP
     End If
-    yR = yR + 10
-    DeskLabel ws, "dk_lbl_done", "WHEN YOU ARE DONE", xR, yR
-    yR = yR + 16
-    DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xR, yR, dkBlue()   ' v25.5: on the supervisor Desk too (bundle item 8)
-    yR = yR + BTN_H + GAP
-    DeskBtn ws, "dk_btn_print", "Print the call-out roster", "modDesk.DeskPrint", xR, yR, dkNavy()
-    yR = yR + BTN_H + GAP
-    DeskBtn ws, "dk_btn_history", "Employee history (report)", "modDesk.DeskHistory", xR, yR, dkNavy()   ' v26: one person, a date range, a PDF
+    ' v26.5.5 (5.4): a practice copy for anyone who may log - nothing done in it counts
+    DeskBtn ws, "dk_btn_practice", "Practice on a copy", "modDesk.DeskPractice", xx, yy, dkGrey(), fw, dkInk(), 10
 
-    ' ---- footer links ----
-    Dim yF As Double: yF = IIf(yL > yR, yL, yR) + BTN_H + 22
-    DeskLink ws, "dk_lnk_roster", "Full roster  >", "modDesk.DeskRoster", x0, yF, 140
-    If Not sup Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", xR, yF, 260
+    ' ---- the links, then the shortcut keys (v25.5, A5) ----
+    yy = yy + BTN_H + 10
+    DeskLink ws, "dk_lnk_roster", "Full roster  >", "modDesk.DeskRoster", x0, yy, 140
+    If Not sup Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", x0 + 150, yy, 260
+    yy = yy + 26
+    DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yy
+    ws.Shapes("dk_lbl_keys").Width = 440
     With ws.Cells(1, 9)
         .Value = DESK_VERSION
         .Font.Size = 7: .Font.Color = RGB(176, 190, 197)
@@ -366,31 +375,53 @@ Private Function DeskShape(ByVal ws As Worksheet, ByVal nm As String, ByVal mac 
     Set DeskShape = s
 End Function
 
-' a 12 pt verb-phrase button, 36 points tall
+' a verb-phrase button, 36 points tall (12 pt; the footer's are 10 pt)
 Private Sub DeskBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
                     ByVal l As Double, ByVal t As Double, ByVal fill As Long, _
-                    Optional ByVal w As Double = BTN_W, Optional ByVal fontCol As Long = vbWhite)
+                    Optional ByVal w As Double = BTN_W, Optional ByVal fontCol As Long = vbWhite, Optional ByVal fontSize As Double = 12)
     Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, BTN_H, fill)
     On Error Resume Next
     With s.TextFrame2.TextRange
         .Text = cap
         .ParagraphFormat.Alignment = msoAlignLeft
         .Font.Name = DK_FONT_B
-        .Font.Size = 12
+        .Font.Size = fontSize
         .Font.Bold = msoFalse
         .Font.Fill.ForeColor.RGB = fontCol
     End With
 End Sub
 
-' a TODAY tile: the figure big, the caption under it; grey when there is nothing to do
+' v27 (Desk v2): a header pill - one fact, grey; red with white text when it is a warning. Returns the next x.
+Private Function DeskPill(ByVal ws As Worksheet, ByVal nm As String, ByVal txt As String, ByVal l As Double, ByVal t As Double, _
+                          ByVal warn As Boolean) As Double
+    Dim w As Double: w = Len(txt) * 5.4 + 22                 ' Segoe UI Semibold 10 pt, about 5.4 pt a character
+    Dim s As Shape: Set s = DeskShape(ws, nm, "", l, t, w, PILL_H, IIf(warn, dkRed(), dkGrey()))
+    On Error Resume Next
+    s.Adjustments.Item(1) = 0.5
+    With s.TextFrame2
+        .MarginTop = 0: .MarginBottom = 0
+        .WordWrap = msoFalse
+        With .TextRange
+            .Text = txt
+            .ParagraphFormat.Alignment = msoAlignCenter
+            .Font.Name = DK_FONT_B
+            .Font.Size = 10
+            .Font.Bold = msoFalse
+            .Font.Fill.ForeColor.RGB = IIf(warn, vbWhite, dkInk())
+        End With
+    End With
+    DeskPill = l + w + GAP
+End Function
+
+' a TODAY tile: the figure big, the next thing under it, then the verb a click takes (v27); grey when there is nothing to do
 Private Sub DeskTile(ByVal ws As Worksheet, ByVal nm As String, ByVal n As Long, ByVal cap As String, ByVal mac As String, _
-                     ByVal l As Double, ByVal t As Double, ByVal col As Long)
+                     ByVal l As Double, ByVal t As Double, ByVal w As Double, ByVal col As Long, ByVal verb As String)
     Dim active As Boolean: active = (col <> 0)
-    Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, TILE_W, TILE_H, IIf(active, col, dkGrey()))
+    Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, TILE_H, IIf(active, col, dkGrey()))
     Dim numTxt As String: numTxt = CStr(n)
     On Error Resume Next
     With s.TextFrame2.TextRange
-        .Text = numTxt & vbCr & cap
+        .Text = numTxt & vbCr & cap & IIf(verb <> "", vbCr & verb, "")
         .ParagraphFormat.Alignment = msoAlignLeft
         .ParagraphFormat.SpaceBefore = 0: .ParagraphFormat.SpaceAfter = 0
         .Font.Name = DK_FONT_B
@@ -398,17 +429,18 @@ Private Sub DeskTile(ByVal ws As Worksheet, ByVal nm As String, ByVal n As Long,
         .Font.Bold = msoFalse
         .Font.Fill.ForeColor.RGB = IIf(active, vbWhite, dkMuted())
         .Characters(1, Len(numTxt)).Font.Size = 20
+        If verb <> "" Then .Characters(Len(numTxt) + Len(cap) + 3, Len(verb)).Font.Size = 10
     End With
 End Sub
 
-' the members'-file tile: a caption and a text instead of a figure (mac "" = information only)
+' the members'-file tile: a caption and a text instead of a figure, then the verb (v27); mac "" = information only
 Private Sub DeskTileText(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal txt As String, ByVal mac As String, _
-                         ByVal l As Double, ByVal t As Double, ByVal col As Long)
+                         ByVal l As Double, ByVal t As Double, ByVal w As Double, ByVal col As Long, ByVal verb As String)
     Dim active As Boolean: active = (col <> 0)
-    Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, TILE_W, TILE_H, IIf(active, col, dkGrey()))
+    Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, TILE_H, IIf(active, col, dkGrey()))
     On Error Resume Next
     With s.TextFrame2.TextRange
-        .Text = cap & vbCr & txt
+        .Text = cap & vbCr & txt & IIf(verb <> "", vbCr & verb, "")
         .ParagraphFormat.Alignment = msoAlignLeft
         .ParagraphFormat.SpaceBefore = 0: .ParagraphFormat.SpaceAfter = 0
         .Font.Name = DK_FONT_B
@@ -416,6 +448,7 @@ Private Sub DeskTileText(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As
         .Font.Bold = msoFalse
         .Font.Fill.ForeColor.RGB = IIf(active, vbWhite, dkMuted())
         .Characters(1, Len(cap)).Font.Size = 13
+        If verb <> "" Then .Characters(Len(cap) + Len(txt) + 3, Len(verb)).Font.Size = 10
     End With
 End Sub
 
@@ -876,10 +909,14 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "editing means you can look but not log: close it and come back when they are out. Every sheet is protected: the " & _
         "buttons do the writing, nothing is typed into cells. Close the file as soon as you are done so the next supervisor can get in."
     HelpAdd h, n, "The Desk", _
-        "A supervisor on the list, and an admin on the Desk list, open on the Desk tab (the primary admin opens on the roster and reaches it with < Desk): the tiles say what is waiting today (shifts needing cover, postings ready " & _
-        "to award, the members' file's age) and the buttons are the jobs - Someone called in sick, Fill a shift now, What needs " & _
-        "cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster. Full roster > at the bottom " & _
-        "goes to the roster; the Desk tab brings it back. Anyone not on the supervisor list opens on the roster and can log " & _
+        "A supervisor on the list, and an admin on the Desk list, open on the Desk tab (the primary admin opens on the roster and reaches it with < Desk). " & _
+        "The three pills at the top say which crews are on today, the pay period, and how old the Kronos worked hours are (red when they " & _
+        "need an import). The TODAY tiles say what is waiting - shifts needing cover, postings ready to award, the members' file's age - " & _
+        "each with the next thing and what a click does. Under them the jobs sit in three bands by WHEN you reach for them: NOW (orange: " & _
+        "Someone called in sick, Fill a shift now, What needs cover), PLAN (green: Post a shift, Award a posting, and for an admin time " & _
+        "off, switches and leave) and FINISH (navy: Update the members' file, Print the call-out roster, Employee history). The grey row " & _
+        "at the foot is help: How do I ..., Something went wrong, Suggest an improvement, Practice on a copy (and Undo for an admin). " & _
+        "Full roster > goes to the roster; the Desk tab brings it back. Anyone not on the supervisor list opens on the roster and can log " & _
         "call-outs and look at the calendar."
     HelpAdd h, n, "Log a call-out (fill a shift now)", _
         "Click Fill a shift now (or Log Call-Out on the roster's bar). Pick the Department, Shift and Date, type the Hours and " & _

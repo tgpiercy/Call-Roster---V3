@@ -167,6 +167,8 @@ Public Sub DrawDesk()
         kTxt = "Kronos data through " & Format$(dt, "ddd mmm d")
     End If
     Dim kOld As Boolean: kOld = (dt = 0 Or KronosIsStale())      ' the status line's one rule (review)
+    Dim nsTxt As String                            ' v26.5.5 (A1): a failed save stays on the header until a save goes through
+    If gSaveFailedAt > 0 And Not ThisWorkbook.Saved Then nsTxt = "NOT SAVED since " & Format$(gSaveFailedAt, "h:mm AM/PM") & " - File > Save now"
     With ws.Cells(1, 2)
         .Value = "CALL OUT ROSTER"
         .Font.Name = DK_FONT_B: .Font.Size = 18: .Font.Color = dkNavy()
@@ -175,13 +177,15 @@ Public Sub DrawDesk()
     Dim info As String
     ' v25.5 (A8): today's shifts - the crews on days and nights - in the header
     info = Format$(Date, "dddd mmm d, yyyy") & "    |    Today: " & DaysCrew(Date) & " on days, " & NightsCrew(Date) & " on nights" & _
-           "    |    Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & "    |    " & kTxt
+           "    |    Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & "    |    " & kTxt & _
+           IIf(nsTxt <> "", "    |    " & nsTxt, "")
     With ws.Cells(2, 2)
         .NumberFormat = "@"
         .Value = info
         .Font.Size = 11: .Font.Color = dkInk()
         .VerticalAlignment = xlCenter
         If kOld Then .Characters(InStr(info, kTxt), Len(kTxt)).Font.Color = dkRed()
+        If nsTxt <> "" Then .Characters(InStr(info, nsTxt), Len(nsTxt)).Font.Color = dkRed()
     End With
 
     ' ---- positions: everything hangs off the top-left of row 3 ----

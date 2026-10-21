@@ -745,6 +745,17 @@ Private Sub btnSubmit_Click()
     Dim sessionID As String, summary As String, shortSummary As String
     If Not SubmitCalloutSession(mDept, mShiftLbl, mShift, mDate, mHours, mEntries, mTaken, mCount, sessionID, summary, shortSummary) Then Exit Sub   ' form keeps its entries so nothing is lost
     ShowBarText Replace(summary, vbNewLine, "  |  ")
+    If gSaveFailedAt > 0 Then
+        ' v26.5.5 (A1): the rows are in the OT Log but the file did not save. The entries stay on screen
+        ' so nothing is lost from view; SUBMIT is locked so they can't be logged twice. File > Save is the way out.
+        MsgBox shortSummary, vbCritical, "Session " & sessionID & " logged - NOT SAVED"
+        btnSubmit.Enabled = False
+        SetOutcomeButtons False
+        C("lblStatus").ForeColor = RGB(190, 30, 30)
+        C("lblStatus").Caption = "NOT SAVED to disk. Try File > Save now. Session " & sessionID & " is logged in the workbook: " & _
+                                 "don't enter these outcomes again. Close this box when the save has gone through."
+        Exit Sub
+    End If
     MsgBox shortSummary, vbInformation, "Session " & sessionID & " submitted"
 
     ResetForm

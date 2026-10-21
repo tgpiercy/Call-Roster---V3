@@ -421,7 +421,7 @@ Private Sub Finished(ByVal msg As String)
     C("lblSummary").Caption = ""
     SetActionButtons False
     LoadChoices
-    C("lblStatus").Caption = msg & "   " & C("lblStatus").Caption
+    C("lblStatus").Caption = msg & SaveWarnText() & "   " & C("lblStatus").Caption    ' v26.5.5 (A1): a failed save is named on the line
 End Sub
 
 Private Sub SetActionButtons(ByVal on_ As Boolean)

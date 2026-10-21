@@ -180,6 +180,7 @@ Public gSmokeRun As Boolean
 Public gSmokeFolder As String       ' where the publish step writes its scratch members' file
 Public gSmokeSaved As String        ' ...and the file it wrote ("" = it didn't)
 Public gSmokeRefusal As String      ' v25: why the publish refused (the box it would have shown), for SmokeTest's planted-word step
+Public gSaveFailedAt As Date        ' v26.5.5 (A1): when the last save to disk FAILED (0 = the last save went through); the Desk header shows it
 
 
 ' ====================================================================
@@ -1200,7 +1201,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     Next i
 
     If Not AppendLogRows(data) Then Exit Function     ' the caller keeps its entries so nothing is lost
-    SaveIfWritable
+    Dim savedOk As Boolean: savedOk = SaveIfWritable()     ' v26.5.5 (A1): a failed save is in the summary; the rows ARE in the log
 
     ' accepted -> onto the calendar
     Dim calTxt As String, accShort As String
@@ -1229,6 +1230,11 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
               "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
               "  Total charged: " & HoursText(totalCharged) & " hrs" & _
               IIf(calTxt <> "", vbNewLine & vbNewLine & "Calendar:" & calTxt, "")
+    If Not savedOk Then                                ' v26.5.5 (A1): logged in the workbook, NOT on disk
+        shortSummary = "NOT SAVED TO DISK - try File > Save now. These entries are logged in the workbook; do not log them again." & _
+                       vbNewLine & shortSummary
+        summary = "NOT SAVED TO DISK." & vbNewLine & summary
+    End If
     SubmitCalloutSession = True
 End Function
 
@@ -1324,19 +1330,55 @@ Public Sub ClearNoSave()
     On Error GoTo 0
 End Sub
 
-Public Sub SaveIfWritable()
-    If gSmokeRun Then Exit Sub                     ' v24.2: SmokeTest never saves
+' Saves the workbook after a write. True = saved (or nothing to save: a read-only copy, SmokeTest).
+' v26.5.5 (A1): a save that FAILS is reported, never swallowed. Until now the Save sat under
+' On Error Resume Next: a locked file or a dropped share left the pop-up saying "submitted!"
+' with nothing on disk. Excel's Save raises on most failures; when Workbook_BeforeSave refuses
+' it (a stale copy, item A2) it comes back quietly with Saved still False, so both are tested.
+' The callers that log something keep what they logged on screen when this returns False.
+Public Function SaveIfWritable() As Boolean
+    If gSmokeRun Then SaveIfWritable = True: Exit Function          ' v24.2: SmokeTest never saves
     If NoSave() Then
         MsgBox "Not saved - saving is blocked because an earlier check failed in this session." & vbNewLine & _
-               "Close WITHOUT saving and reopen.", vbExclamation
-        Exit Sub
+               "Close WITHOUT saving and reopen.", vbExclamation, "Not saved"
+        Exit Function
     End If
-    If Not ThisWorkbook.ReadOnly Then
-        On Error Resume Next
-        ThisWorkbook.Save
-        On Error GoTo 0
+    If ThisWorkbook.ReadOnly Then SaveIfWritable = True: Exit Function
+    Dim en As Long, em As String, before As Date, after As Date
+    On Error Resume Next
+    before = FileDateTime(ThisWorkbook.FullName)
+    Err.Clear
+    ThisWorkbook.Save
+    en = Err.Number: em = Err.Description
+    after = FileDateTime(ThisWorkbook.FullName)
+    On Error GoTo 0
+    If en = 0 And ThisWorkbook.Saved Then NoteSaveResult True: SaveIfWritable = True: Exit Function
+    If NoSave() Then Exit Function                                  ' BeforeSave refused it and said why (a stale copy)
+    If en = 0 And before > 0 And after > before Then                ' written; something dirtied the workbook again after the save
+        NoteSaveResult True: SaveIfWritable = True: Exit Function
+    End If
+    NoteSaveResult False
+    If em = "" Then em = "the file on disk did not change"
+    LogError "SaveIfWritable", en, em
+    MsgBox "NOT SAVED to disk (" & em & ")." & vbNewLine & vbNewLine & _
+           "Don't close Excel. Try File > Save now; if that fails, tell " & PRIMARY_ADMIN_NAME & "." & vbNewLine & _
+           "What you logged is in this workbook until it is saved.", vbCritical, "Not saved"
+End Function
+
+' v26.5.5 (A1): every save's result lands here (SaveIfWritable, and Workbook_AfterSave for a File > Save by hand),
+' so the Desk header can say "Not saved since 3:14 AM" until a save goes through
+Public Sub NoteSaveResult(ByVal ok As Boolean)
+    If ok Then
+        gSaveFailedAt = 0
+    ElseIf gSaveFailedAt = 0 Then
+        gSaveFailedAt = Now
     End If
 End Sub
+
+' The warning the pop-ups add to their success line after a failed save ("" when the save went through)
+Public Function SaveWarnText() As String
+    If gSaveFailedAt > 0 Then SaveWarnText = "   NOT SAVED to disk - File > Save now."
+End Function
 
 ' UserInterfaceOnly lets macros edit while users can't. It is not saved
 ' with the file, so Workbook_Open re-applies it every session.

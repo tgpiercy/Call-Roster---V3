@@ -81,6 +81,7 @@ End Sub
 
 Private Sub Workbook_AfterSave(ByVal Success As Boolean)
     On Error Resume Next
+    If Success Then NoteSaveResult True            ' v26.5.5 (A1): a File > Save by hand clears the Desk's "Not saved since" line
     If mRestoreAdmin Then
         mRestoreAdmin = False
         ApplyView True, mRestoreDesk               ' v25.3: the Desk view comes back as it was
@@ -109,7 +110,27 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
     RosterSheet().Activate
     DeskZoomReset                          ' v25.3: a Desk user's 120 % is not saved for everyone
     mRestoreAdmin = False
+    Dim en As Long, em As String
+    Err.Clear
     ThisWorkbook.Save
+    en = Err.Number: em = Err.Description
+    If en <> 0 Or Not ThisWorkbook.Saved Then
+        ' v26.5.5 (A1): a close that could not save is REPORTED and cancelled (the file stayed as it was on disk).
+        ' BeforeSave refusing a stale copy (A2) has already said "close WITHOUT saving": that close goes through, unsaved.
+        If NoSave() Then
+            ThisWorkbook.Saved = True
+        Else
+            If em = "" Then em = "the file on disk did not change"
+            LogError "Workbook_BeforeClose", en, em
+            NoteSaveResult False
+            Cancel = True
+            ApplyView IsAdmin(), IsDeskUser()      ' the view as it was before the close started
+            SetShortcuts True
+            MsgBox "NOT SAVED to disk (" & em & ")." & vbNewLine & vbNewLine & _
+                   "Don't close Excel. Try File > Save now; if that fails, tell " & PRIMARY_ADMIN_NAME & "." & vbNewLine & _
+                   "Everything logged this session is in this workbook until it is saved.", vbCritical, "Not saved"
+        End If
+    End If
     On Error GoTo 0
 End Sub
 

@@ -254,7 +254,7 @@ Sub SyncKronosData()
     Dim fileDate As Date, lastFileDate As Date, pivotDate As Date, awaitFrom As Date: awaitFrom = KronosAwaitFrom()
     Dim tablesTouched As Boolean                      ' (review H2 / M5): once a report is in the tables, an exit without the H write blocks the save
     mIngested = 0: mClashes = ""
-    Set mClashNames = CreateObject("Scripting.Dictionary"): mClashNames.CompareMode = 1
+    Set mClashNames = HeldClashNames()                   ' (review R1): the clashes earlier runs found, until a year-to-date report clears them
     Application.EnableCancelKey = xlErrorHandler      ' v26.5.5 (A3): Esc lands in Oops, never mid-write (review M5: before the table writes too)
     For fi = LBound(files) To UBound(files)
         srcPath = CStr(files(fi))
@@ -288,7 +288,7 @@ Sub SyncKronosData()
         If rep.HasTotals And ingest = "" Then
             ' v23: after a rollover nothing is taken until a report reaches the new year
             If awaitFrom > 0 And rep.ToD < awaitFrom Then
-                ingest = "its Time Period ends " & Format$(rep.ToD, "ddd mmm d, yyyy") & ": last year's hours (Worked stays 0 until a report reaches " & Format$(awaitFrom, "mmm d, yyyy") & ")"
+                ingest = "its Time Period ends " & Format$(rep.ToD, "ddd mmm d, yyyy") & ": last year's hours (Worked stays 0 until a report reaches " & Format$(awaitFrom, "mmm d, yyyy") & ") - skipped"
             Else
                 ingest = IngestReport(rep, fileName, stamp, nameMap, numMap)
                 nReports = mIngested: tablesTouched = (mIngested > 0)       ' (review N2 / L2): set by the first table write, not by the text
@@ -312,6 +312,7 @@ Sub SyncKronosData()
         Set wbSource = Nothing: openedHere = False
     Next fi
     ThisWorkbook.Activate
+    If mIngested > 0 Then SaveClashNames                  ' (review R1): remembered for the next run (a one-day report cannot see them)
 
     ' ---- what Worked (H) is read from: the snapshot + ledger once a year-to-date report has been taken (review H5:
     '      one-day reports alone are kept in the ledger but cannot give the year's hours), else the pivot sheet ----
@@ -435,6 +436,7 @@ Sub SyncKronosData()
             End If
             If hit = "~clash~" Then
                 nameClash = nameClash & "  " & nm & "   (a Kronos row's Payroll # and name point at two roster people)" & vbNewLine
+                If FindKey(dict, alt, NameKey(nm)) <> "" Then used(FindKey(dict, alt, NameKey(nm))) = True
             ElseIf hit = "~leave~" Then
                 ' nothing is changed for this row
             ElseIf hit <> "" Then
@@ -647,8 +649,7 @@ Public Sub ClearKronosTables()
     If Not lo Is Nothing Then ReplaceRows lo, outA, 0, KT_NCOLS, "", ""
     Set lo = WorkedDaysTable(False)
     If Not lo Is Nothing Then ReplaceRows lo, outA, 0, WD_NCOLS, "", ""
-    Set lo = KronosFilesTable(False)
-    If Not lo Is Nothing Then ReplaceRows lo, outA, 0, KF_NCOLS, "", ""   ' (review N7): last year's files are not reopened in January
+    ' (review R3) Kronos Files is KEPT: it holds file names only, and emptying it would make January reopen all of last year's
     On Error Resume Next
     ThisWorkbook.Names(KCUM_NAME).Delete
     ThisWorkbook.Names(KLEDGER_NAME).Delete
@@ -754,7 +755,7 @@ Private Function KnownSources() As Object
     v = TableRows(KronosFilesTable(False))                   ' (review N7): every file read before, taken or skipped
     If IsArray(v) Then
         For i = 1 To UBound(v, 1)
-            If Trim$(SafeStr(v(i, 1))) <> "" Then d(Trim$(SafeStr(v(i, 1)))) = True
+            If Trim$(SafeStr(v(i, 1))) <> "" And LCase$(Left$(Trim$(SafeStr(v(i, 1))), 7)) <> "clash: " Then d(Trim$(SafeStr(v(i, 1)))) = True
         Next i
     End If
     v = TableRows(WorkedDaysTable(False))
@@ -791,6 +792,43 @@ Private Sub RecordKronosFile(ByVal fileName As String, ByVal result As String, B
     outA(r, 1) = fileName: outA(r, 2) = Left$(result, 250)
     outA(r, 3) = IIf(rep.FromD > 0, Format$(rep.FromD, "yyyy-mm-dd") & " - " & Format$(rep.ToD, "yyyy-mm-dd"), "")
     outA(r, 4) = Now
+    ReplaceRows lo, outA, r, KF_NCOLS, "", "4"
+End Sub
+
+' (review R1) the clash names held in Kronos Files as "clash: <name>" rows (KnownSources ignores them: not file names)
+Private Function HeldClashNames() As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary"): d.CompareMode = 1
+    Set HeldClashNames = d
+    Dim v As Variant: v = TableRows(KronosFilesTable(False))
+    Dim i As Long, f As String
+    If Not IsArray(v) Then Exit Function
+    For i = 1 To UBound(v, 1)
+        f = Trim$(SafeStr(v(i, 1)))
+        If LCase$(Left$(f, 7)) = "clash: " Then d(Trim$(Mid$(f, 8))) = True
+    Next i
+End Function
+
+' The current clash set written back: the old "clash: " rows replaced by this run's
+Private Sub SaveClashNames()
+    Dim lo As ListObject: Set lo = KronosFilesTable(True)
+    If lo Is Nothing Then Exit Sub
+    Dim v As Variant: v = TableRows(lo)
+    Dim n As Long, i As Long, r As Long, kk As Variant
+    If IsArray(v) Then n = UBound(v, 1)
+    Dim outA() As Variant: ReDim outA(1 To n + mClashNames.Count + 1, 1 To KF_NCOLS)
+    If IsArray(v) Then
+        For i = 1 To n
+            If LCase$(Left$(Trim$(SafeStr(v(i, 1))), 7)) <> "clash: " Then
+                r = r + 1
+                outA(r, 1) = v(i, 1): outA(r, 2) = v(i, 2): outA(r, 3) = v(i, 3): outA(r, 4) = v(i, 4)
+            End If
+        Next i
+    End If
+    For Each kk In mClashNames.Keys
+        r = r + 1
+        outA(r, 1) = "clash: " & kk: outA(r, 2) = "a Kronos row's Payroll # and name point at two roster people: Worked left alone (Employee > Rename, or fix column A); cleared by the next clean year-to-date import"
+        outA(r, 3) = "": outA(r, 4) = Now
+    Next kk
     ReplaceRows lo, outA, r, KF_NCOLS, "", "4"
 End Sub
 
@@ -981,6 +1019,7 @@ Private Function IngestReport(ByRef rep As KronosReport, ByVal srcName As String
     Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary"): payOf.CompareMode = 1   ' name -> Payroll #
     Dim i As Long, nm As String, key As String, nPeople As Long, other As String, nOther As Long, m As Double
     mClashes = ""
+    If kind = "cumulative" Then Set mClashNames = CreateObject("Scripting.Dictionary"): mClashNames.CompareMode = 1   ' (review R1): the year to date is the truth about clashes
     For i = 1 To rep.nTot
         nm = RosterNameFor(rep.TotId(i), rep.TotName(i), nameMap, numMap)
         If nm <> "" Then
@@ -1389,14 +1428,22 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
     Dim i As Long, nm As String, k As String, pk As String, w As Double, d As Date
     Dim yearFrom As Date: yearFrom = RosterYearFrom()
     Dim lf As Date: lf = KronosLedgerFrom()
-    Dim dayStamp As Object: Set dayStamp = CreateObject("Scripting.Dictionary")   ' (review N5): day -> when its ledger rows were imported
-    If IsArray(v) Then
-        For i = 1 To UBound(v, 1)
-            If IsDate(v(i, 3)) And IsDate(v(i, 8)) Then
-                If Not dayStamp.Exists(CLng(Int(CDbl(CDate(v(i, 3)))))) Then dayStamp.Add CLng(Int(CDbl(CDate(v(i, 3))))), CDbl(CDate(v(i, 8))) _
-                Else If CDbl(CDate(v(i, 8))) > dayStamp(CLng(Int(CDbl(CDate(v(i, 3)))))) Then dayStamp(CLng(Int(CDbl(CDate(v(i, 3)))))) = CDbl(CDate(v(i, 8)))
+    Dim dayStamp As Object: Set dayStamp = CreateObject("Scripting.Dictionary")   ' (review N5 / R2): day -> when it was last RE-imported (a "day" change row)
+    Dim cv As Variant: cv = TableRows(WorkedChangesTable(False))
+    Dim ck As Long
+    If IsArray(cv) Then
+        For i = 1 To UBound(cv, 1)
+            If LCase$(Trim$(SafeStr(cv(i, 10)))) = "day" And IsDate(cv(i, 4)) And IsDate(cv(i, 1)) Then
+                ck = CLng(Int(CDbl(CDate(cv(i, 4)))))
+                If Not dayStamp.Exists(ck) Then
+                    dayStamp.Add ck, CDbl(CDate(cv(i, 1)))
+                ElseIf CDbl(CDate(cv(i, 1))) > dayStamp(ck) Then
+                    dayStamp(ck) = CDbl(CDate(cv(i, 1)))
+                End If
             End If
         Next i
+    End If
+    If IsArray(v) Then
         For i = 1 To UBound(v, 1)
             nm = Trim$(SafeStr(v(i, 2)))
             If nm <> "" And IsDate(v(i, 3)) Then
@@ -1437,12 +1484,13 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
     If lf > 0 Then RebuildWorkedPeriods = RebuildWorkedPeriods & " Exact from " & Format$(lf, "mmm d, yyyy") & " (the first one-day report); earlier periods are not available."
 End Function
 
-' (review N5) True when the ledger rows of day d were imported after the moment whenV (an edit row's When)
+' (review N5 / R2) True when day d was RE-imported (a "day" change row) at or after the moment whenV (an edit row's When):
+' that re-import already holds the edited figure. A day first imported after the edit is not a re-import.
 Private Function DayReimportedAfter(ByVal dayStamp As Object, ByVal d As Date, ByVal whenV As Variant) As Boolean
     Dim key As Long: key = CLng(Int(CDbl(d)))
     If Not dayStamp.Exists(key) Then Exit Function
     If Not IsDate(whenV) Then Exit Function
-    DayReimportedAfter = (CDbl(dayStamp(key)) > CDbl(CDate(whenV)))
+    DayReimportedAfter = (CDbl(dayStamp(key)) >= CDbl(CDate(whenV)))
 End Function
 
 ' name -> "Refused|sum of the pay-period cells": what a Kronos import must leave untouched (RosterTotalsMap without Total,

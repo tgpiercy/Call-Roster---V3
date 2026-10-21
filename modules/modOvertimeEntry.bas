@@ -181,6 +181,7 @@ Public gSmokeFolder As String       ' where the publish step writes its scratch 
 Public gSmokeSaved As String        ' ...and the file it wrote ("" = it didn't)
 Public gSmokeRefusal As String      ' v25: why the publish refused (the box it would have shown), for SmokeTest's planted-word step
 Public gSaveFailedAt As Date        ' v26.5.5 (A1): when the last save to disk FAILED (0 = the last save went through); the Desk header shows it
+Public gOpenedMtime As Date         ' v26.5.5 (A2): the file's on-disk time at open and after every own save (0 = not readable: the guard is off)
 
 
 ' ====================================================================
@@ -1363,6 +1364,41 @@ Public Function SaveIfWritable() As Boolean
     MsgBox "NOT SAVED to disk (" & em & ")." & vbNewLine & vbNewLine & _
            "Don't close Excel. Try File > Save now; if that fails, tell " & PRIMARY_ADMIN_NAME & "." & vbNewLine & _
            "What you logged is in this workbook until it is saved.", vbCritical, "Not saved"
+End Function
+
+' ---- v26.5.5 (A2): a stale copy blocks the save ----
+' Two supervisors can open the roster minutes apart (the second gets it writable when the first has
+' closed, or through a dropped lock). Whoever saves second would overwrite the first one's entries.
+' Workbook_Open records the file's on-disk time; every own save records it again (Workbook_AfterSave);
+' Workbook_BeforeSave compares. A changed time means someone else saved meanwhile: the save is refused,
+' saving is blocked for the session (MarkNoSave) and the box says to close WITHOUT saving and reopen.
+' A read-only copy, SmokeTest, and a file whose time can't be read (an http path) are not guarded.
+Public Sub RecordDiskStamp()
+    gOpenedMtime = 0
+    On Error Resume Next
+    If ThisWorkbook.Path <> "" And LCase$(Left$(ThisWorkbook.Path, 4)) <> "http" Then gOpenedMtime = FileDateTime(ThisWorkbook.FullName)
+    On Error GoTo 0
+End Sub
+
+' True when the file on disk was saved by someone else since this session opened or last saved it
+Public Function StaleOnDisk(ByRef savedAt As Date) As Boolean
+    savedAt = 0
+    If gOpenedMtime = 0 Or gSmokeRun Or ThisWorkbook.ReadOnly Then Exit Function
+    On Error Resume Next
+    savedAt = FileDateTime(ThisWorkbook.FullName)
+    If Err.Number <> 0 Then savedAt = 0
+    On Error GoTo 0
+    If savedAt = 0 Then Exit Function                   ' the file is unreachable right now: the save itself will say so (A1)
+    StaleOnDisk = (Abs(CDbl(savedAt) - CDbl(gOpenedMtime)) > 2 / 86400#)      ' two seconds: a share's time rounding
+End Function
+
+' SystemCheck's line
+Public Function DiskStampText() As String
+    If gOpenedMtime = 0 Then
+        DiskStampText = "Stale-copy guard: off (the file's time can't be read here)"
+    Else
+        DiskStampText = "Stale-copy guard: on (file last saved " & Format$(gOpenedMtime, "ddd mmm d h:mm:ss AM/PM") & ")"
+    End If
 End Function
 
 ' v26.5.5 (A1): every save's result lands here (SaveIfWritable, and Workbook_AfterSave for a File > Save by hand),

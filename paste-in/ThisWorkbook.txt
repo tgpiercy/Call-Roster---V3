@@ -17,6 +17,7 @@ Private Sub Workbook_Open()
     On Error Resume Next
     Application.ScreenUpdating = True
     ThisWorkbook.Saved = True
+    RecordDiskStamp                    ' v26.5.5 (A2): the file's on-disk time; a save finds it changed = someone else saved meanwhile
     OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
     SetShortcuts True                  ' v25.5: Ctrl+Shift+S / C / K / D while this workbook is active (modUI)
     WhatsNewOnOpen                     ' v25.5: the what's-new box once per login per release (modSystem) - last, on a painted screen (review)
@@ -64,8 +65,17 @@ End Function
 Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     If NoSave() Then
         Cancel = True
-        MsgBox "Saving is blocked because the roster conversion failed verification." & vbNewLine & _
-               "Close this workbook without saving and restore from the backup.", vbCritical
+        MsgBox "Saving is blocked: a check failed earlier in this session, or the file changed on disk while you had it open." & vbNewLine & _
+               "Close this workbook WITHOUT saving and reopen it (after a failed conversion: restore from the backup).", vbCritical, "Not saved"
+        Exit Sub
+    End If
+    Dim savedAt As Date                            ' v26.5.5 (A2): someone else saved this file since it was opened here
+    If StaleOnDisk(savedAt) Then
+        Cancel = True
+        MarkNoSave
+        MsgBox "Someone else saved this file at " & Format$(savedAt, "h:mm AM/PM") & " while you had it open." & vbNewLine & vbNewLine & _
+               "Close WITHOUT saving, reopen, and log your entry again. Nothing you did here was written to the file.", _
+               vbCritical, "Not saved - the file changed"
         Exit Sub
     End If
     On Error Resume Next
@@ -82,6 +92,7 @@ End Sub
 Private Sub Workbook_AfterSave(ByVal Success As Boolean)
     On Error Resume Next
     If Success Then NoteSaveResult True            ' v26.5.5 (A1): a File > Save by hand clears the Desk's "Not saved since" line
+    If Success Then RecordDiskStamp                ' v26.5.5 (A2): our own save is the new on-disk time
     If mRestoreAdmin Then
         mRestoreAdmin = False
         ApplyView True, mRestoreDesk               ' v25.3: the Desk view comes back as it was

@@ -158,6 +158,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     If IntegrityStatusText() <> "" Then info = info & IntegrityStatusText() & vbNewLine
     If IntegrityHasProblems() Then warn = warn & "- the integrity check found problems: run IntegrityCheck" & vbNewLine
     info = info & KronosStatusText() & vbNewLine
+    info = info & DiskStampText() & vbNewLine      ' v26.5.5 (A2)
     If KronosIsStale() Then warn = warn & "- Kronos data is old: run Import Kronos" & vbNewLine
     info = info & DataThroughText() & vbNewLine
     If RosterLastRow() >= R_FIRST And Not ProvisionalLive() Then

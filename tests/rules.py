@@ -1148,6 +1148,18 @@ def fatigue_problem(worked_before: float, hours_offered: float, hours_to_next: f
     return "16 h rule" if hours_offered > fatigue_max_hours(worked_before, hours_to_next) + 0.001 else ""
 
 
+def next_step_text(n_accepted: int, partial_hours: float, n_left_msg: int, is_admin: bool, admin_name: str) -> str:
+    """modOvertimeEntry.NextStepText (v26.5.5, B13): the last line of a submitted call-out session."""
+    if n_accepted == 0:
+        return ("The line stays OPEN on the calendar. Next: "
+                + ("call back later (Fill a shift now shows ? beside them), " if n_left_msg > 0 else "")
+                + "post the shift, or "
+                + ("award out of department." if is_admin else f"ask {admin_name} to award out of department."))
+    if partial_hours > 0:
+        return f"The shift is closed at {hours_text(partial_hours)} h; the rest is dropped, nobody charged."
+    return "The line is covered on the calendar."
+
+
 def owed_status_text(days: int, warn_days: int) -> str:
     """modShiftSwitch.OwedStatusText (v26): the Needs Attention status for a payback owed `days` days."""
     if days <= warn_days:

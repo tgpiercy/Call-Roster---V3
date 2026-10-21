@@ -1270,12 +1270,36 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
               "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
               "  Total charged: " & HoursText(totalCharged) & " hrs" & _
               IIf(calTxt <> "", vbNewLine & vbNewLine & "Calendar:" & calTxt, "")
+    ' v26.5.5 (B13): what to do next, from the outcome (a partial acceptance closed the shift; nobody = the line stays open)
+    Dim partHrs As Double
+    For i = 1 To n
+        If entries(i).Outcome = "Accepted" And taken(i) > 0 Then partHrs = taken(i)
+    Next i
+    Dim nextTxt As String: nextTxt = NextStepText(nAcc, partHrs, nMsg, IsAdmin(), PRIMARY_ADMIN_NAME)
+    shortSummary = shortSummary & vbNewLine & nextTxt
+    summary = summary & vbNewLine & vbNewLine & nextTxt
     If Not savedOk Then                                ' v26.5.5 (A1): logged in the workbook, NOT on disk
         shortSummary = "NOT SAVED TO DISK - try File > Save now. These entries are logged in the workbook; do not log them again." & _
                        vbNewLine & shortSummary
         summary = "NOT SAVED TO DISK." & vbNewLine & summary
     End If
     SubmitCalloutSession = True
+End Function
+
+' v26.5.5 (B13): the last line of a submitted session - what happens to the line and what to do next.
+' PURE (SelfTest "nextstep"; mirrored in tests/rules.py). partialHours > 0 = someone took part of the hours
+' (the shift closed, v25 D-E4); nAccepted = 0 = the line stays open.
+Public Function NextStepText(ByVal nAccepted As Long, ByVal partialHours As Double, ByVal nLeftMsg As Long, _
+                             ByVal isAdminUser As Boolean, ByVal adminName As String) As String
+    If nAccepted = 0 Then
+        NextStepText = "The line stays OPEN on the calendar. Next: " & _
+                       IIf(nLeftMsg > 0, "call back later (Fill a shift now shows ? beside them), ", "") & _
+                       "post the shift, or " & IIf(isAdminUser, "award out of department.", "ask " & adminName & " to award out of department.")
+    ElseIf partialHours > 0 Then
+        NextStepText = "The shift is closed at " & HoursText(partialHours) & " h; the rest is dropped, nobody charged."
+    Else
+        NextStepText = "The line is covered on the calendar."
+    End If
 End Function
 
 

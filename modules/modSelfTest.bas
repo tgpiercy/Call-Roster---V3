@@ -215,6 +215,8 @@ Private Function RunCase(f() As String) As String
         Case "minstaff"                            ' v26: scheduled, off, covered, minimum -> ok / SHORT staffed/minimum
             RunCase = StaffShort(CLng(Val(i1)), CLng(Val(i2)), CLng(Val(i3)), CLng(Val(i4)))
             If RunCase = "" Then RunCase = "ok"
+        Case "nextstep"                            ' v26.5.5: accepted, partial hours, left messages, admin Y/N, admin name -> the last line (; for ,)
+            RunCase = Replace(NextStepText(CLng(Val(i1)), CDbl(Val(i2)), CLng(Val(i3)), (i4 = "Y"), i5), ",", ";")
         Case "fatigue"                             ' v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
             RunCase = FatigueProblem(CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)))
             If RunCase = "" Then RunCase = "ok"
@@ -1559,5 +1561,12 @@ Private Sub LoadCases()
     AddCase "shiftdate,7pm-is-today,2026-10-20,19:00,,,,2026-10-20"
     AddCase "shiftdate,2359-is-today,2026-10-20,23:59,,,,2026-10-20"
     AddCase "shiftdate,jan-1-before-7,2027-01-01,02:00,,,,2026-12-31"
+    AddCase "nextstep,nobody-with-messages-supervisor,0,0,2,N,Graeme,The line stays OPEN on the calendar. Next: call back later (Fill a shift now shows ? beside them); post the shift; or ask Graeme to award out of department."
+    AddCase "nextstep,nobody-no-messages-admin,0,0,0,Y,Graeme,The line stays OPEN on the calendar. Next: post the shift; or award out of department."
+    AddCase "nextstep,nobody-no-messages-supervisor,0,0,0,N,Graeme,The line stays OPEN on the calendar. Next: post the shift; or ask Graeme to award out of department."
+    AddCase "nextstep,partial-8,1,8,0,N,Graeme,The shift is closed at 8 h; the rest is dropped; nobody charged."
+    AddCase "nextstep,partial-4.5,1,4.5,1,Y,Graeme,The shift is closed at 4.5 h; the rest is dropped; nobody charged."
+    AddCase "nextstep,filled,1,0,1,N,Graeme,The line is covered on the calendar."
+    AddCase "nextstep,two-accepted,2,0,0,Y,Graeme,The line is covered on the calendar."
 ' <<< CASES
 End Sub

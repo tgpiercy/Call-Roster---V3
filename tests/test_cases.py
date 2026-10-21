@@ -260,6 +260,8 @@ def evaluate(row: dict) -> str:
         return "counts" if rules.refused_counts(d(i1), d(i2)) else "waits"
     if suite == "minstaff":                      # v26: scheduled, off, covered, minimum -> '' (shown as ok) / SHORT staffed/minimum
         return rules.staff_short(int(i1), int(i2), int(i3), int(i4)) or "ok"
+    if suite == "nextstep":                      # v26.5.5: accepted, partial hours, left messages, admin Y/N, admin name -> the last line (; for ,)
+        return rules.next_step_text(int(i1), float(i2 or 0), int(i3), i4 == "Y", i5).replace(",", ";")
     if suite == "fatigue":                       # v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
         mx = rules.fatigue_max_hours(float(i1), float(i3))
         return (rules.fatigue_problem(float(i1), float(i2), float(i3)) or "ok") + "|" + (str(int(mx)) if mx == int(mx) else str(mx))

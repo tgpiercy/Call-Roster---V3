@@ -878,7 +878,10 @@ End Sub
 ' ---- 8. Kronos ----
 Private Sub CheckKronos()
     If KronosIsStale() Then AddIssue SEV_WARN, "Kronos", KronosStatusText(), "Run Import Kronos"
-    ' v27 (briefs/v27-kronos.md): Worked (H) must be what the Kronos Totals snapshot + the Worked Days ledger give
+    ' v27 (briefs/v27-kronos.md): Worked (H) must be what the Kronos Totals snapshot + the Worked Days ledger give -
+    ' once a year-to-date report has been taken this year (review N3: one-day reports alone, or a January before
+    ' the first report, give H nothing to be compared with)
+    If KronosCumThrough() < RosterYearFrom() Or KronosCumThrough() = 0 Then Exit Sub
     Dim through As Date, piv As Variant
     piv = PivotFromLedger(through)
     If UBound(piv, 1) < 2 Then Exit Sub                     ' no report imported yet: the pivot sheet fed H, nothing to compare

@@ -963,7 +963,7 @@ Private Function SmkKronosHeadings(ByRef st As SmkState, ByRef why As String) As
     rp(4, 1) = "Transactions:"
     rp(5, 1) = "Global ID": rp(5, 4) = "Employee": rp(5, 6) = "Date": rp(5, 7) = "Day": rp(5, 8) = "Pay Code": rp(5, 9) = "Earnings Amount": rp(5, 10) = "Hours": rp(5, 11) = "Wages": rp(5, 12) = "Edited By"
     rp(6, 1) = "12345678": rp(6, 4) = "Test, Someone": rp(6, 6) = DateSerial(2026, 3, 2): rp(6, 7) = "Mon": rp(6, 8) = "CA OVERTIME": rp(6, 9) = 0: rp(6, 10) = 12: rp(6, 11) = 0: rp(6, 12) = "Editor, Some"
-    rp(7, 1) = "12345678": rp(7, 4) = "Test, Someone": rp(7, 6) = DateSerial(2026, 3, 2): rp(7, 7) = "Mon": rp(7, 8) = "CA OVERTIME": rp(7, 9) = 0: rp(7, 10) = -12: rp(7, 11) = 0: rp(7, 12) = "Editor, Some"
+    rp(7, 1) = "12345678": rp(7, 4) = "Test, Someone": rp(7, 6) = DateSerial(2026, 3, 2): rp(7, 7) = "Mon": rp(7, 8) = "CA OVERTIME": rp(7, 9) = 0: rp(7, 10) = -3: rp(7, 11) = 0: rp(7, 12) = "Editor, Some"   ' +12 and -3: summed they would show (review L1)
     rp(8, 1) = "Totals:"
     rp(9, 1) = "Global ID": rp(9, 4) = "Employee": rp(9, 6) = "Pay Code": rp(9, 7) = "Earnings Amount": rp(9, 8) = "Hours": rp(9, 9) = "Wages"
     rp(10, 1) = "12345678": rp(10, 4) = "Test, Someone": rp(10, 6) = "CA OVERTIME": rp(10, 7) = 0: rp(10, 8) = 40: rp(10, 9) = 0

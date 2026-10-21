@@ -90,7 +90,7 @@ End Sub
 ' INITIALIZE
 ' ================================================================
 Private Sub UserForm_Initialize()
-    Me.Width = Px(500): Me.Height = Px(615)          ' 615: the status line's bottom (579) sits inside the frame (review)
+    Me.Width = Px(500): Me.Height = Px(615)          ' 615: the status line's bottom (587) sits inside the frame (review)
     Me.Caption = "Call-out session"
 
     ' ---- the shift ----

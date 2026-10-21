@@ -1496,6 +1496,7 @@ Public Function SaveIfWritable() As Boolean
         MsgBox "NOT SAVED to disk (" & em & ")." & vbNewLine & vbNewLine & _
                "Don't close Excel. Close the pop-up, then File > Save; if that fails, tell " & PRIMARY_ADMIN_NAME & "." & vbNewLine & _
                "What you logged is in this workbook until it is saved.", vbCritical, "Not saved"
+        mSaveBoxAt = Now                           ' (final check) the window runs from when the box was CLOSED, not opened
     End If
 End Function
 

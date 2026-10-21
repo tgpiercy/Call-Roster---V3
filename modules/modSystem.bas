@@ -23,18 +23,18 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v26.5 (Oct 19)"
-Public Const EXPECTED_RELEASE As String = "v26.5"
+Public Const SYS_VERSION As String = "System v26.5.5 (Oct 21)"
+Public Const EXPECTED_RELEASE As String = "v26.5.5"
 ' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
-Public Const WHATS_NEW As String = "Nothing on the roster is typed into any more: double-click a person's row (or click it and press Employee) and the Employee pop-up opens on Edit with their details; Worked comes from the Kronos import.|" & _
-                                   "Refused counts the pay periods up to the current one: a posting refusal for a shift in a later period shows in that period's column and starts counting when the period begins. The short flag counts every unit.|" & _
-                                   "Members: My history shows per pay period the charged hours, the posting refusals, the call-out refusals and the premium hours worked (from the Kronos export); electronic sign-ups are on; the printed month calendar is the members' copy."
+Public Const WHATS_NEW As String = "The 16 h rule: OT already accepted, an award or a switch on the shift that touches the one on offer counts as worked time, so the call-out and award pop-ups show max N h beside anyone who can only take part (A or a full award is refused; P and a partial sign-up up to the max are fine).|" & _
+                                   "Before 7 AM the date box is yesterday (the night under way); the Hours box fills itself; a sick call asks before it saves; every submitted session ends with what to do next; the keys say what they cost (R and L charged x1.75, U not charged); the trust strip on every pop-up and printout says how current the hours are.|" & _
+                                   "A save that fails is REPORTED (NOT SAVED in red on the Desk until it goes through) and a file someone else saved meanwhile refuses to be overwritten; Practice on a copy (Desk > HELP) opens a throw-away copy with a red banner."
 Private Const N_MODULES As Long = 25           ' v24.4: + modSmoke; v25.3: + modDesk
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v26.5"
+Private Const THISWB_RELEASE As String = "v26.5.5"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v25.5,frmNewPosting|v25.5,frmPostingEntry|v25.5,frmShiftSwitch|v25.5," & _
-                                        "frmTimeOff|v25.5,frmLeave|v26.5,frmSickCall|v25.5,frmConvert|v25.5,frmEmployee|v26.5"   ' v25.5: every form re-pasted (UI_SCALE); v26.5: frmEmployee (Edit), frmLeave (a message) and ThisWorkbook (the roster double-click)
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v26.5.5,frmNewPosting|v26.5.5,frmPostingEntry|v26.5.5,frmShiftSwitch|v26.5.5," & _
+                                        "frmTimeOff|v26.5.5,frmLeave|v26.5.5,frmSickCall|v26.5.5,frmConvert|v26.5.5,frmEmployee|v26.5"   ' v26.5.5: every form but frmEmployee re-pasted (a title on every box; the call-out, sick-call, posting and award pop-ups changed), ThisWorkbook too (save guard, stale copy, practice banner)
 
 Private mBackupWarned As Boolean
 

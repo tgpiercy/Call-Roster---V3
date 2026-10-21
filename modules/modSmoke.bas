@@ -13,7 +13,7 @@ Option Explicit
 '  through the pop-up's own code, as a click would.
 ' ====================================================================
 
-Public Const SMO_VERSION As String = "Smoke openers v26.5 (Oct 19)"
+Public Const SMO_VERSION As String = "Smoke openers v26.5.5 (Oct 21)"
 
 ' Log Call-Out, pre-filled (unit, date, Days / Nights)
 Public Sub SmokeCallout(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String)

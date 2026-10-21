@@ -26,7 +26,7 @@ Option Explicit
 '  ordinary view with the Desk sheet in front.
 ' ====================================================================
 
-Public Const DESK_VERSION As String = "Desk v26.5 (Oct 19)"
+Public Const DESK_VERSION As String = "Desk v26.5.5 (Oct 21)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
 Public Const HELP_SHEET As String = "Help"           ' v25.5: the Help sheet (ShowHelp / DrawHelp below)
@@ -880,12 +880,16 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Log a call-out (fill a shift now)", _
         "Click Fill a shift now (or Log Call-Out on the roster's bar). Pick the Department, Shift and Date, type the Hours and " & _
         "click LOAD LIST: the list is in call order and holds only the people free for that shift. The card shows who to call " & _
-        "and their phone; press A (accepted), R (refused), L (left message) or U (unavailable: pick the reason, Enter records " & _
-        "it) - or click the button - and the next person comes up. K skips for now, B goes back one, P is part of the hours, " & _
-        "Call back goes down the left-message pile. When the shift is filled press Enter or click SUBMIT ALL ENTRIES and note " & _
-        "the session number (S-0012). Refused and Left Message are charged for grade 2 " & _
-        "and below; >> means above grade 2 (called, never charged); * means the total includes accepted overtime not yet in " & _
-        "Kronos; ~ means an estimate because a unit move is planned for the person."
+        "and their phone; press A (accepted), R (refused, charged x1.75), L (left message, charged x1.75) or U (unavailable, " & _
+        "not charged: pick the reason, Enter records it) - or click the button - and the next person comes up. K skips for " & _
+        "now (Call back), B goes back one, P is part of the hours (that closes the shift). When the shift is filled press Enter " & _
+        "or click SUBMIT ALL ENTRIES and note the session number (S-0012); the box ends with what happens to the line next. " & _
+        "Refused and Left Message are charged for grade 2 and below; >> means above grade 2 (called, never charged); * means " & _
+        "the total includes accepted overtime not yet in Kronos; ~ means an estimate because a unit move is planned for the " & _
+        "person; [max N h] (since v26.5.5) means the 16 h rule leaves them less than the offer - OT they accepted, an award " & _
+        "or a switch touches this shift - so A is refused and P up to that many hours is allowed. Before 7 AM the date box " & _
+        "is yesterday: the night under way is dated by the evening it started. The grey line at the bottom says how current " & _
+        "the worked hours are and when the members' file was last updated."
     HelpAdd h, n, "Someone takes only part of the hours", _
         "Select them and press P (Part of the hours), then enter the hours. That closes the shift: nobody else is called, " & _
         "nobody below is charged, and the pop-up refuses a further Accepted (a refusal or a message already logged can still be " & _
@@ -894,9 +898,11 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Someone called in sick", _
         "Click Someone called in sick (Sick Call on the bar). Pick who called, check the Shift date, Shift, Unit to cover and " & _
         "Hours, and read the line under the Note box: it gives their sick-day counts and whether this shift is a paid sick day. " & _
-        "SAVE + START CALL-OUT books the sick shift and opens the call-out filled in; Save, no call-out books it without a call-out. " & _
-        "The person is off every call list for that shift and any shift starting within 24 hours after it ends. Log each sick " & _
-        "shift as its own sick call. Members see it as Off, never why."
+        "SAVE + START CALL-OUT books the sick shift and opens the call-out filled in (with the hours); Save, no call-out books it " & _
+        "without a call-out. Either way a box reads the booking back first (who, the date and shift, the unit, until when they " & _
+        "are off the lists): Yes books it. The person is off every call list for that shift and any shift starting within 24 " & _
+        "hours after it ends. Log each sick shift as its own sick call. Members see it as Off, never why. Wrong person? Only an " & _
+        "admin can void it: ask " & PRIMARY_ADMIN_NAME & ". Before 7 AM the date box is yesterday (the night under way)."
     HelpAdd h, n, "Post a shift", _
         "Click Post a shift (New Posting on the bar). Fill in Unit, Shift date, Shift, Reason, Hours and Positions; Crew and " & _
         "Posting closes fill in. Leave Print it and Save PDF ticked, click CREATE POSTING, then put up the printed sheet. Sign-up " & _

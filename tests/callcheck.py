@@ -306,10 +306,12 @@ def check_project(files: list[Path], label: str) -> int:
                 return None
 
             # ---- MSGTITLE (v26.5.5): every MsgBox names its title (the third argument) ----
-            for st in stmts:
-                for args in msgbox_args(st):
-                    if len(args) < 3:
-                        say("MSGTITLE", m, p.name, f"MsgBox with {len(args)} argument(s): give it a title (the third argument)")
+            # (the members' workbook gets its titles with Members M4 - its template is not rebuilt for this)
+            if label not in ("member", "members"):
+                for st in stmts:
+                    for args in msgbox_args(st):
+                        if len(args) < 3:
+                            say("MSGTITLE", m, p.name, f"MsgBox with {len(args)} argument(s): give it a title (the third argument)")
             # ---- NORET: a Function that never assigns its own name (v25) ----
             if p.kind == "function":
                 pat = re.compile(ASSIGN.format(name=re.escape(p.name)), re.I)

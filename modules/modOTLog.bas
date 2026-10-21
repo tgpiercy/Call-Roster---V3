@@ -381,6 +381,7 @@ Private Sub VoidEntryFor(ByVal k As String, ByVal lead As String)
 
     Dim calN As Long
     cnt = VoidRef(k, why, calN)
+    If cnt = 0 Then Exit Sub                       ' (review) VoidRef said why (nothing matched, or it stopped part-way and blocked the save)
     MsgBox cnt & " row(s) voided. Roster totals updated." & _
            IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation, "Call Out Roster"
 End Sub
@@ -486,6 +487,7 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
     ProtectSheet ws
     Application.EnableCancelKey = xlInterrupt
     Application.Calculate
+    ResetOtWorked                                   ' v26.5.5: a voided acceptance / award no longer counts for the 16 h rule
 
     ' take voided call-outs / awards back off the calendar
     On Error Resume Next

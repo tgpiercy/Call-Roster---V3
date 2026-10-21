@@ -191,6 +191,7 @@ Public gSmokeSaved As String        ' ...and the file it wrote ("" = it didn't)
 Public gSmokeRefusal As String      ' v25: why the publish refused (the box it would have shown), for SmokeTest's planted-word step
 Public gSaveFailedAt As Date        ' v26.5.5 (A1): when the last save to disk FAILED (0 = the last save went through); the Desk header shows it
 Public gOpenedMtime As Date         ' v26.5.5 (A2): the file's on-disk time at open and after every own save (0 = not readable: the guard is off)
+Private mNoSaveTold As Boolean      ' v26.5.5: the "saving is blocked" box has been shown this session
 
 
 ' ====================================================================
@@ -556,6 +557,7 @@ End Function
 ' how current the worked hours are, how many totals carry provisional OT, that Refused is capped at the
 ' current pay period, and when the members' file was last updated.
 Public Function TrustStrip() As String
+    On Error GoTo Quit                                 ' (review) a status line never stops a pop-up from opening
     Dim dt As Date: dt = KronosDataThrough()
     Dim s As String
     If dt = 0 Then s = "Worked hours: none imported from Kronos yet" Else s = "Worked hours through " & Format$(dt, "ddd mmm d") & " (Kronos)"
@@ -565,6 +567,9 @@ Public Function TrustStrip() As String
     Dim p As Date: p = MembersPublishedAt()
     s = s & "  |  Members' file " & IIf(p = 0, "never published", "updated " & Format$(p, "ddd h:mm AM/PM"))
     TrustStrip = s
+    Exit Function
+Quit:
+    TrustStrip = "Worked hours: (the status line could not be read)"
 End Function
 
 ' How many roster totals include provisional accepted OT (column C > 0) right now
@@ -573,7 +578,7 @@ Public Function ProvisionalCount() As Long
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Function
-    Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, C_PROV), ws.Cells(lastRow, C_PROV)).Value2
+    Dim v As Variant: v = RangeTo2D(ws.Range(ws.Cells(R_FIRST, C_PROV), ws.Cells(lastRow, C_PROV)))    ' (review) a one-row roster is still 2-D
     Dim i As Long
     For i = 1 To UBound(v, 1)
         If NumOr0(v(i, 1)) > 0 Then ProvisionalCount = ProvisionalCount + 1
@@ -1236,6 +1241,13 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
         oc(i) = entries(i).Outcome
     Next i
     CalloutOffers hours, oc, taken, n, offers
+    ' v26.5.5 (the 16 h rule, review): a person the rule caps is OFFERED their maximum, so a refusal or a
+    ' message is charged on the hours they could take, never on hours they may not work (FilterNotFree
+    ' sets MaxHours; a list that never went through it carries FATIGUE_MAX_HOURS = no cap)
+    Dim capped() As Boolean: ReDim capped(1 To n)
+    For i = 1 To n
+        If entries(i).MaxHours > 0 And entries(i).MaxHours < offers(i) - 0.001 Then offers(i) = entries(i).MaxHours: capped(i) = True
+    Next i
 
     For i = 1 To n
         If entries(i).Outcome <> "" Then
@@ -1262,6 +1274,8 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
                 data(k, L_REASON) = "Took " & HoursText(taken(i)) & " of " & HoursText(offers(i)) & " h (the rest dropped, uncharged)"
             ElseIf offers(i) = 0 And entries(i).Reason = "" Then
                 data(k, L_REASON) = "Not offered: a partial acceptance closed the shift"      ' v25 (D-E4): never charged
+            ElseIf capped(i) And entries(i).Reason = "" Then
+                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (the 16 h rule: OT accepted, an award or a switch touches this shift)"
             ElseIf offers(i) < hours And entries(i).Reason = "" Then
                 data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (part already taken)"
             End If
@@ -1309,18 +1323,21 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
               "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
               "  Total charged: " & HoursText(totalCharged) & " hrs" & _
               IIf(calTxt <> "", vbNewLine & vbNewLine & "Calendar:" & calTxt, "")
-    ' v26.5.5 (B13): what to do next, from the outcome (a partial acceptance closed the shift; nobody = the line stays open)
-    Dim partHrs As Double
+    ' v26.5.5 (B13): what to do next, from the outcome (a partial acceptance closed the shift; nobody = the line stays open).
+    ' Review: with a whole acceptance AND a partial the line says the hours covered, not the partial alone.
+    Dim covered As Double, anyPartial As Boolean
     For i = 1 To n
-        If entries(i).Outcome = "Accepted" And taken(i) > 0 Then partHrs = taken(i)
+        If entries(i).Outcome = "Accepted" Then
+            covered = covered + AcceptedHours(offers(i), taken(i))
+            If taken(i) > 0 And taken(i) < offers(i) Then anyPartial = True
+        End If
     Next i
-    Dim nextTxt As String: nextTxt = NextStepText(nAcc, partHrs, nMsg, IsAdmin(), PRIMARY_ADMIN_NAME)
+    Dim nextTxt As String: nextTxt = NextStepText(nAcc, IIf(anyPartial, covered, 0), nMsg, IsAdmin(), PRIMARY_ADMIN_NAME)
     shortSummary = shortSummary & vbNewLine & nextTxt
     summary = summary & vbNewLine & vbNewLine & nextTxt
-    If Not savedOk Then                                ' v26.5.5 (A1): logged in the workbook, NOT on disk
-        shortSummary = "NOT SAVED TO DISK - try File > Save now. These entries are logged in the workbook; do not log them again." & _
-                       vbNewLine & shortSummary
-        summary = "NOT SAVED TO DISK." & vbNewLine & summary
+    If Not savedOk Then                                ' v26.5.5 (A1): logged in the workbook, NOT on disk (or saving blocked: log again after a reopen)
+        shortSummary = SaveBlockText() & vbNewLine & shortSummary
+        summary = IIf(NoSave(), "SAVING IS BLOCKED - log this session again after closing without saving.", "NOT SAVED TO DISK.") & vbNewLine & summary
     End If
     SubmitCalloutSession = True
 End Function
@@ -1335,7 +1352,7 @@ Public Function NextStepText(ByVal nAccepted As Long, ByVal partialHours As Doub
                        IIf(nLeftMsg > 0, "call back later (Fill a shift now shows ? beside them), ", "") & _
                        "post the shift, or " & IIf(isAdminUser, "award out of department.", "ask " & adminName & " to award out of department.")
     ElseIf partialHours > 0 Then
-        NextStepText = "The shift is closed at " & HoursText(partialHours) & " h; the rest is dropped, nobody charged."
+        NextStepText = "The shift is closed at " & HoursText(partialHours) & " h; the rest is dropped, nobody below is charged."
     Else
         NextStepText = "The line is covered on the calendar."
     End If
@@ -1442,12 +1459,18 @@ End Sub
 Public Function SaveIfWritable() As Boolean
     If gSmokeRun Then SaveIfWritable = True: Exit Function          ' v24.2: SmokeTest never saves
     If NoSave() Then
-        MsgBox "Not saved - saving is blocked because an earlier check failed in this session." & vbNewLine & _
-               "Close WITHOUT saving and reopen.", vbExclamation, "Not saved"
+        ' (review) the block is said ONCE per session - a submit saves twice (the log, then the calendar line)
+        NoteSaveResult False
+        If Not mNoSaveTold Then
+            mNoSaveTold = True
+            MsgBox "Not saved - saving is blocked because an earlier check failed in this session (or the file changed on disk)." & vbNewLine & _
+                   "Close WITHOUT saving and reopen.", vbExclamation, "Not saved"
+        End If
         Exit Function
     End If
     If ThisWorkbook.ReadOnly Then SaveIfWritable = True: Exit Function
     Dim en As Long, em As String, before As Date, after As Date
+    Dim toldBefore As Boolean: toldBefore = (gSaveFailedAt > 0)     ' (review) one box per failed submit, not one per save inside it
     On Error Resume Next
     before = FileDateTime(ThisWorkbook.FullName)
     Err.Clear
@@ -1455,17 +1478,28 @@ Public Function SaveIfWritable() As Boolean
     en = Err.Number: em = Err.Description
     after = FileDateTime(ThisWorkbook.FullName)
     On Error GoTo 0
-    If en = 0 And ThisWorkbook.Saved Then NoteSaveResult True: SaveIfWritable = True: Exit Function
-    If NoSave() Then Exit Function                                  ' BeforeSave refused it and said why (a stale copy)
+    If en = 0 And ThisWorkbook.Saved Then NoteSaveResult True: RecordDiskStamp: SaveIfWritable = True: Exit Function
+    If NoSave() Then NoteSaveResult False: mNoSaveTold = True: Exit Function    ' BeforeSave refused it and said why (a stale copy)
     If en = 0 And before > 0 And after > before Then                ' written; something dirtied the workbook again after the save
-        NoteSaveResult True: SaveIfWritable = True: Exit Function
+        NoteSaveResult True: RecordDiskStamp: SaveIfWritable = True: Exit Function
     End If
     NoteSaveResult False
     If em = "" Then em = "the file on disk did not change"
     LogError "SaveIfWritable", en, em
-    MsgBox "NOT SAVED to disk (" & em & ")." & vbNewLine & vbNewLine & _
-           "Don't close Excel. Try File > Save now; if that fails, tell " & PRIMARY_ADMIN_NAME & "." & vbNewLine & _
-           "What you logged is in this workbook until it is saved.", vbCritical, "Not saved"
+    If Not toldBefore Then
+        MsgBox "NOT SAVED to disk (" & em & ")." & vbNewLine & vbNewLine & _
+               "Don't close Excel. Close the pop-up, then File > Save; if that fails, tell " & PRIMARY_ADMIN_NAME & "." & vbNewLine & _
+               "What you logged is in this workbook until it is saved.", vbCritical, "Not saved"
+    End If
+End Function
+
+' (review) the one-sentence state of saving for the pop-ups: "" when the last save went through
+Public Function SaveBlockText() As String
+    If NoSave() Then
+        SaveBlockText = "SAVING IS BLOCKED in this session: close this pop-up, close the roster WITHOUT saving, reopen it, and log this session again."
+    ElseIf gSaveFailedAt > 0 Then
+        SaveBlockText = "NOT SAVED to disk: close this pop-up, then File > Save. This session is logged in the workbook - don't enter it again."
+    End If
 End Function
 
 ' ---- v26.5.5 (A2): a stale copy blocks the save ----
@@ -1491,7 +1525,12 @@ Public Function StaleOnDisk(ByRef savedAt As Date) As Boolean
     If Err.Number <> 0 Then savedAt = 0
     On Error GoTo 0
     If savedAt = 0 Then Exit Function                   ' the file is unreachable right now: the save itself will say so (A1)
-    StaleOnDisk = (Abs(CDbl(savedAt) - CDbl(gOpenedMtime)) > 2 / 86400#)      ' two seconds: a share's time rounding
+    Dim gap As Double: gap = Abs(CDbl(savedAt) - CDbl(gOpenedMtime)) * 86400#     ' seconds
+    If gap <= 2 Then Exit Function                                                 ' a share's time rounding
+    ' (review) FileDateTime reads the file's UTC time through the CURRENT daylight-saving offset, so across the
+    ' Nov 1 / Mar 8 change the same on-disk time reads one hour off: that is not someone else's save
+    If Abs(gap - 3600) <= 2 Then Exit Function
+    StaleOnDisk = True
 End Function
 
 ' SystemCheck's line
@@ -1589,8 +1628,7 @@ End Function
 Public Function ByHandHint(ByVal sheetName As String) As String
     Dim button As String
     Select Case sheetName
-        Case ROSTER_SHEET: button = "Employee > Edit (double-click the person's row)"
-        Case "Crew History": button = "Employee > Edit (a crew change is dated into the history)"
+        Case ROSTER_SHEET: button = "Employee > Edit / Rename / Remove (double-click the person's row)"
         Case "Absences": button = "Book Time Off / Sick Call"
         Case "Postings": button = "the posting's own buttons (Award, No Takers, Cancel Request, Reopen)"
         Case "Shift Switches": button = "Shift Switch"
@@ -1619,7 +1657,11 @@ Public Sub UnlockForRepair()
         Exit Sub
     End If
     UnlockSheet ThisWorkbook.Worksheets(nm)
-    ThisWorkbook.Worksheets(nm).Activate
+    If ThisWorkbook.Worksheets(nm).Visible = xlSheetVisible Then
+        ThisWorkbook.Worksheets(nm).Activate
+    Else
+        MsgBox "The " & nm & " sheet is hidden in this view: click Show everything on the Desk (or the admin view) to see it.", vbInformation, "Unlock for repair"
+    End If
     MsgBox "The " & nm & " sheet is unlocked. Make the change, then run Alt+F8 > ProtectAll (a save or the next open also protects everything)." & _
            vbNewLine & vbNewLine & "IntegrityCheck afterwards tells you whether the roster still agrees with the OT Log.", vbInformation, "Unlock for repair"
     Exit Sub
@@ -1971,7 +2013,8 @@ Public Function AppendLogRows(data As Variant) As Boolean
         If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then cnt = 0
     End If
 
-    Dim errMsg As String
+    Dim errMsg As String, cnt0 As Long: cnt0 = lo.ListRows.Count           ' (review) the real row count, for the Fail test
+    Dim keyWas As Long: keyWas = Application.EnableCancelKey             ' (review) a QuietOn writer keeps its own setting after this
     Application.EnableCancelKey = xlErrorHandler    ' v26.5.5 (A3): Esc lands in Fail, not between the resize and the values
     On Error GoTo Fail
     UnlockSheet ws        ' tables can't grow on a protected sheet
@@ -1989,7 +2032,8 @@ Public Function AppendLogRows(data As Variant) As Boolean
     ProtectSheet ws
     Application.Calculate
     On Error Resume Next
-    Application.EnableCancelKey = xlInterrupt
+    Application.EnableCancelKey = keyWas
+    ResetOtWorked                   ' v26.5.5 (the 16 h rule, review): the OT-worked map is rebuilt from the log on its next read
     SetRosterStatus                 ' log count on the status line
     On Error GoTo 0
     AppendLogRows = True
@@ -1998,11 +2042,11 @@ Public Function AppendLogRows(data As Variant) As Boolean
 Fail:
     errMsg = Err.Description
     On Error Resume Next
-    Application.EnableCancelKey = xlInterrupt
+    Application.EnableCancelKey = keyWas
     ProtectSheet ws
     ' v26.5.5 (A14): the resize went through but the values or the sort did not: the rows ARE in the table
     ' (blank or half-filled). Submitting again would log the session twice, so the save is blocked instead.
-    If lo.ListRows.Count > cnt Then
+    If lo.ListRows.Count > cnt0 Then
         MarkNoSave
         MsgBox "The OT Log could not be finished:" & vbNewLine & errMsg & vbNewLine & vbNewLine & _
                "Its rows were written but not completed, so saving is blocked. Close WITHOUT saving, reopen, " & _

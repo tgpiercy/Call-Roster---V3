@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v26.5 (Oct 2026).
+Current as of v26.5.5 (Oct 21, 2026).
 
 ## 1. Before you start
 

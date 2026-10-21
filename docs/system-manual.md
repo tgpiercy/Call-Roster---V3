@@ -2,7 +2,7 @@
 
 This manual states the current rules of the overtime call-out system, for supervisors and the union committee.
 
-Current as of v26.5 (Oct 2026; headers brought up to date Oct 20). It replaces the rules in all older guides.
+Current as of v26.5.5 (Oct 21, 2026). It replaces the rules in all older guides.
 
 ## 1. What the system is
 
@@ -110,7 +110,7 @@ A person is not free when one of these applies.
 | Booked off | A time-off booking covers the date. |
 | Shift switch | They are working a switch that day, or gave up a shift that day (not free for the other shift either). A switch worked the night before or the day after also counts for the rest rule; a shift GIVEN UP in a switch relieves the next day's rest rule, since they did not work it. |
 | Sick window | They called in sick. They are off that shift and any shift starting within 24 hours after it ends, and inside that window they can neither work nor give up a shift in a switch. |
-| The 16 h rule (v26.5.5) | Overtime they have already accepted, a posting awarded to them or a switch they work on the shift that touches the one on offer counts as worked time. The work that ends when the offer starts (that shift, plus the one before it when it was worked whole) plus the offer may not pass 16 consecutive hours, and the offer must leave 11 hours before their next work (scheduled, or overtime already accepted). Only when nothing fits are they off the list; otherwise the pop-up shows "max N h" beside the name: a full acceptance or award is refused, a partial up to that many hours is allowed. A switch is a whole shift, so it must fit entirely. A partial already accepted on the touching shift is counted whole (its clock time is not recorded), so the rule errs on the safe side. |
+| The 16 h rule (v26.5.5) | Overtime they have already accepted, a posting awarded to them or a switch they work on the shift that touches the one on offer counts as worked time. The work that ends when the offer starts (that shift, plus the one before it when it was worked whole) plus the offer may not pass 16 consecutive hours, and the offer must leave 11 hours before their next work (scheduled, or overtime already accepted). Only when nothing fits are they off the list; otherwise the pop-up shows "max N h" beside the name: a full acceptance or award is refused, a partial up to that many hours is allowed, and the person is OFFERED only those hours, so a refusal or a left message is charged on them (a posting they did not sign up for charges the hours they could have taken; none = not charged). A switch is a whole shift, so it must fit entirely (the payback too). Overtime already held on the shift on offer leaves the person off a second list for it. A partial already accepted on the touching shift is counted whole and joins the shift before it, so the rule errs on the safe side. |
 
 Old-calendar vacation lines that were imported are display only. They keep nobody off a list until the admin converts them into bookings.
 

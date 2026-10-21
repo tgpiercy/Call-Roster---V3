@@ -1086,15 +1086,27 @@ Public Sub ComputeAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As 
         ElseIf lst(i).ExemptNote <> "" Then
             lst(i).Result = lst(i).ExemptNote             ' moved unit or left before the shift (v24)
         ElseIf nAwarded > 0 And lst(i).Rank < maxRank And lst(i).Grade <= CHARGE_MAX_GRADE Then
-            lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
-            lst(i).Result = "Charged"
-            nCharged = nCharged + 1
-            totCharged = totCharged + lst(i).Charged
+            ' v26.5.5 (the 16 h rule, review): charged on the hours they could have taken, never on hours they may not work
+            lst(i).Charged = CappedPostingHours(p.Hours, lst(i).MaxHours, lst(i).MaxSet) * CHARGE_MULTIPLIER
+            If lst(i).Charged > 0 Then
+                lst(i).Result = "Charged"
+                nCharged = nCharged + 1
+                totCharged = totCharged + lst(i).Charged
+            Else
+                lst(i).Result = "16 h rule"                ' could not take any of it: nothing to refuse
+            End If
         Else
             lst(i).Result = ""
         End If
     Next i
 End Sub
+
+' PURE (SelfTest "postcap"): the hours a listed person is charged on - the posting's, or their 16 h rule
+' maximum when the award pop-up worked one out (MaxSet) and it is lower; 0 = nothing (they could take none)
+Public Function CappedPostingHours(ByVal postHours As Double, ByVal maxHours As Double, ByVal maxSet As Boolean) As Double
+    CappedPostingHours = postHours
+    If maxSet And maxHours < postHours Then CappedPostingHours = IIf(maxHours > 0, maxHours, 0)
+End Function
 
 ' ---- partial sign-ups (v24) ----
 ' A sign-up for only part of the shift: more than 0 and fewer hours than the posting
@@ -1127,8 +1139,11 @@ Public Function AwardOrderProblem(ByRef p As PostRec, ByRef lst() As PListRec, B
                 nFullAw = nFullAw + 1
             End If
         ElseIf lst(i).SignedUp And Not IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
-            nFullWaiting = nFullWaiting + 1
-            If who = "" Then who = "#" & lst(i).Rank & " " & lst(i).EmpName
+            ' v26.5.5 (review): a full-shift sign-up the 16 h rule forbids is not "waiting" - it can never be awarded whole
+            If Not (lst(i).MaxSet And lst(i).MaxHours < p.Hours - 0.001) Then
+                nFullWaiting = nFullWaiting + 1
+                If who = "" Then who = "#" & lst(i).Rank & " " & lst(i).EmpName
+            End If
         End If
     Next i
     If nPartAw = 0 Then who = "": Exit Function
@@ -1170,10 +1185,14 @@ Public Sub ComputeNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n 
         lst(i).Charged = 0
         lst(i).Result = lst(i).ExemptNote
         If lst(i).ExemptNote = "" And lst(i).Grade <= CHARGE_MAX_GRADE Then
-            lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
-            lst(i).Result = "Charged"
-            nCharged = nCharged + 1
-            totCharged = totCharged + lst(i).Charged
+            lst(i).Charged = CappedPostingHours(p.Hours, lst(i).MaxHours, lst(i).MaxSet) * CHARGE_MULTIPLIER   ' v26.5.5: the 16 h rule caps it
+            If lst(i).Charged > 0 Then
+                lst(i).Result = "Charged"
+                nCharged = nCharged + 1
+                totCharged = totCharged + lst(i).Charged
+            Else
+                lst(i).Result = "16 h rule"
+            End If
         End If
     Next i
 End Sub
@@ -1192,10 +1211,14 @@ Public Sub ComputeOutside(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n A
         If lst(i).SignedUp Then
             lst(i).Result = "Signed up"
         ElseIf lst(i).ExemptNote = "" And lst(i).Grade <= CHARGE_MAX_GRADE Then
-            lst(i).Charged = p.Hours * CHARGE_MULTIPLIER
-            lst(i).Result = "Charged"
-            nCharged = nCharged + 1
-            totCharged = totCharged + lst(i).Charged
+            lst(i).Charged = CappedPostingHours(p.Hours, lst(i).MaxHours, lst(i).MaxSet) * CHARGE_MULTIPLIER   ' v26.5.5: the 16 h rule caps it
+            If lst(i).Charged > 0 Then
+                lst(i).Result = "Charged"
+                nCharged = nCharged + 1
+                totCharged = totCharged + lst(i).Charged
+            Else
+                lst(i).Result = "16 h rule"
+            End If
         End If
     Next i
 End Sub
@@ -1642,6 +1665,8 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                     End If
                 ElseIf lst(i).Charged > 0 Then
                     data(k, L_OUTCOME) = "Refused"
+                    ' v26.5.5 (the 16 h rule): the row's Hours are the hours they could have taken, so the Why sentence adds up
+                    data(k, L_BASEHRS) = CappedPostingHours(p.Hours, lst(i).MaxHours, lst(i).MaxSet)
                     If newStatus = "No takers" Then
                         data(k, L_REASON) = "Posting - no takers"
                     ElseIf outName <> "" Then

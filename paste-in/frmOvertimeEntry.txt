@@ -37,6 +37,7 @@ Private mCurrent As Long
 Private mDept As String, mShift As String, mDate As Date, mHours As Double, mShiftLbl As String
 Private mKronosOk As Boolean     ' v20: stale-Kronos warning answered once per session
 Private mAutoHours As String     ' v21: hours we filled in for a DST night ("" = none / typed by hand)
+Private mSaveFailed As Boolean   ' v26.5.5: the session is logged but not saved - the entries stay on screen, closing asks nothing
 Private mStarted As Date         ' v25.5: when LOAD LIST was clicked (the progress line's "started N min ago")
 Private mKeyHeld As Integer      ' v25.5: the key of ours still down in the list (KeyDown repeats while held: one outcome per press); 0 = none
 
@@ -188,7 +189,7 @@ Private Sub UserForm_Initialize()
     C("lblKeys").ForeColor = MUTED
     Set mCallBack = Me.Controls.Add("Forms.CommandButton.1", "cmdCallBack", True)
     With mCallBack
-        .Caption = "K   Call back"
+        .Caption = "Call back (?)"                  ' the button works the left-message pile; K on the keyboard skips for now (review)
         .Left = Px(392): .Top = Px(463): .Width = Px(90): .Height = Px(20)
         .Font.Size = Px(9.5)
         .Enabled = False
@@ -204,8 +205,8 @@ Private Sub UserForm_Initialize()
         .Enabled = False
     End With
 
-    MakeLabel "lblStatus", "", 10, 545, 472, 9
-    C("lblStatus").Height = Px(44)                   ' v26.5.5 (5.2): the trust strip on its first line, the details under it
+    MakeLabel "lblStatus", "", 10, 541, 472, 8.5
+    C("lblStatus").Height = Px(56)                   ' v26.5.5 (5.2): the trust strip (two lines) and the details under it; the form is 600 tall
     C("lblStatus").WordWrap = True
     C("lblStatus").Caption = TrustStrip()
 
@@ -777,15 +778,17 @@ Private Sub btnSubmit_Click()
     Dim sessionID As String, summary As String, shortSummary As String
     If Not SubmitCalloutSession(mDept, mShiftLbl, mShift, mDate, mHours, mEntries, mTaken, mCount, sessionID, summary, shortSummary) Then Exit Sub   ' form keeps its entries so nothing is lost
     ShowBarText Replace(summary, vbNewLine, "  |  ")
-    If gSaveFailedAt > 0 Then
-        ' v26.5.5 (A1): the rows are in the OT Log but the file did not save. The entries stay on screen
-        ' so nothing is lost from view; SUBMIT is locked so they can't be logged twice. File > Save is the way out.
+    If gSaveFailedAt > 0 Or NoSave() Then
+        ' v26.5.5 (A1): the rows are in the OT Log but the file did not save (or saving is blocked for the session).
+        ' The entries stay on screen so nothing is lost from view; SUBMIT is locked so they can't be logged twice.
+        ' The pop-up is modal, so the way out is: close it, then File > Save (or close the roster without saving
+        ' and log the session again, when saving is blocked) - SaveBlockText says which.
+        mSaveFailed = True
         MsgBox shortSummary, vbCritical, "Session " & sessionID & " logged - NOT SAVED"
         btnSubmit.Enabled = False
         SetOutcomeButtons False
         C("lblStatus").ForeColor = RGB(190, 30, 30)
-        C("lblStatus").Caption = "NOT SAVED to disk. Try File > Save now. Session " & sessionID & " is logged in the workbook: " & _
-                                 "don't enter these outcomes again. Close this box when the save has gone through."
+        C("lblStatus").Caption = SaveBlockText() & "  (Session " & sessionID & ")"
         Exit Sub
     End If
     MsgBox shortSummary, vbInformation, "Session " & sessionID & " submitted"
@@ -824,6 +827,7 @@ End Sub
 ' ================================================================
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     If gErrorClosing Then Exit Sub                 ' v24.2: closed by the error handler, which says what happened
+    If mSaveFailed Then Exit Sub                   ' v26.5.5: the entries are logged already; closing is the way to File > Save
     If mCount = 0 Then Exit Sub
     Dim logged As Long: logged = LoggedCount()
     If logged > 0 Then

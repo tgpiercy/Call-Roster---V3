@@ -265,6 +265,11 @@ def evaluate(row: dict) -> str:
         return pr.strftime("%Y-%m-%d %H:%M") if pr else "none"
     if suite == "nextstep":                      # v26.5.5: accepted, partial hours, left messages, admin Y/N, admin name -> the last line (; for ,)
         return rules.next_step_text(int(i1), float(i2 or 0), int(i3), i4 == "Y", i5).replace(",", ";")
+    if suite == "fatblock":                      # v26.5.5: hours on the four shifts around the offer -> block|hours to next
+        wb, htn = rules.fatigue_block_core(float(i1), float(i2), float(i3), float(i4))
+        return fmt_num(wb) + "|" + fmt_num(htn)
+    if suite == "postcap":                       # v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
+        return fmt_num(rules.capped_posting_hours(float(i1), float(i2), i3 == "Y"))
     if suite == "fatigue":                       # v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
         mx = rules.fatigue_max_hours(float(i1), float(i3))
         return (rules.fatigue_problem(float(i1), float(i2), float(i3)) or "ok") + "|" + (str(int(mx)) if mx == int(mx) else str(mx))

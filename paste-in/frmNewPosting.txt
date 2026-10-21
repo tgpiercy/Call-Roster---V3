@@ -313,7 +313,7 @@ Private Sub AutoHours()
             night = True
             hintTxt = DstNote(dH)
             want = CStr(DefaultShiftHours(dH, True, USUAL_SHIFT_HOURS))
-            If hintTxt = "" Then hintTxt = NightOfText(dH)       ' v26.5.5 (B1): the night is named by the evening it starts
+            If hintTxt = "" Then hintTxt = "7 PM " & Format$(dH, "mmm d") & " - 7 AM " & Format$(dH + 1, "mmm d")   ' v26.5.5 (B1): the night's span (one line here)
         End If
     End If
     C("hintHours").Caption = hintTxt
@@ -385,7 +385,7 @@ Private Sub UpdateEligible()
             .Caption = n & " with the code - pick the date and shift to drop anyone scheduled."
             .ForeColor = RGB(120, 120, 120)
         End If
-        If kLine <> "" Then .Caption = kLine & "  " & .Caption: .ForeColor = RGB(190, 30, 30)
+        If kLine <> "" Then .Caption = "Kronos hours are old - tell " & PRIMARY_ADMIN_NAME & " to import.  " & .Caption: .ForeColor = RGB(190, 30, 30)   ' (review) short: two lines here
     End With
 End Sub
 

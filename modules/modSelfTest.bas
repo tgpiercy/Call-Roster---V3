@@ -220,6 +220,12 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(prD = 0, "none", Format$(prD, "yyyy-mm-dd hh:mm"))
         Case "nextstep"                            ' v26.5.5: accepted, partial hours, left messages, admin Y/N, admin name -> the last line (; for ,)
             RunCase = Replace(NextStepText(CLng(Val(i1)), CDbl(Val(i2)), CLng(Val(i3)), (i4 = "Y"), i5), ",", ";")
+        Case "fatblock"                            ' v26.5.5: hours on the shift before the touching one, the touching shift, the next, the one after -> block|hours to next
+            Dim fbW As Double, fbN As Double
+            FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
+            RunCase = NumText(fbW) & "|" & NumText(fbN)
+        Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
+            RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
         Case "fatigue"                             ' v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
             RunCase = FatigueProblem(CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)))
             If RunCase = "" Then RunCase = "ok"
@@ -1567,8 +1573,8 @@ Private Sub LoadCases()
     AddCase "nextstep,nobody-with-messages-supervisor,0,0,2,N,Graeme,The line stays OPEN on the calendar. Next: call back later (Fill a shift now shows ? beside them); post the shift; or ask Graeme to award out of department."
     AddCase "nextstep,nobody-no-messages-admin,0,0,0,Y,Graeme,The line stays OPEN on the calendar. Next: post the shift; or award out of department."
     AddCase "nextstep,nobody-no-messages-supervisor,0,0,0,N,Graeme,The line stays OPEN on the calendar. Next: post the shift; or ask Graeme to award out of department."
-    AddCase "nextstep,partial-8,1,8,0,N,Graeme,The shift is closed at 8 h; the rest is dropped; nobody charged."
-    AddCase "nextstep,partial-4.5,1,4.5,1,Y,Graeme,The shift is closed at 4.5 h; the rest is dropped; nobody charged."
+    AddCase "nextstep,partial-8,1,8,0,N,Graeme,The shift is closed at 8 h; the rest is dropped; nobody below is charged."
+    AddCase "nextstep,partial-4.5,1,4.5,1,Y,Graeme,The shift is closed at 4.5 h; the rest is dropped; nobody below is charged."
     AddCase "nextstep,filled,1,0,1,N,Graeme,The line is covered on the calendar."
     AddCase "nextstep,two-accepted,2,0,0,Y,Graeme,The line is covered on the calendar."
     AddCase "practice,plain,V2 - Call Out Roster COPY 2026-10-21 0314.xlsm,,,,,2026-10-21 03:14"
@@ -1577,5 +1583,19 @@ Private Sub LoadCases()
     AddCase "practice,daily-backup-name,Call Out Roster backup 2026-10-21.xlsm,,,,,none"
     AddCase "practice,bad-month,V2 - Call Out Roster COPY 2026-13-21 0314.xlsm,,,,,none"
     AddCase "practice,no-time,V2 - Call Out Roster COPY 2026-10-21.xlsm,,,,,none"
+    AddCase "fatblock,nothing-around,0,0,0,0,,0|99"
+    AddCase "fatblock,touching-full-night,0,12,0,0,,12|99"
+    AddCase "fatblock,touching-full-joins-the-one-before,12,12,0,0,,24|99"
+    AddCase "fatblock,touching-partial-joins-too,12,4,0,0,,16|99"
+    AddCase "fatblock,before-but-not-touching-counts-nothing,12,0,0,0,,0|99"
+    AddCase "fatblock,next-shift-worked,0,0,12,0,,0|12"
+    AddCase "fatblock,next-but-one-worked,0,0,0,12,,0|24"
+    AddCase "fatblock,next-partial-still-12,0,0,4,12,,0|12"
+    AddCase "fatblock,dst-13-night-touching,0,13,0,0,,13|99"
+    AddCase "postcap,no-max-known,12,0,N,,,12"
+    AddCase "postcap,max-above-posting,12,16,Y,,,12"
+    AddCase "postcap,max-4,12,4,Y,,,4"
+    AddCase "postcap,max-0-not-charged,12,0,Y,,,0"
+    AddCase "postcap,max-equal,12,12,Y,,,12"
 ' <<< CASES
 End Sub

@@ -169,7 +169,7 @@ End Function
 ' to it. PURE (SelfTest "shiftdate"); mirrored in tests/rules.py.
 Public Function DefaultShiftDate(ByVal nowAt As Date) As Date
     DefaultShiftDate = Int(nowAt)
-    If nowAt - Int(nowAt) < 7 / 24 Then DefaultShiftDate = Int(nowAt) - 1
+    If Hour(nowAt) < 7 Then DefaultShiftDate = Int(nowAt) - 1      ' Hour, not a fraction: 07:00 as a serial can sit a hair under 7/24 (review)
 End Function
 
 ' "Night of Mon Oct 19 (7 PM Oct 19 - 7 AM Oct 20)"
@@ -179,13 +179,13 @@ End Function
 
 ' "" by day; between midnight and 07:00: "It is 3:10 AM: the shift under way is dated Mon Oct 19"
 Public Function ShiftUnderWayText(ByVal nowAt As Date) As String
-    If nowAt - Int(nowAt) >= 7 / 24 Then Exit Function
+    If Hour(nowAt) >= 7 Then Exit Function
     ShiftUnderWayText = "It is " & Format$(nowAt, "h:mm AM/PM") & ": the shift under way is dated " & Format$(DefaultShiftDate(nowAt), "ddd mmm d")
 End Function
 
 ' The one hint the date / shift pop-ups show under a picked date and shift ("" when nothing to say)
 Public Function ShiftHintText(ByVal d As Date, ByVal isNight As Boolean, ByVal nowAt As Date) As String
-    Dim underWay As Boolean: underWay = (nowAt - Int(nowAt) < 7 / 24)
+    Dim underWay As Boolean: underWay = (Hour(nowAt) < 7)
     If isNight Then
         ShiftHintText = NightOfText(d)
         If underWay And Int(d) = DefaultShiftDate(nowAt) Then

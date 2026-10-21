@@ -481,7 +481,7 @@ Public Sub MakePracticeCopy()
     MsgBox "You are now in the practice copy:" & vbNewLine & target & tplNote & vbNewLine & vbNewLine & _
            "Every sheet carries a red PRACTICE COPY banner: nothing done here counts, reaches the roster or the members' file. " & _
            "Try things by hand, or run SmokeTest (Alt+F8). Close it when you are done: copies older than a day are deleted " & _
-           "when the roster is next opened.", vbInformation, "Practice copy"
+           "with the roster's daily backup (the first open of the day).", vbInformation, "Practice copy"
     Exit Sub
 Oops:
     ReportError "MakePracticeCopy"
@@ -515,7 +515,7 @@ Public Sub PracticeBannerOnOpen()
             ProtectSheet ws
         End If
     Next ws
-    ActiveWindow.Caption = "PRACTICE COPY  -  " & ThisWorkbook.Name
+    ThisWorkbook.Windows(1).Caption = "PRACTICE COPY  -  " & ThisWorkbook.Name      ' (review) this copy's own window, whichever is in front
 End Sub
 
 ' v26.5.5 (5.4). PURE (SelfTest "practice"): the date and time in a practice copy's name,

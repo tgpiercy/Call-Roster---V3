@@ -232,6 +232,7 @@ Private Sub btnLoad_Click()
     mN = LoadPosting(CStr(mIds(idx)), mP, mL)
     If mN = 0 Then MsgBox "That posting has no list.", vbExclamation, "Call Out Roster": Exit Sub
     Dim fi As Long                                   ' v26.5.5 (item 9): each listed person's 16 h rule maximum, as of now
+    RefreshCalCache                                  ' (review) a call-out accepted a minute ago must count: the caches are reloaded here
     For fi = 1 To mN
         mL(fi).MaxHours = FatigueMaxFor(mL(fi).EmpName, mL(fi).EmpShift, mP.ShiftDate, mP.ShiftLbl)
         mL(fi).MaxSet = True
@@ -310,7 +311,12 @@ Private Sub RefreshList(ByVal keepIdx As Long)
                 If mL(i).ExemptNote <> "" Then res = LCase$(Mid$(mL(i).ExemptNote, Len(EXEMPT_TAG) + 1))     ' "Exempt - moved Jan 12" -> "moved jan 12"
         End Select
         ' v26.5.5 (item 9): the 16 h rule leaves them less than the posting - a partial sign-up up to that is allowed
-        If res = "" And mL(i).MaxSet And mL(i).MaxHours < mP.Hours - 0.001 Then res = "max " & HoursText(mL(i).MaxHours) & " h (16 h rule)"
+        ' (review: shown whatever the result, so a signed-up person sees it before the award is refused)
+        If mL(i).MaxSet And mL(i).MaxHours < mP.Hours - 0.001 And mL(i).Result <> "16 h rule" Then
+            res = res & IIf(res = "", "", "  -  ") & "max " & HoursText(mL(i).MaxHours) & " h (16 h rule)"
+        ElseIf mL(i).Result = "16 h rule" Then
+            res = "not charged (16 h rule: could take none of it)"
+        End If
         lstEmployees.List(i - 1, 5) = res
     Next i
     If keepIdx >= 0 And keepIdx < mN Then lstEmployees.ListIndex = keepIdx
@@ -432,7 +438,7 @@ Private Sub Finished(ByVal msg As String)
     C("lblSummary").Caption = ""
     SetActionButtons False
     LoadChoices
-    C("lblStatus").Caption = msg & SaveWarnText() & "   " & C("lblStatus").Caption    ' v26.5.5 (A1): a failed save is named on the line
+    C("lblStatus").Caption = msg & SaveWarnText() & vbLf & TrustStrip()    ' v26.5.5 (A1): a failed save is named on the line; the trust strip under it
 End Sub
 
 Private Sub SetActionButtons(ByVal on_ As Boolean)

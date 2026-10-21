@@ -438,7 +438,8 @@ Public Function PaybackProblem(ByVal offName As String, ByVal worksName As Strin
         Exit Function
     End If
     Dim code As String: code = EmpCrewCode(offName, d2)          ' v24: their crew on the payback date
-    Dim why As String: why = NotFreeReason(offName, code, d2, sh2)
+    ' v26.5.5: the payback is a whole shift, so it must fit the 16 h rule
+    Dim why As String: why = NotFreeReason(offName, code, d2, sh2, DefaultShiftHours(d2, IsNightShift(sh2), USUAL_SHIFT_HOURS))
     If why = "rest" Then
         If sh2 = "Days" And shiftLbl = "Nights" And Int(d2) = Int(d) + 1 Then why = ""
         If sh2 = "Nights" And shiftLbl = "Days" And Int(d2) = Int(d) - 1 Then why = ""
@@ -453,7 +454,23 @@ Public Function PaybackProblem(ByVal offName As String, ByVal worksName As Strin
                 PaybackProblem = who & " starts days the next morning"
             End If
         Case "S/S": PaybackProblem = who & " is already working a switch that day"
+        Case "16 h rule": PaybackProblem = who & " would go past " & FATIGUE_MAX_HOURS & " h of work with the OT accepted around that shift (the 16 h rule)"
+        Case "on OT": PaybackProblem = who & " already has OT accepted on that shift"
         Case Else: PaybackProblem = who & " is booked off (" & why & ")"
+    End Select
+End Function
+
+' v26.5.5 (review): a switch is a whole shift, so the one WORKING it must fit the 16 h rule - a hard stop
+' ("" = fine). The rotation's own reasons (scheduled, rest) stay warnings, as before.
+Public Function FatigueStop(ByVal worksName As String, ByVal d As Date, ByVal shiftLbl As String) As String
+    If shiftLbl = "" Then Exit Function
+    Dim code As String: code = EmpCrewCode(worksName, d)
+    Select Case NotFreeReason(worksName, code, d, shiftLbl, DefaultShiftHours(d, IsNightShift(shiftLbl), USUAL_SHIFT_HOURS))
+        Case "16 h rule"
+            FatigueStop = "- " & worksName & " would go past " & FATIGUE_MAX_HOURS & " h of work with the OT accepted around " & _
+                          Format$(d, "mmm d") & " " & LCase$(shiftLbl) & " (the 16 h rule)" & vbNewLine
+        Case "on OT"
+            FatigueStop = "- " & worksName & " already has OT accepted on " & Format$(d, "mmm d") & " " & LCase$(shiftLbl) & vbNewLine
     End Select
 End Function
 
@@ -464,6 +481,7 @@ Public Function SwitchSaveStops(ByVal offName As String, ByVal worksName As Stri
                                 ByVal twoWay As Boolean, ByVal d2 As Date, ByVal sh2 As String) As String
     Dim stops As String, t2 As String
     stops = EligibilityProblems(offName, worksName, d, shiftLbl)
+    stops = stops & FatigueStop(worksName, d, shiftLbl)             ' v26.5.5: the whole shift must fit the 16 h rule
     If twoWay Then
         If Int(d2) = Int(d) Then
             stops = ""
@@ -476,6 +494,7 @@ Public Function SwitchSaveStops(ByVal offName As String, ByVal worksName As Stri
             If SwitchOffOn(worksName, d) <> "" Or SwitchWorkingOn(worksName, d, "") <> "" Then stops = stops & "- " & worksName & " is already on a switch that day" & vbNewLine
         Else
             stops = stops & EligibilityProblems(worksName, offName, d2, sh2)
+            stops = stops & FatigueStop(offName, d2, sh2)           ' v26.5.5: the payback shift too
         End If
     End If
     SwitchSaveStops = stops

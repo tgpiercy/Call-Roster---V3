@@ -1148,6 +1148,22 @@ def fatigue_problem(worked_before: float, hours_offered: float, hours_to_next: f
     return "16 h rule" if hours_offered > fatigue_max_hours(worked_before, hours_to_next) + 0.001 else ""
 
 
+def fatigue_block_core(h_prev_prev: float, h_prev: float, h_next1: float, h_next2: float) -> tuple[float, float]:
+    """modCalendar.FatigueBlockCore: the consecutive block ending when the offer starts (the touching shift plus the
+    one before it whenever both were worked) and the hours to the next work (12 h steps; 99 = none)."""
+    worked_before = h_prev + h_prev_prev if h_prev > 0 else 0.0
+    hours_to_next = USUAL_SHIFT_HOURS if h_next1 > 0 else 2 * USUAL_SHIFT_HOURS if h_next2 > 0 else 99.0
+    return worked_before, hours_to_next
+
+
+def capped_posting_hours(post_hours: float, max_hours: float, max_set: bool) -> float:
+    """modPostings.CappedPostingHours: the hours a listed person is charged on - the posting's, or their 16 h rule
+    maximum when the award pop-up worked one out and it is lower (0 = they could take none: not charged)."""
+    if max_set and max_hours < post_hours:
+        return max_hours if max_hours > 0 else 0.0
+    return post_hours
+
+
 def practice_copy_date(file_name: str) -> datetime | None:
     """modSystem.PracticeCopyDate (v26.5.5, 5.4): '<roster> COPY yyyy-mm-dd hhmm.xlsm' -> that time, else None."""
     p = file_name.lower().find(" copy ")
@@ -1170,7 +1186,7 @@ def next_step_text(n_accepted: int, partial_hours: float, n_left_msg: int, is_ad
                 + "post the shift, or "
                 + ("award out of department." if is_admin else f"ask {admin_name} to award out of department."))
     if partial_hours > 0:
-        return f"The shift is closed at {hours_text(partial_hours)} h; the rest is dropped, nobody charged."
+        return f"The shift is closed at {hours_text(partial_hours)} h; the rest is dropped, nobody below is charged."
     return "The line is covered on the calendar."
 
 

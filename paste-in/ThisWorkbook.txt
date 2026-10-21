@@ -74,7 +74,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     If StaleOnDisk(savedAt) Then
         Cancel = True
         MarkNoSave
-        MsgBox "Someone else saved this file at " & Format$(savedAt, "h:mm AM/PM") & " while you had it open." & vbNewLine & vbNewLine & _
+        MsgBox "Someone else saved this file at " & Format$(savedAt, "ddd mmm d h:mm AM/PM") & " while you had it open." & vbNewLine & vbNewLine & _
                "Close WITHOUT saving, reopen, and log your entry again. Nothing you did here was written to the file.", _
                vbCritical, "Not saved - the file changed"
         Exit Sub

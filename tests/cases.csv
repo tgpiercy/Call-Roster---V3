@@ -674,8 +674,8 @@ shiftdate,jan-1-before-7,2027-01-01,02:00,,,,2026-12-31
 nextstep,nobody-with-messages-supervisor,0,0,2,N,Graeme,The line stays OPEN on the calendar. Next: call back later (Fill a shift now shows ? beside them); post the shift; or ask Graeme to award out of department.
 nextstep,nobody-no-messages-admin,0,0,0,Y,Graeme,The line stays OPEN on the calendar. Next: post the shift; or award out of department.
 nextstep,nobody-no-messages-supervisor,0,0,0,N,Graeme,The line stays OPEN on the calendar. Next: post the shift; or ask Graeme to award out of department.
-nextstep,partial-8,1,8,0,N,Graeme,The shift is closed at 8 h; the rest is dropped; nobody charged.
-nextstep,partial-4.5,1,4.5,1,Y,Graeme,The shift is closed at 4.5 h; the rest is dropped; nobody charged.
+nextstep,partial-8,1,8,0,N,Graeme,The shift is closed at 8 h; the rest is dropped; nobody below is charged.
+nextstep,partial-4.5,1,4.5,1,Y,Graeme,The shift is closed at 4.5 h; the rest is dropped; nobody below is charged.
 nextstep,filled,1,0,1,N,Graeme,The line is covered on the calendar.
 nextstep,two-accepted,2,0,0,Y,Graeme,The line is covered on the calendar.
 practice,plain,V2 - Call Out Roster COPY 2026-10-21 0314.xlsm,,,,,2026-10-21 03:14
@@ -684,3 +684,17 @@ practice,no-copy-word,V2 - Call Out Roster 2026-10-21 0314.xlsm,,,,,none
 practice,daily-backup-name,Call Out Roster backup 2026-10-21.xlsm,,,,,none
 practice,bad-month,V2 - Call Out Roster COPY 2026-13-21 0314.xlsm,,,,,none
 practice,no-time,V2 - Call Out Roster COPY 2026-10-21.xlsm,,,,,none
+fatblock,nothing-around,0,0,0,0,,0|99
+fatblock,touching-full-night,0,12,0,0,,12|99
+fatblock,touching-full-joins-the-one-before,12,12,0,0,,24|99
+fatblock,touching-partial-joins-too,12,4,0,0,,16|99
+fatblock,before-but-not-touching-counts-nothing,12,0,0,0,,0|99
+fatblock,next-shift-worked,0,0,12,0,,0|12
+fatblock,next-but-one-worked,0,0,0,12,,0|24
+fatblock,next-partial-still-12,0,0,4,12,,0|12
+fatblock,dst-13-night-touching,0,13,0,0,,13|99
+postcap,no-max-known,12,0,N,,,12
+postcap,max-above-posting,12,16,Y,,,12
+postcap,max-4,12,4,Y,,,4
+postcap,max-0-not-charged,12,0,Y,,,0
+postcap,max-equal,12,12,Y,,,12

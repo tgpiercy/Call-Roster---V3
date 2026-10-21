@@ -924,7 +924,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "Click Practice on a copy (Desk, under HELP). A separate file opens with the roster as it is right now, a red " & _
         "PRACTICE COPY banner on every sheet and COPY in its title: nothing you do in it counts, reaches the roster or the " & _
         "members' file. Log a call-out, award a posting, book a sick call - whatever you want to try. Close it when you are " & _
-        "done; copies older than a day are deleted the next time the roster is opened. (v26.5.5)"
+        "done; copies older than a day are deleted with the roster's daily backup (the first open of the day). (v26.5.5)"
     HelpAdd h, n, "Update the members' file", _
         "Click Update the members' file (Member View on the bar) after you post, award or book, so the members see it. Wait for " & _
         "Members' file published. If it asks to close the members' file open in this Excel, Yes closes it and publishes. If it " & _

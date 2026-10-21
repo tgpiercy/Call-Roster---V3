@@ -1019,7 +1019,13 @@ Private Function IngestReport(ByRef rep As KronosReport, ByVal srcName As String
     Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary"): payOf.CompareMode = 1   ' name -> Payroll #
     Dim i As Long, nm As String, key As String, nPeople As Long, other As String, nOther As Long, m As Double
     mClashes = ""
-    If kind = "cumulative" Then Set mClashNames = CreateObject("Scripting.Dictionary"): mClashNames.CompareMode = 1   ' (review R1): the year to date is the truth about clashes
+    ' (review R1 / M1): the year to date is the truth about clashes - the held set is swapped out while it is read, and put
+    ' back if the file is refused below (a wrong-query file must not drop what earlier runs found)
+    Dim heldClashes As Object
+    If kind = "cumulative" Then
+        Set heldClashes = mClashNames
+        Set mClashNames = CreateObject("Scripting.Dictionary"): mClashNames.CompareMode = 1
+    End If
     For i = 1 To rep.nTot
         nm = RosterNameFor(rep.TotId(i), rep.TotName(i), nameMap, numMap)
         If nm <> "" Then
@@ -1036,6 +1042,7 @@ Private Function IngestReport(ByRef rep As KronosReport, ByVal srcName As String
     If nOther > 10 Then other = other & vbNewLine & "    ... and " & (nOther - 10) & " more"
     ' (review H4) a year to date with nobody from the roster in it would empty the snapshot: refused before any write
     If kind = "cumulative" And nPeople = 0 Then
+        Set mClashNames = heldClashes                        ' (review M1): nothing taken, so the held clashes stand
         IngestReport = "the year to date " & span & " names nobody on the roster (the wrong query or site?) - skipped" & IIf(mClashes <> "", vbNewLine & "  Payroll # clashes:" & mClashes, "")
         Exit Function
     End If

@@ -2676,7 +2676,23 @@ Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, By
     AddNameCol los, cols, labels, n, HoursHistoryTable(False), 4, "Hours History"
     AddNameCol los, cols, labels, n, CrewTable(False), CH_EMP, "Crew History"
     AddNameCol los, cols, labels, n, PlannedTable(False), PM_EMP, "Planned moves"     ' v24.3
+    AddNameCol los, cols, labels, n, WorkedPeriodsTable(False), 2, "Worked Periods"  ' v26.5.5 (A8): the per-period Kronos hours
     NameColumns = n
+End Function
+
+' v26.5.5 (A8): how many rows across every name column still hold this name, and where
+' (SmokeTest proves a rename left the old name nowhere; IntegrityCheck's helpers may use it)
+Public Function CountNameEverywhere(ByVal nameTxt As String, Optional ByRef whereTxt As String) As Long
+    whereTxt = ""
+    Dim los() As ListObject, cols() As Long, labels() As String, n As Long, i As Long, a As Long
+    n = NameColumns(los, cols, labels)
+    For i = 1 To n
+        a = CountName(los(i), cols(i), Trim$(nameTxt))
+        If a > 0 Then
+            CountNameEverywhere = CountNameEverywhere + a
+            whereTxt = whereTxt & IIf(whereTxt = "", "", ", ") & labels(i) & " (" & a & ")"
+        End If
+    Next i
 End Function
 
 Private Sub AddNameCol(ByRef los() As ListObject, ByRef cols() As Long, ByRef labels() As String, ByRef n As Long, _
@@ -2814,6 +2830,13 @@ Public Function RenamePreview(ByVal oldName As String, ByVal newName As String, 
     End If
     If mergeTxt <> "" Then
         txt = txt & vbNewLine & "CAREFUL: the name " & newName & " already has rows of its own. They would be combined with " & oldName & "'s:" & vbNewLine & mergeTxt
+    End If
+    If SIGNUPS_ON Then                                    ' v26.5.5 (A8): the inbox files are not rewritten
+        Dim nSign As Long: nSign = SignupFilesNaming(oldName)
+        If nSign > 0 Then
+            txt = txt & vbNewLine & nSign & " electronic sign-up request(s) in the inbox are under the old name and will be ignored: " & _
+                  "ask them to sign up again after the rename." & vbNewLine
+        End If
     End If
     txt = txt & vbNewLine & "Closed years (the OT Log archive sheets and Year End) keep the old name; the Grade Log gets a note." & vbNewLine & _
           "Kronos matches on the name: spell it the way Kronos does, or Worked hours stop updating for this person."

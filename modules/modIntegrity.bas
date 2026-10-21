@@ -625,6 +625,26 @@ Private Sub CheckOrphans()
             End If
         Next i
     End If
+    ' v26.5.5 (A8): the Worked Periods rows (the Kronos export's per-period hours) name people too; a name
+    ' that is on neither the roster nor the Former sheet is a Kronos spelling or a rename that missed them
+    v = TableValues(WP_TABLE)
+    If IsArray(v) Then
+        Dim wpSeen As Object: Set wpSeen = CreateObject("Scripting.Dictionary")
+        wpSeen.CompareMode = 1
+        For i = 1 To UBound(v, 1)
+            emp = Trim$(SafeStr(v(i, 2)))
+            If emp <> "" Then
+                If Not mOnRoster.Exists(emp) And Not former.Exists(emp) And Not wpSeen.Exists(emp) Then
+                    wpSeen.Add emp, True
+                    If wpSeen.Count <= 10 Then
+                        AddIssue SEV_WARN, "Not on roster", "Worked Periods has rows for " & emp & ", who isn't on the roster or the Former sheet", _
+                                 "Kronos spells the name differently (Rename matches it), or they left: the rows are rebuilt at the next import"
+                    End If
+                End If
+            End If
+        Next i
+        If wpSeen.Count > 10 Then AddIssue SEV_WARN, "Not on roster", "... and " & (wpSeen.Count - 10) & " more names on Worked Periods", ""
+    End If
 End Sub
 
 Private Sub OrphanSwitchName(ByVal id As String, ByVal emp As String)

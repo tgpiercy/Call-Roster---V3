@@ -233,6 +233,32 @@ Public Function ReadSignups(ByVal postingId As String, Optional ByRef skipped As
     ReadSignups = out
 End Function
 
+' v26.5.5 (A8): the inbox files (any posting, not the Done folder) whose employee line is this name - a
+' rename leaves them as they are, so the Employee pop-up's Rename preview can say how many will be ignored.
+Public Function SignupFilesNaming(ByVal nameTxt As String) As Long
+    Dim folder As String: folder = SignupFolderPath()
+    If folder = "" Then Exit Function
+    If Not FolderExists(folder) Then Exit Function
+    nameTxt = Trim$(nameTxt)
+    If nameTxt = "" Then Exit Function
+    Dim files() As String, n As Long, f As String, i As Long
+    On Error Resume Next
+    f = Dir$(folder & "*__*.txt")
+    Do While f <> "" And Err.Number = 0
+        n = n + 1
+        ReDim Preserve files(1 To n)
+        files(n) = f
+        f = Dir$()
+    Loop
+    On Error GoTo 0
+    Dim post As String, emp As String, hrs As Double, act As String, login As String, stamp As Date
+    For i = 1 To n
+        If ReadOneSignup(folder & files(i), post, emp, hrs, act, login, stamp) Then
+            If StrComp(Trim$(emp), nameTxt, vbTextCompare) = 0 Then SignupFilesNaming = SignupFilesNaming + 1
+        End If
+    Next i
+End Function
+
 ' Reads one inbox file. False = it couldn't be opened or read.
 Private Function ReadOneSignup(ByVal fullPath As String, ByRef post As String, ByRef emp As String, ByRef hrs As Double, _
                                ByRef act As String, ByRef login As String, ByRef stamp As Date) As Boolean

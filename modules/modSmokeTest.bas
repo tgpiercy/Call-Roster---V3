@@ -763,6 +763,11 @@ Private Function SmkRename(ByRef st As SmkState, ByRef why As String) As Boolean
     Dim report As String
     If Not RenameEverywhere(st.Emp, SMK_EMP2, report) Then Exit Function
     If RosterRowOf(SMK_EMP2) = 0 Or RosterRowOf(SMK_EMP) > 0 Then why = "the roster name didn't change": Exit Function
+    ' v26.5.5 (A8): the old name is gone from EVERY name column (the log, lists, absences, switches, the
+    ' grade / crew / hours histories, planned moves, Worked Periods) and the new one is somewhere
+    Dim leftIn As String
+    If CountNameEverywhere(SMK_EMP, leftIn) > 0 Then why = "the old name is still in: " & leftIn: Exit Function
+    If CountNameEverywhere(SMK_EMP2) = 0 Then why = "the new name is in no table (the rename wrote nothing)": Exit Function
     st.Emp = SMK_EMP2
     SmkRename = True
 End Function

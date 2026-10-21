@@ -243,8 +243,16 @@ Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
         MsgBox "These rows have typed numbers in the pay-period cells and were left alone." & vbNewLine & _
                "Run Alt+F8 > RefreshRosterFormulas to move them into the OT Log:" & vbNewLine & vbNewLine & typed, vbInformation
     End If
-    mFlipStarted = False
-    ClearNoSave                     ' every row now matches the OT Log
+    ' v26.5.5 (A9): the block is lifted only for the flip THIS call started and verified. A NoSave set by
+    ' another failed check (a people save, the rollover) stood for a reason: it stays, and the box says so.
+    If mFlipStarted Then
+        mFlipStarted = False
+        ClearNoSave                 ' every row now matches the OT Log
+    ElseIf NoSave() Then
+        MsgBox "The date rows were already in place, so nothing was rewritten here." & vbNewLine & vbNewLine & _
+               "Saving stays BLOCKED from an earlier failed check in this session: close WITHOUT saving and reopen, " & _
+               "then run the macro that failed again.", vbExclamation, "Saving is blocked"
+    End If
     FlipPeriodRows = True
 End Function
 

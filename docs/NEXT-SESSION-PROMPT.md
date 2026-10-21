@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (written Oct 21, 2026: v26.5 is ON THE REAL ROSTER; v26.5.5 built, reviewed three times, tagged; next = Graeme installs v26.5.5 before Nov 1, then the alpha Nov 1-15, then v27 before the Dec 1 training, v28 in January)
+# Paste this into a fresh session to carry on (written Oct 21, 2026: v26.5 is ON THE REAL ROSTER; v26.5.5 built, reviewed three times, tagged and pushed; next = Graeme installs v26.5.5 before Nov 1, and sends the two Kronos extracts, then the alpha Nov 1-15, then v27 before the Dec 1 training, v28 in January)
 
 ```
 Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first (the numbering rule, the three gating levels,
@@ -17,17 +17,16 @@ fixes, the 3 AM fixes, THE 16 H RULE (a rule change), the text pass, the trust s
 re-pastes ThisWorkbook and every form but frmEmployee; no members' change; SystemCheck "25 of 25 on v26.5.5",
 SelfTest 698 / 81, SmokeTest 20 steps. NOT installed yet: ask first whether it is on the real roster.
 
-THREE THINGS TO PUT TO GRAEME FIRST (multiple choice, the default first):
-1. The 16 h rule's charging (decided by default in the review fixes, NOT by him): a person the rule caps is
-   OFFERED their maximum, so a refusal / left message is charged on those hours (max 4 h -> 7 h charged, not
-   21), and a posting they did not sign up for charges the hours they could have taken (none = not charged).
-   Alternatives: not charged at all when capped; or taken off the list when the max is under the offer.
-2. A capped person who takes their whole maximum (P 4 of 12) CLOSES the shift like any partial (v25 D-E4), so
-   the other 8 h are dropped. Alternative: keep calling down the list for the rest when the partial was forced
-   by the rule (a change to CalloutOffers / CalloutClosed, both pure, suites calloffer / callclosed).
-3. "We will need to develop our own Kronos data import" (Graeme, Oct 21, after the first real export import,
-   unexplained): what did the import get wrong, or what does the export lack? The summary box's text or a
-   photo; whether the Worked Periods sheet filled. Nothing in v26.5.5 touches the import.
+DECIDED BY GRAEME Oct 21 (after the reviews; don't re-ask): a person the 16 h rule caps is OFFERED their
+maximum, so a refusal / left message is charged on those hours (max 4 h -> 7 h, not 21) and a posting they
+did not sign up for charges the hours they could have taken (none = not charged); a capped person who takes
+their whole maximum (P 4 of 12) CLOSES the shift like any partial (v25 D-E4). KRONOS (v27 item, his words):
+"I want to send you 2 files that are extracted from Kronos. We will then import this data to fill in premium
+hours. The change in hours day to day is logged" - i.e. the Worked Periods / Worked (H) figures come from two
+Kronos extracts he will send, with a day-to-day delta kept; the v26.5 export import is the fall-back until
+then. FIRST THING NEXT SESSION: ask for the two files (uploads folder, never in the repo), read their LAYOUT
+only, and write the import's brief (which file feeds H, which the per-period hours, what the daily delta log
+is for) before any code.
 
 THEN the install: he runs the panel on a copy, then the real roster (docs/INSTALL-v26.5.5.md; group 4 has
 eleven rows, three of which may not be stageable - the failed save, the two-PC stale copy, a supervisor login:

@@ -27,7 +27,7 @@ Needs **v26.5 installed** and **Roster Updater.xlsm v4.1**. **The updater does n
 By hand instead: remove and import the 25 modules, re-paste ThisWorkbook and the eight forms (every one but frmEmployee) from `paste-in/`, Debug > Compile; then the group 3-4 rows yourself.
 
 ## Open point
-After the first real Kronos export import Graeme wrote "we will need to develop our own Kronos data import" (Oct 21), unexplained. Nothing in this release changes the import. Before v27: say what the import got wrong or what the export lacks (the summary box's text, or a photo), and whether Worked Periods filled.
+The Kronos premium-hours import is rebuilt in v27 from two Kronos extracts (Graeme, Oct 21: "we will then import this data to fill in premium hours; the change in hours day to day is logged"). Nothing in this release changes the import; the v26.5 export import stays the fall-back until then.
 
 ## Then
 Send the SmokeTest box, the group 4 rows that could not be staged (the failed save, the two-PC stale copy), and the IntegrityCheck result at the end.

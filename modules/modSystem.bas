@@ -428,7 +428,7 @@ End Sub
 ' guard all key on COPY in the name, so nothing done in it touches the roster.
 Public Sub MakePracticeCopy()
     On Error GoTo Oops
-    If Not RequireAdmin() Then Exit Sub
+    If Not RequireSupervisor() Then Exit Sub        ' v26.5.5 (5.4): supervisors practise too (the Desk's Practice button)
     ' v24.3.2 (Graeme's Oct 13 test): a copy made from inside a copy carries everything done in
     ' it, saved or not - after SmokeTest, its test person and the rows it left. Copies come from the roster.
     If NoSave() Then
@@ -479,12 +479,86 @@ Public Sub MakePracticeCopy()
     End If
     Workbooks.Open Filename:=target
     MsgBox "You are now in the practice copy:" & vbNewLine & target & tplNote & vbNewLine & vbNewLine & _
-           "Run SmokeTest here (Alt+F8), or try things by hand. Close it when you are done; delete the Practice folder whenever you like.", _
-           vbInformation, "Practice copy"
+           "Every sheet carries a red PRACTICE COPY banner: nothing done here counts, reaches the roster or the members' file. " & _
+           "Try things by hand, or run SmokeTest (Alt+F8). Close it when you are done: copies older than a day are deleted " & _
+           "when the roster is next opened.", vbInformation, "Practice copy"
     Exit Sub
 Oops:
     ReportError "MakePracticeCopy"
 End Sub
+
+' v26.5.5 (5.4): a practice copy says so on every visible sheet (a red banner shape, top left) and in the
+' window title, so nobody mistakes it for the roster. Workbook_Open runs it; the live roster is untouched.
+Public Sub PracticeBannerOnOpen()
+    On Error Resume Next
+    If Not IsDryRunName(ThisWorkbook.Name) Then Exit Sub
+    Dim ws As Worksheet, s As Shape, i As Long
+    For Each ws In ThisWorkbook.Worksheets
+        If ws.Visible = xlSheetVisible Then
+            UnlockSheet ws
+            For i = ws.Shapes.Count To 1 Step -1
+                If ws.Shapes(i).Name = "prac_banner" Then ws.Shapes(i).Delete
+            Next i
+            Set s = ws.Shapes.AddTextbox(msoTextOrientationHorizontal, 0, 0, 330, 16)
+            s.Name = "prac_banner"
+            s.Fill.ForeColor.RGB = RGB(190, 30, 30)
+            s.Line.Visible = msoFalse
+            s.Placement = xlFreeFloating
+            s.Locked = True
+            With s.TextFrame
+                .Characters.Text = "PRACTICE COPY: nothing here counts"
+                .Characters.Font.Bold = True
+                .Characters.Font.Size = 9
+                .Characters.Font.Color = vbWhite
+                .MarginTop = 1: .MarginBottom = 1: .MarginLeft = 4
+            End With
+            ProtectSheet ws
+        End If
+    Next ws
+    ActiveWindow.Caption = "PRACTICE COPY  -  " & ThisWorkbook.Name
+End Sub
+
+' v26.5.5 (5.4). PURE (SelfTest "practice"): the date and time in a practice copy's name,
+' "<roster name> COPY yyyy-mm-dd hhmm.xlsm" (MakePracticeCopy writes it), or 0 when the name isn't that
+Public Function PracticeCopyDate(ByVal fileName As String) As Date
+    Dim p As Long: p = InStr(1, fileName, " COPY ", vbTextCompare)
+    If p = 0 Then Exit Function
+    Dim s As String: s = Mid$(fileName, p + 6)
+    If Not s Like "####-##-## ####.xlsm" Then Exit Function
+    Dim y As Long, mo As Long, dy As Long, hh As Long, mi As Long
+    y = CLng(Left$(s, 4)): mo = CLng(Mid$(s, 6, 2)): dy = CLng(Mid$(s, 9, 2)): hh = CLng(Mid$(s, 12, 2)): mi = CLng(Mid$(s, 14, 2))
+    If mo < 1 Or mo > 12 Or dy < 1 Or dy > 31 Or hh > 23 Or mi > 59 Then Exit Function      ' DateSerial would roll these over
+    If Day(DateSerial(y, mo, dy)) <> dy Then Exit Function                                  ' Feb 30 and the like
+    PracticeCopyDate = DateSerial(y, mo, dy) + TimeSerial(hh, mi, 0)
+End Function
+
+' Deletes the practice copies (and nothing else) in the Practice folder beside the roster that are more
+' than a day old - the copy can't delete itself on close. Returns how many went.
+Public Function PrunePracticeCopies(ByVal folder As String) As Long
+    On Error Resume Next
+    If Not FolderExists(folder) Then Exit Function
+    Dim names() As String, n As Long, f As String, i As Long, removed As Long, d As Date
+    f = Dir$(folder & "* COPY ????-??-?? ????.xlsm")
+    Do While f <> "" And Err.Number = 0
+        n = n + 1
+        ReDim Preserve names(1 To n)
+        names(n) = f
+        f = Dir$()
+    Loop
+    Err.Clear
+    For i = 1 To n
+        d = PracticeCopyDate(names(i))
+        If d > 0 Then
+            If Now - d > 1 Then
+                Err.Clear
+                Kill folder & names(i)
+                If Err.Number = 0 Then removed = removed + 1
+                Err.Clear
+            End If
+        End If
+    Next i
+    PrunePracticeCopies = removed
+End Function
 
 ' ---------------- opening checks ----------------
 Public Sub OpenChecks()
@@ -660,6 +734,7 @@ Public Sub BackupOnOpen()
     End If
     PruneBackups folder
     PrunePreChangeCopies EnsureSlash(ThisWorkbook.Path)      ' v26: the "Backup before ..." copies live beside the roster
+    PrunePracticeCopies EnsureSlash(ThisWorkbook.Path) & "Practice\"      ' v26.5.5 (5.4): practice copies older than a day
 End Sub
 
 ' v26 (backup housekeeping). PURE (SelfTest "prechange"): the date in a pre-change copy's

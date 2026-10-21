@@ -678,3 +678,9 @@ nextstep,partial-8,1,8,0,N,Graeme,The shift is closed at 8 h; the rest is droppe
 nextstep,partial-4.5,1,4.5,1,Y,Graeme,The shift is closed at 4.5 h; the rest is dropped; nobody charged.
 nextstep,filled,1,0,1,N,Graeme,The line is covered on the calendar.
 nextstep,two-accepted,2,0,0,Y,Graeme,The line is covered on the calendar.
+practice,plain,V2 - Call Out Roster COPY 2026-10-21 0314.xlsm,,,,,2026-10-21 03:14
+practice,lower-case-copy,V2 - Call Out Roster copy 2026-10-21 2359.xlsm,,,,,2026-10-21 23:59
+practice,no-copy-word,V2 - Call Out Roster 2026-10-21 0314.xlsm,,,,,none
+practice,daily-backup-name,Call Out Roster backup 2026-10-21.xlsm,,,,,none
+practice,bad-month,V2 - Call Out Roster COPY 2026-13-21 0314.xlsm,,,,,none
+practice,no-time,V2 - Call Out Roster COPY 2026-10-21.xlsm,,,,,none

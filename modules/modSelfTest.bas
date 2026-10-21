@@ -215,6 +215,9 @@ Private Function RunCase(f() As String) As String
         Case "minstaff"                            ' v26: scheduled, off, covered, minimum -> ok / SHORT staffed/minimum
             RunCase = StaffShort(CLng(Val(i1)), CLng(Val(i2)), CLng(Val(i3)), CLng(Val(i4)))
             If RunCase = "" Then RunCase = "ok"
+        Case "practice"                            ' v26.5.5: a file name -> the date and time a practice copy carries (yyyy-mm-dd hh:mm) / none
+            Dim prD As Date: prD = PracticeCopyDate(i1)
+            RunCase = IIf(prD = 0, "none", Format$(prD, "yyyy-mm-dd hh:mm"))
         Case "nextstep"                            ' v26.5.5: accepted, partial hours, left messages, admin Y/N, admin name -> the last line (; for ,)
             RunCase = Replace(NextStepText(CLng(Val(i1)), CDbl(Val(i2)), CLng(Val(i3)), (i4 = "Y"), i5), ",", ";")
         Case "fatigue"                             ' v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
@@ -1568,5 +1571,11 @@ Private Sub LoadCases()
     AddCase "nextstep,partial-4.5,1,4.5,1,Y,Graeme,The shift is closed at 4.5 h; the rest is dropped; nobody charged."
     AddCase "nextstep,filled,1,0,1,N,Graeme,The line is covered on the calendar."
     AddCase "nextstep,two-accepted,2,0,0,Y,Graeme,The line is covered on the calendar."
+    AddCase "practice,plain,V2 - Call Out Roster COPY 2026-10-21 0314.xlsm,,,,,2026-10-21 03:14"
+    AddCase "practice,lower-case-copy,V2 - Call Out Roster copy 2026-10-21 2359.xlsm,,,,,2026-10-21 23:59"
+    AddCase "practice,no-copy-word,V2 - Call Out Roster 2026-10-21 0314.xlsm,,,,,none"
+    AddCase "practice,daily-backup-name,Call Out Roster backup 2026-10-21.xlsm,,,,,none"
+    AddCase "practice,bad-month,V2 - Call Out Roster COPY 2026-13-21 0314.xlsm,,,,,none"
+    AddCase "practice,no-time,V2 - Call Out Roster COPY 2026-10-21.xlsm,,,,,none"
 ' <<< CASES
 End Sub

@@ -251,7 +251,9 @@ Public Sub DrawDesk()
     DeskBtn ws, "dk_btn_report", "Something went wrong", "modDesk.DeskReport", x0 + (BTN_W + GAP) / 2, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
     ' v25.5 (A8): a suggestion goes the same way as a fault, with its own subject
     yL = yL + BTN_H + GAP
-    DeskBtn ws, "dk_btn_suggest", "Suggest an improvement", "modDesk.DeskSuggest", x0, yL, dkGrey(), BTN_W, dkInk()
+    DeskBtn ws, "dk_btn_suggest", "Suggest an improvement", "modDesk.DeskSuggest", x0, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
+    ' v26.5.5 (5.4): a practice copy for anyone who may log - nothing done in it counts
+    DeskBtn ws, "dk_btn_practice", "Practice on a copy", "modDesk.DeskPractice", x0 + (BTN_W + GAP) / 2, yL, dkGrey(), (BTN_W - GAP) / 2, dkInk()
     ' v25.5 (A5): the shortcut keys, under the help buttons
     yL = yL + BTN_H + 6
     DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yL
@@ -624,6 +626,15 @@ Oops:
     ReportError "DeskPrint"
 End Sub
 
+' v26.5.5 (5.4): the Practice button - a throw-away copy with a red banner (modSystem.MakePracticeCopy)
+Public Sub DeskPractice()
+    On Error GoTo Oops
+    MakePracticeCopy
+    Exit Sub
+Oops:
+    ReportError "DeskPractice"
+End Sub
+
 Public Sub DeskRoster()
     On Error GoTo Oops
     RosterSheet().Activate
@@ -903,6 +914,11 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Print the call-out roster", _
         "Click Print the call-out roster (Call Out Roster on the bar). It is redrawn in call order from the roster; answer Yes " & _
         "to print."
+    HelpAdd h, n, "Practice on a copy", _
+        "Click Practice on a copy (Desk, under HELP). A separate file opens with the roster as it is right now, a red " & _
+        "PRACTICE COPY banner on every sheet and COPY in its title: nothing you do in it counts, reaches the roster or the " & _
+        "members' file. Log a call-out, award a posting, book a sick call - whatever you want to try. Close it when you are " & _
+        "done; copies older than a day are deleted the next time the roster is opened. (v26.5.5)"
     HelpAdd h, n, "Update the members' file", _
         "Click Update the members' file (Member View on the bar) after you post, award or book, so the members see it. Wait for " & _
         "Members' file published. If it asks to close the members' file open in this Excel, Yes closes it and publishes. If it " & _

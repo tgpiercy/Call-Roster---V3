@@ -1148,6 +1148,20 @@ def fatigue_problem(worked_before: float, hours_offered: float, hours_to_next: f
     return "16 h rule" if hours_offered > fatigue_max_hours(worked_before, hours_to_next) + 0.001 else ""
 
 
+def practice_copy_date(file_name: str) -> datetime | None:
+    """modSystem.PracticeCopyDate (v26.5.5, 5.4): '<roster> COPY yyyy-mm-dd hhmm.xlsm' -> that time, else None."""
+    p = file_name.lower().find(" copy ")
+    if p < 0:
+        return None
+    s = file_name[p + 6:]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{4}\.xlsm", s):
+        return None
+    try:
+        return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]), int(s[13:15]))
+    except ValueError:
+        return None
+
+
 def next_step_text(n_accepted: int, partial_hours: float, n_left_msg: int, is_admin: bool, admin_name: str) -> str:
     """modOvertimeEntry.NextStepText (v26.5.5, B13): the last line of a submitted call-out session."""
     if n_accepted == 0:

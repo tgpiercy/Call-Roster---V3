@@ -210,12 +210,12 @@ End Sub
 ' ---- the calculation ----
 Private Sub mCalcBtn_Click()
     mCalcOk = False
-    If mLeave.ListIndex < 0 Or Not IsArray(mLeaveIds) Then MsgBox "Pick who's back.", vbExclamation: Exit Sub
+    If mLeave.ListIndex < 0 Or Not IsArray(mLeaveIds) Then MsgBox "Pick who's back.", vbExclamation, "Call Out Roster": Exit Sub
     Dim t As String: t = Trim$(C("txtReturn").Text)
     Dim dRet As Date
-    If Not ParseTypedDate(t, dRet) Then MsgBox "Enter the return date (first day back, e.g. Oct 12).", vbExclamation: Exit Sub
+    If Not ParseTypedDate(t, dRet) Then MsgBox "Enter the return date (first day back, e.g. Oct 12).", vbExclamation, "Call Out Roster": Exit Sub
     If dRet > Date Then                            ' v25 (D-C7): the top-up measures a gap that has happened
-        MsgBox "The return date is after today. Log the return on or after the first day back.", vbExclamation
+        MsgBox "The return date is after today. Log the return on or after the first day back.", vbExclamation, "Call Out Roster"
         Exit Sub
     End If
     Me.MousePointer = fmMousePointerHourGlass
@@ -250,7 +250,7 @@ Private Sub SaveGoing()
     If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Leave": Exit Sub
     If Trim$(C("txtExp").Text) <> "" Then
         d2 = dExp
-        If d2 <= d1 Then MsgBox "The expected return must be after the first day off.", vbExclamation: Exit Sub
+        If d2 <= d1 Then MsgBox "The expected return must be after the first day off.", vbExclamation, "Call Out Roster": Exit Sub
     Else
         d2 = Empty
     End If
@@ -269,13 +269,13 @@ Private Sub SaveGoing()
 End Sub
 
 Private Sub SaveReturning()
-    If Not mCalcOk Then MsgBox "Click Work out the top-up first.", vbExclamation: Exit Sub
+    If Not mCalcOk Then MsgBox "Click Work out the top-up first.", vbExclamation, "Call Out Roster": Exit Sub
     Dim hrs As Double: hrs = mCalc.Average
     Dim why As String: why = Trim$(C("txtWhy").Text)
     If Trim$(mOverride.Text) <> "" Then
-        If Not IsNumeric(Trim$(mOverride.Text)) Then MsgBox "The override must be a number of hours.", vbExclamation: Exit Sub
+        If Not IsNumeric(Trim$(mOverride.Text)) Then MsgBox "The override must be a number of hours.", vbExclamation, "Call Out Roster": Exit Sub
         hrs = CDbl(Trim$(mOverride.Text))
-        If why = "" Then MsgBox "An override needs a reason (it goes in the OT Log).", vbExclamation: Exit Sub
+        If why = "" Then MsgBox "An override needs a reason (it goes in the OT Log).", vbExclamation, "Call Out Roster": Exit Sub
     ElseIf mCalc.NPeers = 0 Then
         MsgBox "No peers were found, so the average is 0. Enter an override with a reason, or fix the Home Unit / Hours History first.", _
                vbExclamation, "Leave"

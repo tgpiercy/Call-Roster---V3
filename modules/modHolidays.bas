@@ -360,7 +360,7 @@ Public Sub ShowHolidays()
     On Error GoTo Fail
     EnsureHolidayYears Year(Date), Year(Date) + 1
     If HolidayTable(False) Is Nothing Then
-        MsgBox "The Holidays sheet couldn't be created (is the file read-only?).", vbExclamation
+        MsgBox "The Holidays sheet couldn't be created (is the file read-only?).", vbExclamation, "Call Out Roster"
         Exit Sub
     End If
     SetSheetVisible ThisWorkbook.Worksheets(HOL_SHEET), xlSheetVisible
@@ -393,5 +393,5 @@ Public Sub GoToHoliday(ByVal d As Date)
 Fail:
     Dim em As String: em = Err.Description
     LogError "GoToHoliday", Err.Number, em          ' v25 (I5): an error here used to be a bare box, never logged
-    MsgBox "The Holidays sheet couldn't be opened: " & Err.Description, vbExclamation
+    MsgBox "The Holidays sheet couldn't be opened: " & Err.Description, vbExclamation, "Call Out Roster"
 End Sub

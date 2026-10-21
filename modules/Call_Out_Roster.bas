@@ -23,7 +23,7 @@ Private Const HDR_ROWS As Long = 4            ' title block repeated on every pr
 Sub Call_Out()
     If Not RequireSupervisor() Then Exit Sub     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not SheetExists(CALLOUT_SHEET) Then
-        MsgBox "Sheet '" & CALLOUT_SHEET & "' not found. Add a blank sheet with that name and try again.", vbCritical
+        MsgBox "Sheet '" & CALLOUT_SHEET & "' not found. Add a blank sheet with that name and try again.", vbCritical, "Call Out Roster"
         Exit Sub
     End If
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(CALLOUT_SHEET)
@@ -50,7 +50,7 @@ Sub Call_Out()
             If Err.Number <> 0 Then em = Err.Description
             On Error GoTo 0
             If em <> "" Then
-                MsgBox "Couldn't print: " & em & vbNewLine & "The roster is on the " & CALLOUT_SHEET & " tab - use File > Print.", vbExclamation
+                MsgBox "Couldn't print: " & em & vbNewLine & "The roster is on the " & CALLOUT_SHEET & " tab - use File > Print.", vbExclamation, "Call Out Roster"
             End If
     End Select
     Exit Sub
@@ -62,7 +62,7 @@ Failed:
     Application.DisplayAlerts = True              ' v25.3 re-review: the renderer turns it off
     ProtectSheet ws
     Application.ScreenUpdating = True
-    MsgBox "The call out roster couldn't be drawn: " & msg & vbNewLine & "Send me a screenshot of this message.", vbCritical
+    MsgBox "The call out roster couldn't be drawn: " & msg & vbNewLine & "Send " & PRIMARY_ADMIN_NAME & " a screenshot of this message.", vbCritical, "Call Out Roster"
 End Sub
 
 

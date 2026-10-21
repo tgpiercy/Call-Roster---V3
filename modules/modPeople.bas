@@ -378,7 +378,7 @@ Fail:
     Application.EnableEvents = evWas
     ResetCrewCache
     MsgBox "The crew change couldn't be written to the Crew History sheet: " & em & vbNewLine & _
-           "Send me this message.", vbExclamation, "Crew History"
+           "Send " & PRIMARY_ADMIN_NAME & " this message.", vbExclamation, "Crew History"
 End Function
 
 ' One crew row from code (the Employee pop-up). True when written.
@@ -2570,7 +2570,7 @@ Public Sub ApplyDuePlannedMoves(Optional ByVal byHand As Boolean = False, Option
                 MarkNoSave
                 MsgBox emp & "'s move went in, but its row on the Planned Moves sheet couldn't be marked Applied." & vbNewLine & vbNewLine & _
                        "Saving is blocked. Close WITHOUT saving and open the file again: the move is then applied afresh." & vbNewLine & _
-                       "If it happens twice, send me this box. Backup: " & bk, vbCritical, TTL
+                       "If it happens twice, send " & PRIMARY_ADMIN_NAME & " this box. Backup: " & bk, vbCritical, TTL
                 Exit Sub
             End If
         Else

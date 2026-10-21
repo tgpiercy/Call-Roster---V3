@@ -256,7 +256,7 @@ Private Function AskNumber(ByVal prompt As String, ByVal title As String, ByVal 
     If s = "" Or Not IsNumeric(s) Then Exit Function
     If CDbl(s) <> Int(CDbl(s)) Then Exit Function
     If CLng(s) < lo Or CLng(s) > hi Then
-        MsgBox "Pick a number from " & lo & " to " & hi & ".", vbExclamation
+        MsgBox "Pick a number from " & lo & " to " & hi & ".", vbExclamation, "Call Out Roster"
         Exit Function
     End If
     AskNumber = CLng(s)
@@ -297,10 +297,10 @@ Public Sub UpgradeAbsenceColumns()
     If Not RequireWritable() Then Exit Sub
     Dim lo As ListObject: Set lo = AbsTable(False)
     If lo Is Nothing Then
-        MsgBox "There is no Absences table yet - it will be created with every column the first time time off is booked. Nothing to do.", vbInformation
+        MsgBox "There is no Absences table yet - it will be created with every column the first time time off is booked. Nothing to do.", vbInformation, "Call Out Roster"
         Exit Sub
     End If
-    If lo.ListColumns.Count >= AB_N Then MsgBox "The Absences table already has the v22 columns.", vbInformation: Exit Sub
+    If lo.ListColumns.Count >= AB_N Then MsgBox "The Absences table already has the v22 columns.", vbInformation, "Call Out Roster": Exit Sub
     If MsgBox("Add the Home Unit, Leave Group and Shift columns to the Absences table?" & vbNewLine & vbNewLine & _
               "They go on the end, so nothing moves. A backup copy is saved first and the row count and roster totals are checked after.", _
               vbOKCancel + vbQuestion, "Absences upgrade") <> vbOK Then Exit Sub
@@ -311,7 +311,7 @@ Public Sub UpgradeAbsenceColumns()
     If Err.Number <> 0 Then
         Dim e As String: e = Err.Description
         On Error GoTo 0
-        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical
+        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical, "Call Out Roster"
         Exit Sub
     End If
     On Error GoTo 0
@@ -349,12 +349,12 @@ Public Sub UpgradeAbsenceColumns()
     End If
     If problems <> "" Then
         MarkNoSave
-        MsgBox "The upgrade did NOT verify:" & vbNewLine & problems & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical
+        MsgBox "The upgrade did NOT verify:" & vbNewLine & problems & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Call Out Roster"
         Exit Sub
     End If
     ResetCalCacheAll
     SaveIfWritable
-    MsgBox "Absences table upgraded: " & lo.ListColumns.Count & " columns, " & nRows & " rows, roster totals unchanged." & vbNewLine & "Backup: " & bk, vbInformation
+    MsgBox "Absences table upgraded: " & lo.ListColumns.Count & " columns, " & nRows & " rows, roster totals unchanged." & vbNewLine & "Backup: " & bk, vbInformation, "Call Out Roster"
     Exit Sub
 Failed:
     em = Err.Description
@@ -362,7 +362,7 @@ Failed:
     On Error Resume Next
     ProtectSheet ws
     MarkNoSave
-    MsgBox "The upgrade stopped part-way: " & em & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical
+    MsgBox "The upgrade stopped part-way: " & em & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Call Out Roster"
 End Sub
 
 Public Sub ResetCalCacheAll()
@@ -462,7 +462,7 @@ Fail:
     LogError "AppendTo", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
-    MsgBox "Could not write to " & lo.Name & ": " & em, vbCritical
+    MsgBox "Could not write to " & lo.Name & ": " & em, vbCritical, "Call Out Roster"
 End Function
 
 ' row number (in the table body) of an ID, 0 if not found
@@ -993,7 +993,7 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
     Dim lo As ListObject: Set lo = AbsTable(True)
     If lo Is Nothing Then Exit Function
     If lo.ListColumns.Count < AB_N Then
-        MsgBox "The Absences table needs its v22 columns first: run Alt+F8 > UpgradeAbsenceColumns.", vbExclamation
+        MsgBox "The Absences table needs its v22 upgrade first: an admin runs Alt+F8 > UpgradeAbsenceColumns once.", vbExclamation, "Time off"
         Exit Function
     End If
 
@@ -1196,7 +1196,7 @@ Public Function SaveNeed(ByVal unit As String, ByVal needText As String, ByVal t
     Dim shifts As Variant
     If shiftSel = "Both" Then shifts = Array("Days", "Nights") Else shifts = Array(shiftSel)
     Dim nRows As Long: nRows = (Int(dEnd) - Int(dStart) + 1) * (UBound(shifts) + 1)
-    If nRows > 400 Then MsgBox "That's more than 400 lines - shorten the range.", vbExclamation: Exit Function
+    If nRows > 400 Then MsgBox "That's more than 400 lines - shorten the range.", vbExclamation, "Call Out Roster": Exit Function
 
     Dim data() As Variant: ReDim data(1 To nRows, 1 To CV_N)
     Dim base As Long: base = CLng(Val(Mid$(NextId(lo, "CV"), 4)))
@@ -1501,8 +1501,8 @@ Public Function SetAbsenceEnd(ByVal id As String) As Boolean
     s = Trim$(CStr(s))
     Dim dEnd As Date                               ' v25: the one parser
     If s <> "" Then
-        If Not ParseTypedDate(s, dEnd) Then MsgBox "That isn't a date (e.g. Oct 12).", vbExclamation: Exit Function
-        If dEnd < CDate(v(r, AB_START)) Then MsgBox "The end is before the start.", vbExclamation: Exit Function
+        If Not ParseTypedDate(s, dEnd) Then MsgBox "That isn't a date (e.g. Oct 12).", vbExclamation, "Call Out Roster": Exit Function
+        If dEnd < CDate(v(r, AB_START)) Then MsgBox "The end is before the start.", vbExclamation, "Call Out Roster": Exit Function
     End If
     UnlockSheet lo.Parent
     If s = "" Then
@@ -1691,7 +1691,7 @@ Public Sub ShowCalDrawTimes()
     If b = "" Then b = "Needs Attention: not drawn since v25.1.2 went in."
     If c = "" Then c = "Open path: the Calendar button hasn't been clicked since v25.1.2 went in."
     MsgBox a & vbNewLine & vbNewLine & b & vbNewLine & vbNewLine & c & vbNewLine & vbNewLine & _
-           "Send me these lines (a photo is fine). The 'drawn in' number is the draw alone: a stopwatch from the click to the screen settling is the number you feel.  (" & CAL_VERSION & ")", _
+           "Send " & PRIMARY_ADMIN_NAME & " these lines (a photo is fine). The 'drawn in' number is the draw alone: a stopwatch from the click to the screen settling is the number you feel.  (" & CAL_VERSION & ")", _
            vbInformation, "Draw times"
     Exit Sub
 Oops:
@@ -2655,7 +2655,7 @@ End Sub
 ' Admin: click a calendar line, then Set Coverage
 Public Sub CalSetCoverage()
     On Error GoTo Oops
-    If Not ActiveSheet.Name = CAL_SHEET Then MsgBox "Click a line on the Calendar first.", vbInformation: Exit Sub
+    If Not ActiveSheet.Name = CAL_SHEET Then MsgBox "Click a line on the Calendar first.", vbInformation, "Call Out Roster": Exit Sub
     CalSetCoverageKey SafeStr(MapSheet().Range(ActiveCell.Address).Value)
     Exit Sub
 Oops:
@@ -2665,13 +2665,13 @@ End Sub
 Private Sub CalSetCoverageKey(ByVal keyTxt As String)
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
-    If Left$(keyTxt, 2) <> "A:" And Left$(keyTxt, 2) <> "C:" Then MsgBox "Click a line on the calendar (who's off / the need), then Set Coverage." & vbNewLine & "For an empty spot, double-click it instead.", vbInformation: Exit Sub
+    If Left$(keyTxt, 2) <> "A:" And Left$(keyTxt, 2) <> "C:" Then MsgBox "Click a line on the calendar (who's off / the need), then Set Coverage." & vbNewLine & "For an empty spot, double-click it instead.", vbInformation, "Call Out Roster": Exit Sub
     Dim parts As Variant: parts = Split(keyTxt, "|")
     Dim slotKey As String: slotKey = parts(0)
     Dim d As Date: d = CDate(CLng(parts(1)))
     Dim shiftLbl As String: shiftLbl = parts(2)
     Dim leftTxt As String, rightTxt As String
-    If Not SlotTexts(keyTxt, leftTxt, rightTxt) Then MsgBox "That line has changed - the calendar will redraw.", vbExclamation: DrawCalendar: Exit Sub
+    If Not SlotTexts(keyTxt, leftTxt, rightTxt) Then MsgBox "That line has changed - the calendar will redraw.", vbExclamation, "Call Out Roster": DrawCalendar: Exit Sub
 
     Dim ans As String
     ans = Trim$(VBA.InputBox("Who covers  " & Clip(leftTxt, 40) & "  on " & Format$(d, "ddd mmm d") & " " & shiftLbl & "?" & vbNewLine & vbNewLine & _
@@ -2687,7 +2687,7 @@ Private Sub CalSetCoverageKey(ByVal keyTxt As String)
     If Left$(slotKey, 2) = "A:" Then
         Dim ar As Long: ar = RowOf(mAbs, Mid$(slotKey, 3))
         If ar > 0 Then unit = SafeStr(mAbs(ar, AB_UNIT))
-        If UCase$(ans) = "DELETE" Then MsgBox "Void the time off in Book Time Off instead.", vbInformation: Exit Sub
+        If UCase$(ans) = "DELETE" Then MsgBox "Void the time off in Book Time Off instead.", vbInformation, "Call Out Roster": Exit Sub
         ' replace existing manual coverage for this absence / date / shift
         Dim v As Variant: v = mCov
         Dim i As Long, srcs As String
@@ -2698,7 +2698,7 @@ Private Sub CalSetCoverageKey(ByVal keyTxt As String)
                 End If
             Next i
             If srcs <> "" Then
-                If MsgBox("This line is filled by" & srcs & ". Replace it anyway?", vbYesNo + vbExclamation) = vbNo Then Exit Sub
+                If MsgBox("This line is filled by" & srcs & ". Replace it anyway?", vbYesNo + vbExclamation, "Call Out Roster") = vbNo Then Exit Sub
             End If
             UnlockSheet lo.Parent
             For i = 1 To UBound(v, 1)
@@ -2947,7 +2947,7 @@ End Function
 ' Admin: click an open line, then Post Line -> New Posting, pre-filled
 Public Sub CalPostLine()
     On Error GoTo Oops
-    If ActiveSheet.Name <> CAL_SHEET Then MsgBox "Click a line on the Calendar first.", vbInformation: Exit Sub
+    If ActiveSheet.Name <> CAL_SHEET Then MsgBox "Click a line on the Calendar first.", vbInformation, "Call Out Roster": Exit Sub
     CalPostKey SafeStr(MapSheet().Range(ActiveCell.Address).Value)
     Exit Sub
 Oops:
@@ -2959,18 +2959,18 @@ Private Sub CalPostKey(ByVal keyTxt As String)
     If Not RequireWritable() Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
-    If Left$(keyTxt, 2) <> "A:" And Left$(keyTxt, 2) <> "C:" Then MsgBox "Click the line that needs coverage (who's off / the need), then Post Line." & vbNewLine & "For an empty spot, double-click it to post support.", vbInformation: Exit Sub
+    If Left$(keyTxt, 2) <> "A:" And Left$(keyTxt, 2) <> "C:" Then MsgBox "Click the line that needs coverage (who's off / the need), then Post Line." & vbNewLine & "For an empty spot, double-click it to post support.", vbInformation, "Call Out Roster": Exit Sub
 
     Dim parts As Variant: parts = Split(keyTxt, "|")
     Dim slotKey As String: slotKey = parts(0)
     Dim d As Date: d = CDate(CLng(parts(1)))
     Dim shiftLbl As String: shiftLbl = parts(2)
     Dim leftTxt As String, rightTxt As String     ' from the data, not the sheet (the sheet shows "OPEN")
-    If Not SlotTexts(keyTxt, leftTxt, rightTxt) Then MsgBox "That line has changed - the calendar will redraw.", vbExclamation: DrawCalendar: Exit Sub
+    If Not SlotTexts(keyTxt, leftTxt, rightTxt) Then MsgBox "That line has changed - the calendar will redraw.", vbExclamation, "Call Out Roster": DrawCalendar: Exit Sub
     rightTxt = Trim$(rightTxt)
 
     If UCase$(rightTxt) Like "POSTED*" Then
-        MsgBox "That line is already " & rightTxt & ".", vbInformation: Exit Sub
+        MsgBox "That line is already " & rightTxt & ".", vbInformation, "Call Out Roster": Exit Sub
     End If
     If rightTxt <> "" And rightTxt <> "-" Then
         If MsgBox(leftTxt & " is already covered by " & rightTxt & "." & vbNewLine & "Post it anyway?", _
@@ -3001,7 +3001,7 @@ Private Sub CalPostKey(ByVal keyTxt As String)
             End If
         End If
     End If
-    If r = 0 Then MsgBox "Couldn't find the record behind that line - redraw the calendar and try again.", vbExclamation: Exit Sub
+    If r = 0 Then MsgBox "Couldn't find the record behind that line - redraw the calendar and try again.", vbExclamation, "Call Out Roster": Exit Sub
 
     Dim reason As String
     Select Case code
@@ -3026,7 +3026,9 @@ Public Sub CalPrintPdf()
     On Error GoTo Oops
     Dim ws As Worksheet: Set ws = CalendarSheet()
     Dim ans As VbMsgBoxResult
-    ans = MsgBox("Yes = print AND save a PDF" & vbNewLine & "No = save a PDF only", vbYesNoCancel + vbQuestion, "Calendar")
+    ' v26.5.5 (B10): a question Yes / No answer, not invented button meanings (Cancel = neither)
+    ans = MsgBox("The month is saved as a PDF (the members' copy: a sick call or a personal day reads Off)." & _
+                 vbNewLine & vbNewLine & "Print it on paper as well?", vbYesNoCancel + vbQuestion, "Calendar")
     If ans = vbCancel Then Exit Sub
     Dim folder As String, subF As String
     folder = EnsureSlash(ReportFolder())
@@ -3666,7 +3668,7 @@ Public Sub ImportUnitCalendar()
                                DateText(DateSerial(Year(Date), Month(Date), 1)), Type:=2)
     If VarType(dIn) = vbBoolean Then Exit Sub
     Dim dFrom As Date                              ' v25: the one parser
-    If Not ParseTypedDate(CStr(dIn), dFrom) Then MsgBox "Not a date (e.g. Oct 1).", vbExclamation: Exit Sub
+    If Not ParseTypedDate(CStr(dIn), dFrom) Then MsgBox "Not a date (e.g. Oct 1).", vbExclamation, "Call Out Roster": Exit Sub
 
     Dim f As Variant
     f = Application.GetOpenFilename("Excel files (*.xlsx;*.xlsm;*.xls),*.xlsx;*.xlsm;*.xls", , "Pick the " & unit & " calendar workbook")
@@ -3712,7 +3714,7 @@ Public Sub ImportUnitCalendar()
     On Error Resume Next
     Set wb = Workbooks.Open(Filename:=f, ReadOnly:=True, UpdateLinks:=0)
     On Error GoTo Oops
-    If wb Is Nothing Then Application.ScreenUpdating = True: MsgBox "Couldn't open that file.", vbCritical: Exit Sub
+    If wb Is Nothing Then Application.ScreenUpdating = True: MsgBox "Couldn't open that file.", vbCritical, "Call Out Roster": Exit Sub
 
     Dim buf() As Variant: ReDim buf(1 To 5000, 1 To CV_N)
     Dim n As Long, sh As Worksheet, nSheets As Long
@@ -3723,7 +3725,7 @@ Public Sub ImportUnitCalendar()
     wb.Close SaveChanges:=False
     Application.ScreenUpdating = True
 
-    If n = 0 Then MsgBox "No entries found on or after " & Format$(dFrom, "mmm d, yyyy") & ".", vbInformation: Exit Sub
+    If n = 0 Then MsgBox "No entries found on or after " & Format$(dFrom, "mmm d, yyyy") & ".", vbInformation, "Call Out Roster": Exit Sub
     If MsgBox("Found " & n & " calendar lines for " & unit & " from " & Format$(dFrom, "mmm d, yyyy") & "." & vbNewLine & vbNewLine & _
               "They come in as written (e.g. 'Paul M 3rd' -> 'posted') and show on the calendar." & vbNewLine & _
               "They don't remove anyone from call lists until you convert them (Convert imports button) or book the time off." & vbNewLine & vbNewLine & _
@@ -3744,7 +3746,7 @@ Public Sub ImportUnitCalendar()
     If Not AppendTo(lo, data, CV_N) Then Exit Sub
     FormatCovDates lo
     SaveIfWritable
-    MsgBox n & " lines imported for " & unit & ".", vbInformation
+    MsgBox n & " lines imported for " & unit & ".", vbInformation, "Call Out Roster"
     RefreshCalendar
     Exit Sub
 Oops:
@@ -5422,7 +5424,7 @@ Public Sub CalMenuViewPosting()
     If id = "" Then Exit Sub
     If Not RequireAdmin() Then Exit Sub
     Dim rep As String
-    If Not PostingOutput(id, True, False, False, rep) Then MsgBox "Couldn't show posting " & id & ". " & rep, vbExclamation
+    If Not PostingOutput(id, True, False, False, rep) Then MsgBox "Couldn't show posting " & id & ". " & rep, vbExclamation, "Call Out Roster"
     Exit Sub
 Oops:
     ReportError "CalMenuViewPosting"
@@ -5467,7 +5469,7 @@ Public Sub CalMenuLinkPosting()
     If Not RequireWritable() Then Exit Sub
     Dim p As PostRec, lst() As PListRec
     LoadPosting id, p, lst
-    If p.ID = "" Then MsgBox "Posting " & id & " wasn't found.", vbExclamation: Exit Sub
+    If p.ID = "" Then MsgBox "Posting " & id & " wasn't found.", vbExclamation, "Call Out Roster": Exit Sub
     LoadPostCache
     Dim byTxt As String, r As Long, aw As Variant, i As Long
     Select Case p.Status
@@ -5527,7 +5529,7 @@ Public Sub CalMenuLeaveReturn()
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If Not AbsenceColumnsCurrent() Then
-        MsgBox "Run Alt+F8 > UpgradeAbsenceColumns first (the Absences table needs its v22 columns).", vbExclamation
+        MsgBox "The Absences table needs its v22 upgrade first: an admin runs Alt+F8 > UpgradeAbsenceColumns once.", vbExclamation, "Time off"
         Exit Sub
     End If
     Load frmLeave

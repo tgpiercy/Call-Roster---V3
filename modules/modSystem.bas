@@ -641,7 +641,7 @@ Public Sub BackupOnOpen()
         If Not mBackupWarned Then
             mBackupWarned = True
             MsgBox "Today's backup copy wasn't saved: the backup folder can't be reached." & vbNewLine & _
-                   folder & vbNewLine & vbNewLine & "The roster opens as usual. Check the folder (BACKUP_FOLDER in modOvertimeEntry).", _
+                   folder & vbNewLine & vbNewLine & "The roster opens as usual. Tell " & PRIMARY_ADMIN_NAME & " (the backup folder setting).", _
                    vbExclamation, "Backup"
         End If
         Exit Sub

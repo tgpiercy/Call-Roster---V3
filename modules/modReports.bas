@@ -725,9 +725,9 @@ Public Sub EmployeeHistory()
     If nm = "" Then Exit Sub
     Dim full As Boolean, ans As VbMsgBoxResult
     If IsAdmin() And gAdminUnlocked Then                  ' the admin VIEW too (review: after a VBA reset a save could leave the FULL sheet visible)
-        ans = MsgBox("Which report for " & nm & "?" & vbNewLine & vbNewLine & _
-                     "Yes = FULL (admin): every entry by shift date, who logged it and when, void rows struck through." & vbNewLine & _
-                     "No = MEMBER-SAFE: the rows and columns the members' file shows (it matches My history there).", _
+        ' v26.5.5 (B10): a question with a Yes / No answer (No = the member-safe report, as the members' file shows it)
+        ans = MsgBox("Show the FULL (admin) report for " & nm & ": every entry by shift date, who logged it and when, void rows struck through?" & _
+                     vbNewLine & vbNewLine & "No shows the member-safe report instead: the rows and columns the members' file shows (it matches My history there).", _
                      vbYesNoCancel + vbQuestion, TTL)
         If ans = vbCancel Then Exit Sub
         full = (ans = vbYes)
@@ -783,8 +783,8 @@ Private Function AskPersonName(ByVal ttl As String) As String
         Exit Function
     End If
     If nHits > 1 Then
-        If MsgBox(nHits & " names match """ & t & """. Use the first, " & hit & "?" & vbNewLine & vbNewLine & _
-                  "No = type more of the name.", vbYesNo + vbQuestion, ttl) <> vbYes Then Exit Function
+        If MsgBox(nHits & " names match """ & t & """. Did you mean " & hit & "?" & vbNewLine & vbNewLine & _
+                  "(No: type more of the name.)", vbYesNo + vbQuestion, ttl) <> vbYes Then Exit Function
     End If
     AskPersonName = hit
 End Function

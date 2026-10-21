@@ -150,9 +150,9 @@ Public Sub SmokeTest()
     Dim head As String
     If failedAt > 0 Then
         head = "SMOKE TEST FAILED at step " & failedAt & " (" & SmkName(failedAt) & "):" & vbNewLine & Left$(why, 250) & vbNewLine & _
-               "Send me this box (a photo is fine)."
+               "Send " & PRIMARY_ADMIN_NAME & " this box (a photo is fine)."
     ElseIf diff <> "" Then
-        head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send me this box."
+        head = "SMOKE TEST FAILED: every step ran, but the totals did not come back:" & vbNewLine & diff & "Send " & PRIMARY_ADMIN_NAME & " this box."
     Else
         head = "SMOKE TEST PASSED: all " & SMK_STEPS & " steps OK, totals unchanged."
         ' v25.2: 20 step names don't fit a MsgBox with the closing text; a passed run's box shows the skipped
@@ -176,7 +176,7 @@ Crashed:
     MarkNoSave
     LogError "SmokeTest", 0, "stopped outside a step: " & em, rep
     MsgBox "SMOKE TEST STOPPED: " & em & vbNewLine & vbNewLine & rep & vbNewLine & _
-           "Saving is blocked in this copy. Close it; nothing is kept. Send me this box.", vbCritical, TTL
+           "Saving is blocked in this copy. Close it; nothing is kept. Send " & PRIMARY_ADMIN_NAME & " this box.", vbCritical, TTL
 End Sub
 
 Private Function SmkName(ByVal k As Long) As String

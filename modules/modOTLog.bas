@@ -271,13 +271,13 @@ Public Sub AddAdjustment()
 
     Dim ws As Worksheet: Set ws = RosterSheet()
     If Not ActiveSheet Is ws Then
-        MsgBox "Click a cell in the employee's row on the '" & ws.Name & "' sheet, then run Add Adjustment.", vbInformation
+        MsgBox "Click a cell in the employee's row on the '" & ws.Name & "' sheet, then run Add Adjustment.", vbInformation, "Call Out Roster"
         Exit Sub
     End If
     Dim r As Long: r = ActiveCell.Row
     Dim nm As String: nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
     If r < R_FIRST Or nm = "" Then
-        MsgBox "Click a cell in an employee's row first.", vbInformation
+        MsgBox "Click a cell in an employee's row first.", vbInformation, "Call Out Roster"
         Exit Sub
     End If
 
@@ -293,7 +293,7 @@ Public Sub AddAdjustment()
                                Title:="Adjustment - " & nm, Default:=DateText(Date), Type:=2)
     If VarType(dIn) = vbBoolean Then Exit Sub
     Dim d As Date                                  ' v25: the one parser
-    If Not ParseTypedDate(CStr(dIn), d) Then MsgBox "That isn't a valid date (e.g. Oct 12).", vbExclamation: Exit Sub
+    If Not ParseTypedDate(CStr(dIn), d) Then MsgBox "That isn't a valid date (e.g. Oct 12).", vbExclamation, "Call Out Roster": Exit Sub
     Dim ps As Date: ps = PeriodStartFor(d)
     If Not ConfirmPeriod(ps) Then Exit Sub
 
@@ -323,7 +323,7 @@ Public Sub AddAdjustment()
     data(1, L_STAMP) = Now
     If AppendLogRows(data) Then
         SaveIfWritable
-        MsgBox "Adjustment " & refId & " added.", vbInformation
+        MsgBox "Adjustment " & refId & " added.", vbInformation, "Call Out Roster"
     End If
     Exit Sub
 Oops:
@@ -342,7 +342,7 @@ Public Sub VoidEntry()
     If Not RequireWritable() Then Exit Sub
     Dim lo As ListObject: Set lo = LogTable()
     If lo Is Nothing Then Exit Sub
-    If lo.DataBodyRange Is Nothing Then MsgBox "The OT Log is empty.": Exit Sub
+    If lo.DataBodyRange Is Nothing Then MsgBox "The OT Log is empty.", , "Call Out Roster": Exit Sub
 
     Dim kIn As Variant
     kIn = Application.InputBox(Prompt:="Enter the ID to void:" & vbNewLine & _
@@ -367,7 +367,7 @@ Private Sub VoidEntryFor(ByVal k As String, ByVal lead As String)
     Dim hit() As Boolean
     cnt = VoidHits(v, k, hit, hrs, nameList)
 
-    If cnt = 0 Then MsgBox "No active (non-void) rows found for " & k & ".", vbInformation: Exit Sub
+    If cnt = 0 Then MsgBox "No active (non-void) rows found for " & k & ".", vbInformation, "Call Out Roster": Exit Sub
 
     Dim warn As String
     If Left$(k, 3) = "OB-" Then warn = vbNewLine & "WARNING: this is the opening balance carried over from the old roster." & vbNewLine
@@ -382,7 +382,7 @@ Private Sub VoidEntryFor(ByVal k As String, ByVal lead As String)
     Dim calN As Long
     cnt = VoidRef(k, why, calN)
     MsgBox cnt & " row(s) voided. Roster totals updated." & _
-           IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation
+           IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation, "Call Out Roster"
 End Sub
 
 ' v25.5 (A9) "Undo my last log entry" (the admin Desk; "Undo last entry" on the bar): the newest non-void OT Log entry THIS login
@@ -575,7 +575,7 @@ Private Function AskAdjustmentType(ByVal nm As String) As String
             AskAdjustmentType = CStr(types(LBound(types) + k - 1))
             Exit Function
         End If
-        MsgBox "Enter a number from 1 to " & (UBound(types) - LBound(types) + 1) & ".", vbExclamation
+        MsgBox "Enter a number from 1 to " & (UBound(types) - LBound(types) + 1) & ".", vbExclamation, "Call Out Roster"
     Loop
 End Function
 
@@ -586,6 +586,6 @@ Public Function AskRequired(ByVal prompt As String, ByVal title As String) As St
         a = Application.InputBox(Prompt:=prompt, Title:=title, Type:=2)
         If VarType(a) = vbBoolean Then Exit Function
         If Trim$(CStr(a)) <> "" Then AskRequired = Trim$(CStr(a)): Exit Function
-        MsgBox "This is required.", vbExclamation
+        MsgBox "This is required.", vbExclamation, "Call Out Roster"
     Loop
 End Function

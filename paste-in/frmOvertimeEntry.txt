@@ -320,15 +320,15 @@ End Sub
 ' LOAD LIST
 ' ================================================================
 Private Sub btnLoad_Click()
-    If C("cmbDept").Value = "" Then MsgBox "Select a department.", vbExclamation: Exit Sub
-    If C("cmbDN").ListIndex < 0 Then MsgBox "Select Days or Nights.", vbExclamation: Exit Sub
-    If C("cmbShift").Value = "" Then MsgBox "Select a crew.", vbExclamation: Exit Sub
+    If C("cmbDept").Value = "" Then MsgBox "Select a department.", vbExclamation, "Call Out Roster": Exit Sub
+    If C("cmbDN").ListIndex < 0 Then MsgBox "Select Days or Nights.", vbExclamation, "Call Out Roster": Exit Sub
+    If C("cmbShift").Value = "" Then MsgBox "Select a crew.", vbExclamation, "Call Out Roster": Exit Sub
     Dim dL As Date                                 ' v25: every date through the one parser
-    If Not ParseTypedDate(C("txtDate").Text, dL) Then MsgBox "Enter a valid date (e.g. Oct 12).", vbExclamation: Exit Sub
+    If Not ParseTypedDate(C("txtDate").Text, dL) Then MsgBox "Enter a valid date (e.g. Oct 12).", vbExclamation, "Call Out Roster": Exit Sub
 
     Dim hoursStr As String: hoursStr = Trim$(C("txtHours").Value)
-    If hoursStr = "" Or Not IsNumeric(hoursStr) Then MsgBox "Enter valid hours.", vbExclamation: Exit Sub
-    If CDbl(hoursStr) <= 0 Then MsgBox "Hours must be greater than zero.", vbExclamation: Exit Sub
+    If hoursStr = "" Or Not IsNumeric(hoursStr) Then MsgBox "Enter valid hours.", vbExclamation, "Call Out Roster": Exit Sub
+    If CDbl(hoursStr) <= 0 Then MsgBox "Hours must be greater than zero.", vbExclamation, "Call Out Roster": Exit Sub
 
     If Not mKronosOk Then                     ' v20: warn if worked hours are old
         If Not KronosOkToContinue("call-out") Then Exit Sub
@@ -356,7 +356,7 @@ Private Sub btnLoad_Click()
         btnSubmit.Enabled = False
         mCallBack.Enabled = False
         MsgBox "No employees found for " & C("cmbDept").Value & _
-               " / " & C("cmbShift").Value & "." & IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbExclamation
+               " / " & C("cmbShift").Value & "." & IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbExclamation, "Call Out Roster"
         Exit Sub
     End If
 
@@ -658,7 +658,7 @@ Private Sub mPartAcc_Click()
                              Title:="Accepted part of the hours", Type:=1)
     If VarType(a) = vbBoolean Then mTaken(mCurrent) = was: FocusList: Exit Sub
     h = CDbl(a)
-    If h <= 0 Then mTaken(mCurrent) = was: MsgBox "The hours must be more than 0.", vbExclamation: FocusList: Exit Sub
+    If h <= 0 Then mTaken(mCurrent) = was: MsgBox "The hours must be more than 0.", vbExclamation, "Call Out Roster": FocusList: Exit Sub
     If h >= offer Then h = 0                              ' the whole of what was on offer
     If IIf(h > 0, h, offer) > mEntries(mCurrent).MaxHours + 0.001 Then      ' v26.5.5 (item 9)
         mTaken(mCurrent) = was
@@ -754,7 +754,7 @@ End Sub
 ' ================================================================
 Private Sub btnSubmit_Click()
     Dim logged As Long: logged = LoggedCount()
-    If logged = 0 Then MsgBox "No outcomes recorded yet.", vbExclamation: Exit Sub
+    If logged = 0 Then MsgBox "No outcomes recorded yet.", vbExclamation, "Call Out Roster": Exit Sub
 
     If mCount - logged > 0 Then
         If MsgBox(mCount - logged & " employee(s) have no outcome." & vbNewLine & _

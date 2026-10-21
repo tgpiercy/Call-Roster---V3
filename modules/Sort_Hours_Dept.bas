@@ -22,7 +22,7 @@ Public Sub SortForDept(ByVal dept As String)
     On Error GoTo Oops                         ' v24.3.1: the eight sort buttons are everyone's; a sort that raised left the roster unprotected
     Dim ws As Worksheet
     Dim dc As Long: dc = DeptCol(dept)
-    If dc = 0 Then MsgBox "Department not mapped: " & dept, vbExclamation: Exit Sub
+    If dc = 0 Then MsgBox "Department not mapped: " & dept, vbExclamation, "Call Out Roster": Exit Sub
 
     Set ws = RosterSheet()
     Application.ScreenUpdating = False

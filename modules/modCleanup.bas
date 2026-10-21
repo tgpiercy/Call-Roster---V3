@@ -17,7 +17,7 @@ Public Sub RemoveOldSheets()
     For Each nm In targets
         If SheetExists(CStr(nm)) Then present = present & "  - " & nm & vbNewLine
     Next nm
-    If present = "" Then MsgBox "Nothing to remove - those sheets are already gone.", vbInformation: Exit Sub
+    If present = "" Then MsgBox "Nothing to remove - those sheets are already gone.", vbInformation, "Call Out Roster": Exit Sub
 
     If MsgBox("Delete these sheets?" & vbNewLine & vbNewLine & present & vbNewLine & _
               "Dropdowns / names that point at them are removed too. This can't be undone " & _
@@ -84,7 +84,7 @@ Public Sub RemoveOldSheets()
     MsgBox "Removed " & nSheets & " sheet(s)" & _
            IIf(nVal > 0, ", " & nVal & " old dropdown cell(s)", "") & _
            IIf(nNames > 0, ", " & nNames & " named range(s)", "") & "." & vbNewLine & vbNewLine & _
-           "Run ApplyRosterLayout to refresh the buttons.", vbInformation
+           "Run ApplyRosterLayout to refresh the buttons.", vbInformation, "Call Out Roster"
 End Sub
 
 Private Function IsTarget(ByVal sheetName As String, ByVal targets As Variant) As Boolean

@@ -122,7 +122,7 @@ Public Sub SetupPostings()
            "- 'Postings' sheet holds every posting and its posted list" & vbNewLine & _
            "- Roster column K is now EMAIL - fill in operator addresses" & vbNewLine & _
            "- Overtime Posting tab is now output only (New Posting fills it in)" & vbNewLine & vbNewLine & _
-           "Run ApplyRosterLayout next to refresh the buttons.", vbInformation
+           "Run ApplyRosterLayout next to refresh the buttons.", vbInformation, "Call Out Roster"
 End Sub
 
 Private Sub CreatePostingTables()
@@ -188,9 +188,9 @@ End Sub
 
 Public Function PostingTablesReady() As Boolean
     If GetTable(PT_TABLE) Is Nothing Or GetTable(PL_TABLE) Is Nothing Then
-        MsgBox "Postings aren't set up yet. Run SetupPostings first (Alt+F8).", vbExclamation
+        MsgBox "Postings aren't set up yet: an admin runs Alt+F8 > SetupPostings once.", vbExclamation, "Postings"
     ElseIf Not PostingListCurrent() Then
-        MsgBox "The posting lists need their Signup Hours column (v24). Run Alt+F8 > SetupPeople once, then try again.", vbExclamation
+        MsgBox "The posting lists need their Signup Hours column (v24). Run Alt+F8 > SetupPeople once, then try again.", vbExclamation, "Call Out Roster"
     Else
         PostingTablesReady = True
     End If
@@ -238,7 +238,7 @@ End Function
 Sub GoToPostingSheet()
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
-    If Not SheetExists(POSTING_SHEET) Then MsgBox "Sheet '" & POSTING_SHEET & "' not found.": Exit Sub
+    If Not SheetExists(POSTING_SHEET) Then MsgBox "Sheet '" & POSTING_SHEET & "' not found.", , "Call Out Roster": Exit Sub
     SetSheetVisible ThisWorkbook.Worksheets(POSTING_SHEET), xlSheetVisible
     ThisWorkbook.Worksheets(POSTING_SHEET).Activate
     Exit Sub
@@ -339,7 +339,7 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     Dim offList As String
     If n > 0 Then n = FilterNotFree(recs, n, p.ShiftDate, p.ShiftLbl, offList)
     If n = 0 Then MsgBox "No one is free to sign up for " & p.Unit & " / " & p.Crew & "." & _
-                         IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbInformation: Exit Function
+                         IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbInformation, "Call Out Roster": Exit Function
 
     p.ID = NextPostingID()
     Dim outTxt As String
@@ -1226,12 +1226,12 @@ Private Function CanFinalize(ByRef p As PostRec) As Boolean
     If Not RequireSupervisor() Then Exit Function     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Function
     If PostingStatus(p.ID) <> "Open" Then
-        MsgBox p.ID & " is no longer open (" & PostingStatus(p.ID) & ").", vbExclamation
+        MsgBox p.ID & " is no longer open (" & PostingStatus(p.ID) & ").", vbExclamation, "Call Out Roster"
         Exit Function
     End If
     If HasActiveLogRows(p.ID) Then
         MsgBox p.ID & " already has entries in the OT Log, so it can't be closed again." & vbNewLine & _
-               "If they're wrong, an admin voids them (Void Entry > " & p.ID & ") and reopens the posting.", vbExclamation
+               "If they're wrong, an admin voids them (Void Entry > " & p.ID & ") and reopens the posting.", vbExclamation, "Call Out Roster"
         Exit Function
     End If
     CanFinalize = True
@@ -1252,9 +1252,16 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
     Dim maxRank As Long, maxHrs As Double, nAw As Long, nCh As Long, tot As Double
     ComputeAward p, lst, n, maxRank, maxHrs, nAw, nCh, tot
     If nAw = 0 Then
-        MsgBox "Nobody is awarded." & vbNewLine & vbNewLine & _
-               "If nobody took it, use NO TAKERS (charges everyone eligible)." & vbNewLine & _
-               "If the overtime isn't needed any more, use CANCEL REQUEST (no charges).", vbExclamation, "Award"
+        ' v26.5.5 (B10): the two closings are an admin's buttons; a supervisor is told whom to ask
+        If IsAdmin() Then
+            MsgBox "Nobody is awarded." & vbNewLine & vbNewLine & _
+                   "If nobody took it, use NO TAKERS (charges everyone eligible)." & vbNewLine & _
+                   "If the overtime isn't needed any more, use CANCEL REQUEST (no charges).", vbExclamation, "Award"
+        Else
+            MsgBox "Nobody is awarded." & vbNewLine & vbNewLine & _
+                   "If nobody took it, or the overtime isn't needed any more, ask " & PRIMARY_ADMIN_NAME & " to close the posting " & _
+                   "(No Takers charges everyone eligible; Cancel Request charges nobody).", vbExclamation, "Award"
+        End If
         Exit Function
     End If
 
@@ -1348,11 +1355,11 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
     If Not CanFinalize(p) Then Exit Function
     outName = Trim$(outName)
     Dim outPartial As Boolean: outPartial = IsPartialSignup(p.Hours, outTake)
-    If outName = "" Then MsgBox "Pick or type the out-of-department name first.", vbExclamation: Exit Function
+    If outName = "" Then MsgBox "Pick or type the out-of-department name first.", vbExclamation, "Call Out Roster": Exit Function
     Dim i As Long, marked As String, signedIn As String
     For i = 1 To n
         If StrComp(Trim$(lst(i).EmpName), outName, vbTextCompare) = 0 Then
-            MsgBox outName & " is on this posting's list - select them and use AWARD instead.", vbExclamation
+            MsgBox outName & " is on this posting's list - select them and use AWARD instead.", vbExclamation, "Call Out Roster"
             Exit Function
         End If
         If lst(i).Awarded Then marked = marked & "  " & lst(i).EmpName & vbNewLine
@@ -1590,7 +1597,7 @@ Failed:
     On Error Resume Next
     MarkNoSave
     MsgBox "Cancelling " & p.ID & " stopped part-way: " & em & vbNewLine & vbNewLine & _
-           "Saving is blocked. Close WITHOUT saving, reopen, and cancel " & p.ID & " again.", vbCritical
+           "Saving is blocked. Close WITHOUT saving, reopen, and cancel " & p.ID & " again.", vbCritical, "Call Out Roster"
 End Function
 
 ' OT Log rows (awarded, signed up, charged) + posting / list records.
@@ -1694,7 +1701,7 @@ Failed:
     On Error Resume Next
     MarkNoSave
     MsgBox "Closing " & p.ID & " stopped part-way: " & em & vbNewLine & vbNewLine & _
-           "Saving is blocked. Close WITHOUT saving, reopen, and do " & p.ID & " again.", vbCritical
+           "Saving is blocked. Close WITHOUT saving, reopen, and do " & p.ID & " again.", vbCritical, "Call Out Roster"
 End Function
 
 ' v24.3.2: the Reason of one posting, changed from the Calendar ("Change the text of this
@@ -2510,8 +2517,8 @@ Private Sub EmailAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As L
     ccList = AwardCC(p.Unit, ccMissing)
     If missing <> "" Or ccMissing <> "" Then
         MsgBox IIf(missing <> "", "No email address on the roster (column K) for:" & vbNewLine & missing & vbNewLine, "") & _
-               IIf(ccMissing <> "", "No CC address set in modPostings for:" & vbNewLine & ccMissing & vbNewLine, "") & _
-               "Add them to the email before sending.", vbExclamation
+               IIf(ccMissing <> "", "No CC address is set for:" & vbNewLine & ccMissing & "(" & PRIMARY_ADMIN_NAME & " sets it in the settings)" & vbNewLine, "") & _
+               "Add them to the email before sending.", vbExclamation, "Call Out Roster"
     End If
 
     Dim ol As Object, mi As Object, shown As Boolean
@@ -2561,7 +2568,7 @@ MailFail:
     On Error GoTo 0
     If shown Then
         MsgBox "Award saved. The email opened, but the award details couldn't be added to it (" & mailErr & ")." & _
-               vbNewLine & "Type them in before sending.", vbExclamation
+               vbNewLine & "Type them in before sending.", vbExclamation, "Call Out Roster"
     Else
         MailtoFallback toList, ccList, subj, plain, "Outlook couldn't create the email (" & mailErr & ")"
     End If
@@ -2655,5 +2662,5 @@ Fail:
     LogError "AppendRows", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
-    MsgBox "Could not write to " & lo.Name & ": " & em, vbCritical
+    MsgBox "Could not write to " & lo.Name & ": " & em, vbCritical, "Call Out Roster"
 End Function

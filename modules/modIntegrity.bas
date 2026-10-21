@@ -536,7 +536,7 @@ Private Sub CheckLogTypes()
     Next i
     For Each kk In seen.Keys
         AddIssue SEV_WARN, "Log types", seen(kk) & " charged OT Log row(s) this year have the Type '" & CStr(kk) & "'", _
-                 "They count in Refused under 'other'. Send me this line if you didn't expect it"
+                 "They count in Refused under 'other'. Send " & PRIMARY_ADMIN_NAME & " this line if you didn't expect it"
     Next kk
     ' call-out + posting + other must equal the roster's Refused (I) for every person
     Dim splitMap As Object, splitAll As Object, useMap As Object, c As Double, p As Double, o As Double, r As Long, nBad As Long
@@ -688,7 +688,7 @@ Private Sub CheckPostings()
     Dim kk As Variant
     For Each kk In orphan.Keys
         AddIssue SEV_WARN, "Postings", CStr(kk) & ": " & orphan(kk) & " list row(s) but no posting row", _
-                 "Its header was deleted by hand or its creation stopped part-way. Nothing reuses the ID; send me this line"
+                 "Its header was deleted by hand or its creation stopped part-way. Nothing reuses the ID; send " & PRIMARY_ADMIN_NAME & " this line"
     Next kk
     If Not IsArray(pv) Then Exit Sub
     For i = 1 To LogRows()
@@ -979,5 +979,5 @@ Failed:
     If Not ws Is Nothing Then ProtectSheet ws
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
-    MsgBox "The Integrity sheet couldn't be drawn: " & em, vbExclamation
+    MsgBox "The Integrity sheet couldn't be drawn: " & em, vbExclamation, "Call Out Roster"
 End Sub

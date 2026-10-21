@@ -306,7 +306,7 @@ Fail:
     ProtectSheet ws
     Application.EnableEvents = evWas
     MsgBox "The grade change couldn't be written to the Grade Log: " & em & vbNewLine & _
-           "The roster change itself is kept. Send me this message.", vbExclamation, "Grade Log"
+           "The roster change itself is kept. Send " & PRIMARY_ADMIN_NAME & " this message.", vbExclamation, "Grade Log"
 End Function
 
 ' Alt+F8 > ShowGradeLog (admin): opens the Grade Log sheet
@@ -314,7 +314,7 @@ Public Sub ShowGradeLog()
     On Error GoTo Oops                         ' v24.3.1
     If Not RequireAdmin() Then Exit Sub
     If GradeLogTable(True) Is Nothing Then
-        MsgBox "The Grade Log couldn't be created (is the file read-only?).", vbExclamation
+        MsgBox "The Grade Log couldn't be created (is the file read-only?).", vbExclamation, "Call Out Roster"
         Exit Sub
     End If
     SetSheetVisible ThisWorkbook.Worksheets(GL_SHEET), xlSheetVisible

@@ -187,12 +187,13 @@ Private Function SaveIt() As String
     If h = "" Or Not IsNumeric(h) Then problems = problems & "- Hours" & vbNewLine
     If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Sick Call": Exit Function
     If HasSickRow(mEmp.Text, d, mShift.Text) Then            ' v22.1: already logged (e.g. Save only, then reopened)
-        MsgBox mEmp.Text & " is already booked sick for " & Format$(d, "ddd mmm d") & " " & mShift.Text & _
-               ". Void that booking in Book Time Off if it was wrong.", vbExclamation, "Sick Call"
+        MsgBox mEmp.Text & " is already booked sick for " & Format$(d, "ddd mmm d") & " " & mShift.Text & "." & _
+               IIf(IsAdmin(), " Void that booking in Book Time Off if it was wrong.", " If it was wrong, ask " & PRIMARY_ADMIN_NAME & " to void it."), _
+               vbExclamation, "Sick Call"       ' v26.5.5 (B10): voiding is an admin's job
         Exit Function
     End If
     If Abs(Int(d) - Int(Date)) > 7 Then
-        If MsgBox("That date is " & Abs(Int(d) - Int(Date)) & " days from today. Save it anyway?", vbYesNo + vbQuestion) = vbNo Then Exit Function
+        If MsgBox("That date is " & Abs(Int(d) - Int(Date)) & " days from today. Save it anyway?", vbYesNo + vbQuestion, "Call Out Roster") = vbNo Then Exit Function
     End If
     Dim hrs As Variant: hrs = CDbl(h)
     ' a full shift (12 h, or the 11 h / 13 h DST night) gets no partial-hours mark on the line

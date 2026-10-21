@@ -17,18 +17,18 @@ Option Explicit
 Public Sub UpgradeOTLogLayout()
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
-    If Not SheetExists(LOG_SHEET) Then MsgBox "Sheet '" & LOG_SHEET & "' not found.", vbCritical: Exit Sub
+    If Not SheetExists(LOG_SHEET) Then MsgBox "Sheet '" & LOG_SHEET & "' not found.", vbCritical, "Call Out Roster": Exit Sub
 
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(LOG_SHEET)
     Dim lo As ListObject
     On Error Resume Next
     Set lo = ws.ListObjects(LOG_TABLE)
     On Error GoTo 0
-    If lo Is Nothing Then MsgBox "Table " & LOG_TABLE & " not found.", vbCritical: Exit Sub
+    If lo Is Nothing Then MsgBox "Table " & LOG_TABLE & " not found.", vbCritical, "Call Out Roster": Exit Sub
 
     If LogLayoutCurrent(lo) Then
         FormatOTLog
-        MsgBox "The OT Log is already in the new layout - formatting refreshed.", vbInformation
+        MsgBox "The OT Log is already in the new layout - formatting refreshed.", vbInformation, "Call Out Roster"
         Exit Sub
     End If
 
@@ -40,13 +40,13 @@ Public Sub UpgradeOTLogLayout()
                  "Timestamp", "Status", "Void Note")
     Dim i As Long
     If lo.ListColumns.Count <> 20 Then
-        MsgBox "The OT Log has " & lo.ListColumns.Count & " columns - expected 20. Nothing was changed.", vbCritical
+        MsgBox "The OT Log has " & lo.ListColumns.Count & " columns - expected 20. Nothing was changed.", vbCritical, "Call Out Roster"
         Exit Sub
     End If
     For i = 0 To 19
         If lo.ListColumns(i + 1).Name <> oldH(i) Then
             MsgBox "OT Log column " & (i + 1) & " is '" & lo.ListColumns(i + 1).Name & "', expected '" & _
-                   oldH(i) & "'. Nothing was changed.", vbCritical
+                   oldH(i) & "'. Nothing was changed.", vbCritical, "Call Out Roster"
             Exit Sub
         End If
     Next i
@@ -159,7 +159,7 @@ Public Sub UpgradeOTLogLayout()
         Application.ScreenUpdating = True
         MarkNoSave
         MsgBox "The upgrade did NOT verify:" & vbNewLine & problems & vbNewLine & _
-               "Saving is blocked. Close WITHOUT saving and send me a screenshot.", vbCritical
+               "Saving is blocked. Close WITHOUT saving and send " & PRIMARY_ADMIN_NAME & " a screenshot.", vbCritical, "Call Out Roster"
         Exit Sub
     End If
 
@@ -171,7 +171,7 @@ Public Sub UpgradeOTLogLayout()
     MsgBox "OT Log upgraded and verified." & vbNewLine & vbNewLine & _
            "- " & nRows & " rows, roster totals unchanged" & vbNewLine & _
            "- Shift (Days / Nights) filled for " & nFill & " posting row(s); older call-outs stay blank" & vbNewLine & _
-           "- audit columns are grouped: click + above the columns to show them", vbInformation
+           "- audit columns are grouped: click + above the columns to show them", vbInformation, "Call Out Roster"
     Exit Sub
 
 Failed:
@@ -183,12 +183,12 @@ Failed:
     If Not changed Then
         ProtectSheet ws
         MsgBox "The upgrade couldn't start: " & em & vbNewLine & vbNewLine & _
-               "Nothing was changed - the OT Log is as it was.", vbExclamation
+               "Nothing was changed - the OT Log is as it was.", vbExclamation, "Call Out Roster"
         Exit Sub
     End If
     MarkNoSave
     MsgBox "The upgrade stopped part-way: " & em & vbNewLine & vbNewLine & _
-           "Saving is blocked. Close WITHOUT saving and reopen your file.", vbCritical
+           "Saving is blocked. Close WITHOUT saving and reopen your file.", vbCritical, "Call Out Roster"
 End Sub
 
 Private Function RosterDiffers(ByVal rs As Worksheet, ByVal lastRow As Long, ByVal before As Variant) As Boolean

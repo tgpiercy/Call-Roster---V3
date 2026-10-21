@@ -224,13 +224,13 @@ End Sub
 ' ================================================================
 Private Sub btnLoad_Click()
     If mDirty Then
-        If MsgBox("Discard the sign-ups / awards you've marked?", vbYesNo + vbExclamation) = vbNo Then Exit Sub
+        If MsgBox("Discard the sign-ups / awards you've marked?", vbYesNo + vbExclamation, "Call Out Roster") = vbNo Then Exit Sub
     End If
     Dim idx As Long: idx = C("cmbPosting").ListIndex
-    If idx < 0 Or Not IsArray(mIds) Then MsgBox "Pick a posting first.", vbExclamation: Exit Sub
+    If idx < 0 Or Not IsArray(mIds) Then MsgBox "Pick a posting first.", vbExclamation, "Call Out Roster": Exit Sub
 
     mN = LoadPosting(CStr(mIds(idx)), mP, mL)
-    If mN = 0 Then MsgBox "That posting has no list.", vbExclamation: Exit Sub
+    If mN = 0 Then MsgBox "That posting has no list.", vbExclamation, "Call Out Roster": Exit Sub
     Dim fi As Long                                   ' v26.5.5 (item 9): each listed person's 16 h rule maximum, as of now
     For fi = 1 To mN
         mL(fi).MaxHours = FatigueMaxFor(mL(fi).EmpName, mL(fi).EmpShift, mP.ShiftDate, mP.ShiftLbl)
@@ -345,7 +345,7 @@ End Sub
 
 Private Sub btnPassed_Click()           ' AWARD toggle
     Dim i As Long: i = lstEmployees.ListIndex + 1
-    If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation: Exit Sub
+    If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation, "Call Out Roster": Exit Sub
     If Not mL(i).Awarded Then                        ' v26.5.5 (item 9): the hours they would take must fit the 16 h rule
         Dim mxWhy As String: mxWhy = AwardMaxProblem(mL, i, IIf(mL(i).SignupHrs > 0, mL(i).SignupHrs, mP.Hours))
         If mxWhy <> "" Then MsgBox mxWhy, vbExclamation, "16 h rule": Exit Sub
@@ -367,7 +367,7 @@ End Sub
 ' Blank or the posting's full hours = the whole shift.
 Private Sub mPartial_Click()
     Dim i As Long: i = lstEmployees.ListIndex + 1
-    If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation: Exit Sub
+    If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation, "Call Out Roster": Exit Sub
     Dim a As Variant, h As Double
     a = Application.InputBox(Prompt:="Hours " & mL(i).EmpName & " signed up for." & vbNewLine & vbNewLine & _
                              "The posting is " & mP.Hours & " h. Enter fewer hours for a partial sign-up, " & _

@@ -9,10 +9,10 @@ Sub LoginFullAccess()
     If IsAdmin() Then
         ApplyView True
         RosterSheet().Activate
-        MsgBox "Full access granted (" & CurrentUser() & ").", vbInformation
+        MsgBox "Full access granted (" & CurrentUser() & ").", vbInformation, "Call Out Roster"
     Else
         ApplyView False
-        MsgBox "Your Windows login (" & CurrentUser() & ") is not on the admin list.", vbExclamation
+        MsgBox "Your Windows login (" & CurrentUser() & ") is not on the admin list.", vbExclamation, "Call Out Roster"
     End If
     Exit Sub
 Oops:

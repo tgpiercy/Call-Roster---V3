@@ -692,7 +692,7 @@ Public Function SaveSwitch(ByVal d As Date, ByVal shiftLbl As String, ByVal unit
     SaveIfWritable
     If calErr <> "" Then
         MsgBox id & " is saved, but it couldn't be added to the calendar: " & calErr & vbNewLine & _
-               "Opening the Shift Switch pop-up again retries it.", vbExclamation
+               "Opening the Shift Switch pop-up again retries it.", vbExclamation, "Call Out Roster"
     End If
     RefreshCalendar
     SaveSwitch = id
@@ -702,7 +702,7 @@ Fail:
     LogError "SaveSwitch", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
-    MsgBox "Could not save the shift switch: " & em, vbCritical
+    MsgBox "Could not save the shift switch: " & em, vbCritical, "Call Out Roster"
 End Function
 
 Private Sub SetPaidBy(ByVal lo As ListObject, ByVal origId As String, ByVal newId As String)
@@ -729,7 +729,7 @@ Public Function VoidSwitch(ByVal id As String, Optional ByVal reasonTxt As Strin
         If StrComp(Trim$(SafeStr(v(i, SW_ID))), id, vbTextCompare) = 0 Then r = i: Exit For
     Next i
     If r = 0 Then Exit Function
-    If UCase$(SafeStr(v(r, SW_STATUS))) = "VOID" Then MsgBox id & " is already void.", vbInformation: Exit Function
+    If UCase$(SafeStr(v(r, SW_STATUS))) = "VOID" Then MsgBox id & " is already void.", vbInformation, "Call Out Roster": Exit Function
 
     Dim why As String: why = reasonTxt
     If Trim$(why) = "" Then

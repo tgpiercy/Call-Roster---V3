@@ -41,7 +41,7 @@ Private Function SelfTestRun() As Boolean
     On Error GoTo Finally                      ' v24.3.1: from the first line (LoadCases was outside it)
     mN = 0
     LoadCases
-    If mN = 0 Then MsgBox "No test cases found in modSelfTest.", vbExclamation: Exit Function
+    If mN = 0 Then MsgBox "No test cases found in modSelfTest.", vbExclamation, "Call Out Roster": Exit Function
 
     SetTestCrewHistory Empty                ' v24: no case reads the Crew History sheet
     For i = 1 To mN

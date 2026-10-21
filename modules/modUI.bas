@@ -61,7 +61,7 @@ Public Sub ApplyRosterLayout()
     ws.Range("D5").Select
     Application.ScreenUpdating = True
     SaveIfWritable
-    MsgBox "Roster layout applied.", vbInformation
+    MsgBox "Roster layout applied.", vbInformation, "Call Out Roster"
     Exit Sub
 
 Done:
@@ -79,10 +79,10 @@ Failed:
         MarkNoSave
         MsgBox "Layout stopped while switching the date rows: " & em & vbNewLine & vbNewLine & _
                "Roster totals may show wrong until fixed. Saving is blocked - close WITHOUT saving " & _
-               "and run ApplyRosterLayout again. (The OT Log itself is untouched.)", vbCritical
+               "and run ApplyRosterLayout again. (The OT Log itself is untouched.)", vbCritical, "Call Out Roster"
     Else
         MsgBox "Layout stopped part-way: " & em & vbNewLine & _
-               "Hours are untouched; fix the cause and run it again.", vbExclamation
+               "Hours are untouched; fix the cause and run it again.", vbExclamation, "Call Out Roster"
     End If
 End Sub
 
@@ -188,7 +188,7 @@ Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
         If typed <> "" Then
             MsgBox "Nothing was changed. These rows have typed numbers in the pay-period cells." & vbNewLine & _
                    "Run Alt+F8 > RefreshRosterFormulas first (it moves them into the OT Log), then run this again:" & _
-                   vbNewLine & vbNewLine & typed, vbExclamation
+                   vbNewLine & vbNewLine & typed, vbExclamation, "Call Out Roster"
             Exit Function
         End If
         Dim firstStart As Date: firstStart = CDate(ws.Range(pf & "4").Value)
@@ -199,7 +199,7 @@ Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
         ws.Range(pf & "4:" & pl & "4").FormulaR1C1 = "=R2C+13"
         Application.Calculate
         If PStartRow() <> 2 Then
-            MsgBox "Couldn't switch the pay-period rows.", vbExclamation
+            MsgBox "Couldn't switch the pay-period rows.", vbExclamation, "Call Out Roster"
             Exit Function
         End If
     End If
@@ -236,12 +236,12 @@ Private Function FlipPeriodRows(ByVal ws As Worksheet) As Boolean
     If mism <> "" Then
         MarkNoSave
         MsgBox "STOP - these roster rows don't match the OT Log:" & vbNewLine & mism & vbNewLine & _
-               "Saving is blocked. Close WITHOUT saving and send me this message.", vbCritical
+               "Saving is blocked. Close WITHOUT saving and send " & PRIMARY_ADMIN_NAME & " this message.", vbCritical, "Call Out Roster"
         Exit Function
     End If
     If typed <> "" Then
         MsgBox "These rows have typed numbers in the pay-period cells and were left alone." & vbNewLine & _
-               "Run Alt+F8 > RefreshRosterFormulas to move them into the OT Log:" & vbNewLine & vbNewLine & typed, vbInformation
+               "Run Alt+F8 > RefreshRosterFormulas to move them into the OT Log:" & vbNewLine & vbNewLine & typed, vbInformation, "Call Out Roster"
     End If
     ' v26.5.5 (A9): the block is lifted only for the flip THIS call started and verified. A NoSave set by
     ' another failed check (a people save, the rollover) stood for a reason: it stays, and the box says so.
@@ -623,7 +623,7 @@ Public Sub SetupHomeUnit()
     If Not RequireWritable() Then Exit Sub
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
-    If lastRow < R_FIRST Then MsgBox "No employees found on the roster.", vbExclamation: Exit Sub
+    If lastRow < R_FIRST Then MsgBox "No employees found on the roster.", vbExclamation, "Call Out Roster": Exit Sub
 
     ' column B must be free (it has held nothing since the OT Log migration)
     Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, UnitColLast())).Value
@@ -639,7 +639,7 @@ Public Sub SetupHomeUnit()
     If stray <> "" Or (hdr <> "" And hdr <> "HOME UNIT") Then
         MsgBox "Nothing was changed. Column B isn't free - it holds:" & vbNewLine & _
                IIf(hdr <> "" And hdr <> "HOME UNIT", "  B2: " & ws.Cells(2, C_HOME).Value & vbNewLine, "") & stray & vbNewLine & _
-               "Clear those cells (or send me a screenshot), then run SetupHomeUnit again.", vbCritical, "Home Unit"
+               "Clear those cells (or send " & PRIMARY_ADMIN_NAME & " a screenshot), then run SetupHomeUnit again.", vbCritical, "Home Unit"
         Exit Sub
     End If
 
@@ -673,7 +673,7 @@ Public Sub SetupHomeUnit()
     If Err.Number <> 0 Then
         Dim e As String: e = Err.Description
         On Error GoTo 0
-        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical
+        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical, "Call Out Roster"
         Exit Sub
     End If
     On Error GoTo 0
@@ -723,7 +723,7 @@ Public Sub SetupHomeUnit()
     If mism <> "" Then
         MarkNoSave
         MsgBox "STOP - the roster changed in a way it shouldn't have:" & vbNewLine & mism & vbNewLine & _
-               "Saving is blocked. Close WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical
+               "Saving is blocked. Close WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical, "Call Out Roster"
         Exit Sub
     End If
     On Error Resume Next
@@ -745,7 +745,7 @@ Failed:
     Application.ScreenUpdating = True
     MarkNoSave
     MsgBox "Home Unit setup stopped part-way: " & em & vbNewLine & vbNewLine & _
-           "Saving is blocked. Close WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical
+           "Saving is blocked. Close WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical, "Call Out Roster"
 End Sub
 
 ' Jump to a person's Home Unit cell (from Needs Attention)

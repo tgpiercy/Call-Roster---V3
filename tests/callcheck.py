@@ -25,6 +25,9 @@ Checks, per project (master = modules/ + paste-in/, members = member/):
   SET       an object variable (Worksheet, ListObject, Range, Object,
             Dictionary ...) assigned without Set ("Object variable not
             set" / "Invalid use of property" at run time)             (v25)
+  MSGTITLE  a MsgBox (statement or function form) with fewer than three
+            arguments: every box carries a title (v26.5.5, item 15; the
+            default title is "Call Out Roster")                    (v26.5.5)
 
 It is a text scan, not a compiler. Anything it can't parse with confidence
 it skips, so a clean run is good evidence, not proof.
@@ -49,6 +52,27 @@ OFF_ON = [  # (what, the 'off' value pattern, the 'on' value pattern)
     # v26.5.5 (A3): Esc made trappable for a write must be handed back (xlInterrupt) on every exit path
     ("Application.EnableCancelKey", r"xlErrorHandler\b", r"(?!xlErrorHandler\b)\S"),
 ]
+
+
+def msgbox_args(st: str) -> list[list[str]]:
+    """The argument lists of every MsgBox call in one statement (strings masked by the caller's splitter):
+    the statement form  MsgBox a, b  and the function form  x = MsgBox(a, b) ."""
+    out: list[list[str]] = []
+    masked = re.sub(r'"(?:[^"]|"")*"', lambda mm: "S" * len(mm.group(0)), st)
+    for mm in re.finditer(r"(?<![\w.])MsgBox\b(\s*\(?)", masked, re.I):
+        start = mm.end()
+        if mm.group(1).strip() == "(":
+            depth, i = 1, start
+            while i < len(masked) and depth:
+                depth += {"(": 1, ")": -1}.get(masked[i], 0)
+                i += 1
+            inner = st[start:i - 1]
+        else:
+            inner = st[start:]
+            inner = re.split(r"\s+Then\b|\s+Else\b|:\s*(?=[A-Za-z_])", inner, maxsplit=1)[0]   # a one-line If ends the statement
+        inner = inner.strip()
+        out.append([] if inner == "" else [a for a in split_args(inner)])
+    return out
 
 
 def split_args(s: str) -> list[str]:
@@ -281,6 +305,11 @@ def check_project(files: list[Path], label: str) -> int:
                     return mod_vars[m.name.lower()][low]
                 return None
 
+            # ---- MSGTITLE (v26.5.5): every MsgBox names its title (the third argument) ----
+            for st in stmts:
+                for args in msgbox_args(st):
+                    if len(args) < 3:
+                        say("MSGTITLE", m, p.name, f"MsgBox with {len(args)} argument(s): give it a title (the third argument)")
             # ---- NORET: a Function that never assigns its own name (v25) ----
             if p.kind == "function":
                 pat = re.compile(ASSIGN.format(name=re.escape(p.name)), re.I)

@@ -396,7 +396,7 @@ End Sub
 Private Function PickedID() As String
     Dim idx As Long: idx = mExisting.ListIndex
     If idx < 0 Or Not IsArray(mIds) Then
-        MsgBox "Pick a posting first.", vbExclamation
+        MsgBox "Pick a posting first.", vbExclamation, "Call Out Roster"
     Else
         PickedID = CStr(mIds(idx))
     End If
@@ -409,7 +409,7 @@ Private Sub mView_Click()
     If PostingOutput(id, True, False, False, rpt) Then
         Unload Me
     Else
-        MsgBox "Posting " & id & " couldn't be loaded (no saved list).", vbExclamation
+        MsgBox "Posting " & id & " couldn't be loaded (no saved list).", vbExclamation, "Call Out Roster"
     End If
 End Sub
 
@@ -429,13 +429,13 @@ Private Sub RunOutput(ByVal doView As Boolean, ByVal doPrint As Boolean, ByVal d
     Me.MousePointer = fmMousePointerHourGlass
     If Not PostingOutput(id, doView, doPrint, doPdf, rpt) Then
         Me.MousePointer = fmMousePointerDefault
-        MsgBox "Posting " & id & " couldn't be loaded (no saved list).", vbExclamation
+        MsgBox "Posting " & id & " couldn't be loaded (no saved list).", vbExclamation, "Call Out Roster"
         Exit Sub
     End If
     Me.MousePointer = fmMousePointerDefault
     rpt = Replace(rpt, "It's on the Overtime Posting tab." & vbNewLine, "")
     If InStr(rpt, "NOT ") > 0 Then
-        MsgBox id & ":" & vbNewLine & rpt, vbExclamation
+        MsgBox id & ":" & vbNewLine & rpt, vbExclamation, "Call Out Roster"
         Info id & ": failed - see message.", False
     Else
         Info id & ": " & Replace(rpt, vbNewLine, "  "), True

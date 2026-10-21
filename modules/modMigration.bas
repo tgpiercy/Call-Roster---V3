@@ -19,7 +19,7 @@ Public Sub RunMigration()
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If SheetExists(LOG_SHEET) Then
-        MsgBox "This workbook already has an '" & LOG_SHEET & "' sheet - migration has already been run.", vbInformation
+        MsgBox "This workbook already has an '" & LOG_SHEET & "' sheet - migration has already been run.", vbInformation, "Call Out Roster"
         Exit Sub
     End If
 
@@ -40,7 +40,7 @@ Public Sub RunMigration()
     If Err.Number <> 0 Then
         Dim e As String: e = Err.Description
         On Error GoTo 0
-        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical
+        MsgBox "Couldn't save the backup copy, so nothing was changed:" & vbNewLine & e, vbCritical, "Call Out Roster"
         Exit Sub
     End If
     On Error GoTo 0
@@ -88,7 +88,7 @@ Stopped:
     Application.EnableEvents = True
     Application.ScreenUpdating = True
     MsgBox "Migration stopped before saving." & vbNewLine & _
-           "Close this workbook WITHOUT saving (saving is blocked). Your backup is at:" & vbNewLine & bk, vbCritical
+           "Close this workbook WITHOUT saving (saving is blocked). Your backup is at:" & vbNewLine & bk, vbCritical, "Call Out Roster"
     Exit Sub
 
 Fail:
@@ -99,7 +99,7 @@ Fail:
     Application.EnableEvents = True
     Application.ScreenUpdating = True
     MsgBox "Migration error: " & msg & vbNewLine & vbNewLine & _
-           "Close this workbook WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical
+           "Close this workbook WITHOUT saving. Your backup is at:" & vbNewLine & bk, vbCritical, "Call Out Roster"
 End Sub
 
 

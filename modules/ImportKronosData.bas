@@ -88,7 +88,7 @@ Sub SyncKronosData()
         On Error GoTo Oops
         Application.EnableEvents = True
         If wbSource Is Nothing Then
-            MsgBox "Could not open the Kronos file:" & vbNewLine & srcPath, vbCritical
+            MsgBox "Could not open the Kronos file:" & vbNewLine & srcPath, vbCritical, "Call Out Roster"
             Exit Sub
         End If
         openedHere = True
@@ -106,7 +106,7 @@ Sub SyncKronosData()
     If wsSource Is Nothing Then
         If openedHere Then wbSource.Close SaveChanges:=False
         MsgBox "Neither the Kronos export's transactions (a heading row with Employee, Date, Pay Code and Hours) nor a sheet '" & _
-               KRONOS_SHEET & "' was found in " & fileName, vbCritical
+               KRONOS_SHEET & "' was found in " & fileName, vbCritical, "Call Out Roster"
         Exit Sub
     End If
 
@@ -140,7 +140,7 @@ Sub SyncKronosData()
         MsgBox "The Kronos sheet doesn't have the heading(s) the import needs: " & missingHdr & "." & vbNewLine & _
                "Nothing was changed." & vbNewLine & vbNewLine & _
                "Open " & fileName & ", sheet '" & KRONOS_SHEET & "', and check its heading row (it must be within the first 10 rows). " & _
-               "If the report's layout has changed, send me a screenshot of its first rows.", vbExclamation, "Kronos import"
+               "If the report's layout has changed, send " & PRIMARY_ADMIN_NAME & " a screenshot of its first rows.", vbExclamation, "Kronos import"
         Exit Sub
     End If
     ' v24.2: the Payroll # column, found by its header (not there = the import works as before)
@@ -845,7 +845,7 @@ Private Function AppendHoursHistory(ByVal stamp As Date, ByVal fileDate As Date,
     If lo Is Nothing Then Exit Function
     If lo.ListColumns.Count < HH_NCOLS Then
         MsgBox "Worked hours were imported, but the Hours History sheet couldn't be given its Data Through / Year columns." & _
-               vbNewLine & "Is the file read-only?", vbExclamation
+               vbNewLine & "Is the file read-only?", vbExclamation, "Call Out Roster"
         Exit Function
     End If
     Dim ws As Worksheet: Set ws = lo.Parent
@@ -901,7 +901,7 @@ Fail:
     LogError "AppendHoursHistory", Err.Number, em
     On Error Resume Next
     ProtectSheet ws
-    MsgBox "Worked hours were imported, but the Hours History snapshot couldn't be saved:" & vbNewLine & em, vbExclamation
+    MsgBox "Worked hours were imported, but the Hours History snapshot couldn't be saved:" & vbNewLine & em, vbExclamation, "Call Out Roster"
 End Function
 
 ' v24.3.1: the column whose heading (first 10 rows) says `want` by its letters and digits

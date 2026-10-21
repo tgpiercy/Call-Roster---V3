@@ -265,7 +265,7 @@ End Function
 Public Function UnavailableReasons() As Variant
     UnavailableReasons = Array("Vacation", "Already Working OT", "Training", _
                                "Scheduled Off Site", "Modified Duties", _
-                               "Not Qualified for Task", "Other", "Days")
+                               "Not Qualified for Task", "Other", "Working days elsewhere")   ' v26.5.5 (Graeme, Oct 21): was "Days"
 End Function
 
 ' Department -> roster column holding that department's grade code
@@ -1339,7 +1339,7 @@ End Function
 Public Function RequireSupervisor() As Boolean
     If Not IsSupervisor() Then
         MsgBox "Access denied. Your Windows login (" & CurrentUser() & ") is not on the supervisor list for this workbook." & _
-               vbNewLine & vbNewLine & "Ask " & PRIMARY_ADMIN_NAME & " to add it (SUPERVISOR_USERS).", vbCritical, "Authorization"
+               vbNewLine & vbNewLine & "Ask " & PRIMARY_ADMIN_NAME & " to add your login to the supervisors' list.", vbCritical, "Authorization"
         Exit Function
     End If
     RequireSupervisor = RequireWritable()
@@ -1545,11 +1545,48 @@ Public Function ProtectionStatus(ByRef info As String) As String
 End Function
 
 ' v25 review: every sheet is protected, so a message that asks for a hand edit says how
+' v26.5.5 (B10): the hint names the BUTTON that changes the sheet, never the VBA editor; a repair by hand (a
+' stray row, a cell that should be empty) goes through Alt+F8 > UnlockForRepair, then ProtectAll.
 Public Function ByHandHint(ByVal sheetName As String) As String
-    Dim q As String: q = Chr$(34)
-    ByHandHint = " (The sheet is protected. In the VBA editor, Alt+F11 then Ctrl+G, type  UnlockSheet Sheets(" & q & sheetName & q & _
-                 ")  and Enter; make the change on the sheet; then type  ProtectAll  and Enter.)"
+    Dim button As String
+    Select Case sheetName
+        Case ROSTER_SHEET: button = "Employee > Edit (double-click the person's row)"
+        Case "Crew History": button = "Employee > Edit (a crew change is dated into the history)"
+        Case "Absences": button = "Book Time Off / Sick Call"
+        Case "Postings": button = "the posting's own buttons (Award, No Takers, Cancel Request, Reopen)"
+        Case "Shift Switches": button = "Shift Switch"
+        Case "Coverage", "Calendar": button = "the calendar line's menu"
+        Case "Holidays": button = "the Observed on cells (the only typed-into ones there)"
+    End Select
+    ByHandHint = " (The " & sheetName & " sheet is protected: nothing on it is typed into. " & _
+                 IIf(button <> "", "An admin changes it through " & button & ". ", "") & _
+                 "For a repair by hand an admin runs Alt+F8 > UnlockForRepair, makes the change, then Alt+F8 > ProtectAll.)"
 End Function
+
+' v26.5.5 (B10): the admin's way to a hand repair without the VBA editor - unlocks ONE sheet (the active one
+' by default) until ProtectAll, a save, or the next open protects everything again
+Public Sub UnlockForRepair()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim nm As String
+    nm = Trim$(InputBox("Which sheet do you need to change by hand? (Nothing on the roster is typed into normally: use the buttons " & _
+                        "where one exists. This is for a repair IntegrityCheck or a message asked for.)", "Unlock for repair", ActiveSheet.Name))
+    If nm = "" Then Exit Sub
+    If Not SheetExists(nm) Then MsgBox "There is no sheet called " & nm & ".", vbExclamation, "Unlock for repair": Exit Sub
+    If IsYearEndSheet(nm) Or nm = LOG_SHEET Then
+        MsgBox "The " & nm & " sheet is never changed by hand: corrections are voids and new entries (Void Entry, Add Adjustment).", _
+               vbExclamation, "Unlock for repair"
+        Exit Sub
+    End If
+    UnlockSheet ThisWorkbook.Worksheets(nm)
+    ThisWorkbook.Worksheets(nm).Activate
+    MsgBox "The " & nm & " sheet is unlocked. Make the change, then run Alt+F8 > ProtectAll (a save or the next open also protects everything)." & _
+           vbNewLine & vbNewLine & "IntegrityCheck afterwards tells you whether the roster still agrees with the OT Log.", vbInformation, "Unlock for repair"
+    Exit Sub
+Oops:
+    ReportError "UnlockForRepair"
+End Sub
 
 ' The archived logs ("OT Log 2026") and the Year End record: never unprotected, even for admins (v23)
 Public Function IsYearEndSheet(ByVal nm As String) As Boolean

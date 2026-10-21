@@ -582,13 +582,13 @@ Private Sub mSave_Click()
     If mWorks.ListIndex < 0 Then problems = problems & "- Works the shift" & vbNewLine
     If mShift.ListIndex < 0 Then problems = problems & "- Shift (Days / Nights)" & vbNewLine
     If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Shift Switch": Exit Sub
-    If mOff.Text = mWorks.Text Then MsgBox "The same person is on both sides.", vbExclamation: Exit Sub
+    If mOff.Text = mWorks.Text Then MsgBox "The same person is on both sides.", vbExclamation, "Call Out Roster": Exit Sub
 
     Dim isNight As Boolean: isNight = (mShift.Text = "Nights")
     Dim twoWay As Boolean: twoWay = mTwoWay.Value
     Dim d2 As Date, sh2 As String
     If twoWay Then
-        If Not PayDateOk(d2) Then MsgBox "Enter the payback date (or untick Two-way swap).", vbExclamation: Exit Sub
+        If Not PayDateOk(d2) Then MsgBox "Enter the payback date (or untick Two-way swap).", vbExclamation, "Call Out Roster": Exit Sub
         sh2 = PayShift(d2)
         Dim payProb As String: payProb = PaybackProblem(d2, sh2)
         If payProb <> "" Then
@@ -597,7 +597,7 @@ Private Sub mSave_Click()
             Exit Sub
         End If
         If Int(d2) = Int(d) And sh2 = mShift.Text Then
-            MsgBox "The payback is the same date AND shift - that isn't a swap.", vbExclamation: Exit Sub
+            MsgBox "The payback is the same date AND shift - that isn't a swap.", vbExclamation, "Call Out Roster": Exit Sub
         End If
     End If
 
@@ -636,7 +636,7 @@ Private Sub mSave_Click()
     If id = "" Then Exit Sub
     If twoWay Then
         id2 = SaveSwitch(d2, sh2, C("cboUnit").Text, mWorks.Text, mOff.Text, id, Trim$(C("txtNote").Text))
-        If id2 = "" Then MsgBox "The switch was saved (" & id & ") but its payback wasn't - it stays on the owed list.", vbExclamation
+        If id2 = "" Then MsgBox "The switch was saved (" & id & ") but its payback wasn't - it stays on the owed list.", vbExclamation, "Call Out Roster"
         payFor = ""
     End If
 
@@ -658,7 +658,7 @@ End Sub
 
 Private Sub mVoid_Click()
     Dim i As Long: i = mList.ListIndex
-    If i < 0 Or Not IsArray(mListIds) Then MsgBox "Select a switch in the list first.", vbInformation: Exit Sub
+    If i < 0 Or Not IsArray(mListIds) Then MsgBox "Select a switch in the list first.", vbInformation, "Call Out Roster": Exit Sub
     Dim id As String: id = CStr(mListIds(i))
     If VoidSwitch(id) Then
         ' in the owed view, clicking the row filled the form with its payback - clear it

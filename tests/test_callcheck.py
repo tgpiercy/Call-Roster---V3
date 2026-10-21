@@ -70,6 +70,15 @@ Private Sub ReportError(ByVal who As String)
     Application.EnableEvents = True
 End Sub
 
+Private Sub UntitledBoxes()
+    MsgBox "no title at all"
+    MsgBox "no title", vbExclamation
+    If MsgBox("no title either", vbYesNo + vbQuestion) = vbYes Then Exit Sub
+    MsgBox "titled", vbInformation, "Call Out Roster"
+    If MsgBox("titled too", vbYesNo, "Call Out Roster") = vbNo Then Exit Sub
+    MsgBox "one, two, three", vbInformation, "a, title"
+End Sub
+
 Private Sub MissingSet()
     Dim ws As Worksheet, lo As ListObject, d As Object, r As Range, n As Long, v As Variant, m As VbMsgBoxResult
     ws = ActiveSheet
@@ -111,7 +120,13 @@ def test_set_fires_on_the_object_assignments_only(tmp_path, capsys):
     assert names == ["d", "ws"], sets
 
 
+def test_msgtitle_fires_on_the_untitled_boxes_only(tmp_path, capsys):
+    out = run(tmp_path, capsys)
+    boxes = [ln for ln in out if ln.startswith("MSGTITLE")]
+    assert len(boxes) == 3 and all("UntitledBoxes" in ln for ln in boxes), boxes
+
+
 def test_nothing_else_fires(tmp_path, capsys):
     out = run(tmp_path, capsys)
-    other = [ln for ln in out if not ln.startswith(("NORET", "RESTORE", "SET"))]
+    other = [ln for ln in out if not ln.startswith(("NORET", "RESTORE", "SET", "MSGTITLE"))]
     assert other == [], other

@@ -157,7 +157,7 @@ Private Sub mSelAll_Click()
 End Sub
 
 Private Sub mAssign_Click()
-    If mName.ListIndex < 0 Then MsgBox "Pick a roster name first.", vbInformation: Exit Sub
+    If mName.ListIndex < 0 Then MsgBox "Pick a roster name first.", vbInformation, "Call Out Roster": Exit Sub
     Dim i As Long, k As Long
     For i = 1 To mN
         If mList.Selected(i - 1) Then
@@ -181,7 +181,7 @@ Private Sub mConvert_Click()
             End If
         End If
     Next i
-    If n = 0 Then MsgBox "Tick at least one line that has a roster name.", vbInformation: Exit Sub
+    If n = 0 Then MsgBox "Tick at least one line that has a roster name.", vbInformation, "Call Out Roster": Exit Sub
     If MsgBox("Book " & n & " line(s) as vacation on the Absences sheet?" & vbNewLine & _
               "Consecutive dates for one person become one booking. The people drop off call lists for those dates." & _
               IIf(skipped > 0, vbNewLine & vbNewLine & skipped & " ticked line(s) have no name yet and are left alone.", ""), _
@@ -201,7 +201,7 @@ Private Sub mDismiss_Click()
     For i = 1 To mN
         If mList.Selected(i - 1) Then n = n + 1: ids(n) = mIds(i)
     Next i
-    If n = 0 Then MsgBox "Tick the lines to dismiss first.", vbInformation: Exit Sub
+    If n = 0 Then MsgBox "Tick the lines to dismiss first.", vbInformation, "Call Out Roster": Exit Sub
     If MsgBox("Leave " & n & " line(s) as display only? They stay on the calendar but won't be listed again, " & _
               "and the people are NOT kept off call lists for those dates.", vbOKCancel + vbExclamation, "Dismiss") <> vbOK Then Exit Sub
     DismissImports ids, n

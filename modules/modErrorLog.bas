@@ -177,7 +177,7 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
     MsgBox "This didn't finish." & vbNewLine & vbNewLine & _
            "Anything it did before the error is still in the workbook" & _
            IIf(NoSave() Or ThisWorkbook.ReadOnly, " (this copy can't be saved).", " and is saved when you close.") & vbNewLine & _
-           "Check what you were doing (run it again if it was an import), and tell Graeme:" & vbNewLine & _
+           "Check what you were doing (run it again if it was an import), and tell " & PRIMARY_ADMIN_NAME & ":" & vbNewLine & _
            "Error Log line " & IIf(lineNo > 0, CStr(lineNo), "(not written)") & "  -  " & proc & vbNewLine & vbNewLine & _
            Left$(em, 200), vbExclamation, "Call Out Roster"
 End Sub
@@ -240,7 +240,7 @@ Public Sub ShowErrorLog()
         MarkCalDirty
     End If
     MsgBox IIf(n = 0, "No new errors.", n & " new error line(s), now marked as seen.") & vbNewLine & vbNewLine & _
-           "Newest is at the bottom. Send me the Procedure and Error text of any line you want looked at.", vbInformation, "Error Log"
+           "Newest is at the bottom. Send " & PRIMARY_ADMIN_NAME & " the Procedure and Error text of any line you want looked at.", vbInformation, "Error Log"
     Exit Sub
 Failed:
     Dim em As String: em = Err.Description

@@ -462,7 +462,7 @@ Public Function SaveSickPast(ByVal emp As String, ByVal unit As String, ByVal d1
     If d1 > Date Then Exit Function                   ' v25 review: PAST sick days only (a yearless date can land ahead)
     If d2 > Date Then d2 = Date
     If Not AbsenceColumnsCurrent() Then
-        MsgBox "The Absences table needs its v22 columns first: run Alt+F8 > UpgradeAbsenceColumns.", vbExclamation
+        MsgBox "The Absences table needs its v22 upgrade first: an admin runs Alt+F8 > UpgradeAbsenceColumns once.", vbExclamation, "Attendance"
         Exit Function
     End If
     If d2 - d1 > 120 Then d2 = d1 + 120
@@ -773,5 +773,5 @@ Failed:
     If Not ws Is Nothing Then ProtectSheet ws
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
-    MsgBox "The Attendance sheet couldn't be drawn: " & em, vbExclamation
+    MsgBox "The Attendance sheet couldn't be drawn: " & em, vbExclamation, "Call Out Roster"
 End Sub

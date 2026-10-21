@@ -199,7 +199,7 @@ Public Sub PublishMembers()
     End If
     If Not FolderExists(folder) Then
         MsgBox "The members' folder can't be reached:" & vbNewLine & folder & vbNewLine & vbNewLine & _
-               "Check the drive, or PUBLISH_FOLDER in modOvertimeEntry.", vbExclamation, "Member View"
+               "Check the drive, or ask " & PRIMARY_ADMIN_NAME & " to check the members' folder setting.", vbExclamation, "Member View"
         Exit Sub
     End If
     ' v24.3.3 (Graeme's Oct 14 test, C6): the members' file open in THIS Excel (a supervisor looking at it)
@@ -267,7 +267,7 @@ Public Sub PublishMembers()
             gSmokeRefusal = why
         Else
             MsgBox "NOT published. Something private would have gone into the members' file:" & vbNewLine & vbNewLine & why & _
-                   vbNewLine & vbNewLine & "Fix that entry (or send me this message) and publish again.", vbCritical, "Member View"
+                   vbNewLine & vbNewLine & "Fix that entry (or send " & PRIMARY_ADMIN_NAME & " this message) and publish again.", vbCritical, "Member View"
         End If
         Exit Sub
     End If
@@ -277,7 +277,7 @@ Public Sub PublishMembers()
         Application.ScreenUpdating = True
         MsgBox "NOT published. The call positions worked out for the members' file don't match the roster's own call order:" & _
                vbNewLine & vbNewLine & why & vbNewLine & vbNewLine & _
-               "Nothing was written. Run SystemCheck and SelfTest, then send me this message.", vbCritical, "Member View"
+               "Nothing was written. Run SystemCheck and SelfTest, then send " & PRIMARY_ADMIN_NAME & " this message.", vbCritical, "Member View"
         Exit Sub
     End If
 
@@ -386,7 +386,7 @@ Failed:
     Application.StatusBar = False
     Application.ScreenUpdating = True
     MsgBox "NOT published - couldn't work out the members' data: " & em & vbNewLine & vbNewLine & _
-           "Nothing was opened or written. Run SystemCheck, then try again; if it happens twice, send me this message.", _
+           "Nothing was opened or written. Run SystemCheck, then try again; if it happens twice, send " & PRIMARY_ADMIN_NAME & " this message.", _
            vbCritical, "Member View"
     Exit Sub
 OpenFailed:
@@ -415,7 +415,7 @@ WriteFailed:
     Application.ScreenUpdating = True
     MsgBox "NOT published - stopped while filling the template: " & em & vbNewLine & vbNewLine & _
            "The template was opened read-only and closed without saving, so the members' file is unchanged. " & _
-           "If the message mentions data sheets, open the template and run BuildMemberTemplate again; otherwise send me this message.", _
+           "If the message mentions data sheets, open the template and run BuildMemberTemplate again; otherwise send " & PRIMARY_ADMIN_NAME & " this message.", _
            vbCritical, "Member View"
 End Sub
 

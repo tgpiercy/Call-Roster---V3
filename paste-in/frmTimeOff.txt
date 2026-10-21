@@ -305,10 +305,10 @@ Private Sub mSave_Click()
     If mOptNeed.Value Then
         If Trim$(C("cboNeed").Text) = "" Then problems = problems & "- Need" & vbNewLine
         If Trim$(mEnd.Text) <> "" And Not ParseTypedDate(mEnd.Text, de0) Then problems = problems & "- To date" & vbNewLine
-        If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation: Exit Sub
+        If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Call Out Roster": Exit Sub
         Dim d1 As Date, d2 As Date: d1 = ds0
         If Trim$(mEnd.Text) <> "" Then d2 = de0 Else d2 = d1
-        If d2 < d1 Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
+        If d2 < d1 Then MsgBox "The end is before the start.", vbExclamation, "Call Out Roster": Exit Sub
         Dim needTxt As String, typ As String
         If C("cboNeed").ListIndex >= 0 Then
             needTxt = Trim$(Mid$(C("cboNeed").Text, 7))
@@ -327,7 +327,7 @@ Private Sub mSave_Click()
         Dim nLines As Long
         nLines = SaveNeed(C("cboUnit").Text, needTxt, typ, d1, d2, C("cboShift").Text, HoursValue())
         If nLines > 0 Then C("status").Caption = nLines & " need line(s) added."
-        If nLines > 0 Then MsgBox nLines & " line(s) added to the " & C("cboUnit").Text & " calendar.", vbInformation
+        If nLines > 0 Then MsgBox nLines & " line(s) added to the " & C("cboUnit").Text & " calendar.", vbInformation, "Call Out Roster"
         Exit Sub
     End If
 
@@ -335,7 +335,7 @@ Private Sub mSave_Click()
     If mEmp.ListIndex < 0 Then problems = problems & "- Employee" & vbNewLine
     If C("cboType").ListIndex < 0 Then problems = problems & "- Type" & vbNewLine
     If Not mOpen.Value And Not ParseTypedDate(mEnd.Text, de0) Then problems = problems & "- To date (or tick Open-ended)" & vbNewLine
-    If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation: Exit Sub
+    If problems <> "" Then MsgBox "Please fill in:" & vbNewLine & vbNewLine & problems, vbExclamation, "Call Out Roster": Exit Sub
 
     Dim ds As Date: ds = ds0
     Dim de As Variant
@@ -343,7 +343,7 @@ Private Sub mSave_Click()
         de = Empty
     Else
         de = de0
-        If de < ds Then MsgBox "The end is before the start.", vbExclamation: Exit Sub
+        If de < ds Then MsgBox "The end is before the start.", vbExclamation, "Call Out Roster": Exit Sub
     End If
     If ds < RosterYearFrom() Then                    ' v25: a year typed wrong (2008 for 2026) is caught here
         MsgBox "The start (" & Format$(ds, "mmm d, yyyy") & ") is before this roster year's first day (" & _
@@ -353,17 +353,17 @@ Private Sub mSave_Click()
 
     Dim code As String: code = TypeCode(C("cboType").Text)
     Dim id As String
-    If code = "PER" And mOpen.Value Then MsgBox "Personal days need an end date (each scheduled shift counts as one day).", vbExclamation: Exit Sub
+    If code = "PER" And mOpen.Value Then MsgBox "Personal days need an end date (each scheduled shift counts as one day).", vbExclamation, "Call Out Roster": Exit Sub
     If code = "SIC" Then                          ' v22.1: past sick days, one row per scheduled shift
-        If mOpen.Value Then MsgBox "Past sick days need an end date.", vbExclamation: Exit Sub
-        If ds > Date Then MsgBox "Past sick days are for days already gone (" & Format$(ds, "mmm d, yyyy") & " is ahead). For today or later use Sick Call.", vbExclamation: Exit Sub
+        If mOpen.Value Then MsgBox "Past sick days need an end date.", vbExclamation, "Call Out Roster": Exit Sub
+        If ds > Date Then MsgBox "Past sick days are for days already gone (" & Format$(ds, "mmm d, yyyy") & " is ahead). For today or later use Sick Call.", vbExclamation, "Call Out Roster": Exit Sub
         Dim nSick As Long, nUnsched As Long, nAlready As Long, skipped As String
         nSick = SaveSickPast(mEmp.Text, C("cboUnit").Text, ds, CDate(de), Trim$(C("txtNote").Text), HoursValue(), nUnsched, nAlready)
         If nUnsched > 0 Then skipped = nUnsched & " day(s) with no scheduled shift"
         If nAlready > 0 Then skipped = skipped & IIf(skipped = "", "", ", ") & nAlready & " already booked sick"
         If nSick = 0 Then                               ' v25 (L6): says which it was
             MsgBox "No sick days were recorded for " & mEmp.Text & ", " & Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & ": " & _
-                   IIf(skipped = "", "the file is read-only, or the dates are before this roster year", skipped) & ".", vbExclamation
+                   IIf(skipped = "", "the file is read-only, or the dates are before this roster year", skipped) & ".", vbExclamation, "Call Out Roster"
             Exit Sub
         End If
         LoadList
@@ -405,7 +405,7 @@ End Sub
 
 Private Function PickedId() As String
     Dim i As Long: i = C("lst").ListIndex
-    If i < 0 Or Not IsArray(mIds) Then MsgBox "Select a booking in the list first.", vbInformation: Exit Function
+    If i < 0 Or Not IsArray(mIds) Then MsgBox "Select a booking in the list first.", vbInformation, "Call Out Roster": Exit Function
     PickedId = CStr(mIds(i))
 End Function
 

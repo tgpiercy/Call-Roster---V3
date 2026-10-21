@@ -25,6 +25,7 @@ Public Const STATS_VERSION As String = "Stats v26.5.5 (Oct 21)"      ' stamped w
 Public Const STATS_SHEET As String = "Stats"
 Private mAcc As Object                      ' "section|unit|metric|q" -> amount (q 1..4; 5 = the year to date)
 Private mUnits As Object                    ' unit -> True (the roster's units, in DeptList order, + "All units")
+Private mJan1 As Date                       ' the roster year's Jan 1, worked out once per report (review N1: QuarterNo runs tens of thousands of times)
 
 ' ====================================================================
 '  THE PURE RULES (mirrored in tests/rules.py)
@@ -123,6 +124,7 @@ Public Sub StatsReport()
     Next i
     mUnits("All units") = True
     Dim yearFrom As Date: yearFrom = RosterYearFrom()
+    mJan1 = DateSerial(RosterYear(), 1, 1)
     Dim yearTo As Date: yearTo = RosterYearTo()
     CountCallouts yearFrom, yearTo
     CountPostings yearFrom, yearTo
@@ -173,7 +175,8 @@ Private Function Got(ByVal section As String, ByVal unit As String, ByVal metric
 End Function
 
 Private Function QuarterNo(ByVal d As Date) As Long
-    QuarterNo = CLng(Mid$(StatsQuarter(d, DateSerial(RosterYear(), 1, 1)), 2))
+    If mJan1 = 0 Then mJan1 = DateSerial(RosterYear(), 1, 1)
+    QuarterNo = CLng(Mid$(StatsQuarter(d, mJan1), 2))
 End Function
 
 ' ---- A. call-outs: one session = one S- ref ----
@@ -535,6 +538,10 @@ End Sub
 Private Function SectionTitle(ByVal ws As Worksheet, ByVal r As Long, ByVal txt As String) As Long
     ws.Cells(r + 1, 1).Value = txt
     ws.Cells(r + 1, 1).Font.Bold = True: ws.Cells(r + 1, 1).Font.Size = 12: ws.Cells(r + 1, 1).Font.Color = RGB(30, 56, 100)
+    With ws.Range(ws.Cells(r + 1, 1), ws.Cells(r + 1, 12))      ' (review N2) a long title wraps across the page instead of being cut off in the PDF
+        .Merge: .WrapText = True: .VerticalAlignment = xlTop
+    End With
+    ws.Rows(r + 1).RowHeight = IIf(Len(txt) > 110, 48, 24)
     SectionTitle = r + 2
 End Function
 

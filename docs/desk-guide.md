@@ -2,7 +2,7 @@
 
 The Desk is the first tab you see when you open the roster. Three pills at the top say what today is, tiles say what is waiting, and the buttons sit in three bands by WHEN you reach for them. Every button opens the same pop-up the full roster uses; nothing is different underneath. (The layout is the approved mock-up `docs/desk-v2-mockup-2026-10.html`; before v27 the Desk had six bands in two columns.)
 
-There are two Desks from the same screen. **A supervisor's Desk** (a login on the supervisor list, v25.5) has the jobs a supervisor may do: Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster, Employee history (v26), and the help row. **The admin Desk** (for a login on the Desk list) has those plus Book time off, Shift switch or payback, Leave, Undo my last log entry, the paybacks-owed tile and "Show everything".
+There are two Desks from the same screen. **A supervisor's Desk** (a login on the supervisor list, v25.5) has the jobs a supervisor may do: Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster, Employee history (v26), and the help row. **The admin Desk** (for a login on the Desk list) has those plus Book time off, Shift switch or payback, Leave, Reconcile with the paper roster, Stats, Undo my last log entry, the paybacks-owed tile and "Show everything".
 
 ## The pills (the header)
 | Pill | Says |

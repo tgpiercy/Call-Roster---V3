@@ -9,7 +9,8 @@ Option Explicit
 '  Oct 20). On the admin-only Reconcile sheet the admin picks a unit and
 '  the date the paper roster was good for, types the paper's call order
 '  (names, top to bottom) once, and clicks Compare: the roster's order for
-'  that unit on that date is drawn beside it - the SAME list the printed
+'  that unit is drawn beside it (the crews and a planned move as of that
+'  day; Total Hours as of now) - the SAME list the printed
 '  call-out roster and the call-out pop-up use (LoadEligible with asOf, every
 '  grade, every crew) - and every position that differs gets the roster's
 '  reason: where the roster puts the paper's person and which of the three
@@ -105,7 +106,8 @@ Private Function ReconcileSheet(Optional ByVal create As Boolean = False) As Wor
 End Function
 
 ' The fixed part: titles, the three typed cells with their hints, the headings, the position numbers, the
-' validation lists, the three buttons. Drawn once when the sheet is made (ShowReconcile redraws it on request).
+' validation lists, the three buttons. Drawn when the sheet is made, and again by ShowReconcile when the frame's version
+' in L1 differs from this release (the typed cells are kept across the redraw).
 Private Sub DrawFrame(ByVal ws As Worksheet)
     UnlockSheet ws
     ws.Cells.Clear
@@ -179,6 +181,7 @@ Private Sub DrawFrame(ByVal ws As Worksheet)
     ws.Rows(7).RowHeight = 54
     ws.Range(RC_SUMMARY).Value = "Not compared yet."
     ws.Range(RC_SUMMARY).Font.Italic = True
+    ws.Range("L1").Value = RC_VERSION: ws.Range("L1").Font.Size = 7: ws.Range("L1").Font.Color = RGB(176, 190, 197)   ' the frame's version (ShowReconcile redraws on a change)
     ' the page
     On Error Resume Next
     With ws.PageSetup
@@ -214,6 +217,21 @@ Private Sub RcButton(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As Str
     End With
 End Sub
 
+' A changed frame (a new release) redrawn around what the admin typed: the unit, the date, the paper's sheet, the names,
+' the decisions and the notes are read first and written back after DrawFrame
+Private Sub RedrawFrameKeepingTyped(ByVal ws As Worksheet)
+    Dim last As Long: last = RC_FIRST + RC_POSITIONS - 1
+    Dim top3 As Variant: top3 = ws.Range(RC_UNIT & ":" & RC_PAPER).Value
+    Dim names As Variant: names = ws.Range(ws.Cells(RC_FIRST, 2), ws.Cells(last, 2)).Value
+    Dim decs As Variant: decs = ws.Range(ws.Cells(RC_FIRST, 9), ws.Cells(last, 10)).Value
+    DrawFrame ws
+    UnlockSheet ws
+    ws.Range(RC_UNIT & ":" & RC_PAPER).Value = top3
+    ws.Range(ws.Cells(RC_FIRST, 2), ws.Cells(last, 2)).Value = names
+    ws.Range(ws.Cells(RC_FIRST, 9), ws.Cells(last, 10)).Value = decs
+    ProtectSheet ws
+End Sub
+
 ' The typed cells open for an admin, everything else locked (ApplyViewCore calls it with the other typed sheets)
 Public Sub LockReconcileCells(ByVal adminView As Boolean)
     Dim ws As Worksheet: Set ws = ReconcileSheet(False)
@@ -236,6 +254,7 @@ Public Sub ShowReconcile()
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
     Dim ws As Worksheet: Set ws = ReconcileSheet(True)
+    If SafeStr(ws.Range("L1").Value) <> RC_VERSION Then RedrawFrameKeepingTyped ws     ' an older frame: redrawn, the typed cells kept
     LockReconcileCells True
     SetSheetVisible ws, xlSheetVisible
     ws.Activate
@@ -284,16 +303,17 @@ Public Sub ReconcileCompare()
     Dim res As String: res = ReconcileDiffCore(paper, roster)
     Dim parts As Variant: parts = Split(res, "|")
     Dim diffPos As Object: Set diffPos = CreateObject("Scripting.Dictionary")
-    Dim pv As Variant, k As Variant
+    Dim pv As Variant, k As Variant, nDiff As Long
     If CStr(parts(0)) <> "-" Then
         pv = Split(CStr(parts(0)), ";")
         For Each k In pv
             diffPos(CLng(k)) = True
         Next k
+        nDiff = UBound(pv) + 1                            ' (review N3) every position, not only the drawn ones
     End If
     ' the drawn columns
     Dim outA() As Variant: ReDim outA(1 To RC_POSITIONS, 1 To 6)
-    Dim pName As String, why As String, nDiff As Long
+    Dim pName As String, why As String
     For i = 1 To RC_POSITIONS
         pName = ""
         If i <= nPaper Then pName = Trim$(SafeStr(paperV(i, 1)))
@@ -304,7 +324,6 @@ Public Sub ReconcileCompare()
             outA(i, 4) = SenText(recs(i).Seniority)
         End If
         If diffPos.Exists(i) Then
-            nDiff = nDiff + 1
             outA(i, 5) = "yes"
             outA(i, 6) = DiffReason(pName, i, recs, n, posOf, unit)
         ElseIf i <= n Or pName <> "" Then

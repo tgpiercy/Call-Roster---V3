@@ -840,7 +840,7 @@ End Function
 '  KEYBOARD SHORTCUTS (v25.5, A5): Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar,
 '  Ctrl+Shift+D the Desk. On while this workbook is active (open / activate), off on deactivate and close -
 '  OnKey is Excel-wide, so another workbook must never see them. Each key runs the macro its button runs
-'  (the gates inside refuse as they do for a click). Listed on the Desk's HELP group and the Help tab.
+'  (the gates inside refuse as they do for a click). Listed on the Desk's footer row and the Help tab.
 ' --------------------------------------------------------------------
 Public Sub SetShortcuts(ByVal on_ As Boolean)
     On Error Resume Next

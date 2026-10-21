@@ -724,10 +724,24 @@ Public Function KronosStatusText() As String
                        IIf(a > KRONOS_STALE_DAYS, " - import", "")
 End Function
 
-' Call-out / posting warning. True = go ahead.
+' v26.5.5 (B5): the one red line a supervisor's pop-up shows when the worked hours are old ("" when fresh)
+Public Function KronosStaleLine() As String
+    If Not KronosIsStale() Then Exit Function
+    Dim a As Long: a = KronosAgeDays()
+    If a < 0 Then
+        KronosStaleLine = "Worked hours have not been imported from Kronos since the install: the call order may be off. Tell " & _
+                          PRIMARY_ADMIN_NAME & " to import Kronos."
+    Else
+        KronosStaleLine = "Worked hours are " & a & " days old: the call order may be off. Tell " & PRIMARY_ADMIN_NAME & " to import Kronos."
+    End If
+End Function
+
+' Call-out / posting warning. True = go ahead. v26.5.5 (B5): a supervisor can't import, so they get no
+' box here - the calling pop-up shows KronosStaleLine in red instead; an admin keeps the Yes / No, Yes the default.
 Public Function KronosOkToContinue(ByVal what As String) As Boolean
     KronosOkToContinue = True
     If Not KronosIsStale() Then Exit Function
+    If Not IsAdmin() Then Exit Function
     Dim a As Long: a = KronosAgeDays()
     Dim msg As String
     If a < 0 Then
@@ -739,7 +753,7 @@ Public Function KronosOkToContinue(ByVal what As String) As Boolean
     End If
     msg = msg & vbNewLine & vbNewLine & "Call order is only as current as that import. Continue with the " & what & " anyway?" & _
           vbNewLine & vbNewLine & "(No = stop here and run Import Kronos first.)"
-    KronosOkToContinue = (MsgBox(msg, vbYesNo + vbExclamation + vbDefaultButton2, "Kronos data is old") = vbYes)
+    KronosOkToContinue = (MsgBox(msg, vbYesNo + vbExclamation + vbDefaultButton1, "Kronos data is old") = vbYes)
 End Function
 
 

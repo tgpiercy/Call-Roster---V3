@@ -371,6 +371,7 @@ Private Sub UpdateEligible()
     Else
         n = EligibleCount(mUnit.Text, mCrew.Text)
     End If
+    Dim kLine As String: kLine = KronosStaleLine()          ' v26.5.5 (B5): old worked hours, in red, for a supervisor
     With C("lblEligible")
         If n = 0 Then
             .Caption = "No one free to sign up for " & mUnit.Text & IIf(haveDay, " that shift.", ".")
@@ -384,6 +385,7 @@ Private Sub UpdateEligible()
             .Caption = n & " with the code - pick the date and shift to drop anyone scheduled."
             .ForeColor = RGB(120, 120, 120)
         End If
+        If kLine <> "" Then .Caption = kLine & "  " & .Caption: .ForeColor = RGB(190, 30, 30)
     End With
 End Sub
 

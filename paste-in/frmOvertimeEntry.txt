@@ -378,7 +378,11 @@ Private Sub btnLoad_Click()
     SetOutcomeButtons True
     btnSubmit.Enabled = False
 
-    C("lblStatus").Caption = C("cmbDept").Value & " | " & mShiftLbl & " | Crew " & C("cmbShift").Value & _
+    ' v26.5.5 (B5): old worked hours are said in red on the status line for a supervisor (an admin got the Yes / No)
+    Dim kLine As String: kLine = KronosStaleLine()
+    C("lblStatus").ForeColor = IIf(kLine <> "", RGB(190, 30, 30), RGB(51, 51, 51))
+    C("lblStatus").Caption = IIf(kLine <> "", kLine & "   |   ", "") & _
+                             C("cmbDept").Value & " | " & mShiftLbl & " | Crew " & C("cmbShift").Value & _
                              " | " & C("txtDate").Value & " | " & hoursStr & " hrs" & _
                              IIf(nSS > 0, "   |   " & nSS & " working a shift switch (S/S)", "") & _
                              IIf(offList <> "", "   |   Not listed (booked off): " & offList, "")

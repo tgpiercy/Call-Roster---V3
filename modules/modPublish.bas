@@ -527,6 +527,11 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
                 out(k, 1) = nm
                 out(k, 2) = CrewOn(nm, Date, Trim$(SafeStr(v(r, C_SHIFT))))     ' v24: today's crew
                 out(k, 3) = Trim$(SafeStr(v(r, C_HOME)))
+                ' v26.5.5 (A4): the members' file must never carry a 0 that is an error on the master
+                If IsError(v(r, C_TOTAL)) Or IsError(v(r, C_REFUSED)) Then RaiseTotalError nm
+                If provLive Then
+                    If IsError(v(r, C_PROV)) Then RaiseTotalError nm
+                End If
                 out(k, 4) = NumOr0(v(r, C_TOTAL))
                 out(k, 5) = NumOr0(v(r, C_WORKED))
                 out(k, 6) = NumOr0(v(r, C_REFUSED))

@@ -487,6 +487,12 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
             End If
         End If
         If nm <> "" And code <> "" Then
+            ' v26.5.5 (A4): an error in G (a #REF! after a row delete, #NAME? when the RefusedThrough name is
+            ' missing on a copy) read as 0 and put the person at the TOP of the call order. It is refused instead.
+            If IsError(v(i, C_TOTAL)) Then RaiseTotalError nm
+            If provLive Then
+                If IsError(v(i, C_REFUSED)) Or IsError(v(i, C_PROV)) Then RaiseTotalError nm
+            End If
             crewTxt = Trim$(SafeStr(v(i, C_SHIFT)))
             If hasAsOf Then crewTxt = CrewOn(nm, asOfDate, crewTxt)
             If ShiftMatches(crewTxt, shiftSel, includeDays) Then
@@ -534,6 +540,13 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
     SortEmpRecs recs, n
     LoadEligible = n
 End Function
+
+' v26.5.5 (A4): the one message for a roster figure that is an error (LoadEligible, the publish's BuildRoster).
+' The pop-ups show it through their handlers (ReportError); the publish stops with it.
+Public Sub RaiseTotalError(ByVal nm As String)
+    Err.Raise vbObjectError + 776, "LoadEligible", "Total Hours shows an error for " & nm & _
+              ". An admin runs Alt+F8 > RefreshRosterFormulas, then try again."
+End Sub
 
 ' Call order on an in-memory list (public from v21 so SelfTest can use it)
 Public Sub SortEmpRecs(recs() As EmpRec, ByVal n As Long)

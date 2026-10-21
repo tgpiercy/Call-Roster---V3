@@ -30,6 +30,7 @@ Private Sub OffNoRestore()
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
+    Application.EnableCancelKey = xlErrorHandler
 End Sub
 
 Private Sub OffRestoredHere()
@@ -37,6 +38,8 @@ Private Sub OffRestoredHere()
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
+    Application.EnableCancelKey = xlErrorHandler
+    Application.EnableCancelKey = xlInterrupt
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = evWas
     Application.ScreenUpdating = True
@@ -98,7 +101,7 @@ def test_restore_fires_on_the_bare_off_and_the_error_only_restore(tmp_path, caps
     restore = [ln for ln in out if ln.startswith("RESTORE")]
     procs = sorted({ln.split(": ")[1] for ln in restore})
     assert procs == ["OffNoRestore", "OffOnlyReportError"], restore
-    assert sum("OffNoRestore" in ln for ln in restore) == 3          # events, screen, calculation
+    assert sum("OffNoRestore" in ln for ln in restore) == 4          # events, screen, calculation, the cancel key (v26.5.5)
 
 
 def test_set_fires_on_the_object_assignments_only(tmp_path, capsys):

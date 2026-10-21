@@ -154,6 +154,8 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
     Dim en As Long: en = Err.Number                ' read before anything can clear it
     Dim em As String: em = Err.Description
     On Error Resume Next
+    If en = 18 Then em = "Stopped by Esc / Ctrl+Break: " & em      ' v26.5.5 (A3): a cancelled write is an error like any other
+    Application.EnableCancelKey = xlInterrupt       ' v26.5.5 (A3): a writer that made Esc trappable hands the key back here
     Application.ScreenUpdating = True
     Application.EnableEvents = True
     Application.Cursor = xlDefault

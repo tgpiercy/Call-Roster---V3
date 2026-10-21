@@ -194,6 +194,7 @@ Sub SyncKronosData()
 
     ' ---- fill column H ----
     Application.ScreenUpdating = False
+    Application.EnableCancelKey = xlErrorHandler      ' v26.5.5 (A3): Esc lands in Oops (ReportError restores the key), never mid-column
     UnlockSheet wsDest
     wsDest.Range(wsDest.Cells(R_FIRST, C_NAME), wsDest.Cells(lastRow, C_NAME)).Interior.ColorIndex = xlNone
 
@@ -290,6 +291,7 @@ Sub SyncKronosData()
     If fromExport Then wpTxt = WriteWorkedPeriods(rosterOf, stamp)
     Application.CalculateFull                 ' provisional (C) and Total (G) pick up the new date
     wsDest.Activate                           ' before the screen comes back: the Worked Periods sheet must not flash
+    Application.EnableCancelKey = xlInterrupt
     Application.ScreenUpdating = True
     On Error Resume Next
     SetRosterStatus

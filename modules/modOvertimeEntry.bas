@@ -1833,6 +1833,7 @@ Public Function AppendLogRows(data As Variant) As Boolean
     End If
 
     Dim errMsg As String
+    Application.EnableCancelKey = xlErrorHandler    ' v26.5.5 (A3): Esc lands in Fail, not between the resize and the values
     On Error GoTo Fail
     UnlockSheet ws        ' tables can't grow on a protected sheet
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
@@ -1848,6 +1849,7 @@ Public Function AppendLogRows(data As Variant) As Boolean
     ProtectSheet ws
     Application.Calculate
     On Error Resume Next
+    Application.EnableCancelKey = xlInterrupt
     SetRosterStatus                 ' log count on the status line
     On Error GoTo 0
     AppendLogRows = True
@@ -1856,6 +1858,7 @@ Public Function AppendLogRows(data As Variant) As Boolean
 Fail:
     errMsg = Err.Description
     On Error Resume Next
+    Application.EnableCancelKey = xlInterrupt
     ProtectSheet ws
     MsgBox "Could not write to the OT Log:" & vbNewLine & errMsg & vbNewLine & vbNewLine & _
            "Nothing was saved for this entry.", vbCritical, "OT Log"

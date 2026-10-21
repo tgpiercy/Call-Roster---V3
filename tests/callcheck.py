@@ -46,6 +46,8 @@ OFF_ON = [  # (what, the 'off' value pattern, the 'on' value pattern)
     ("Application.EnableEvents", r"False", r"(?!False\b)\S"),
     ("Application.ScreenUpdating", r"False", r"(?!False\b)\S"),
     ("Application.Calculation", r"xlCalculationManual\b", r"(?!xlCalculationManual\b)\S"),
+    # v26.5.5 (A3): Esc made trappable for a write must be handed back (xlInterrupt) on every exit path
+    ("Application.EnableCancelKey", r"xlErrorHandler\b", r"(?!xlErrorHandler\b)\S"),
 ]
 
 

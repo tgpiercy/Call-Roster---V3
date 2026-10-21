@@ -1118,10 +1118,14 @@ Private Sub QuietOn(ByRef evWas As Boolean, ByRef scrWas As Boolean, ByRef calcW
     evWas = Application.EnableEvents
     scrWas = Application.ScreenUpdating
     calcWas = Application.Calculation
+    ' v26.5.5 (A3): Esc / Ctrl+Break during a multi-table write lands in the macro's handler (which
+    ' restores and blocks the save), never in a half-written workbook with the sheets left unprotected
+    Application.EnableCancelKey = xlErrorHandler    ' restored by QuietOff
 End Sub
 
 Private Sub QuietOff(ByVal evWas As Boolean, ByVal scrWas As Boolean, ByVal calcWas As Long)
     On Error Resume Next
+    Application.EnableCancelKey = xlInterrupt
     Application.Calculation = calcWas
     Application.EnableEvents = evWas
     Application.ScreenUpdating = scrWas

@@ -208,8 +208,8 @@ Private Function LoadData() As Boolean
             mNames(i) = Trim$(SafeStr(mVals(i, C_NAME)))
             If mNames(i) <> "" Then
                 If mOnRoster.Exists(mNames(i)) Then
-                    AddIssue SEV_WARN, "Roster = log", mNames(i) & " is on the roster twice (row " & (R_FIRST + i - 1) & ")", _
-                             "Both rows show the same hours; remove or rename one"
+                    AddIssue SEV_ERR, "Roster = log", mNames(i) & " is on the roster twice (row " & (R_FIRST + i - 1) & ")", _
+                             "Both rows show the same hours and the call order lists the person twice; remove or rename one"   ' v26.5.5 (A14): a PROBLEM
                 Else
                     mOnRoster.Add mNames(i), True
                 End If

@@ -279,6 +279,13 @@ Sub SyncKronosData()
     ' ---- v20: remember when, and keep a dated snapshot ----
     Dim stamp As Date: stamp = Now
     If fileDate = 0 Then fileDate = stamp
+    ' v26.5.5 (A14): a copied file can carry a saved time from years ago or from the future; the data-through
+    ' date and the provisional window read it, so it is bounded to this roster's year (today otherwise, said so)
+    If fileDate < RosterYearFrom() - 14 Or fileDate > Now + 1 Then
+        MsgBox "The Kronos file's saved time (" & Format$(fileDate, "ddd mmm d, yyyy h:mm AM/PM") & ") is outside this roster's year, " & _
+               "so today is used as its date. If the export is older than that, its hours are old too.", vbExclamation, "Kronos import"
+        fileDate = stamp
+    End If
     SetDateName "KronosImportedAt", stamp
     SetDateName "KronosFileDate", fileDate
     ' v21: the data covers everything through the day before the file was saved

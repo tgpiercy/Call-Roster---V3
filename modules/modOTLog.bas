@@ -472,6 +472,10 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
 
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim stampText As String: stampText = why & " - " & CurrentUser() & " " & Format$(Now, "mm/dd/yyyy hh:mm")
+    ' v26.5.5 (A14 + A3): a stop part-way (an error, Esc) would leave some of the key's rows VOID and
+    ' others live, and the sheet unprotected: the save is blocked and the key is named
+    Application.EnableCancelKey = xlErrorHandler
+    On Error GoTo Failed
     UnlockSheet ws
     For i = 1 To UBound(v, 1)
         If hit(i) Then
@@ -480,6 +484,7 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
         End If
     Next i
     ProtectSheet ws
+    Application.EnableCancelKey = xlInterrupt
     Application.Calculate
 
     ' take voided call-outs / awards back off the calendar
@@ -497,6 +502,18 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
 
     SaveIfWritable
     VoidRef = cnt
+    Exit Function
+Failed:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    LogError "VoidRef", en, em
+    On Error Resume Next
+    Application.EnableCancelKey = xlInterrupt
+    ProtectSheet ws
+    MarkNoSave
+    MsgBox "Voiding " & k & " stopped part-way (" & em & "). Some of its " & cnt & " row(s) may be marked VOID and others not, " & _
+           "so saving is blocked." & vbNewLine & vbNewLine & "Close WITHOUT saving, reopen, and void " & k & " again.", vbCritical, "Void entry"
+    VoidRef = 0
 End Function
 
 

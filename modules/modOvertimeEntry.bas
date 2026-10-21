@@ -903,6 +903,22 @@ End Function
 Public Function EnsureRefusedThrough() As Date
     Dim want As Date: want = PeriodStartFor(Date)
     Dim have As Date: have = RefusedThrough()
+    ' v26.5.5 (A14): the cap stays inside this roster's year. A PC clock in the past would drop every charge
+    ' out of I (everyone's Total = Worked, the call order wrong); a date past the year (the rollover not run
+    ' yet) counts every period, which is right. Moving the cap BACK by more than one period is a clock
+    ' problem too: an admin is asked, anyone else keeps the stored cap.
+    If want < RosterYearFrom() Then want = RosterYearFrom()
+    If want > RosterYearTo() Then want = RosterYearTo()
+    If have > 0 And want < have - 14 And Not gSmokeRun Then
+        If IsAdmin() Then
+            If MsgBox("This PC says today is " & Format$(Date, "ddd mmm d, yyyy") & ", more than a pay period before the roster's " & _
+                      "last current period (" & Format$(have, "mmm d") & "). Is the PC's date wrong?" & vbNewLine & vbNewLine & _
+                      "Yes = keep the roster as it is (fix the clock). No = move the current period back to " & Format$(want, "mmm d") & ".", _
+                      vbYesNo + vbExclamation + vbDefaultButton1, "Pay period") = vbYes Then want = have
+        Else
+            want = have
+        End If
+    End If
     If have <> want And Not ThisWorkbook.ReadOnly Then
         SetDateName REFUSED_NAME, want: have = want
         Application.Calculate                                ' whoever reads I or G next sees the new cap, manual calculation included
@@ -1849,6 +1865,7 @@ Public Function AppendLogRows(data As Variant) As Boolean
     Application.EnableCancelKey = xlErrorHandler    ' v26.5.5 (A3): Esc lands in Fail, not between the resize and the values
     On Error GoTo Fail
     UnlockSheet ws        ' tables can't grow on a protected sheet
+    If ws.FilterMode Then ws.ShowAllData              ' v26.5.5 (A14): a filtered log can't be resized onto hidden rows
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, L_NCOLS)
         .Value = data
@@ -1873,8 +1890,17 @@ Fail:
     On Error Resume Next
     Application.EnableCancelKey = xlInterrupt
     ProtectSheet ws
-    MsgBox "Could not write to the OT Log:" & vbNewLine & errMsg & vbNewLine & vbNewLine & _
-           "Nothing was saved for this entry.", vbCritical, "OT Log"
+    ' v26.5.5 (A14): the resize went through but the values or the sort did not: the rows ARE in the table
+    ' (blank or half-filled). Submitting again would log the session twice, so the save is blocked instead.
+    If lo.ListRows.Count > cnt Then
+        MarkNoSave
+        MsgBox "The OT Log could not be finished:" & vbNewLine & errMsg & vbNewLine & vbNewLine & _
+               "Its rows were written but not completed, so saving is blocked. Close WITHOUT saving, reopen, " & _
+               "and log this again.", vbCritical, "OT Log"
+    Else
+        MsgBox "Could not write to the OT Log:" & vbNewLine & errMsg & vbNewLine & vbNewLine & _
+               "Nothing was saved for this entry.", vbCritical, "OT Log"
+    End If
 End Function
 
 

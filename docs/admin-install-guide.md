@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v24.3.1 (Oct 2026).
+Current as of v26.5 (Oct 2026).
 
 ## 1. Before you start
 
@@ -86,7 +86,7 @@ The ones that change data check the roster totals before and after. They block s
 | `UpgradeOTLogLayout` | Moves an old OT Log to the current column layout. |
 | `SetupPeople` | v24: adds the Crew History sheet (one row per person), the Former sheet and the Signup Hours column on the posted lists. Saves a backup first. |
 
-No release since v24 has needed a one-time macro: the Planned Moves, Error Log and Refusal Report sheets are made on first use.
+Most releases need no one-time macro: the Planned Moves, Error Log and Refusal Report sheets are made on first use. When one is needed the Install panel runs it as a group-3 row (v26.5: `RefreshRosterFormulas`, which moves the Refused column onto the pay-period cap).
 
 ### Macros you run when needed
 
@@ -108,7 +108,7 @@ Run it after every install. Problems are listed first, under CHECK. With no prob
 
 | Line | Meaning | What to do |
 |---|---|---|
-| Modules: N of N on vNN | Every checked module carries this release's stamp (24 since v24.4). | Nothing. Both numbers must match the INSTALL note. |
+| Modules: N of N on vNN | Every checked module carries this release's stamp (25 since v25.3; 6 legacy modules carry none). | Nothing. Both numbers must match the INSTALL note. |
 | Protection: n of N sheets protected; roster totals locked; tabs locked | v25: every sheet must be protected in both views, the roster's Total / period cells locked, the workbook's tabs protected. | A short count or "unlocked" means a sheet was unprotected by hand: run `ProtectAll` (Alt+F8) or close without saving and reopen. |
 | [module] is ...: remove it and import the vNN file | That module is from an older release. | Remove it and import the new file. |
 | ThisWorkbook code is older than vNN | ThisWorkbook was not re-pasted. | Re-paste `ThisWorkbook.txt`. |
@@ -147,7 +147,7 @@ After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)"
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v25: 568 cases in 67 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v26.5: 649 cases in 75 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|

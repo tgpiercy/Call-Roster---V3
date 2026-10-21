@@ -1,95 +1,70 @@
-# Paste this into a fresh session to carry on (written Oct 19, 2026: v26.5 built, tagged and pushed; next = his installs, then v27 = one bundle before the Dec 1 training, v28 in January)
+# Paste this into a fresh session to carry on (written Oct 20, 2026: v26.5 built, tagged and pushed; the Oct 19-20 reviews done; next = Graeme's installs, then v26.5.5 before Nov 1, then v27 before the Dec 1 training, v28 in January)
 
 ```
-Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first, then docs/timeline-2026-10-18.md,
-the v26.5 entry at the top of CHANGELOG.md and briefs/v26.5.md (the brief: the seven items and the
-decisions inside). Confirm the four checkers (py -3.14 tests/vbacheck.py . / shadowcheck / undeclcheck /
-callcheck) and py -3.14 -m pytest tests -q are green on main and the tree is clean (main carries tags v26
-and v26.5; check `git ls-remote --tags origin` - if v26.5 is missing, the push from my Terminal panel has
-not happened yet: `git push origin main` and `git push origin v26.5`).
+Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first (it was brought up to date Oct 20: the
+numbering rule, the three gating levels, the 20 SmokeTest steps, the timeline, the shipped releases collapsed
+to one line, the Oct 19-20 decisions as the first bullet of "Decisions already made"). Then
+docs/review-2026-10-20-gaps.md (the three reviews with every finding numbered A1.., B1.., C1.., 1.x, 5.x and
+its release), briefs/v26.5.5.md and briefs/v27.md (the two briefs written from it), docs/timeline-2026-10-18.md,
+the v26.5 entry at the top of CHANGELOG.md. Confirm the four checkers (py -3.14 tests/vbacheck.py . /
+shadowcheck / undeclcheck / callcheck; on Linux python3) and py -3.14 -m pytest tests -q are green on main and
+the tree is clean. vbacheck's only hits must be the three named false positives (Sort_Hours_Dept, frmLeave,
+modMember: one-line Subs). Tags: `git ls-remote --tags origin` should show v26 and v26.5.
 
-Where things stand: v25.5 (the ALPHA BUILD) is INSTALLED on the real roster (Oct 18). v26 (the beta build)
-and v26.5 (the revisions after it: Employee > Edit instead of typing on the roster, Refused counts the pay
-periods up to the current one = a RULE CHANGE, the short flag for every unit, the per-period split +
-Worked (Kronos) in My history, the Kronos export read directly into a Worked Periods sheet, sign-ups ON,
-the month PDF masked) are BUILT and TAGGED, NOT installed: docs/INSTALL-v26.md then docs/INSTALL-v26.5.md
-(v26.5 needs v26 first; both rebuild the members' template; v26.5 re-pastes ThisWorkbook, frmEmployee,
-frmLeave and MUST run RefreshRosterFormulas in group 3).
+Where things stand: v25.5 (the ALPHA BUILD) is INSTALLED on the real roster (Oct 18). v26 and v26.5 are BUILT
+and TAGGED, NOT installed: docs/INSTALL-v26.md then docs/INSTALL-v26.5.md (v26.5 needs v26 first; both rebuild
+the members' template; v26.5 re-pastes ThisWorkbook, frmEmployee, frmLeave and MUST run RefreshRosterFormulas
+in group 3). Ask Graeme first whether they are on the real roster; nothing in v26.5.5 is built before they are
+(the pre-release rule), and the first REAL Kronos export import is the test of the per-period hours (ask for
+the "Premium hours per pay period" line).
 
-Decided Oct 19 after the reviews (briefs/v26.5.md, the last section): one rule for call-outs and
-postings (a charge carries its shift's pay period and counts once that period starts); the sign-up
-files' login in a folder members can list is accepted for the beta; KRONOS_PATH = the exports' folder
-(newest file). Nothing is owed on v26.5.
+NEXT BUILD = v26.5.5 (briefs/v26.5.5.md), installed BEFORE NOV 1 so the alpha runs on it: the integrity fixes
+(a failed save reported and the form kept; a stale copy BLOCKS the save; Esc-safe writes; an error in Total
+Hours refuses to load; Worked Periods in every rename path; ClearNoSave only for its own block; the small
+ones; the members' folders moved), THE 16 H FATIGUE RULE (the one rule change: accepted OT / awards / switches
+count as worked shifts for eligibility; max hours per person on the pop-ups; suite `fatigue`), the 3 AM fixes
+(the night in progress dated yesterday between 00:00 and 07:00; the sick-call confirm - undo stays admin;
+default hours and the sick call's hours carried; Kronos-stale as a red line for supervisors; the next-step line
+after a submit; the text pass with a title on every box and no internal names), the outcome-key labels, the
+trust strip + ChargedText / TotalText, the Practice button. 19 items, one commit each, the four checkers after
+each, two read-only Opus reviewers in isolation worktrees told to review `main`, re-review the fixes, INSTALL
+note, steps file, stamps, tag, zip, push from Graeme's Terminal panel. Step 2 of "How every update ships"
+first: the report-back with the (verify) items checked and the open points as multiple choice (the brief lists
+them). Never git add -A. Update docs/NEXT-SESSION-PROMPT.md at the end of the session.
 
-Then: install v26 + v26.5 on a copy, then the real roster; the first REAL export import is the test of
-the per-period hours (send me the "Premium hours per pay period" line). Alpha findings from Nov 1-15 =
-v26.5.5 or v27 (one commit per finding, the four checkers after each, read-only Opus reviewers in isolation
-worktrees told to review `main`, re-review the fixes, INSTALL note, steps file, stamps, tag, zip, push from
-my Terminal panel). Never git add -A. Update docs/NEXT-SESSION-PROMPT.md at the end of the session.
+THEN v27 (briefs/v27.md), one master install about Nov 20-25 + ONE members' install (Members M4), built during
+the alpha once v26.5.5 has run on the real roster, with the alpha findings folded in: build order Desk v2
+(the approved mock-up) -> the Reconcile sheet (paper runs alongside for at least one pay period; the
+differences go into the Nov 15 pack, so this one may be installed early on a copy) -> the Stats report
+(Graeme signs the counting rules before any code) -> the receipts (one card after every save, every form) ->
+the 3 AM pass (log/calendar reconciliation, Kronos hardening, backups on any open + RestoreDrill, the audit of
+in-place edits, the inbox hardening, the calendar's supervisor menu, the outage print, the session draft,
+"why isn't Joe listed", the error box's saved line, the pop-up polish) -> the process items (OT Restricted +
+the weekly-cap warning, the Rules and Settings sheets, period close / scan link / disputes, withdraw award /
+edit posting / post all lines / Exception, ExportTables / data check / unit notes / digest / handover / switch
+ledger) -> the Desk tiles, "Since you were last here", the Holidays + Min Staff pop-ups -> the testing items
+(IntegrityCheck "Log rows", SmokeTest asserts and steps, LoadCases split, five checker classes, drift and docs
+tests, the manifest, the install record in the updater, the Opens table) -> language (glossary, legend, guided
+first session, order columns on every list, the transition-only paper column) -> Members M4 (me-first Home,
+highlight me, How it works, Sign me up from the tile, since-you-last-looked, dNotFree, the contract test, the
+email digest only after Graeme signs the wording). Four read-only reviewers, one master install, the December
+rollover dry run on v27 with RestoreDrill in its group 4.
 
-Desk v2 APPROVED (Graeme, Oct 19: "looks good, code it in the next version after I run the previous
-update"): docs/desk-v2-mockup-2026-10.html is the spec (four bands TODAY / NOW / PLAN / FINISH in three
-columns, one colour per band + grey, the header as three pills with the Kronos pill red + "import it" when
-old, tiles that name the next thing and the action, Help / Undo / links in one footer row; same buttons,
-same rights). Build it as the FIRST item of the next version (v26.5.5 if a fix bundle, else v27) once he
-confirms v26 + v26.5 are installed on the real roster: a UI-only DrawDesk redraw in modDesk (DeskTile /
-DeskTileText / DeskBtn / DeskLabel / the layout constants; the supervisor Desk keeps the same bands minus
-the admin-only buttons), no form re-paste; refresh docs/desk-guide.md, the Help text and the quick guide.
-UI_SCALE and the call-out form's fit still wait for the plant screen measurement.
+AFTER v27: v27.5 = the behaviour-free refactors alone (pure cores extracted + suites; the shared form-builder
+helpers; the module splits: modCalendar -> Board / MinStaff / CalImport / Needs / CalMenus, modPeople -> Dates /
+PlannedMoves / Former, modPostings -> Mail / Sheet / Sync); and the CLAUDE.md split into CLAUDE.md +
+docs/workbook-map.md + docs/decisions.md + docs/settings.md (review part 0), in a session with no code change.
+v28 in January after the rollover, with go-live: members' requests (switches + time off), the phone page,
+v25.4 Payroll # as the key, the P: paths.
 
-AFTER Desk v2 (decided Oct 19): the STATS REPORT - brief first (docs/stats-report-brief or briefs/vNN.md), I
-approve the counting rules before any code. One admin report sheet "Stats", unit x quarter + year to date,
-drawn like the Refusals Report, PDF beside the master, a member-safe cut (unit level only) for the members'
-file; pure counting functions with Python mirrors. Metrics, all four groups: (1) call-outs from the OT Log's
-Callout rows - sessions, filled vs unfilled, calls per fill (the accepting call order), outcome mix, hours
-offered vs accepted, charged hours, time of day / day of week; (2) postings - posted vs awarded, out of
-department, no takers, cancelled / reopened, sign-ups per posting, days to award, refusal charges generated;
-(3) sick days from Absences SIC + Attendance - shifts and rate per scheduled shift per unit, day vs night,
-weekend / beside-a-holiday share, occurrences vs days, how each was covered; by name on the admin sheet ONLY,
-never published; (4) overtime fairness from Worked Periods - the spread of premium hours per unit and the
-top-to-bottom gap (needs the export imports running). Honest from the first full quarter after go-live.
-
-AFTER the Stats report, in this order (Graeme, Oct 19; each briefed first, one commit per item, the
-four checkers, read-only reviewers, re-review): (a) two Desk tiles - Kronos "Import now" when a newer
-export sits in KRONOS_PATH's folder (one click imports) + the admin's morning tile (integrity result, backup
-taken, error-log rows unseen, members' file age; reads what the open already knows); (b) "Since you were
-last here" on the Desk - what other logins did since this login's last open (call-outs, awards, sick calls,
-switches) from the logs' Logged By + timestamps, a hidden name per login for the last-open stamp; (c) nothing
-typed anywhere - small pop-ups for the Holidays "Observed on" and the Min Staff Minimum / Note, the last two
-typed sheets locked; (d) members' requests - shift switch and time off from the members' file on the sign-up
-inbox pattern (a request file, LOAD pre-fills, the supervisor's tick is what counts; same privacy screen;
-members' template rebuild); (e) after the alpha: a phone-readable members' page - at every publish also write
-a static HTML page (Who's next, open postings, my place; no macros; the same privacy screen as dLog) into a
-folder members can reach from a phone (SharePoint or the share) - a cheap test before the Q2 2027 platform
-gate. Also on the list, undated: the December rollover dry run on a copy with the v26.5 rule; v25.4 Payroll #
-as the key (needs column A from a real import); B4 usage counts; A4 the plain-language audit; a board PDF at
-every publish; a restore drill; D1 the sit-with sessions.
-
-BUNDLING (Graeme, Oct 19, the fewer-installs rule): TWO installs cover all of the above. v27 = ONE bundle built
-during the alpha once v26.5 has run on the real roster (the pre-release rule), installed about Nov 20-25
-before the Dec 1 training: Desk v2, the Stats report, the two Desk tiles, "Since you were last here", the
-Holidays + Min Staff pop-ups, plus the alpha findings of Nov 1-15 - all UI / reports / admin tooling, no
-charging or call-order rule change, one brief per item inside one release brief (briefs/v27.md), one
-four-reviewer pass, one master install, no members' change; the December rollover dry run then runs on v27.
-v28 = January after the rollover, with go-live: the members' requests (switches + time off), the phone page,
-v25.4 Payroll # as the key, the P: paths; one master + one members' install. Build order inside v27: Desk v2
-first (the boss sees it in the alpha pack), then Stats, tiles, since-last-here, the two pop-ups.
-
-MEMBERS M4 (Graeme, Oct 19) joins v27 as ONE members' install in November (so v27 = a master install + a
-members' template rebuild): mock-up docs/members-m4-mockup-2026-10.html is the spec. Scope, all four: (1)
-me-first Home (the name on top, remembered per PC user with SaveSetting / GetSetting - NOTHING written to the
-shared file; "Not me" clears it; four tiles Total hours / My call position "4th of 14" / Am I next? / Sick
-time; the buttons below) + one header band on every sheet (title, published stamp, Larger type, < Home);
-(2) highlight me (the member's row shaded on Who's next, the Roster, the Calendar) + wording ("Charged
-(refusals)") + a "How it works" Help sheet inside the file (call order, why charged, Exempt / ~, sign-ups,
-the rest rule); (3) Sign me up from the Am I next? tile + "since you last looked" (per-PC-user last-open
-stamp: new postings in my units, awards, my position change); (4) a publish DIGEST BY EMAIL to members with
-an email on file - their own tiles + their units' open postings only; it leaves the shared folder, so the
-wording and the recipient list are a brief decision Graeme signs before it is built. Requests (switches /
-time off) and the phone page stay in v28.
+Decided Oct 19-20 (don't re-ask; CLAUDE.md has the list): 16 h max consecutive hours; no forced OT; Left
+Message charged at once; personal logins; a stale copy blocks; backups on any writable open; sick-call undo
+admin-only; paper alongside for a pay period; receipts on every form; the 16 h rule in v26.5.5; the weekly cap
+warns with a logged override.
 
 In parallel, no code (docs/timeline-2026-10-18.md): the what-if scenario sheets, the four guides refreshed
-for v25.5 / v26 / v26.5, the Nov 15 presentation pack, the Dec 1 training plan - start them when I say.
+for v26.5 / v26.5.5, the Nov 15 presentation pack (with the Reconcile PDF), the Dec 1 training plan - start
+them when Graeme says.
 ```
 
 ## Why this file exists

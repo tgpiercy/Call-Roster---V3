@@ -1,6 +1,6 @@
 # Year-end rollover: one page
 
-The steps for rolling the Call Out Roster from one year to the next. Current as of v24.3.1 (Oct 2026).
+The steps for rolling the Call Out Roster from one year to the next. Current as of v26.5 (Oct 2026): Refused counts the pay periods up to the current one, so a December practice run on a copy dated into the new year gives 0 for the kept rows.
 
 **Two people.** The admin drives. The second person reads each check aloud and ticks it off. Allow 30 minutes. Do it with nobody else in the file.
 

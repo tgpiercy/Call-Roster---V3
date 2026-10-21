@@ -1,6 +1,6 @@
 # Call Out Roster: Supervisor Quick Guide
 
-How to do each everyday job in the roster. Current as of v25.5 (Oct 2026). The same text is on the roster's **Help** tab (Desk > How do I ...).
+How to do each everyday job in the roster. Current as of v26.5 (Oct 2026). The same text is on the roster's **Help** tab (Desk > How do I ...).
 
 The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out** and **Calendar** show for everyone. **Sick Call**, **New Posting**, **Award Posting**, **Call Out Roster**, **Member View** and **Find a person** show for supervisors (a login on the supervisor list) and admins (v25.5). The other buttons show only for logins on the admin list. If a button is missing, ask the admin. Keys while the roster is the active workbook: Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar, Ctrl+Shift+D the Desk.
 

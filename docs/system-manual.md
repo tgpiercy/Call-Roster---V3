@@ -2,7 +2,7 @@
 
 This manual states the current rules of the overtime call-out system, for supervisors and the union committee.
 
-Current as of v24.3.1 (Oct 2026). It replaces the rules in all older guides.
+Current as of v26.5 (Oct 2026; headers brought up to date Oct 20). It replaces the rules in all older guides.
 
 ## 1. What the system is
 

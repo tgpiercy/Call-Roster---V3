@@ -1,8 +1,8 @@
 # Members' workbook - setup
 
-Use this when the master is on v22 or later. Those releases already hold the publish code (`modPublish`), so Part A of the old M1 note is done. What is left is building the members' template once and publishing.
+Use this when the master is on v22 or later (the current template is Members M3.1, rebuilt by the v26.5 install panel). Those releases already hold the publish code (`modPublish`), so Part A of the old M1 note is done. What is left is building the members' template once and publishing.
 
-Files in this zip: `member/modMember.bas`, `member/ThisWorkbook.txt`. They work with a v22, v22.1 or v23 master.
+Files in this zip: `member/modMember.bas`, `member/ThisWorkbook.txt`. They are rebuilt with every release that changes the members' template (M3 with v26, M3.1 with v26.5); the publish refuses a template older than the master expects (`MEMBER_NEEDS`).
 
 About 15 minutes.
 

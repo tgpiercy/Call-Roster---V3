@@ -223,6 +223,12 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
         warn = warn & "- members' template not found next to this workbook: " & MEMBER_TEMPLATE_NAME & " (see the M1 install notes)" & vbNewLine
     End If
     info = info & MembersStatusText() & vbNewLine
+    ' v26.5.5 (A13): where the members' file goes (PUBLISH_FOLDER resolved; "." = beside the master until the folder is named)
+    If FolderExists(PublishFolderPath()) Then
+        info = info & "Members' folder: " & PublishFolderPath() & IIf(Trim$(PUBLISH_FOLDER) = ".", " (beside the master: PUBLISH_FOLDER not named yet)", "") & vbNewLine
+    Else
+        warn = warn & "- members' folder can't be reached: " & PublishFolderPath() & " (PUBLISH_FOLDER in modOvertimeEntry; Member View will refuse)" & vbNewLine
+    End If
     ' v24.1: electronic sign-ups
     If SIGNUPS_ON Then
         If FolderExists(SignupFolderPath()) Then

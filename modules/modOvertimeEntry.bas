@@ -63,7 +63,10 @@ Public Const USUAL_SHIFT_HOURS As Double = 12
 ' {YEAR} is replaced by the roster year (v23), so reports follow the rollover: use ReportFolder()
 Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\{YEAR}\"
 ' Where Member View saves the members' file. "." = the folder the roster is in (for now: Oct 12, 2026).
-' At the network roll-out this becomes the members' folder, e.g.
+' v26.5.5 (A13): at the install Graeme names the MEMBERS' folder and this constant takes its absolute
+' path (the sign-up inbox below follows it: ".\Signups" = beside the members' file); the master stays in
+' the supervisor-only folder with its backups, pre-change copies, the FINAL and the error log. Until the
+' folder is named, "." keeps everything beside the master. SystemCheck shows both folders. The P: path:
 '   "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\"
 Public Const PUBLISH_FOLDER As String = "."
 Public Const PUBLISH_FILE As String = "Call Out Roster - Member View.xlsx"   ' the old values-only file (no longer written from M1)

@@ -1262,7 +1262,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
                    IIf(calTxt <> "", vbNewLine & "Calendar:" & Replace(calTxt, vbNewLine & "  ", " "), "")
 
     summary = "Session " & sessionID & " submitted!" & vbNewLine & vbNewLine & _
-              dept & " | " & shiftLbl & " | Crew: " & crewSel & " | " & Format$(entryDate, "MM/DD/YYYY") & vbNewLine & _
+              dept & " | " & shiftLbl & " | Crew: " & crewSel & " | " & Format$(entryDate, "ddd mmm d") & vbNewLine & _
               "Base hours: " & hours & "   Rate: " & CHARGE_MULTIPLIER & "x" & vbNewLine & vbNewLine & _
               "  Accepted: " & nAcc & accTxt & vbNewLine & _
               "  Refused: " & nRef & vbNewLine & _

@@ -193,6 +193,12 @@ def default_shift_hours(d: date, is_night: bool, usual: float = USUAL_SHIFT_HOUR
     return usual
 
 
+def default_shift_date(now: datetime) -> date:
+    """modShiftCycle.DefaultShiftDate (v26.5.5, B1): before 07:00 the night under way is dated yesterday."""
+    today = now.date()
+    return today - timedelta(days=1) if now.hour < 7 else today
+
+
 # ---------------------------------------------------------------- call order
 @dataclass
 class Emp:

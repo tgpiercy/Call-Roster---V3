@@ -162,3 +162,38 @@ Public Function DefaultShiftHours(ByVal d As Date, ByVal isNight As Boolean, ByV
         If IsDstNight(d) Then DefaultShiftHours = DstNightHours(d)
     End If
 End Function
+
+' ---- v26.5.5 (B1): the shift under way ----
+' Nights are dated by the evening they start, so between midnight and 07:00 the night that is running
+' belongs to YESTERDAY: a sick call or a call-out logged at 3 AM is for that date. The date boxes default
+' to it. PURE (SelfTest "shiftdate"); mirrored in tests/rules.py.
+Public Function DefaultShiftDate(ByVal nowAt As Date) As Date
+    DefaultShiftDate = Int(nowAt)
+    If nowAt - Int(nowAt) < 7 / 24 Then DefaultShiftDate = Int(nowAt) - 1
+End Function
+
+' "Night of Mon Oct 19 (7 PM Oct 19 - 7 AM Oct 20)"
+Public Function NightOfText(ByVal d As Date) As String
+    NightOfText = "Night of " & Format$(d, "ddd mmm d") & " (7 PM " & Format$(d, "mmm d") & " - 7 AM " & Format$(d + 1, "mmm d") & ")"
+End Function
+
+' "" by day; between midnight and 07:00: "It is 3:10 AM: the shift under way is dated Mon Oct 19"
+Public Function ShiftUnderWayText(ByVal nowAt As Date) As String
+    If nowAt - Int(nowAt) >= 7 / 24 Then Exit Function
+    ShiftUnderWayText = "It is " & Format$(nowAt, "h:mm AM/PM") & ": the shift under way is dated " & Format$(DefaultShiftDate(nowAt), "ddd mmm d")
+End Function
+
+' The one hint the date / shift pop-ups show under a picked date and shift ("" when nothing to say)
+Public Function ShiftHintText(ByVal d As Date, ByVal isNight As Boolean, ByVal nowAt As Date) As String
+    Dim underWay As Boolean: underWay = (nowAt - Int(nowAt) < 7 / 24)
+    If isNight Then
+        ShiftHintText = NightOfText(d)
+        If underWay And Int(d) = DefaultShiftDate(nowAt) Then
+            ShiftHintText = ShiftHintText & " - the shift under way now (" & Format$(nowAt, "h:mm AM/PM") & ")"
+        ElseIf underWay Then
+            ShiftHintText = ShiftHintText & ". " & ShiftUnderWayText(nowAt)
+        End If
+    Else
+        ShiftHintText = ShiftUnderWayText(nowAt)
+    End If
+End Function

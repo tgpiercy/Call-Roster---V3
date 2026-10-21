@@ -141,6 +141,9 @@ def evaluate(row: dict) -> str:
         return rules.crews_off(d(i1))
     if suite == "shifthours":                    # date, day|night -> the default hours (v25)
         return fmt_num(rules.default_shift_hours(d(i1), i2 == "night"))
+    if suite == "shiftdate":                     # v26.5.5: date, clock time hh:mm -> the date a shift logged then belongs to
+        dd = d(i1)
+        return rules.default_shift_date(datetime(dd.year, dd.month, dd.day, int(i2[0:2]), int(i2[3:5]))).isoformat()
     if suite == "accepted":                      # offer, taken -> hours accepted (v25)
         return fmt_num(rules.accepted_hours(float(i1), float(i2)))
     if suite == "callorder":                     # people -> names in order

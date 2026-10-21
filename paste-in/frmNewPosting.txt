@@ -307,13 +307,17 @@ Private Sub AutoHours()
     Dim hintTxt As String, want As String
     want = CStr(USUAL_SHIFT_HOURS)
     Dim dH As Date
+    Dim night As Boolean
     If ParseTypedDate(mDate.Text, dH) And mShiftCb.ListIndex >= 0 Then
         If IsNightShift(mShiftCb.Text) Then
+            night = True
             hintTxt = DstNote(dH)
             want = CStr(DefaultShiftHours(dH, True, USUAL_SHIFT_HOURS))
+            If hintTxt = "" Then hintTxt = NightOfText(dH)       ' v26.5.5 (B1): the night is named by the evening it starts
         End If
     End If
     C("hintHours").Caption = hintTxt
+    C("hintHours").ForeColor = IIf(night And DstNote(dH) = "", RGB(120, 120, 120), RGB(190, 30, 30))   ' grey for the plain night, red for DST
     If mAutoHours <> "" And Trim$(C("txtHours").Text) = mAutoHours Then
         mAutoHours = want
         C("txtHours").Text = want

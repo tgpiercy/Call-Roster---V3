@@ -216,7 +216,7 @@ Private Sub UserForm_Initialize()
     FillCombo "cmbReason", UnavailableReasons()
     Set mReason = C("cmbReason")
 
-    C("txtDate").Value = DateText(Date)
+    C("txtDate").Value = DateText(DefaultShiftDate(Now))       ' v26.5.5 (B1): before 7 AM the night under way is yesterday's
     mCount = 0: mCurrent = 0
     ApplyFormTheme Me
     mPartAcc.BackColor = RGB(0, 110, 90): mPartAcc.ForeColor = vbWhite
@@ -306,8 +306,11 @@ Private Sub AutoCrew()
         C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  crews off: " & crew & _
                               IIf(note <> "", "  (" & note & ")", "") & vbLf & dst & " - check the Hours box"
     Else
+        ' v26.5.5 (B1): a night is named by the evening it starts; before 7 AM the shift under way is said
+        Dim hint As String: hint = ShiftHintText(d, night, Now)
         C("lblRot").Caption = Format$(d, "ddd mmm d") & ":  " & RotationSummary(d) & "  ->  crews off: " & crew & _
-                              IIf(note <> "", "  (" & note & ")", "") & vbLf & "The list is everyone with the code who is free that shift."
+                              IIf(note <> "", "  (" & note & ")", "") & vbLf & _
+                              IIf(hint <> "", hint & ".", "The list is everyone with the code who is free that shift.")
     End If
 End Sub
 
@@ -757,7 +760,7 @@ Private Sub btnSubmit_Click()
     If InputsChanged() Then
         If MsgBox("The department, shift, crew, date or hours were changed after LOAD LIST." & vbNewLine & vbNewLine & _
                   "Submit using the values the list was loaded with?" & vbNewLine & _
-                  "  " & mDept & " | " & mShiftLbl & " | " & mShift & " | " & Format$(mDate, "MM/DD/YYYY") & " | " & mHours & " hrs" & _
+                  "  " & mDept & " | " & mShiftLbl & " | " & mShift & " | " & Format$(mDate, "ddd mmm d") & " | " & mHours & " hrs" & _
                   vbNewLine & vbNewLine & "(No = cancel; click LOAD LIST again to use the new values.)", _
                   vbYesNo + vbExclamation, "Inputs changed") = vbNo Then Exit Sub
     End If
@@ -798,7 +801,7 @@ Private Sub ResetForm()
     C("cmbDept").Value = "": C("cmbShift").Value = CREW_ALL: C("cmbDN").Value = ""
     C("cmbReason").Value = ""
     C("txtHours").Value = "": mAutoHours = ""
-    C("txtDate").Value = DateText(Date)
+    C("txtDate").Value = DateText(DefaultShiftDate(Now))       ' v26.5.5 (B1)
     UpdateCurrentLabel
     UpdateProgress
     C("lblStatus").Caption = ""

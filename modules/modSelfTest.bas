@@ -151,6 +151,8 @@ Private Function RunCase(f() As String) As String
             RunCase = CrewsOff(ParseD(i1))
         Case "shifthours"                          ' v25
             RunCase = NumText(DefaultShiftHours(ParseD(i1), (i2 = "night"), USUAL_SHIFT_HOURS))
+        Case "shiftdate"                           ' v26.5.5: the date, the clock time hh:mm -> the date a shift logged then belongs to
+            RunCase = FmtD(DefaultShiftDate(ParseD(i1) + TimeSerial(CLng(Left$(i2, 2)), CLng(Mid$(i2, 4, 2)), 0)))
         Case "accepted"                            ' v25
             RunCase = NumText(AcceptedHours(CDbl(i1), CDbl(i2)))
         Case "callorder"
@@ -1550,5 +1552,12 @@ Private Sub LoadCases()
     AddCase "fatigue,dst-13h-night-then-day,13,12,99,,,16 h rule|3"
     AddCase "fatigue,24-h-block,24,1,99,,,16 h rule|0"
     AddCase "fatigue,half-hour-fits,15.5,0.5,99,,,ok|0.5"
+    AddCase "shiftdate,midnight-is-last-night,2026-10-20,00:00,,,,2026-10-19"
+    AddCase "shiftdate,3am-is-last-night,2026-10-20,03:10,,,,2026-10-19"
+    AddCase "shiftdate,659-is-last-night,2026-10-20,06:59,,,,2026-10-19"
+    AddCase "shiftdate,7am-is-today,2026-10-20,07:00,,,,2026-10-20"
+    AddCase "shiftdate,7pm-is-today,2026-10-20,19:00,,,,2026-10-20"
+    AddCase "shiftdate,2359-is-today,2026-10-20,23:59,,,,2026-10-20"
+    AddCase "shiftdate,jan-1-before-7,2027-01-01,02:00,,,,2026-12-31"
 ' <<< CASES
 End Sub

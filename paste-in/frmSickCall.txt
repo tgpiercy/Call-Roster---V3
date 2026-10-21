@@ -97,7 +97,7 @@ Private Sub UserForm_Initialize()
     o.Height = 48: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(120, 60, 0)
 
     Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(9) + 2, 372)
-    o.Height = 26: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(30, 56, 100)
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 8: o.ForeColor = RGB(30, 56, 100)      ' v26.5.5: two lines (the night hint)
 
     Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(10) + 2, 200, 30)
     mSave.Caption = "SAVE + START CALL-OUT"
@@ -115,7 +115,7 @@ Private Sub UserForm_Initialize()
         C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
     Next h
     ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
-    mDate.Text = DateText(Date)                  ' last: its Change handler needs every control above
+    mDate.Text = DateText(DefaultShiftDate(Now)) ' last: its Change handler needs every control above; v26.5.5 (B1): before 7 AM = yesterday's night
 End Sub
 
 ' ---- live defaults from the rotation and the roster ----
@@ -132,6 +132,10 @@ Private Sub mShift_Change()
     If PickedDate(d) Then
         C("txtHours").Text = CStr(DefaultShiftHours(d, IsNightShift(mShift.Text), USUAL_SHIFT_HOURS))
         C("hHrs").Caption = IIf(IsNightShift(mShift.Text), DstNote(d), "")
+        ' v26.5.5 (B1): the night is named by the evening it starts; before 7 AM the shift under way is said
+        Dim hint As String: hint = ShiftHintText(d, IsNightShift(mShift.Text), Now)
+        C("info").Caption = "Off call lists for this shift and any shift starting within 24 h after it ends." & _
+                            IIf(hint <> "", vbLf & hint & ".", "")
         ShowCounters d
     End If
 End Sub

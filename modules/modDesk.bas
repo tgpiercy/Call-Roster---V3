@@ -275,6 +275,8 @@ Public Sub DrawDesk()
     If Not sup Then
         DeskBtn ws, "dk_btn_reconcile", "Reconcile with the paper roster", "modDesk.DeskReconcile", xF, yF, dkNavy()   ' v27 (item 4): the parallel run's sheet
         yF = yF + BTN_H + GAP
+        DeskBtn ws, "dk_btn_stats", "Stats (quarterly report)", "modDesk.DeskStats", xF, yF, dkNavy()   ' v27 (item 26)
+        yF = yF + BTN_H + GAP
     End If
 
     ' ---- the footer row: help, the two emails, Undo (admin), Practice - grey, reached for rarely ----
@@ -700,6 +702,15 @@ Public Sub DeskReconcile()
     Exit Sub
 Oops:
     ReportError "DeskReconcile"
+End Sub
+
+' v27 (item 26): the quarterly Stats report (admin)
+Public Sub DeskStats()
+    On Error GoTo Oops
+    StatsReport
+    Exit Sub
+Oops:
+    ReportError "DeskStats"
 End Sub
 
 ' v25.5 (A9) "Undo my last log entry": the admin Desk; voids this login's newest entry of today through Void Entry's path

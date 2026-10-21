@@ -744,3 +744,29 @@ reconcile,roster-shorter,Ann B;Bob C,Ann B,,,,2|Bob C|-
 reconcile,blank-paper-line,Ann B;;Cal D,Ann B;Bob C;Cal D,,,,2|-|Bob C
 reconcile,empty-paper,,Ann B;Bob C,,,,1;2|-|Ann B;Bob C
 reconcile,both-empty,,,,,,-|-|-
+squarter,jan,2026-01-11,,,,,Q1
+squarter,mar-31,2026-03-31,,,,,Q1
+squarter,apr-1,2026-04-01,,,,,Q2
+squarter,sep,2026-09-15,,,,,Q3
+squarter,dec,2026-12-26,,,,,Q4
+sbucket,void-first,Callout,Accepted,VOID,,,void
+sbucket,callout-accepted,Callout,Accepted,Active,,,accepted
+sbucket,callout-refused,Callout,Refused,,,,refused
+sbucket,callout-message,Callout,Left Message,,,,message
+sbucket,callout-unavailable,Callout,Unavailable,,,,unavailable
+sbucket,callout-other,Callout,Not offered,,,,other
+sbucket,posting-awarded,Posting,Awarded,,,,awarded
+sbucket,posting-refused,Posting,Refused,,,,p-refused
+sbucket,posting-signed,Posting,Signed Up,,,,signedup
+sbucket,adjustment,Adjustment,,,,,adjustment
+sbucket,unknown-type,Kronos,,,,,other
+sband,midnight,0,,,,,night 0-6
+sband,five,5,,,,,night 0-6
+sband,six,6,,,,,morning 6-12
+sband,noon,12,,,,,afternoon 12-18
+sband,evening,19,,,,,evening 18-24
+sband,late,23,,,,,evening 18-24
+sspread,three,120;140;160,,,,,120.0|160.0|140.0|16.3|40.0
+sspread,one,100,,,,,100.0|100.0|100.0|0.0|0.0
+sspread,none,,,,,,-|-|-|-|-
+sspread,two-equal,50;50,,,,,50.0|50.0|50.0|0.0|0.0

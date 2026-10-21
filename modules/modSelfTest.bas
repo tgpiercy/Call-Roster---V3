@@ -332,6 +332,14 @@ Private Function RunCase(f() As String) As String
             RunCase = ReportKindCore(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
         Case "reconcile"                           ' v27: the paper's names (;), the roster's names (;) -> positions that differ|not listed|not on paper
             RunCase = ReconcileDiffCore(i1, i2)
+        Case "squarter"                            ' v27 (Stats): a date -> Q1 .. Q4
+            RunCase = StatsQuarter(ParseD(i1))
+        Case "sbucket"                             ' v27 (Stats): a log row's Type, Outcome, Status -> what it counts as
+            RunCase = StatsBucket(i1, i2, i3)
+        Case "sband"                               ' v27 (Stats): an hour 0..23 -> the time-of-day band
+            RunCase = TimeOfDayBand(CLng(Val(i1)))
+        Case "sspread"                             ' v27 (Stats): "h;h;h" -> min|max|mean|sd|gap
+            RunCase = SpreadCore(i1)
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -1672,5 +1680,31 @@ Private Sub LoadCases4()
     AddCase "reconcile,blank-paper-line,Ann B;;Cal D,Ann B;Bob C;Cal D,,,,2|-|Bob C"
     AddCase "reconcile,empty-paper,,Ann B;Bob C,,,,1;2|-|Ann B;Bob C"
     AddCase "reconcile,both-empty,,,,,,-|-|-"
+    AddCase "squarter,jan,2026-01-11,,,,,Q1"
+    AddCase "squarter,mar-31,2026-03-31,,,,,Q1"
+    AddCase "squarter,apr-1,2026-04-01,,,,,Q2"
+    AddCase "squarter,sep,2026-09-15,,,,,Q3"
+    AddCase "squarter,dec,2026-12-26,,,,,Q4"
+    AddCase "sbucket,void-first,Callout,Accepted,VOID,,,void"
+    AddCase "sbucket,callout-accepted,Callout,Accepted,Active,,,accepted"
+    AddCase "sbucket,callout-refused,Callout,Refused,,,,refused"
+    AddCase "sbucket,callout-message,Callout,Left Message,,,,message"
+    AddCase "sbucket,callout-unavailable,Callout,Unavailable,,,,unavailable"
+    AddCase "sbucket,callout-other,Callout,Not offered,,,,other"
+    AddCase "sbucket,posting-awarded,Posting,Awarded,,,,awarded"
+    AddCase "sbucket,posting-refused,Posting,Refused,,,,p-refused"
+    AddCase "sbucket,posting-signed,Posting,Signed Up,,,,signedup"
+    AddCase "sbucket,adjustment,Adjustment,,,,,adjustment"
+    AddCase "sbucket,unknown-type,Kronos,,,,,other"
+    AddCase "sband,midnight,0,,,,,night 0-6"
+    AddCase "sband,five,5,,,,,night 0-6"
+    AddCase "sband,six,6,,,,,morning 6-12"
+    AddCase "sband,noon,12,,,,,afternoon 12-18"
+    AddCase "sband,evening,19,,,,,evening 18-24"
+    AddCase "sband,late,23,,,,,evening 18-24"
+    AddCase "sspread,three,120;140;160,,,,,120.0|160.0|140.0|16.3|40.0"
+    AddCase "sspread,one,100,,,,,100.0|100.0|100.0|0.0|0.0"
+    AddCase "sspread,none,,,,,,-|-|-|-|-"
+    AddCase "sspread,two-equal,50;50,,,,,50.0|50.0|50.0|0.0|0.0"
 ' <<< CASES
 End Sub

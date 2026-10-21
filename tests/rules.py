@@ -1632,6 +1632,52 @@ def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str
     return "cumulative" if from_d <= year_from + timedelta(days=KRONOS_YEAR_SLACK) else "range"
 
 
+# ---------------------------------------------------------------- the Stats report (v27, modStats)
+def stats_quarter(d: date) -> str:
+    """modStats.StatsQuarter: the calendar quarter, Q1..Q4."""
+    return f"Q{(d.month - 1) // 3 + 1}"
+
+
+def stats_bucket(typ: str, outcome: str, status: str) -> str:
+    """modStats.StatsBucket: what an OT Log row counts as."""
+    if status.strip().upper() == "VOID":
+        return "void"
+    t, o = typ.strip().lower(), outcome.strip().lower()
+    if t == "callout":
+        return {"accepted": "accepted", "refused": "refused", "left message": "message", "unavailable": "unavailable"}.get(o, "other")
+    if t == "posting":
+        return {"awarded": "awarded", "refused": "p-refused", "signed up": "signedup"}.get(o, "other")
+    if t == "adjustment":
+        return "adjustment"
+    return "other"
+
+
+def time_of_day_band(hr: int) -> str:
+    """modStats.TimeOfDayBand: the band a session was logged in."""
+    if 0 <= hr <= 5:
+        return "night 0-6"
+    if 6 <= hr <= 11:
+        return "morning 6-12"
+    if 12 <= hr <= 17:
+        return "afternoon 12-18"
+    return "evening 18-24"
+
+
+def spread(spec: str) -> str:
+    """modStats.SpreadCore: 'h;h;h' -> 'min|max|mean|sd|gap' to one decimal (population SD); '-|-|-|-|-' for none."""
+    import math
+    vals = [float(x) for x in spec.split(";") if x.strip()]
+    if not vals:
+        return "-|-|-|-|-"
+    mean = sum(vals) / len(vals)
+    sd = math.sqrt(sum((x - mean) ** 2 for x in vals) / len(vals))
+
+    def one(x: float) -> str:
+        return f"{x:.1f}"
+
+    return "|".join(one(x) for x in (min(vals), max(vals), mean, sd, max(vals) - min(vals)))
+
+
 # ---------------------------------------------------------------- the Reconcile sheet (v27, modReconcile)
 def reconcile_diff(paper: str, roster: str) -> str:
     """modReconcile.ReconcileDiffCore: names top to bottom, ';' between -> 'positions that differ|paper names

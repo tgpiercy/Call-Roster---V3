@@ -166,15 +166,16 @@ Private Sub UserForm_Initialize()
     C("lblReasonHint").ForeColor = RGB(100, 100, 100)
 
     ' ---- the outcome buttons: one key each ----
+    ' v26.5.5 (5.1): each key says its consequence (charged or not)
     StyleOutcome btnAccepted, "A   Accepted", 10, RGB(0, 140, 50)
-    StyleOutcome btnRefused, "R   Refused", 108, RGB(190, 30, 30)
-    StyleOutcome btnLeftMsg, "L   Left message", 206, RGB(180, 100, 0)
-    StyleOutcome btnUnavailable, "U   Unavailable", 304, RGB(80, 90, 110)
+    StyleOutcome btnRefused, "R   Refused" & vbLf & "charged x" & CHARGE_MULTIPLIER, 108, RGB(190, 30, 30)
+    StyleOutcome btnLeftMsg, "L   Left message" & vbLf & "charged x" & CHARGE_MULTIPLIER, 206, RGB(180, 100, 0)
+    StyleOutcome btnUnavailable, "U   Unavailable" & vbLf & "not charged", 304, RGB(80, 90, 110)
 
     ' v24.1: someone takes only part of the hours; v25 (D-E4): that closes the shift
     Set mPartAcc = Me.Controls.Add("Forms.CommandButton.1", "cmdPartAcc", True)
     With mPartAcc
-        .Caption = "P   Part of" & vbLf & "the hours"
+        .Caption = "P   Part of the hours" & vbLf & "closes the shift"
         .Left = Px(402): .Top = Px(408): .Width = Px(80): .Height = Px(52)
         .Font.Bold = True: .Font.Size = Px(10)
         .WordWrap = True                            ' two lines (review: a code-made button does not wrap by default)
@@ -187,7 +188,7 @@ Private Sub UserForm_Initialize()
     C("lblKeys").ForeColor = MUTED
     Set mCallBack = Me.Controls.Add("Forms.CommandButton.1", "cmdCallBack", True)
     With mCallBack
-        .Caption = "Call back"
+        .Caption = "K   Call back"
         .Left = Px(392): .Top = Px(463): .Width = Px(90): .Height = Px(20)
         .Font.Size = Px(9.5)
         .Enabled = False
@@ -226,8 +227,9 @@ End Sub
 Private Sub StyleOutcome(b As Object, cap As String, L As Double, col As Long)
     With b
         .Caption = cap
+        .WordWrap = True                            ' v26.5.5 (5.1): two lines - the key and what it costs
         .Left = Px(L): .Top = Px(408): .Width = Px(92): .Height = Px(52)
-        .Font.Bold = True: .Font.Size = Px(11)
+        .Font.Bold = True: .Font.Size = Px(10.5)
         .BackColor = col: .ForeColor = RGB(255, 255, 255)
         .Enabled = False
     End With

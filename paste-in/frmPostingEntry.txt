@@ -303,8 +303,8 @@ Private Sub RefreshList(ByVal keepIdx As Long)
             Case "Awarded"
                 res = "AWARDED"
                 If IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then res = res & "  " & HoursText(mL(i).SignupHrs) & " h"
-            Case "Charged": res = "REFUSED  " & HoursText(mL(i).Charged)
-            Case "Signed up": res = "not charged"
+            Case "Charged": res = "Not signed up: charged " & HoursText(mL(i).Charged) & " h"    ' v26.5.5 (5.1): the consequence in words
+            Case "Signed up": res = "Signed up: not charged"
             Case Else
                 res = ""
                 If mL(i).ExemptNote <> "" Then res = LCase$(Mid$(mL(i).ExemptNote, Len(EXEMPT_TAG) + 1))     ' "Exempt - moved Jan 12" -> "moved jan 12"

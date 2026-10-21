@@ -250,8 +250,8 @@ def evaluate(row: dict) -> str:
         return rules.report_kind(d(i1), d(i2), d(i3), d(i4))
     if suite == "reconcile":                     # v27: the paper's names (;), the roster's names (;) -> positions that differ|not listed|not on paper
         return rules.reconcile_diff(i1, i2)
-    if suite == "squarter":                      # v27 (Stats): a date -> Q1..Q4
-        return rules.stats_quarter(d(i1))
+    if suite == "squarter":                      # v27 (Stats): a date, the roster year's Jan 1 -> Q1..Q4
+        return rules.stats_quarter(d(i1), d(i2))
     if suite == "sbucket":                       # v27 (Stats): Type, Outcome, Status -> the bucket
         return rules.stats_bucket(i1, i2, i3)
     if suite == "sband":                         # v27 (Stats): an hour -> the band

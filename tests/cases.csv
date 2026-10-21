@@ -744,11 +744,11 @@ reconcile,roster-shorter,Ann B;Bob C,Ann B,,,,2|Bob C|-
 reconcile,blank-paper-line,Ann B;;Cal D,Ann B;Bob C;Cal D,,,,2|-|Bob C
 reconcile,empty-paper,,Ann B;Bob C,,,,1;2|-|Ann B;Bob C
 reconcile,both-empty,,,,,,-|-|-
-squarter,jan,2026-01-11,,,,,Q1
-squarter,mar-31,2026-03-31,,,,,Q1
-squarter,apr-1,2026-04-01,,,,,Q2
-squarter,sep,2026-09-15,,,,,Q3
-squarter,dec,2026-12-26,,,,,Q4
+squarter,jan,2026-01-11,2026-01-01,,,,Q1
+squarter,mar-31,2026-03-31,2026-01-01,,,,Q1
+squarter,apr-1,2026-04-01,2026-01-01,,,,Q2
+squarter,sep,2026-09-15,2026-01-01,,,,Q3
+squarter,dec,2026-12-26,2026-01-01,,,,Q4
 sbucket,void-first,Callout,Accepted,VOID,,,void
 sbucket,callout-accepted,Callout,Accepted,Active,,,accepted
 sbucket,callout-refused,Callout,Refused,,,,refused
@@ -773,3 +773,6 @@ sspread,two-equal,50;50,,,,,50.0|50.0|50.0|0.0|0.0
 kperiod,digits-glued,110/17/2026 - 1/2/3/2026,,,,,no dates
 kkind,starts-last-year,2025-12-01,2026-10-17,2025-12-28,2026-12-26,,outside
 kweight,blank-hours,CA OVERTIME=,,,,,0
+squarter,dec-28-is-q1,2025-12-28,2026-01-01,,,,Q1
+squarter,dec-31-is-q1,2025-12-31,2026-01-01,,,,Q1
+sspread,quarter-hours,22.25;19.25,,,,,19.3|22.3|20.8|1.5|3.0

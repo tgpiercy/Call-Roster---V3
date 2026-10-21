@@ -1649,8 +1649,10 @@ def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str
 
 
 # ---------------------------------------------------------------- the Stats report (v27, modStats)
-def stats_quarter(d: date) -> str:
-    """modStats.StatsQuarter: the calendar quarter, Q1..Q4."""
+def stats_quarter(d: date, jan1: date) -> str:
+    """modStats.StatsQuarter: the calendar quarter, Q1..Q4; the roster year's late-December start (before jan1) is Q1."""
+    if d < jan1:
+        return "Q1"
     return f"Q{(d.month - 1) // 3 + 1}"
 
 
@@ -1689,7 +1691,9 @@ def spread(spec: str) -> str:
     sd = math.sqrt(sum((x - mean) ** 2 for x in vals) / len(vals))
 
     def one(x: float) -> str:
-        return f"{x:.1f}"
+        # VBA Format$(x, "0.0") rounds half away from zero (22.25 -> 22.3); Python's format is half-to-even on the binary value
+        from decimal import Decimal, ROUND_HALF_UP
+        return str(Decimal(repr(x)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
     return "|".join(one(x) for x in (min(vals), max(vals), mean, sd, max(vals) - min(vals)))
 

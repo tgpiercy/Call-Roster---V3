@@ -23,16 +23,16 @@ Option Explicit
 
 Public Const STATS_VERSION As String = "Stats v26.5.5 (Oct 21)"      ' stamped with the release at release prep (v27)
 Public Const STATS_SHEET As String = "Stats"
-Private Const POSTINGS_TABLE As String = "tblPostings"
 Private mAcc As Object                      ' "section|unit|metric|q" -> amount (q 1..4; 5 = the year to date)
 Private mUnits As Object                    ' unit -> True (the roster's units, in DeptList order, + "All units")
 
 ' ====================================================================
 '  THE PURE RULES (mirrored in tests/rules.py)
 ' ====================================================================
-' A date's calendar quarter, "Q1" .. "Q4" (suite squarter)
-Public Function StatsQuarter(ByVal d As Date) As String
-    StatsQuarter = "Q" & ((Month(d) - 1) \ 3 + 1)
+' A date's quarter, "Q1" .. "Q4": the calendar quarter, except that the roster year's first days (its first period starts
+' in late December, before jan1) belong to Q1 (review M1; suite squarter)
+Public Function StatsQuarter(ByVal d As Date, ByVal jan1 As Date) As String
+    If d < jan1 Then StatsQuarter = "Q1" Else StatsQuarter = "Q" & ((Month(d) - 1) \ 3 + 1)
 End Function
 
 ' What an OT Log row counts as (suite sbucket): void rows "void"; a Callout row by its Outcome - accepted / refused /
@@ -108,10 +108,10 @@ End Function
 '  THE REPORT (admin)
 ' ====================================================================
 Public Sub StatsReport()
+    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating       ' captured before the handler (convention 6)
+    Dim evWas As Boolean: evWas = Application.EnableEvents
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
-    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
-    Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     Set mAcc = CreateObject("Scripting.Dictionary"): mAcc.CompareMode = 1
@@ -127,7 +127,7 @@ Public Sub StatsReport()
     CountCallouts yearFrom, yearTo
     CountPostings yearFrom, yearTo
     CountSick yearFrom, yearTo
-    Dim fair As Object: Set fair = FairnessRows()
+    Dim fair As Object: Set fair = FairnessRows(yearFrom, yearTo)
     DrawStats yearFrom, yearTo, fair
     Application.EnableEvents = evWas
     Application.ScreenUpdating = scrWas
@@ -160,13 +160,20 @@ Private Sub AccOne(ByVal key As String, ByVal amount As Double)
     If mAcc.Exists(key) Then mAcc(key) = mAcc(key) + amount Else mAcc.Add key, amount
 End Sub
 
+Private Function HasOther() As Boolean
+    Dim k As Variant
+    For Each k In mAcc.Keys
+        If InStr(CStr(k), "|(other)|") > 0 Then HasOther = True: Exit Function
+    Next k
+End Function
+
 Private Function Got(ByVal section As String, ByVal unit As String, ByVal metric As String, ByVal q As Long) As Double
     Dim key As String: key = section & "|" & unit & "|" & metric & "|" & q
     If mAcc.Exists(key) Then Got = mAcc(key)
 End Function
 
 Private Function QuarterNo(ByVal d As Date) As Long
-    QuarterNo = (Month(d) - 1) \ 3 + 1
+    QuarterNo = CLng(Mid$(StatsQuarter(d, DateSerial(RosterYear(), 1, 1)), 2))
 End Function
 
 ' ---- A. call-outs: one session = one S- ref ----
@@ -176,7 +183,8 @@ Private Sub CountCallouts(ByVal yearFrom As Date, ByVal yearTo As Date)
     Dim sessUnit As Object: Set sessUnit = CreateObject("Scripting.Dictionary"): sessUnit.CompareMode = 1
     Dim sessQ As Object: Set sessQ = CreateObject("Scripting.Dictionary"): sessQ.CompareMode = 1
     Dim sessFilled As Object: Set sessFilled = CreateObject("Scripting.Dictionary"): sessFilled.CompareMode = 1
-    Dim sessFirst As Object: Set sessFirst = CreateObject("Scripting.Dictionary"): sessFirst.CompareMode = 1
+    Dim sessMinOrder As Object: Set sessMinOrder = CreateObject("Scripting.Dictionary"): sessMinOrder.CompareMode = 1   ' the first person actually called
+    Dim sessAccOrder As Object: Set sessAccOrder = CreateObject("Scripting.Dictionary"): sessAccOrder.CompareMode = 1   ' the lowest call order that accepted
     Dim sessOffered As Object: Set sessOffered = CreateObject("Scripting.Dictionary"): sessOffered.CompareMode = 1
     Dim sessHour As Object: Set sessHour = CreateObject("Scripting.Dictionary"): sessHour.CompareMode = 1
     Dim sessWeekend As Object: Set sessWeekend = CreateObject("Scripting.Dictionary"): sessWeekend.CompareMode = 1
@@ -190,19 +198,23 @@ Private Sub CountCallouts(ByVal yearFrom As Date, ByVal yearTo As Date)
                     ref = Trim$(SafeStr(lg(i, L_REF))): unit = Trim$(SafeStr(lg(i, L_DEPT))): q = QuarterNo(d)
                     If Not sessUnit.Exists(ref) Then
                         sessUnit.Add ref, unit: sessQ.Add ref, q
-                        sessFilled.Add ref, False: sessFirst.Add ref, False
+                        sessFilled.Add ref, False: sessMinOrder.Add ref, 0#: sessAccOrder.Add ref, 0#
                         sessOffered.Add ref, NumOr0(lg(i, L_BASEHRS))
                         If IsDate(lg(i, L_STAMP)) Then sessHour.Add ref, Hour(CDate(lg(i, L_STAMP))) Else sessHour.Add ref, -1
                         sessWeekend.Add ref, (Weekday(d, vbMonday) >= 6)
                     End If
-                    If NumOr0(lg(i, L_ORDER)) = 1 And NumOr0(lg(i, L_BASEHRS)) > sessOffered(ref) Then sessOffered(ref) = NumOr0(lg(i, L_BASEHRS))
+                    ' (review M2) the hours on offer: the most any row shows, and the "of M h" a capped or partial row's Note names
+                    If OfferedOnRow(lg(i, L_BASEHRS), SafeStr(lg(i, L_REASON))) > sessOffered(ref) Then sessOffered(ref) = OfferedOnRow(lg(i, L_BASEHRS), SafeStr(lg(i, L_REASON)))
+                    If NumOr0(lg(i, L_ORDER)) > 0 Then
+                        If sessMinOrder(ref) = 0 Or NumOr0(lg(i, L_ORDER)) < sessMinOrder(ref) Then sessMinOrder(ref) = NumOr0(lg(i, L_ORDER))
+                    End If
                     Acc "A", unit, "calls", q, 1
                     Acc "A", unit, b, q, 1
                     Acc "A", unit, "charged", q, NumOr0(lg(i, L_CHARGED))
                     If b = "accepted" Then
                         sessFilled(ref) = True
                         Acc "A", unit, "accepted-h", q, NumOr0(lg(i, L_BASEHRS))
-                        If NumOr0(lg(i, L_ORDER)) = 1 Then sessFirst(ref) = True
+                        If sessAccOrder(ref) = 0 Or NumOr0(lg(i, L_ORDER)) < sessAccOrder(ref) Then sessAccOrder(ref) = NumOr0(lg(i, L_ORDER))
                     End If
                 End If
             End If
@@ -214,15 +226,28 @@ Private Sub CountCallouts(ByVal yearFrom As Date, ByVal yearTo As Date)
         Acc "A", unit, "sessions", q, 1
         Acc "A", unit, "offered-h", q, sessOffered(k)
         If sessFilled(k) Then Acc "A", unit, "filled", q, 1
-        If sessFirst(k) Then Acc "A", unit, "first", q, 1
+        If sessFilled(k) And sessAccOrder(k) > 0 And sessAccOrder(k) = sessMinOrder(k) Then Acc "A", unit, "first", q, 1   ' (review) the first person called took it
         If sessWeekend(k) Then Acc "A", unit, "weekend", q, 1
         If sessHour(k) >= 0 Then Acc "A", unit, "band " & TimeOfDayBand(CLng(sessHour(k))), q, 1
     Next k
 End Sub
 
+' The hours a call-out row says were on offer: the row's Hours, or the M in a Note that reads "Took N of M h" /
+' "Offered N of M h" (a partial acceptance or a 16 h cap wrote the smaller N into Hours)
+Private Function OfferedOnRow(ByVal hrs As Variant, ByVal note As String) As Double
+    OfferedOnRow = NumOr0(hrs)
+    Dim p As Long: p = InStr(1, note, " of ", vbTextCompare)
+    If p = 0 Then Exit Function
+    Dim rest As String: rest = Mid$(note, p + 4)
+    Dim q As Long: q = InStr(rest, " h")
+    If q = 0 Then Exit Function
+    Dim m As Double: m = Val(Left$(rest, q - 1))
+    If m > OfferedOnRow Then OfferedOnRow = m
+End Function
+
 ' ---- B. postings: the Postings table, its list, and the Posting rows of the log ----
 Private Sub CountPostings(ByVal yearFrom As Date, ByVal yearTo As Date)
-    Dim v As Variant: v = TableByName(POSTINGS_TABLE)
+    Dim v As Variant: v = TableByName(PT_TABLE)
     Dim postUnit As Object: Set postUnit = CreateObject("Scripting.Dictionary"): postUnit.CompareMode = 1
     Dim postQ As Object: Set postQ = CreateObject("Scripting.Dictionary"): postQ.CompareMode = 1
     Dim i As Long, id As String, st As String, unit As String, q As Long, d As Date
@@ -281,7 +306,7 @@ End Sub
 ' ---- C. sick days: SIC bookings, and the rotation's scheduled shifts as the denominator ----
 Private Sub CountSick(ByVal yearFrom As Date, ByVal yearTo As Date)
     Dim v As Variant: v = AbsTableData()
-    Dim i As Long, unit As String, q As Long, d As Date
+    Dim i As Long, unit As String, d As Date
     If IsArray(v) Then
         For i = 1 To UBound(v, 1)
             If UCase$(Trim$(SafeStr(v(i, AB_TYPE)))) = "SIC" And UCase$(Trim$(SafeStr(v(i, AB_STATUS)))) <> "VOID" And IsDate(v(i, AB_START)) Then
@@ -289,11 +314,10 @@ Private Sub CountSick(ByVal yearFrom As Date, ByVal yearTo As Date)
                 If d >= yearFrom And d <= yearTo Then
                     unit = Trim$(SafeStr(v(i, AB_UNIT)))
                     If unit = "" Then unit = Trim$(SafeStr(v(i, AB_HOME)))
-                    q = QuarterNo(d)
-                    Acc "C", unit, "sick", q, 1
-                    If LCase$(Trim$(SafeStr(v(i, AB_SHIFT)))) = "nights" Then Acc "C", unit, "nights", q, 1
-                    If Weekday(d, vbMonday) >= 6 Then Acc "C", unit, "weekend", q, 1
-                    If DaysHolidayOff(d - 1) Or DaysHolidayOff(d) Or DaysHolidayOff(d + 1) Then Acc "C", unit, "holiday", q, 1
+                    Acc "C", unit, "sick", QuarterNo(d), 1
+                    If LCase$(Trim$(SafeStr(v(i, AB_SHIFT)))) = "nights" Then Acc "C", unit, "nights", QuarterNo(d), 1
+                    If Weekday(d, vbMonday) >= 6 Then Acc "C", unit, "weekend", QuarterNo(d), 1
+                    If DaysHolidayOff(d - 1) Or DaysHolidayOff(d) Or DaysHolidayOff(d + 1) Then Acc "C", unit, "holiday", QuarterNo(d), 1
                 End If
             End If
         Next i
@@ -305,7 +329,8 @@ Private Sub CountSick(ByVal yearFrom As Date, ByVal yearTo As Date)
     If lastRow < R_FIRST Then Exit Sub
     Dim rv As Variant: rv = ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, C_LAST)).Value
     Dim depts As Variant: depts = DeptList()
-    Dim u As Long, dc As Long, r As Long, crew As String, lastDay As Date, sh As String
+    Dim u As Long, dc As Long, r As Long, crew As String, lastDay As Date, sh As String, q As Long
+    Dim personDone As Object: Set personDone = CreateObject("Scripting.Dictionary"): personDone.CompareMode = 1   ' (review M5): All units once per person
     lastDay = Date - 1
     If lastDay > yearTo Then lastDay = yearTo
     For u = LBound(depts) To UBound(depts)
@@ -317,8 +342,17 @@ Private Sub CountSick(ByVal yearFrom As Date, ByVal yearTo As Date)
                     If crew <> "" Then
                         For d = yearFrom To lastDay
                             sh = CrewShiftOn(crew, d)
-                            If sh = "Days" Or sh = "Nights" Then Acc "C", CStr(depts(u)), "scheduled", QuarterNo(d), 1
+                            If sh = "Days" Or sh = "Nights" Then
+                                q = QuarterNo(d)
+                                AccOne "C|" & CStr(depts(u)) & "|scheduled|" & q, 1
+                                AccOne "C|" & CStr(depts(u)) & "|scheduled|5", 1
+                                If Not personDone.Exists(Trim$(SafeStr(rv(r, C_NAME)))) Then
+                                    AccOne "C|All units|scheduled|" & q, 1
+                                    AccOne "C|All units|scheduled|5", 1
+                                End If
+                            End If
                         Next d
+                        personDone(Trim$(SafeStr(rv(r, C_NAME)))) = True
                     End If
                 End If
             Next r
@@ -328,7 +362,7 @@ End Sub
 
 ' ---- D. fairness: today's figures per unit, grade <= CHARGE_MAX_GRADE; the refusal rate from the log ----
 ' unit -> "total spread|premium spread|refusal rate|people"
-Private Function FairnessRows() As Object
+Private Function FairnessRows(ByVal yearFrom As Date, ByVal yearTo As Date) As Object
     Dim out As Object: Set out = CreateObject("Scripting.Dictionary"): out.CompareMode = 1
     Set FairnessRows = out
     Dim ws As Worksheet: Set ws = RosterSheet()
@@ -336,22 +370,27 @@ Private Function FairnessRows() As Object
     If lastRow < R_FIRST Then Exit Function
     Dim rv As Variant: rv = ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, C_LAST)).Value
     Dim lg As Variant: lg = LogRowsNow()
-    ' per person: offers and refusals this year
+    ' per person this year: offers (a call-out row accepted / refused / left message; a posting row awarded / charged)
+    ' and refusals (refused / left message / charged on a posting) - unavailable and signed-up rows are neither
     Dim offers As Object: Set offers = CreateObject("Scripting.Dictionary"): offers.CompareMode = 1
     Dim refusals As Object: Set refusals = CreateObject("Scripting.Dictionary"): refusals.CompareMode = 1
     Dim i As Long, b As String, nm As String
     If IsArray(lg) Then
         For i = 1 To UBound(lg, 1)
-            b = StatsBucket(SafeStr(lg(i, L_TYPE)), SafeStr(lg(i, L_OUTCOME)), SafeStr(lg(i, L_STATUS)))
-            nm = Trim$(SafeStr(lg(i, L_EMP)))
-            If nm <> "" And b <> "void" And b <> "adjustment" And b <> "other" Then
-                offers(nm) = NumOr0(offers(nm)) + 1
-                If b = "refused" Or b = "message" Or b = "p-refused" Then refusals(nm) = NumOr0(refusals(nm)) + 1
+            If IsDate(lg(i, L_DATE)) Then
+                If CDate(lg(i, L_DATE)) >= yearFrom And CDate(lg(i, L_DATE)) <= yearTo Then
+                    b = StatsBucket(SafeStr(lg(i, L_TYPE)), SafeStr(lg(i, L_OUTCOME)), SafeStr(lg(i, L_STATUS)))
+                    nm = Trim$(SafeStr(lg(i, L_EMP)))
+                    If nm <> "" Then
+                        If b = "accepted" Or b = "refused" Or b = "message" Or b = "awarded" Or b = "p-refused" Then offers(nm) = NumOr0(offers(nm)) + 1
+                        If b = "refused" Or b = "message" Or b = "p-refused" Then refusals(nm) = NumOr0(refusals(nm)) + 1
+                    End If
+                End If
             End If
         Next i
     End If
     Dim depts As Variant: depts = DeptList()
-    Dim u As Long, dc As Long, r As Long, tot As String, prem As String, nOff As Double, nRef As Double, nPeople As Long
+    Dim u As Long, dc As Long, r As Long, tot As String, prem As String, nOff As Double, nRef As Double, nPeople As Long, rate As String
     For u = LBound(depts) To UBound(depts)
         dc = DeptCol(CStr(depts(u)))
         tot = "": prem = "": nOff = 0: nRef = 0: nPeople = 0
@@ -368,7 +407,9 @@ Private Function FairnessRows() As Object
                 End If
             Next r
         End If
-        out(CStr(depts(u))) = SpreadCore(tot) & "|" & SpreadCore(prem) & "|" & IIf(nOff > 0, OneDec(100 * nRef / nOff) & "%", "-") & "|" & nPeople
+        ' (review H1) a block, not IIf: 0 / 0 inside an IIf raises even when the other branch is taken
+        If nOff > 0 Then rate = OneDec(100 * nRef / nOff) & "%" Else rate = "-"
+        out(CStr(depts(u))) = SpreadCore(tot) & "|" & SpreadCore(prem) & "|" & rate & "|" & nPeople
     Next u
 End Function
 
@@ -394,6 +435,10 @@ Private Sub DrawStats(ByVal yearFrom As Date, ByVal yearTo As Date, ByVal fair A
                            "Honest from the first full quarter after go-live: earlier quarters hold what was logged, not what happened. Drawn " & _
                            Format$(Now, "mmm d, yyyy h:mm AM/PM") & ".  " & TrustStrip()
     ws.Range("A2").Font.Italic = True: ws.Range("A2").Font.Size = 8.5
+    With ws.Range("A2:L2")                                   ' (review M4) one wrapped line across the page, not a cut-off cell
+        .Merge: .WrapText = True: .VerticalAlignment = xlTop
+    End With
+    ws.Rows(2).RowHeight = 48
     Dim r As Long: r = 4
     Dim depts As Variant: depts = DeptList()
     Dim units() As String, nU As Long, u As Long
@@ -402,6 +447,10 @@ Private Sub DrawStats(ByVal yearFrom As Date, ByVal yearTo As Date, ByVal fair A
         nU = nU + 1: units(nU) = CStr(depts(u))
     Next u
     nU = nU + 1: units(nU) = "All units"
+    If HasOther() Then
+        ReDim Preserve units(1 To nU + 1)
+        nU = nU + 1: units(nU) = "(other)"             ' (review) a unit name the roster does not know, so the unit rows add up to All units
+    End If
 
     ' A
     r = SectionTitle(ws, r, "A. Call-outs (a session = one S- ref; filled = anyone accepted; a call = one person asked)")
@@ -451,15 +500,15 @@ Private Sub DrawStats(ByVal yearFrom As Date, ByVal yearTo As Date, ByVal fair A
         r = RateRow(ws, r, "Sick rate per scheduled shift", "C", units(u), "sick", "scheduled", True)
         r = RateRow(ws, r, "On nights", "C", units(u), "nights", "sick", True)
         r = RateRow(ws, r, "On a weekend", "C", units(u), "weekend", "sick", True)
-        r = RateRow(ws, r, "Beside a plant holiday", "C", units(u), "holiday", "sick", True)
+        r = RateRow(ws, r, "On or beside a plant holiday", "C", units(u), "holiday", "sick", True)
     Next u
     ' D
-    r = SectionTitle(ws, r, "D. Fairness today (grade " & CHARGE_MAX_GRADE & " and below with a code in the unit): the spread of Total Hours, then of premium hours worked; the refusal rate this year")
+    r = SectionTitle(ws, r, "D. Fairness today (grade " & CHARGE_MAX_GRADE & " and below with a code in the unit): the spread of Total Hours, then of premium hours worked; the refusal rate this year = refused + left message + charged on a posting, over every call-out and posting row that asked them")
     ws.Range(ws.Cells(r, 1), ws.Cells(r, 12)).Value = Array("Unit", "People", "Total min", "Total max", "Total mean", "Total SD", "Top-to-bottom gap", _
                                                            "Worked min", "Worked max", "Worked mean", "Worked SD", "Refusal rate")
     HeaderStyle ws.Range(ws.Cells(r, 1), ws.Cells(r, 12))
     r = r + 1
-    Dim parts As Variant, tp As Variant, pp As Variant
+    Dim parts As Variant
     For u = LBound(depts) To UBound(depts)
         If fair.Exists(CStr(depts(u))) Then
             parts = Split(CStr(fair(CStr(depts(u)))), "|")      ' 5 total | 5 premium | rate | people
@@ -507,7 +556,7 @@ Private Function CountRow(ByVal ws As Worksheet, ByVal r As Long, ByVal label As
     For q = 1 To 5
         ws.Cells(r, 1 + q).Value = Got(section, unit, metric, q)
     Next q
-    ws.Range(ws.Cells(r, 2), ws.Cells(r, 6)).NumberFormat = "0.##"
+    ws.Range(ws.Cells(r, 2), ws.Cells(r, 6)).NumberFormat = "General"
     CountRow = r + 1
 End Function
 
@@ -563,5 +612,16 @@ Public Function StatsUnitRows() As Variant
             out(n, 1) = p(1): out(n, 2) = IIf(CStr(p(3)) = "5", "Year to date", "Q" & p(3)): out(n, 3) = p(0) & " " & p(2): out(n, 4) = mAcc(k)
         End If
     Next k
-    StatsUnitRows = out
+    If n < UBound(out, 1) Then
+        Dim trimmed() As Variant: ReDim trimmed(1 To n, 1 To 4)
+        Dim a As Long, b As Long
+        For a = 1 To n
+            For b = 1 To 4
+                trimmed(a, b) = out(a, b)
+            Next b
+        Next a
+        StatsUnitRows = trimmed
+    Else
+        StatsUnitRows = out
+    End If
 End Function

@@ -332,8 +332,8 @@ Private Function RunCase(f() As String) As String
             RunCase = ReportKindCore(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
         Case "reconcile"                           ' v27: the paper's names (;), the roster's names (;) -> positions that differ|not listed|not on paper
             RunCase = ReconcileDiffCore(i1, i2)
-        Case "squarter"                            ' v27 (Stats): a date -> Q1 .. Q4
-            RunCase = StatsQuarter(ParseD(i1))
+        Case "squarter"                            ' v27 (Stats): a date, the roster year's Jan 1 -> Q1 .. Q4 (late December before it = Q1)
+            RunCase = StatsQuarter(ParseD(i1), ParseD(i2))
         Case "sbucket"                             ' v27 (Stats): a log row's Type, Outcome, Status -> what it counts as
             RunCase = StatsBucket(i1, i2, i3)
         Case "sband"                               ' v27 (Stats): an hour 0..23 -> the time-of-day band
@@ -1680,11 +1680,11 @@ Private Sub LoadCases4()
     AddCase "reconcile,blank-paper-line,Ann B;;Cal D,Ann B;Bob C;Cal D,,,,2|-|Bob C"
     AddCase "reconcile,empty-paper,,Ann B;Bob C,,,,1;2|-|Ann B;Bob C"
     AddCase "reconcile,both-empty,,,,,,-|-|-"
-    AddCase "squarter,jan,2026-01-11,,,,,Q1"
-    AddCase "squarter,mar-31,2026-03-31,,,,,Q1"
-    AddCase "squarter,apr-1,2026-04-01,,,,,Q2"
-    AddCase "squarter,sep,2026-09-15,,,,,Q3"
-    AddCase "squarter,dec,2026-12-26,,,,,Q4"
+    AddCase "squarter,jan,2026-01-11,2026-01-01,,,,Q1"
+    AddCase "squarter,mar-31,2026-03-31,2026-01-01,,,,Q1"
+    AddCase "squarter,apr-1,2026-04-01,2026-01-01,,,,Q2"
+    AddCase "squarter,sep,2026-09-15,2026-01-01,,,,Q3"
+    AddCase "squarter,dec,2026-12-26,2026-01-01,,,,Q4"
     AddCase "sbucket,void-first,Callout,Accepted,VOID,,,void"
     AddCase "sbucket,callout-accepted,Callout,Accepted,Active,,,accepted"
     AddCase "sbucket,callout-refused,Callout,Refused,,,,refused"
@@ -1709,5 +1709,8 @@ Private Sub LoadCases4()
     AddCase "kperiod,digits-glued,110/17/2026 - 1/2/3/2026,,,,,no dates"
     AddCase "kkind,starts-last-year,2025-12-01,2026-10-17,2025-12-28,2026-12-26,,outside"
     AddCase "kweight,blank-hours,CA OVERTIME=,,,,,0"
+    AddCase "squarter,dec-28-is-q1,2025-12-28,2026-01-01,,,,Q1"
+    AddCase "squarter,dec-31-is-q1,2025-12-31,2026-01-01,,,,Q1"
+    AddCase "sspread,quarter-hours,22.25;19.25,,,,,19.3|22.3|20.8|1.5|3.0"
 ' <<< CASES
 End Sub

@@ -235,6 +235,8 @@ Private Sub btnLoad_Click()
     RefreshCalCache                                  ' (review) a call-out accepted a minute ago must count: the caches are reloaded here
     For fi = 1 To mN
         mL(fi).MaxHours = FatigueMaxFor(mL(fi).EmpName, mL(fi).EmpShift, mP.ShiftDate, mP.ShiftLbl)
+        ' (re-review) OT already accepted or awarded on THIS shift since the list was frozen: they can take none of it
+        If OtWorkedOn(mL(fi).EmpName, mP.ShiftDate, IsNightShift(mP.ShiftLbl)) > 0 Then mL(fi).MaxHours = 0
         mL(fi).MaxSet = True
     Next fi
     mDirty = False
@@ -304,7 +306,7 @@ Private Sub RefreshList(ByVal keepIdx As Long)
             Case "Awarded"
                 res = "AWARDED"
                 If IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then res = res & "  " & HoursText(mL(i).SignupHrs) & " h"
-            Case "Charged": res = "Not signed up: " & ChargedText(mP.Hours, mL(i).Charged)    ' v26.5.5 (5.1 / 5.2): "21 charged (12 h x 1.75)"
+            Case "Charged": res = "Not signed up: " & ChargedText(CappedPostingHours(mP.Hours, mL(i).MaxHours, mL(i).MaxSet), mL(i).Charged)    ' v26.5.5 (5.1 / 5.2): "21 charged (12 h x 1.75)"; a capped person's own hours
             Case "Signed up": res = "Signed up: not charged"
             Case Else
                 res = ""

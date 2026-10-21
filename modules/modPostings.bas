@@ -1101,6 +1101,15 @@ Public Sub ComputeAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As 
     Next i
 End Sub
 
+' (re-review) the confirms' "N x 21 hrs" line is wrong when the 16 h rule capped someone: this names them
+Public Function CapNote(ByRef lst() As PListRec, ByVal n As Long, ByVal postHours As Double) As String
+    Dim i As Long, nCap As Long
+    For i = 1 To n
+        If lst(i).Charged > 0 And lst(i).MaxSet And lst(i).MaxHours < postHours - 0.001 Then nCap = nCap + 1
+    Next i
+    If nCap > 0 Then CapNote = " (the 16 h rule caps " & nCap & " of them at their own hours)"
+End Function
+
 ' PURE (SelfTest "postcap"): the hours a listed person is charged on - the posting's, or their 16 h rule
 ' maximum when the award pop-up worked one out (MaxSet) and it is lower; 0 = nothing (they could take none)
 Public Function CappedPostingHours(ByVal postHours As Double, ByVal maxHours As Double, ByVal maxSet As Boolean) As Double
@@ -1344,7 +1353,7 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
           IIf(anyPartial, "Covered: " & HoursText(covered) & " h" & _
               IIf(uncovered > 0, "; the other " & HoursText(uncovered) & " h are not covered and nobody is charged for them", "") & vbNewLine, "") & _
           "Charged (didn't sign up, ahead in call order): " & nCh & " x " & _
-          HoursText(p.Hours * CHARGE_MULTIPLIER) & " hrs = " & HoursText(tot) & " hrs" & _
+          HoursText(p.Hours * CHARGE_MULTIPLIER) & " hrs = " & HoursText(tot) & " hrs" & CapNote(lst, n, p.Hours) & _
           IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "")
     If Ask(msg & vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm award", vbOK) <> vbOK Then Exit Function
 
@@ -1441,7 +1450,7 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
               "Award OUT OF DEPARTMENT to: " & outName & IIf(code <> "", "  (" & code & ")", "") & _
               IIf(outPartial, "  for " & HoursText(outTake) & " of " & HoursText(p.Hours) & " h (the rest is not covered; nobody is charged for it)", "") & vbNewLine & _
               "Charged (in department, didn't sign up): " & nCh & " x " & HoursText(p.Hours * CHARGE_MULTIPLIER) & _
-              " hrs = " & HoursText(tot) & " hrs" & IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "") & _
+              " hrs = " & HoursText(tot) & " hrs" & CapNote(lst, n, p.Hours) & IIf(nCh > 0, vbNewLine & "Pay period starting " & Format$(ps, "mmm d, yyyy"), "") & _
               vbNewLine & vbNewLine & "Submit?", vbOKCancel + vbQuestion, "Confirm out-of-department award", vbOK) <> vbOK Then Exit Function
 
     Dim awardTxt As String: awardTxt = outName & " (out of dept)"
@@ -1535,7 +1544,7 @@ Public Function SubmitNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
     End If
     If Ask(p.ID & "  -  " & p.Unit & "  -  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & vbNewLine & vbNewLine & _
               "NO TAKERS: charge all " & nCh & " eligible operator(s) " & HoursText(p.Hours * CHARGE_MULTIPLIER) & _
-              " hrs each (" & HoursText(tot) & " hrs total)" & vbNewLine & _
+              " hrs each (" & HoursText(tot) & " hrs total)" & CapNote(lst, n, p.Hours) & vbNewLine & _
               "Pay period starting " & Format$(ps, "mmm d, yyyy") & vbNewLine & vbNewLine & "Submit?", _
               vbOKCancel + vbExclamation, "Confirm no takers", vbOK) <> vbOK Then Exit Function
     If Not WriteOutcome(p, lst, n, "No takers", "", ps, 0) Then Exit Function

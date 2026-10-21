@@ -883,9 +883,11 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     removed = ""
     Dim i As Long, k As Long, why As String, mx As Double
     Dim nSched As Long, nRest As Long, offTxt As String, ssTxt As String, fatTxt As String, otTxt As String
-    ' v26.5.5 (review): the 16 h readers look at four shifts per person - one read of the switch table for the list
+    ' v26.5.5 (review): the 16 h readers look at four shifts per person - one read of the switch table for the list;
+    ' the batch is ended on every path (a batch left on would feed stale switch rows to the rest of the session)
     Dim batched As Boolean
     If Not SwitchBatchActive() Then BeginSwitchBatch: batched = True
+    On Error GoTo Failed
     For i = 1 To n
         why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, d, shiftLbl, 0, mx)
         Select Case why
@@ -909,6 +911,13 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     If otTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "already on OT that shift: " & otTxt
     If fatTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "16 h rule (OT accepted / awarded or a switch touching the shift): " & fatTxt
     FilterNotFree = k
+    Exit Function
+Failed:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    If batched Then EndSwitchBatch
+    On Error GoTo 0
+    Err.Raise en, "FilterNotFree", em
 End Function
 
 ' Drops anyone booked off on date d from a call / posting list.

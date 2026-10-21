@@ -374,9 +374,13 @@ Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolea
         d = st.PostDate + dd
         n = LoadEligible(st.Unit, CrewFilter(CREW_ALL), recs, 999, CALLOUT_INCLUDE_DAYS, d)
         If n > 0 Then n = FilterNotFree(recs, n, d, "Days", offTxt)
-        If n >= 2 Then Exit For
+        If n >= 2 Then
+            ' v26.5.5 (re-review): the two must be free of a 16 h cap (real OT on a copy of real data), or the charge and the 8 h differ
+            If recs(1).MaxHours >= USUAL_SHIFT_HOURS And recs(2).MaxHours >= USUAL_SHIFT_HOURS Then Exit For
+            n = 0
+        End If
     Next dd
-    If n < 2 Then why = "no day shift in the five weeks after the posting has two people free in " & st.Unit: Exit Function
+    If n < 2 Then why = "no day shift in the five weeks after the posting has two people free (and uncapped by the 16 h rule) in " & st.Unit: Exit Function
     ReDim taken(1 To n)
     recs(1).Outcome = "Refused"
     recs(2).Outcome = "Accepted": taken(2) = 8                  ' takes 8 of the 12 on offer: the shift closes (v25, D-E4)

@@ -205,8 +205,8 @@ Private Sub UserForm_Initialize()
         .Enabled = False
     End With
 
-    MakeLabel "lblStatus", "", 10, 541, 472, 8.5
-    C("lblStatus").Height = Px(56)                   ' v26.5.5 (5.2): the trust strip (two lines) and the details under it; the form is 600 tall
+    MakeLabel "lblStatus", "", 10, 543, 472, 8
+    C("lblStatus").Height = Px(44)                   ' v26.5.5 (5.2): the trust strip (two lines) and the details under it, four lines of 8 pt; the form's inside ends at 587
     C("lblStatus").WordWrap = True
     C("lblStatus").Caption = TrustStrip()
 

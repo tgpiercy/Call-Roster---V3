@@ -309,6 +309,8 @@ Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal is
             If isNight Then WorksConflict = "starts days the next morning" Else WorksConflict = "is coming off nights that morning"
         Case "16 h rule"
             WorksConflict = "would go past " & FATIGUE_MAX_HOURS & " h of work with the OT they have accepted around that shift (the 16 h rule)"
+        Case "on OT"
+            WorksConflict = "already has OT accepted on that shift"
     End Select
 End Function
 

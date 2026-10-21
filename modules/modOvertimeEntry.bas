@@ -192,6 +192,7 @@ Public gSmokeRefusal As String      ' v25: why the publish refused (the box it w
 Public gSaveFailedAt As Date        ' v26.5.5 (A1): when the last save to disk FAILED (0 = the last save went through); the Desk header shows it
 Public gOpenedMtime As Date         ' v26.5.5 (A2): the file's on-disk time at open and after every own save (0 = not readable: the guard is off)
 Private mNoSaveTold As Boolean      ' v26.5.5: the "saving is blocked" box has been shown this session
+Private mSaveBoxAt As Date          ' v26.5.5: when the NOT SAVED box was last shown (one per submit, not one per save inside it)
 
 
 ' ====================================================================
@@ -1245,7 +1246,9 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     ' message is charged on the hours they could take, never on hours they may not work (FilterNotFree
     ' sets MaxHours; a list that never went through it carries FATIGUE_MAX_HOURS = no cap)
     Dim capped() As Boolean: ReDim capped(1 To n)
+    Dim offers0() As Double: ReDim offers0(1 To n)            ' (re-review) the offer before the cap: a capped taker still took PART of the shift
     For i = 1 To n
+        offers0(i) = offers(i)
         If entries(i).MaxHours > 0 And entries(i).MaxHours < offers(i) - 0.001 Then offers(i) = entries(i).MaxHours: capped(i) = True
     Next i
 
@@ -1270,8 +1273,9 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
             If entries(i).EstHrs Then data(k, L_EMPHRS) = entries(i).RosterHrs     ' v24.3: the log keeps their real total, never the estimate
             data(k, L_OUTCOME) = entries(i).Outcome
             data(k, L_REASON) = entries(i).Reason
-            If entries(i).Outcome = "Accepted" And taken(i) > 0 And taken(i) < offers(i) Then
-                data(k, L_REASON) = "Took " & HoursText(taken(i)) & " of " & HoursText(offers(i)) & " h (the rest dropped, uncharged)"
+            If entries(i).Outcome = "Accepted" And taken(i) > 0 And taken(i) < offers0(i) Then
+                data(k, L_REASON) = "Took " & HoursText(taken(i)) & " of " & HoursText(offers0(i)) & " h (the rest dropped, uncharged" & _
+                                    IIf(capped(i), "; the 16 h rule allowed " & HoursText(offers(i)) & " h", "") & ")"
             ElseIf offers(i) = 0 And entries(i).Reason = "" Then
                 data(k, L_REASON) = "Not offered: a partial acceptance closed the shift"      ' v25 (D-E4): never charged
             ElseIf capped(i) And entries(i).Reason = "" Then
@@ -1329,7 +1333,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     For i = 1 To n
         If entries(i).Outcome = "Accepted" Then
             covered = covered + AcceptedHours(offers(i), taken(i))
-            If taken(i) > 0 And taken(i) < offers(i) Then anyPartial = True
+            If taken(i) > 0 And taken(i) < offers0(i) Then anyPartial = True     ' against the offer before the cap
         End If
     Next i
     Dim nextTxt As String: nextTxt = NextStepText(nAcc, IIf(anyPartial, covered, 0), nMsg, IsAdmin(), PRIMARY_ADMIN_NAME)
@@ -1470,7 +1474,8 @@ Public Function SaveIfWritable() As Boolean
     End If
     If ThisWorkbook.ReadOnly Then SaveIfWritable = True: Exit Function
     Dim en As Long, em As String, before As Date, after As Date
-    Dim toldBefore As Boolean: toldBefore = (gSaveFailedAt > 0)     ' (review) one box per failed submit, not one per save inside it
+    ' (review) one box per failed submit, not one per save inside it: a box shown within the last ten seconds is not repeated
+    Dim toldBefore As Boolean: toldBefore = (mSaveBoxAt > 0 And (Now - mSaveBoxAt) * 86400# < 10)
     On Error Resume Next
     before = FileDateTime(ThisWorkbook.FullName)
     Err.Clear
@@ -1487,6 +1492,7 @@ Public Function SaveIfWritable() As Boolean
     If em = "" Then em = "the file on disk did not change"
     LogError "SaveIfWritable", en, em
     If Not toldBefore Then
+        mSaveBoxAt = Now
         MsgBox "NOT SAVED to disk (" & em & ")." & vbNewLine & vbNewLine & _
                "Don't close Excel. Close the pop-up, then File > Save; if that fails, tell " & PRIMARY_ADMIN_NAME & "." & vbNewLine & _
                "What you logged is in this workbook until it is saved.", vbCritical, "Not saved"
@@ -1554,7 +1560,11 @@ End Sub
 
 ' The warning the pop-ups add to their success line after a failed save ("" when the save went through)
 Public Function SaveWarnText() As String
-    If gSaveFailedAt > 0 Then SaveWarnText = "   NOT SAVED to disk - File > Save now."
+    If NoSave() Then
+        SaveWarnText = "   SAVING IS BLOCKED - close without saving, reopen, log it again."
+    ElseIf gSaveFailedAt > 0 Then
+        SaveWarnText = "   NOT SAVED to disk - File > Save now."
+    End If
 End Function
 
 ' UserInterfaceOnly lets macros edit while users can't. It is not saved

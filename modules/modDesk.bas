@@ -168,7 +168,11 @@ Public Sub DrawDesk()
     End If
     Dim kOld As Boolean: kOld = (dt = 0 Or KronosIsStale())      ' the status line's one rule (review)
     Dim nsTxt As String                            ' v26.5.5 (A1): a failed save stays on the header until a save goes through
-    If gSaveFailedAt > 0 And Not ThisWorkbook.Saved Then nsTxt = "NOT SAVED since " & Format$(gSaveFailedAt, "h:mm AM/PM") & " - File > Save now"
+    If NoSave() Then
+        nsTxt = "SAVING IS BLOCKED - close WITHOUT saving, reopen, log again"
+    ElseIf gSaveFailedAt > 0 And Not ThisWorkbook.Saved Then
+        nsTxt = "NOT SAVED since " & Format$(gSaveFailedAt, "h:mm AM/PM") & " - File > Save now"
+    End If
     With ws.Cells(1, 2)
         .Value = "CALL OUT ROSTER"
         .Font.Name = DK_FONT_B: .Font.Size = 18: .Font.Color = dkNavy()

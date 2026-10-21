@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (written Oct 21, 2026: v26.5 is ON THE REAL ROSTER; v26.5.5 built, reviewed three times, tagged and pushed; next = Graeme installs v26.5.5 before Nov 1, and sends the two Kronos extracts, then the alpha Nov 1-15, then v27 before the Dec 1 training, v28 in January)
+# Paste this into a fresh session to carry on (written Oct 21, 2026: v26.5 is ON THE REAL ROSTER; v26.5.5 built, reviewed, tagged, pushed, INSTALLED AND TESTED by Graeme the same day with no issues; next = the two Kronos extracts, then v27, then the alpha Nov 1-15, then v27 before the Dec 1 training, v28 in January)
 
 ```
 Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first (the numbering rule, the three gating levels,
@@ -15,7 +15,8 @@ Where things stand: v26.5 is INSTALLED on the real roster (Graeme, Oct 21) and a
 imported. v26.5.5 is BUILT and TAGGED (dist/Callout_Roster_v26.5.5.zip; docs/INSTALL-v26.5.5.md): the integrity
 fixes, the 3 AM fixes, THE 16 H RULE (a rule change), the text pass, the trust strip, the Practice button. It
 re-pastes ThisWorkbook and every form but frmEmployee; no members' change; SystemCheck "25 of 25 on v26.5.5",
-SelfTest 698 / 81, SmokeTest 20 steps. NOT installed yet: ask first whether it is on the real roster.
+SelfTest 698 / 81, SmokeTest 20 steps. Graeme ran the install and the tests on Oct 21: "Testing completed. No issues."
+Take it as on the real roster; confirm in one line (SystemCheck's first line) before building on it.
 
 DECIDED BY GRAEME Oct 21 (after the reviews; don't re-ask): a person the 16 h rule caps is OFFERED their
 maximum, so a refusal / left message is charged on those hours (max 4 h -> 7 h, not 21) and a posting they
@@ -28,9 +29,8 @@ then. FIRST THING NEXT SESSION: ask for the two files (uploads folder, never in 
 only, and write the import's brief (which file feeds H, which the per-period hours, what the daily delta log
 is for) before any code.
 
-THEN the install: he runs the panel on a copy, then the real roster (docs/INSTALL-v26.5.5.md; group 4 has
-eleven rows, three of which may not be stageable - the failed save, the two-PC stale copy, a supervisor login:
-he notes them). Ask for the SmokeTest box, the IntegrityCheck result, and any group-4 row that failed.
+The install is done (Oct 21, no issues reported). The three group-4 rows that may not have been stageable -
+the failed save, the two-PC stale copy, a supervisor login - can be asked about once, not chased.
 
 THEN v27 (briefs/v27.md), one master install about Nov 20-25 + ONE members' install (Members M4), built during
 the alpha once v26.5.5 has run on the real roster, with the alpha findings folded in: build order Desk v2

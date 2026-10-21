@@ -22,13 +22,36 @@ Option Explicit
 '     provisional-OT formulas (column C) read: accepted / awarded shifts
 '     that have ended by that date are in Kronos, so they stop counting.
 '  v26.5 (Oct 19):
-'   - Reads the Kronos EXPORT itself ("Employee Transactions and Totals",
-'     one dated row per transaction) when KRONOS_PATH names it, or the
-'     folder the exports are saved in (the newest file): the rows are
-'     summed per person into the pivot's shape (PivotFromTransactions),
-'     so the import runs unchanged, and per roster pay period into the
-'     admin-only Worked Periods sheet (WriteWorkedPeriods; published as
-'     dWorked). The pivot sheet "Sorted Data Here" stays as the fall-back.
+'   - Read the Kronos EXPORT itself when KRONOS_PATH named it, or the folder
+'     the exports are saved in; per roster pay period into the admin-only
+'     Worked Periods sheet (WriteWorkedPeriods; published as dWorked).
+'     The pivot sheet "Sorted Data Here" stays as the fall-back.
+'  v27 (Oct 21, briefs/v27-kronos.md) - THE REPORT READ RIGHT:
+'   - The export "Employee Transactions and Totals" has THREE blocks. The
+'     dated "Transactions:" block is timecard EDITS (adds and reversals; it
+'     nets to a few hundred hours a year) - v26.5 summed it and wrote wrong
+'     Worked figures. The undated "Totals:" block (Global ID, Employee, Pay
+'     Code, Hours; the heading SHIFTED two columns left) holds the real hours
+'     per person per pay code for the report's Time Period. ReadKronosReport
+'     reads the title's Time Period and Query and the two blocks by heading.
+'   - Two Time Periods, one import: a ONE-DAY snapshot (every morning for
+'     yesterday) adds that day's rows to the Worked Days LEDGER; the CUMULATIVE
+'     report (Jan 11 .. yesterday, at each period end) replaces the Kronos
+'     Totals SNAPSHOT and logs every difference from what the ledger expected
+'     into Worked Changes (a timecard edit, dated by the Transactions block
+'     when it names the day). Worked (H) = the snapshot through KronosCumThrough
+'     + the ledger days after it, each code's hours x its multiplier
+'     (PREMIUM_CODES / PREMIUM_MULTIPLIERS: straight-time equivalent, as the
+'     processing workbook's Grand Total was), rounded whole per person
+'     (WeightedTotal). Other codes on a roster person are reported, never
+'     counted. PivotFromLedger gives that in the pivot's shape, so the
+'     name / Payroll # matching below runs unchanged.
+'   - The H write is verified: a backup copy first, the sanity confirm (anyone
+'     whose H falls, or rises by more than KRONOS_JUMP_HOURS), H from one array,
+'     Refused and the period cells compared before / after, MarkNoSave on a
+'     mismatch. Data Through = the report's Time Period end, never the file's
+'     saved date. Every report file newer than the last import is read, oldest
+'     first (KronosFilesToImport). The pivot sheet is still the fall-back.
 ' ====================================================================
 
 Public Const KR_VERSION As String = "Kronos import v26.5.5 (Oct 21)"
@@ -41,11 +64,133 @@ Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (
 Public Const WP_SHEET As String = "Worked Periods"
 Public Const WP_TABLE As String = "tblWorkedPeriods"
 Private Const WP_NCOLS As Long = 6          ' Payroll #, Employee, Period Start, Hours, Codes, Imported At
-Private mTxPeriods As Object                ' this import's per-period sums: "namekey|serial" -> hours
+Private mTxPeriods As Object                ' the per-period sums for WriteWorkedPeriods: "namekey|serial" -> weighted hours
 Private mTxCodes As Object                  ' "namekey|serial" -> "code h; code h"
-Private mTxRaw As Object                    ' namekey -> the name as the export spells it
+Private mTxRaw As Object                    ' namekey -> the name as the roster spells it
 Private mTxPay As Object                    ' namekey -> Global ID (the Payroll #)
-Private mTxSkipped As Long                  ' export rows with hours but no pay code or no date (a total or title line): not counted
+Private mTxSkipped As Long                  ' (kept for the message; 0 since v27)
+' v27: the three admin-only tables behind Worked (H) - see the header
+Public Const KT_SHEET As String = "Kronos Totals"
+Public Const KT_TABLE As String = "tblKronosTotals"
+Private Const KT_NCOLS As Long = 6          ' Payroll #, Employee, Pay Code, Hours, Through, Imported At
+Public Const WD_SHEET As String = "Worked Days"
+Public Const WD_TABLE As String = "tblWorkedDays"
+Private Const WD_NCOLS As Long = 8          ' Payroll #, Employee, Date, Pay Code, Hours, Weighted, Source, Imported At
+Public Const WC_SHEET As String = "Worked Changes"
+Public Const WC_TABLE As String = "tblWorkedChanges"
+Private Const WC_NCOLS As Long = 13         ' When, Payroll #, Employee, Date, Pay Code, Hours Before, Hours After, Change, Weighted Change, Kind, Note, Source, Imported By
+Public Const KRONOS_JUMP_HOURS As Double = 60   ' the sanity confirm names anyone whose H rises by more than this in one import (or falls at all)
+Private Const KRONOS_YEAR_SLACK As Long = 14    ' a cumulative report must start within this many days of the roster year's first day (Kronos's year starts a period later)
+
+' v27: one report, read into arrays (the Totals block is what counts; the Transactions block only dates an edit)
+Private Type KronosReport
+    HasTotals As Boolean
+    FromD As Date
+    ToD As Date
+    Query As String
+    nTot As Long
+    TotId() As String
+    TotName() As String
+    TotCode() As String
+    TotHrs() As Double
+    nTx As Long
+    TxId() As String
+    TxDate() As Date
+    TxCode() As String
+    TxBy() As String
+End Type
+
+' ====================================================================
+'  v27: THE PURE RULES (mirrored in tests/rules.py)
+' ====================================================================
+' The multiplier for a Kronos pay code (-1 = not a roster code): the code without its "CA " prefix, any case, trimmed,
+' against the parallel lists (suite kmult).
+Public Function PremiumMultiplier(ByVal code As String, ByVal codes As String, ByVal mults As String) As Double
+    PremiumMultiplier = -1
+    Dim c As String: c = Trim$(code)
+    If UCase$(Left$(c, 3)) = "CA " Then c = Trim$(Mid$(c, 4))
+    If c = "" Then Exit Function
+    Dim cs As Variant: cs = Split(codes, ",")
+    Dim ms As Variant: ms = Split(mults, ",")
+    Dim i As Long
+    For i = 0 To UBound(cs)
+        If StrComp(Trim$(CStr(cs(i))), c, vbTextCompare) = 0 Then
+            If i <= UBound(ms) Then PremiumMultiplier = Val(Trim$(CStr(ms(i))))
+            Exit Function
+        End If
+    Next i
+End Function
+
+' Excel's ROUND(x, 0): half away from zero (VBA's Round is half-to-even; the processing workbook used Excel's)
+Public Function RoundHalfUp(ByVal x As Double) As Double
+    RoundHalfUp = Fix(x + 0.5000001 * Sgn(x))
+End Function
+
+' One person's Worked (H) from "code=hours;code=hours": the roster codes' hours x their multiplier, summed and rounded
+' to a whole number; the other codes are left out and named after "|" so the caller reports them (suite kweight).
+Public Function WeightedTotal(ByVal spec As String, ByVal codes As String, ByVal mults As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim i As Long, p As Long, code As String, m As Double, tot As Double, other As String
+    For i = 0 To UBound(parts)
+        If Trim$(CStr(parts(i))) <> "" Then
+            p = InStr(CStr(parts(i)), "=")
+            If p > 0 Then
+                code = Trim$(Left$(CStr(parts(i)), p - 1))
+                m = PremiumMultiplier(code, codes, mults)
+                If m < 0 Then
+                    other = other & IIf(other = "", "", ";") & code
+                Else
+                    tot = tot + Val(Mid$(CStr(parts(i)), p + 1)) * m
+                End If
+            End If
+        End If
+    Next i
+    WeightedTotal = CStr(RoundHalfUp(tot)) & IIf(other <> "", "|" & other, "")
+End Function
+
+' The report's "Time Period : mm/dd/yyyy - mm/dd/yyyy" read by hand, never CDate: "" with fromD / toD set, or what is
+' wrong ("no dates", "end before start"). Month first, as Kronos prints it (suite kperiod).
+Public Function TimePeriodCore(ByVal text As String, ByRef fromD As Date, ByRef toD As Date) As String
+    fromD = 0: toD = 0
+    Dim s As String, i As Long, ch As String
+    For i = 1 To Len(text)
+        ch = Mid$(text, i, 1)
+        If (ch >= "0" And ch <= "9") Or ch = "/" Then s = s & ch Else s = s & " "
+    Next i
+    Do While InStr(s, "  ") > 0
+        s = Replace(s, "  ", " ")
+    Loop
+    Dim toks As Variant: toks = Split(Trim$(s), " ")
+    Dim n As Long, parts As Variant, m As Long, d As Long, y As Long, dt As Date
+    For i = 0 To UBound(toks)
+        parts = Split(CStr(toks(i)), "/")
+        If UBound(parts) = 2 Then
+            m = Val(parts(0)): d = Val(parts(1)): y = Val(parts(2))
+            If y >= 1900 And y <= 2999 And m >= 1 And m <= 12 And d >= 1 And d <= 31 Then
+                dt = DateSerial(y, m, 1)
+                If d <= Day(DateSerial(y, m + 1, 0)) Then
+                    dt = DateSerial(y, m, d)
+                    n = n + 1
+                    If n = 1 Then fromD = dt
+                    If n = 2 Then toD = dt
+                End If
+            End If
+        End If
+    Next i
+    If n < 2 Then fromD = 0: toD = 0: TimePeriodCore = "no dates": Exit Function
+    If toD < fromD Then TimePeriodCore = "end before start"
+End Function
+
+' What a report is, from its Time Period against the roster year: "day" (one day: a snapshot for the ledger),
+' "cumulative" (starts within KRONOS_YEAR_SLACK days of the year's first day: the year's totals), "range" (several
+' days that are not the year to date: refused - the Totals block cannot be split into days), "outside" (not this
+' roster year) (suite kkind).
+Public Function ReportKindCore(ByVal fromD As Date, ByVal toD As Date, ByVal yearFrom As Date, ByVal yearTo As Date) As String
+    If fromD = 0 Or toD = 0 Then ReportKindCore = "outside": Exit Function
+    If toD < yearFrom Or fromD > yearTo Then ReportKindCore = "outside": Exit Function
+    If Int(fromD) = Int(toD) Then ReportKindCore = "day": Exit Function
+    If fromD <= yearFrom + KRONOS_YEAR_SLACK Then ReportKindCore = "cumulative" Else ReportKindCore = "range"
+End Function
 
 ' v25: the by-heading rule on its own (D-I4): "" when 'Employee Name' and 'Grand Total' are both found
 ' on one heading row within the first 10 rows of src (a 2-D array of the sheet), else what is missing.
@@ -69,74 +214,116 @@ Sub SyncKronosData()
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Sub
 
-    ' ---- open (or reuse) the Kronos workbook (v26.5: KRONOS_PATH may name a folder or a wildcard - the newest file) ----
-    Dim srcPath As String: srcPath = KronosFilePath()
-    If srcPath = "" Then
+    ' ---- v27: every report file newer than the last import, oldest first (one file: that file) ----
+    Dim files As Variant: files = KronosFilesToImport()
+    If Not IsArray(files) Then
         MsgBox "No Kronos file was found at" & vbNewLine & KRONOS_PATH & vbNewLine & vbNewLine & _
-               "KRONOS_PATH (modOvertimeEntry) names the export file, or the folder the exports are saved in (the newest is read).", vbCritical, "Kronos import"
+               "KRONOS_PATH (modOvertimeEntry) names the folder the Kronos reports are saved in (every report newer than the last import is read), or one report file.", _
+               vbCritical, "Kronos import"
         Exit Sub
     End If
-    Dim fileName As String: fileName = Mid$(srcPath, InStrRev(srcPath, "\") + 1)
-    Dim wbSource As Workbook, openedHere As Boolean
-    On Error Resume Next
-    Set wbSource = Workbooks(fileName)
-    On Error GoTo Oops
-    If wbSource Is Nothing Then
-        Application.EnableEvents = False          ' don't run the Kronos file's own macros
-        On Error Resume Next
-        Set wbSource = Workbooks.Open(Filename:=srcPath, ReadOnly:=True, UpdateLinks:=0)
-        On Error GoTo Oops
-        Application.EnableEvents = True
-        If wbSource Is Nothing Then
-            MsgBox "Could not open the Kronos file:" & vbNewLine & srcPath, vbCritical, "Call Out Roster"
-            Exit Sub
-        End If
-        openedHere = True
-    End If
+    Dim stamp As Date: stamp = Now
+    ' v27 (A7): a backup copy before anything is written, and the hours that must NOT move captured now
+    Dim bk As String
+    If Not PeopleBackup("kronos", bk) Then Exit Sub
+    Dim refBefore As Object: Set refBefore = RosterRefusedMap()
 
-    ' v26.5: the EXPORT (one dated row per transaction) is read when it is there; the pivot sheet otherwise
-    Dim wsSource As Worksheet, txHdr As Long, fromExport As Boolean
-    Set wsSource = TransactionsSheet(wbSource, txHdr)
-    fromExport = Not wsSource Is Nothing
-    If Not fromExport Then
+    ' ---- the roster's names and numbers, for matching the report's people (the roster's spelling wins) ----
+    Dim nameMap As Object: Set nameMap = CreateObject("Scripting.Dictionary"): nameMap.CompareMode = 1   ' NameKey -> roster name
+    Dim numMap As Object: Set numMap = CreateObject("Scripting.Dictionary"): numMap.CompareMode = 1    ' Payroll # -> roster name
+    Dim r As Long, nm As String
+    Dim pn As String
+    For r = R_FIRST To lastRow
+        nm = Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value))
+        If nm <> "" Then
+            nameMap(NameKey(nm)) = nm
+            pn = PayrollText(wsDest.Cells(r, C_PAYROLL).Value)
+            If pn <> "" Then numMap(pn) = nm
+        End If
+    Next r
+
+    ' ---- each file: a report (its Totals block into the snapshot or the ledger) or the pivot sheet (the fall-back) ----
+    Dim srcPath As String, fileName As String, wbSource As Workbook, openedHere As Boolean, wsSource As Worksheet
+    Dim rep As KronosReport, fi As Long, ingest As String, repTxt As String, nReports As Long, pivotSrc As Variant, pivotName As String
+    Dim fileDate As Date, lastFileDate As Date, awaitFrom As Date: awaitFrom = KronosAwaitFrom()
+    For fi = LBound(files) To UBound(files)
+        srcPath = CStr(files(fi))
+        fileName = Mid$(srcPath, InStrRev(srcPath, "\") + 1)
+        Set wbSource = Nothing: openedHere = False
         On Error Resume Next
-        Set wsSource = wbSource.Worksheets(KRONOS_SHEET)
+        Set wbSource = Workbooks(fileName)
         On Error GoTo Oops
-    End If
-    If wsSource Is Nothing Then
+        If wbSource Is Nothing Then
+            Application.EnableEvents = False          ' don't run the Kronos file's own macros
+            On Error Resume Next
+            Set wbSource = Workbooks.Open(Filename:=srcPath, ReadOnly:=True, UpdateLinks:=0)
+            On Error GoTo Oops
+            Application.EnableEvents = True
+            If wbSource Is Nothing Then
+                MsgBox "Could not open the Kronos file:" & vbNewLine & srcPath, vbCritical, "Call Out Roster"
+                Exit Sub
+            End If
+            openedHere = True
+        End If
+        On Error Resume Next
+        fileDate = FileDateTime(srcPath)
+        On Error GoTo Oops
+        If fileDate > lastFileDate Then lastFileDate = fileDate
+        ingest = ReadKronosReport(wbSource, rep)
+        If rep.HasTotals Then
+            If ingest = "" Then
+                ' v23: after a rollover nothing is taken until a report reaches the new year
+                If awaitFrom > 0 And rep.ToD < awaitFrom Then
+                    ingest = "its Time Period ends " & Format$(rep.ToD, "ddd mmm d, yyyy") & ": last year's hours (Worked stays 0 until a report reaches " & Format$(awaitFrom, "mmm d, yyyy") & ")"
+                Else
+                    ingest = IngestReport(rep, fileName, stamp, nameMap, numMap)
+                    nReports = nReports + 1
+                End If
+            End If
+            repTxt = repTxt & vbNewLine & fileName & ": " & ingest
+        Else
+            ' the fall-back: the processing workbook's pivot sheet (Payroll #, Employee Name, Grand Total)
+            Set wsSource = Nothing
+            On Error Resume Next
+            Set wsSource = wbSource.Worksheets(KRONOS_SHEET)
+            On Error GoTo Oops
+            If wsSource Is Nothing Then
+                repTxt = repTxt & vbNewLine & fileName & ": not a Kronos report (no 'Totals:' block) and no sheet '" & KRONOS_SHEET & "' - skipped"
+            Else
+                pivotSrc = SheetValues(wsSource): pivotName = fileName
+            End If
+        End If
         If openedHere Then wbSource.Close SaveChanges:=False
-        MsgBox "Neither the Kronos export's transactions (a heading row with Employee, Date, Pay Code and Hours) nor a sheet '" & _
-               KRONOS_SHEET & "' was found in " & fileName, vbCritical, "Call Out Roster"
+        Set wbSource = Nothing: openedHere = False
+    Next fi
+    ThisWorkbook.Activate
+
+    ' ---- what Worked (H) is read from: the snapshot + ledger (any report ever ingested), else the pivot sheet ----
+    Dim src As Variant, fromReport As Boolean, through As Date
+    If nReports > 0 Or KronosCumThrough() > 0 Or KronosLedgerFrom() > 0 Then
+        src = PivotFromLedger(through)
+        fromReport = True
+        If Not IsArray(pivotSrc) Then pivotName = ""
+    ElseIf IsArray(pivotSrc) Then
+        src = pivotSrc
+        fileDate = lastFileDate
+    Else
+        MsgBox "Nothing to import:" & repTxt & vbNewLine & vbNewLine & "Nothing was changed.", vbExclamation, "Kronos import"
         Exit Sub
     End If
+    If fromReport And pivotName <> "" Then repTxt = repTxt & vbNewLine & pivotName & ": the pivot sheet is not used while reports are (Worked comes from the reports)"
+    fileName = IIf(fromReport, "the Kronos reports", pivotName)
 
     ' ---- Kronos names -> grand total ----
     Dim dict As Object: Set dict = CreateObject("Scripting.Dictionary")
     Dim rawOf As Object: Set rawOf = CreateObject("Scripting.Dictionary")   ' key -> name as Kronos spells it
     Dim used As Object: Set used = CreateObject("Scripting.Dictionary")    ' keys matched to a roster name
     Dim alt As Object: Set alt = CreateObject("Scripting.Dictionary")   ' "Last,First X" -> "last,first"
-    ' v24.3.1 (review I3, decided D-I4): the sheet is read whole, and the name and total columns are
-    ' found by their headings, never by position. Before this, column 2 and column 13 were read for
-    ' every row: a report with one pay-code column more or fewer would have put a pay-code column
-    ' into everyone's Worked hours (or read no Grand Total at all) and still said "complete".
-    Dim lastSrc As Long, lastCol As Long, lastCell As Range
-    ' the last cell that holds anything, by rows and by columns (UsedRange can run to the sheet's end
-    ' when a column carries a whole-column format); nothing found = an empty sheet, read 2 x 2
-    ' (LookIn:=xlFormulas, not xlValues: a hidden or filtered-out last row or column still counts)
-    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
-    If lastCell Is Nothing Then lastSrc = 2 Else lastSrc = lastCell.Row
-    Set lastCell = wsSource.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious)
-    If lastCell Is Nothing Then lastCol = 2 Else lastCol = lastCell.Column
-    If lastSrc < 2 Then lastSrc = 2                   ' always a 2-D array below
-    If lastCol < 2 Then lastCol = 2
-    Dim src As Variant: src = wsSource.Range(wsSource.Cells(1, 1), wsSource.Cells(lastSrc, lastCol)).Value
-    If fromExport Then src = PivotFromTransactions(src, txHdr)      ' v26.5: the export's rows summed per person (and per period, kept aside)
+    ' v24.3.1 (review I3, decided D-I4): the name and total columns are found by their headings, never by position.
     Dim i As Long, k As String, raw As String, a As String
     Dim nameCol As Long, totCol As Long, hdrName As Long, hdrTot As Long, missingHdr As String
     missingHdr = KronosHeadingProblem(src, nameCol, totCol, hdrName, hdrTot)     ' v25: the rule on its own (SmokeTest runs it)
     If missingHdr <> "" Then
-        If openedHere Then wbSource.Close SaveChanges:=False
-        ThisWorkbook.Activate
         MsgBox "The Kronos sheet doesn't have the heading(s) the import needs: " & missingHdr & "." & vbNewLine & _
                "Nothing was changed." & vbNewLine & vbNewLine & _
                "Open " & fileName & ", sheet '" & KRONOS_SHEET & "', and check its heading row (it must be within the first 10 rows). " & _
@@ -146,7 +333,7 @@ Sub SyncKronosData()
     ' v24.2: the Payroll # column, found by its header (not there = the import works as before)
     Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary")        ' name key -> Payroll #
     Dim keyOfNum As Object: Set keyOfNum = CreateObject("Scripting.Dictionary")  ' Payroll # -> name key ("" = two people share it)
-    Dim pCol As Long, hdrRow As Long, pn As String
+    Dim pCol As Long, hdrRow As Long
     hdrRow = hdrName
     pCol = PayrollColumn(src, hdrRow)                 ' v24.3.1: on the heading row only (a title cell above it isn't the column)
     For i = hdrRow + 1 To UBound(src, 1)
@@ -171,47 +358,30 @@ Sub SyncKronosData()
             End If
         End If
     Next i
-    Dim fileDate As Date
-    On Error Resume Next
-    fileDate = FileDateTime(srcPath)
-    If fileDate = 0 Then fileDate = FileDateTime(wbSource.FullName)
-    On Error GoTo Oops
-    If openedHere Then wbSource.Close SaveChanges:=False
-    ThisWorkbook.Activate
-
-    ' ---- v23: after a rollover, Worked (H) stays 0 until the export covers the new year ----
-    Dim awaitFrom As Date: awaitFrom = KronosAwaitFrom()
-    If awaitFrom > 0 Then
+    ' ---- v23: after a rollover, Worked (H) stays 0 until the data covers the new year (the pivot path: by file date) ----
+    If Not fromReport And awaitFrom > 0 Then
         Dim fdChk As Date: fdChk = fileDate
         If fdChk = 0 Then fdChk = Now
         If DataThroughFor(fdChk) < awaitFrom Then
             MsgBox "This Kronos file was saved " & Format$(fdChk, "ddd mmm d, yyyy") & ", so it still holds last year's hours." & vbNewLine & vbNewLine & _
-                   "Worked hours stay at 0 until you import an export saved after " & Format$(awaitFrom, "mmm d, yyyy") & _
+                   "Worked hours stay at 0 until you import a report that reaches " & Format$(awaitFrom, "mmm d, yyyy") & _
                    " (the first one of the new year). Nothing was changed.", vbExclamation, "Kronos import"
             Exit Sub
         End If
     End If
 
-    ' ---- fill column H ----
+    ' ---- work out column H (nothing is written yet: the new figures go into an array) ----
     Application.ScreenUpdating = False
     Application.EnableCancelKey = xlErrorHandler      ' v26.5.5 (A3): Esc lands in Oops (ReportError restores the key), never mid-column
-    UnlockSheet wsDest
-    wsDest.Range(wsDest.Cells(R_FIRST, C_NAME), wsDest.Cells(lastRow, C_NAME)).Interior.ColorIndex = xlNone
-
-    Dim r As Long, nm As String, hit As String, found As Long, missing As String, kVal As Variant
+    Dim hit As String, found As Long, missing As String, kVal As Variant
     Dim rosterNum As String, numKey As String, nameClash As String, nFilled As Long, noNum As String, nNoNum As Long, payDiff As String, payShared As String
-    If pCol > 0 Then                               ' the column keeps text, so a leading zero survives
-        wsDest.Range(wsDest.Cells(R_FIRST, C_PAYROLL), wsDest.Cells(lastRow, C_PAYROLL)).NumberFormat = "@"
-        If Trim$(SafeStr(wsDest.Cells(2, C_PAYROLL).Value)) = "" Then
-            With wsDest.Cells(2, C_PAYROLL)
-                .Value = "PAYROLL #"
-                .Interior.Color = RGB(31, 56, 100): .Font.Color = vbWhite: .Font.Bold = True: .Font.Size = 8
-                .HorizontalAlignment = xlCenter: .VerticalAlignment = xlCenter
-            End With
-        End If
-    End If
+    Dim nRows As Long: nRows = lastRow - R_FIRST + 1
+    Dim hNew As Variant: hNew = wsDest.Range(wsDest.Cells(R_FIRST, C_WORKED), wsDest.Cells(lastRow, C_WORKED)).Value2   ' the old H, row by row; matched rows are replaced
+    Dim payNew As Variant: payNew = wsDest.Range(wsDest.Cells(R_FIRST, C_PAYROLL), wsDest.Cells(lastRow, C_PAYROLL)).Value2
+    Dim greenRow() As Boolean: ReDim greenRow(1 To nRows)
+    Dim fell As String, nFell As Long, jumped As String, nJumped As Long, oldH As Double
     Dim histN As Long, histName() As String, histHrs() As Double
-    ReDim histName(1 To lastRow - R_FIRST + 1): ReDim histHrs(1 To lastRow - R_FIRST + 1)
+    ReDim histName(1 To nRows): ReDim histHrs(1 To nRows)
     Dim rosterOf As Object: Set rosterOf = CreateObject("Scripting.Dictionary")   ' v26.5: Kronos key -> the roster's spelling (the per-period rows)
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value))
@@ -241,7 +411,7 @@ Sub SyncKronosData()
                         If CStr(keyOfNum(CStr(payOf(hit)))) = "" Then
                             payShared = payShared & "  " & nm & vbNewLine          ' Kronos has that number under two names: don't guess
                         Else
-                            wsDest.Cells(r, C_PAYROLL).Value = CStr(payOf(hit))
+                            payNew(r - R_FIRST + 1, 1) = CStr(payOf(hit))
                             nFilled = nFilled + 1
                         End If
                     ElseIf rosterNum <> CStr(payOf(hit)) Then
@@ -252,10 +422,19 @@ Sub SyncKronosData()
                 rosterOf(hit) = nm
                 kVal = dict(hit)
                 If Not IsError(kVal) And IsNumeric(kVal) And Not IsEmpty(kVal) Then
-                    wsDest.Cells(r, C_WORKED).Value = CDbl(kVal)
-                    wsDest.Cells(r, C_NAME).Interior.Color = RGB(226, 239, 218)
+                    oldH = NumOr0(hNew(r - R_FIRST + 1, 1))
+                    hNew(r - R_FIRST + 1, 1) = CDbl(kVal)
+                    greenRow(r - R_FIRST + 1) = True
                     found = found + 1
                     histN = histN + 1: histName(histN) = nm: histHrs(histN) = CDbl(kVal)
+                    ' v27 (the sanity flags, 1.4): a fall, or a rise over KRONOS_JUMP_HOURS, is named before anything is written
+                    If CDbl(kVal) < oldH - 0.001 Then
+                        nFell = nFell + 1
+                        If nFell <= 15 Then fell = fell & "  " & nm & ": " & HoursText(oldH) & " -> " & HoursText(CDbl(kVal)) & vbNewLine
+                    ElseIf CDbl(kVal) > oldH + KRONOS_JUMP_HOURS Then
+                        nJumped = nJumped + 1
+                        If nJumped <= 15 Then jumped = jumped & "  " & nm & ": " & HoursText(oldH) & " -> " & HoursText(CDbl(kVal)) & vbNewLine
+                    End If
                 Else
                     missing = missing & "  " & nm & " (no number in Kronos)" & vbNewLine
                 End If
@@ -265,37 +444,84 @@ Sub SyncKronosData()
         End If
     Next r
     If pCol > 0 Then                               ' who still has no Payroll #
-        For r = R_FIRST To lastRow
-            If Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value)) <> "" And PayrollText(wsDest.Cells(r, C_PAYROLL).Value) = "" Then
+        For r = 1 To nRows
+            If Trim$(SafeStr(wsDest.Cells(r + R_FIRST - 1, C_NAME).Value)) <> "" And PayrollText(payNew(r, 1)) = "" Then
                 nNoNum = nNoNum + 1
-                If nNoNum <= 10 Then noNum = noNum & "  " & Trim$(SafeStr(wsDest.Cells(r, C_NAME).Value)) & vbNewLine
+                If nNoNum <= 10 Then noNum = noNum & "  " & Trim$(SafeStr(wsDest.Cells(r + R_FIRST - 1, C_NAME).Value)) & vbNewLine
             End If
         Next r
         If nNoNum > 10 Then noNum = noNum & "  ... and " & (nNoNum - 10) & " more" & vbNewLine
     End If
+
+    ' ---- v27: the sanity confirm, then ONE write of column H, then the verify ----
+    If nFell + nJumped > 0 Then
+        Application.EnableCancelKey = xlInterrupt
+        Application.ScreenUpdating = True
+        Dim sane As String
+        sane = "Before the Worked hours are written:" & vbNewLine
+        If nFell > 0 Then sane = sane & vbNewLine & nFell & " people's Worked hours FALL (hours already imported should only grow):" & vbNewLine & fell & IIf(nFell > 15, "  ... and " & (nFell - 15) & " more" & vbNewLine, "")
+        If nJumped > 0 Then sane = sane & vbNewLine & nJumped & " people's Worked hours rise by more than " & KRONOS_JUMP_HOURS & " h:" & vbNewLine & jumped & IIf(nJumped > 15, "  ... and " & (nJumped - 15) & " more" & vbNewLine, "")
+        sane = sane & vbNewLine & "Expected after a wrong import was put right, after the LIEU weights were corrected (v27), or the first report of the year. " & _
+               "Otherwise the report may be the wrong one (its Query and Time Period are in the box after this)." & vbNewLine & vbNewLine & _
+               "Write these hours? (No = nothing changes; the backup copy " & bk & " stays.)"
+        If Ask(sane, vbYesNo + vbExclamation + vbDefaultButton2, "Kronos import - check first", vbYes) <> vbYes Then
+            Tell "Nothing was changed.", vbInformation, "Kronos import"
+            Exit Sub
+        End If
+        Application.ScreenUpdating = False
+        Application.EnableCancelKey = xlErrorHandler
+    End If
+    UnlockSheet wsDest
+    If pCol > 0 Then                               ' the column keeps text, so a leading zero survives
+        wsDest.Range(wsDest.Cells(R_FIRST, C_PAYROLL), wsDest.Cells(lastRow, C_PAYROLL)).NumberFormat = "@"
+        If Trim$(SafeStr(wsDest.Cells(2, C_PAYROLL).Value)) = "" Then
+            With wsDest.Cells(2, C_PAYROLL)
+                .Value = "PAYROLL #"
+                .Interior.Color = RGB(31, 56, 100): .Font.Color = vbWhite: .Font.Bold = True: .Font.Size = 8
+                .HorizontalAlignment = xlCenter: .VerticalAlignment = xlCenter
+            End With
+        End If
+        wsDest.Range(wsDest.Cells(R_FIRST, C_PAYROLL), wsDest.Cells(lastRow, C_PAYROLL)).Value = payNew
+    End If
+    wsDest.Range(wsDest.Cells(R_FIRST, C_WORKED), wsDest.Cells(lastRow, C_WORKED)).Value = hNew      ' one assignment (A7)
+    wsDest.Range(wsDest.Cells(R_FIRST, C_NAME), wsDest.Cells(lastRow, C_NAME)).Interior.ColorIndex = xlNone
+    For r = 1 To nRows
+        If greenRow(r) Then wsDest.Cells(r + R_FIRST - 1, C_NAME).Interior.Color = RGB(226, 239, 218)
+    Next r
     wsDest.Rows(R_FIRST & ":" & lastRow).AutoFit
     ProtectSheet wsDest
+    Application.Calculate
+    Dim moved As String: moved = TotalsDifferenceRef(refBefore, RosterRefusedMap())
+    If moved <> "" Then
+        MarkNoSave
+        Application.EnableCancelKey = xlInterrupt
+        Application.ScreenUpdating = True
+        MsgBox "The Kronos import changed something it must not (Refused or a pay-period cell):" & vbNewLine & moved & vbNewLine & _
+               "SAVING IS BLOCKED. Close WITHOUT saving and reopen; the backup copy is " & bk & ". Tell " & PRIMARY_ADMIN_NAME & ".", vbCritical, "Kronos import"
+        Exit Sub
+    End If
 
     ' ---- v20: remember when, and keep a dated snapshot ----
-    Dim stamp As Date: stamp = Now
     If fileDate = 0 Then fileDate = stamp
-    ' v26.5.5 (A14): a copied file can carry a saved time from years ago or from the future; the data-through
-    ' date and the provisional window read it, so it is bounded to this roster's year (today otherwise, said so)
+    ' v26.5.5 (A14): a copied file can carry a saved time from years ago or from the future; the pivot path's data-through
+    ' date reads it, so it is bounded to this roster's year (today otherwise, said so)
     If fileDate < RosterYearFrom() - 14 Or fileDate > Now + 1 Then
-        MsgBox "The Kronos file's saved time (" & Format$(fileDate, "ddd mmm d, yyyy h:mm AM/PM") & ") is outside this roster's year, " & _
+        If Not fromReport Then MsgBox "The Kronos file's saved time (" & Format$(fileDate, "ddd mmm d, yyyy h:mm AM/PM") & ") is outside this roster's year, " & _
                "so today is used as its date. If the export is older than that, its hours are old too.", vbExclamation, "Kronos import"
         fileDate = stamp
     End If
     SetDateName "KronosImportedAt", stamp
     SetDateName "KronosFileDate", fileDate
-    ' v21: the data covers everything through the day before the file was saved
-    Dim through As Date: through = DataThroughFor(fileDate)
+    ' v27: a report's data runs through its Time Period's end (PivotFromLedger gave it); the pivot sheet's through
+    ' the day before its workbook was saved (v21)
+    If Not fromReport Then through = DataThroughFor(fileDate)
+    If through = 0 Then through = DataThroughFor(stamp)
     SetDateName PROV_NAME, through
     If awaitFrom > 0 Then ClearKronosAwait      ' v23: the new year's hours are in
     Dim histId As String
     If histN > 0 Then histId = AppendHoursHistory(stamp, fileDate, through, histName, histHrs, histN)
-    Dim wpTxt As String                        ' v26.5: the per-period premium hours (from the export only)
-    If fromExport Then wpTxt = WriteWorkedPeriods(rosterOf, stamp)
+    Dim wpTxt As String                        ' v27: the per-period premium hours from the ledger (snapshot days only)
+    If fromReport Then wpTxt = RebuildWorkedPeriods(nameMap, stamp)
     Application.CalculateFull                 ' provisional (C) and Total (G) pick up the new date
     wsDest.Activate                           ' before the screen comes back: the Worked Periods sheet must not flash
     Application.EnableCancelKey = xlInterrupt
@@ -324,11 +550,12 @@ Sub SyncKronosData()
 
     Dim msg As String
     msg = "Kronos import complete. " & found & " names matched (green)." & vbNewLine & _
-          "Kronos file saved " & Format$(fileDate, "ddd mmm d, h:mm AM/PM") & ", data through " & _
+          IIf(fromReport, "Worked = the Kronos Totals through " & Format$(KronosCumThrough(), "ddd mmm d") & " + the snapshot days after it", _
+                          "Kronos file saved " & Format$(fileDate, "ddd mmm d, h:mm AM/PM")) & ", data through " & _
           Format$(through, "ddd mmm d") & "." & vbNewLine & _
           "Accepted / awarded shifts that ended by then now count from Kronos instead of as provisional." & _
           IIf(histId <> "", vbNewLine & "Snapshot " & histId & " added to Hours History.", "") & _
-          IIf(fromExport, vbNewLine & "Read from the Kronos export's transactions. " & wpTxt, vbNewLine & "Read from the pivot sheet '" & KRONOS_SHEET & "' (no per-period hours: point KRONOS_PATH at the export for those).") & _
+          IIf(fromReport, repTxt & vbNewLine & wpTxt, vbNewLine & "Read from the pivot sheet '" & KRONOS_SHEET & "' (no per-period hours: the daily Kronos reports give those).") & _
           IIf(awaitFrom > 0, vbNewLine & vbNewLine & "FIRST IMPORT OF THE NEW YEAR: check two or three people's Worked hours against Kronos. " & _
                              "They should be this year's hours only, not last year's total.", "")
     If pCol = 0 Then
@@ -392,88 +619,598 @@ Public Function KronosFilePath() As String
     If best <> "" Then KronosFilePath = folder & best
 End Function
 
-' The sheet that holds the export's transactions: a heading row within the first 15 rows with
-' Employee, Date, Pay Code and Hours (Nothing when no sheet has one); hdrRow = that row
-Private Function TransactionsSheet(ByVal wb As Workbook, ByRef hdrRow As Long) As Worksheet
-    Dim ws As Worksheet, r As Long, c As Long, v As Variant, lastC As Long
-    Dim hasEmp As Boolean, hasDate As Boolean, hasCode As Boolean, hasHrs As Boolean
-    For Each ws In wb.Worksheets
-        lastC = 0
-        On Error Resume Next
-        lastC = ws.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious).Column
-        On Error GoTo 0
-        If lastC < 4 Then lastC = 4
-        v = ws.Range(ws.Cells(1, 1), ws.Cells(15, lastC)).Value
-        For r = 1 To UBound(v, 1)
-            hasEmp = False: hasDate = False: hasCode = False: hasHrs = False
-            For c = 1 To UBound(v, 2)
-                If IsHeaderMatch(SafeStr(v(r, c)), "Employee") Then hasEmp = True
-                If IsHeaderMatch(SafeStr(v(r, c)), "Date") Then hasDate = True
-                If IsHeaderMatch(SafeStr(v(r, c)), "Pay Code") Then hasCode = True
-                If IsHeaderMatch(SafeStr(v(r, c)), "Hours") Then hasHrs = True
-            Next c
-            If hasEmp And hasDate And hasCode And hasHrs Then
-                hdrRow = r
-                Set TransactionsSheet = ws
-                Exit Function
+' ====================================================================
+'  v27: THE REPORT, THE SNAPSHOT, THE LEDGER, THE CHANGE LOG
+' ====================================================================
+' The files to import: KRONOS_PATH a folder (or wildcard) = every report file saved after the last import, oldest
+' first (none newer = the newest one, so a re-run re-reads it); a file = that file. Empty (not an array) = nothing.
+Public Function KronosFilesToImport() As Variant
+    Dim p As String: p = Trim$(KRONOS_PATH)
+    If p = "" Then Exit Function
+    On Error Resume Next                                     ' an unreachable drive: nothing (the caller says no file was found)
+    Dim folder As String, pattern As String, hit As String
+    If Right$(p, 1) = "\" Then
+        folder = p: pattern = "*.xls*"
+    ElseIf InStr(p, "*") > 0 Or InStr(p, "?") > 0 Then
+        folder = Left$(p, InStrRev(p, "\")): pattern = Mid$(p, InStrRev(p, "\") + 1)
+    Else
+        hit = Dir$(p)
+        If hit <> "" Then KronosFilesToImport = Array(p)
+        Exit Function
+    End If
+    Dim since As Date: since = KronosImportedAt()
+    Dim names() As String, ats() As Date, n As Long, f As String, at As Date, best As String, bestAt As Date
+    f = Dir$(folder & pattern)
+    Do While f <> ""
+        If Left$(f, 2) <> "~$" Then                      ' not Excel's lock files
+            at = FileDateTime(folder & f)
+            If at > bestAt Then bestAt = at: best = f
+            If at > since Then
+                n = n + 1
+                ReDim Preserve names(1 To n): ReDim Preserve ats(1 To n)
+                names(n) = f: ats(n) = at
             End If
-        Next r
-    Next ws
+        End If
+        f = ""                                           ' cleared first: under Resume Next a share dropping mid-listing must end the loop
+        f = Dir$()
+    Loop
+    If n = 0 Then
+        If best <> "" Then KronosFilesToImport = Array(folder & best)
+        Exit Function
+    End If
+    ' oldest first (a few files: a plain exchange sort)
+    Dim i As Long, j As Long, tn As String, ta As Date
+    For i = 1 To n - 1
+        For j = i + 1 To n
+            If ats(j) < ats(i) Then
+                tn = names(i): names(i) = names(j): names(j) = tn
+                ta = ats(i): ats(i) = ats(j): ats(j) = ta
+            End If
+        Next j
+    Next i
+    Dim out() As Variant: ReDim out(0 To n - 1)
+    For i = 1 To n
+        out(i - 1) = folder & names(i)
+    Next i
+    KronosFilesToImport = out
 End Function
 
-' The export's transactions (src, heading row hdrRow: Global ID, Employee, Date, Pay Code, Hours)
-' summed per person into the shape the pivot sheet has - Payroll #, Employee Name, Grand Total - so
-' the import below runs unchanged. The per-pay-period sums are kept aside for WriteWorkedPeriods.
-Private Function PivotFromTransactions(ByRef src As Variant, ByVal hdrRow As Long) As Variant
-    Dim c As Long, cId As Long, cEmp As Long, cDt As Long, cCode As Long, cHrs As Long
-    For c = 1 To UBound(src, 2)
-        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Global ID") Then cId = c
-        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Employee") Then cEmp = c
-        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Date") Then cDt = c
-        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Pay Code") Then cCode = c
-        If IsHeaderMatch(SafeStr(src(hdrRow, c)), "Hours") Then cHrs = c
+' A sheet read whole as a 2-D array (at least 2 x 2); the last cell by rows and by columns, LookIn:=xlFormulas so a
+' hidden or filtered-out row still counts (v24.3.1)
+Private Function SheetValues(ByVal ws As Worksheet) As Variant
+    Dim lastSrc As Long, lastCol As Long, lastCell As Range
+    Set lastCell = ws.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
+    If lastCell Is Nothing Then lastSrc = 2 Else lastSrc = lastCell.Row
+    Set lastCell = ws.Cells.Find(What:="*", LookIn:=xlFormulas, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious)
+    If lastCell Is Nothing Then lastCol = 2 Else lastCol = lastCell.Column
+    If lastSrc < 2 Then lastSrc = 2
+    If lastCol < 2 Then lastCol = 2
+    SheetValues = ws.Range(ws.Cells(1, 1), ws.Cells(lastSrc, lastCol)).Value
+End Function
+
+' The first cell to the right of column c on row r that holds anything ("" when none)
+Private Function RowText(ByRef v As Variant, ByVal r As Long, ByVal c As Long) As String
+    Dim j As Long
+    For j = c + 1 To UBound(v, 2)
+        If Trim$(SafeStr(v(r, j))) <> "" Then RowText = Trim$(SafeStr(v(r, j))): Exit Function
+    Next j
+End Function
+
+' Reads the report "Employee Transactions and Totals" from whichever sheet holds its "Totals:" block: the title's
+' Time Period and Query, the Totals rows (Global ID, Employee, Pay Code, Hours) and the Transactions rows (+ Date,
+' Edited By). rep.HasTotals False = not a report (the caller tries the pivot sheet). Returns "" or the problem.
+Private Function ReadKronosReport(ByVal wb As Workbook, ByRef rep As KronosReport) As String
+    Dim ws As Worksheet, v As Variant, r As Long, c As Long, txt As String
+    Dim totHdr As Long, txHdr As Long, sumRow As Long, periodTxt As String
+    rep.HasTotals = False: rep.nTot = 0: rep.nTx = 0: rep.Query = "": rep.FromD = 0: rep.ToD = 0
+    For Each ws In wb.Worksheets
+        v = SheetValues(ws)
+        totHdr = 0: txHdr = 0: sumRow = 0: periodTxt = ""
+        For r = 1 To UBound(v, 1)
+            txt = Trim$(SafeStr(v(r, 1)))
+            If LCase$(Left$(txt, 11)) = "time period" Then
+                periodTxt = RowText(v, r, 1)
+                If periodTxt = "" Then periodTxt = txt
+            ElseIf LCase$(Left$(txt, 5)) = "query" Then
+                rep.Query = RowText(v, r, 1)
+            ElseIf LCase$(txt) = "transactions:" Then
+                txHdr = r + 1
+            ElseIf LCase$(txt) = "totals:" Then
+                totHdr = r + 1
+            ElseIf LCase$(txt) = "summary totals:" Then
+                sumRow = r
+                Exit For
+            End If
+        Next r
+        If totHdr > 0 And totHdr <= UBound(v, 1) Then Exit For
+    Next ws
+    If totHdr = 0 Or totHdr > UBound(v, 1) Then Exit Function
+    rep.HasTotals = True
+    If sumRow = 0 Then sumRow = UBound(v, 1) + 1
+    ' the Time Period: the report's two dates, read by hand
+    Dim prob As String: prob = TimePeriodCore(periodTxt, rep.FromD, rep.ToD)
+    If prob <> "" Then ReadKronosReport = "the Time Period line could not be read (" & prob & "): " & periodTxt: Exit Function
+    ' the Totals block's columns, by heading (the heading sits two columns left of the Transactions block's)
+    Dim cId As Long, cEmp As Long, cCode As Long, cHrs As Long
+    For c = 1 To UBound(v, 2)
+        If IsHeaderMatch(SafeStr(v(totHdr, c)), "Global ID") Then cId = c
+        If IsHeaderMatch(SafeStr(v(totHdr, c)), "Employee") Then cEmp = c
+        If IsHeaderMatch(SafeStr(v(totHdr, c)), "Pay Code") Then cCode = c
+        If IsHeaderMatch(SafeStr(v(totHdr, c)), "Hours") Then cHrs = c
     Next c
+    If cId = 0 Or cEmp = 0 Or cCode = 0 Or cHrs = 0 Then
+        ReadKronosReport = "the Totals block's heading lacks " & IIf(cId = 0, "Global ID ", "") & IIf(cEmp = 0, "Employee ", "") & _
+                           IIf(cCode = 0, "Pay Code ", "") & IIf(cHrs = 0, "Hours", "")
+        Exit Function
+    End If
+    Dim n As Long: n = sumRow - totHdr
+    If n < 1 Then n = 1
+    ReDim rep.TotId(1 To n): ReDim rep.TotName(1 To n): ReDim rep.TotCode(1 To n): ReDim rep.TotHrs(1 To n)
+    For r = totHdr + 1 To sumRow - 1
+        If Trim$(SafeStr(v(r, cEmp))) <> "" And Trim$(SafeStr(v(r, cCode))) <> "" And IsNumeric(v(r, cHrs)) And Not IsEmpty(v(r, cHrs)) Then
+            rep.nTot = rep.nTot + 1
+            rep.TotId(rep.nTot) = PayrollText(v(r, cId))
+            rep.TotName(rep.nTot) = Trim$(SafeStr(v(r, cEmp)))
+            rep.TotCode(rep.nTot) = Trim$(SafeStr(v(r, cCode)))
+            rep.TotHrs(rep.nTot) = CDbl(v(r, cHrs))
+        End If
+    Next r
+    ' the Transactions block (edits): only to date a change; missing = fine
+    If txHdr > 0 And txHdr < totHdr - 1 Then
+        Dim tId As Long, tEmp As Long, tDt As Long, tCode As Long, tBy As Long
+        For c = 1 To UBound(v, 2)
+            If IsHeaderMatch(SafeStr(v(txHdr, c)), "Global ID") Then tId = c
+            If IsHeaderMatch(SafeStr(v(txHdr, c)), "Employee") Then tEmp = c
+            If IsHeaderMatch(SafeStr(v(txHdr, c)), "Date") Then tDt = c
+            If IsHeaderMatch(SafeStr(v(txHdr, c)), "Pay Code") Then tCode = c
+            If IsHeaderMatch(SafeStr(v(txHdr, c)), "Edited By") Then tBy = c
+        Next c
+        If tId > 0 And tDt > 0 And tCode > 0 Then
+            n = totHdr - 1 - txHdr
+            If n < 1 Then n = 1
+            ReDim rep.TxId(1 To n): ReDim rep.TxDate(1 To n): ReDim rep.TxCode(1 To n): ReDim rep.TxBy(1 To n)
+            For r = txHdr + 1 To totHdr - 2
+                If IsDate(v(r, tDt)) And Trim$(SafeStr(v(r, tCode))) <> "" Then
+                    rep.nTx = rep.nTx + 1
+                    rep.TxId(rep.nTx) = PayrollText(v(r, tId))
+                    rep.TxDate(rep.nTx) = CDate(v(r, tDt))
+                    rep.TxCode(rep.nTx) = Trim$(SafeStr(v(r, tCode)))
+                    If tBy > 0 Then rep.TxBy(rep.nTx) = Trim$(SafeStr(v(r, tBy)))
+                End If
+            Next r
+        End If
+    End If
+End Function
+
+' The roster's spelling for a report row: by Payroll # (column A) first, then the name's key, then the name without
+' a trailing middle initial ("" = not a roster person)
+Private Function RosterNameFor(ByVal id As String, ByVal raw As String, ByVal nameMap As Object, ByVal numMap As Object) As String
+    If id <> "" Then
+        If numMap.Exists(id) Then RosterNameFor = CStr(numMap(id)): Exit Function
+    End If
+    Dim k As String: k = NameKey(raw)
+    If nameMap.Exists(k) Then RosterNameFor = CStr(nameMap(k)): Exit Function
+    If raw Like "* [A-Za-z]" Or raw Like "* [A-Za-z]." Then
+        k = NameKey(Left$(raw, InStrRev(raw, " ") - 1))
+        If nameMap.Exists(k) Then RosterNameFor = CStr(nameMap(k))
+    End If
+End Function
+
+' A report into the tables. A ONE-DAY report: that day's rows into the Worked Days ledger (a day already held is
+' replaced, every difference logged, kind "day"). A CUMULATIVE report: the Kronos Totals snapshot replaced; what the
+' ledger expected (the old snapshot + the snapshot days after its Through) compared code by code, every difference
+' logged, kind "edit", dated by the Transactions block when it names that person and code on an earlier day. Roster
+' people only (the roster's spelling). Returns the line for the message.
+Private Function IngestReport(ByRef rep As KronosReport, ByVal srcName As String, ByVal stamp As Date, _
+                              ByVal nameMap As Object, ByVal numMap As Object) As String
+    Dim kind As String: kind = ReportKindCore(rep.FromD, rep.ToD, RosterYearFrom(), RosterYearTo())
+    Dim span As String: span = Format$(rep.FromD, "mmm d") & " - " & Format$(rep.ToD, "mmm d, yyyy")
+    Select Case kind
+        Case "outside"
+            IngestReport = "Time Period " & span & " is outside this roster's year - skipped": Exit Function
+        Case "range"
+            IngestReport = "Time Period " & span & " covers several days but not the year to date: its totals cannot be split into days - run one day at a time, or Jan .. yesterday - skipped"
+            Exit Function
+    End Select
+    Dim qTxt As String
+    If InStr(1, rep.Query, KRONOS_QUERY, vbTextCompare) = 0 Then qTxt = " (Query '" & rep.Query & "', not '" & KRONOS_QUERY & "': other codes are reported, not counted)"
+    ' the report's rows for roster people, summed per person and code (a person's two rows for one code add up)
+    Dim tot As Object: Set tot = CreateObject("Scripting.Dictionary"): tot.CompareMode = 1     ' "name|code" -> hours
+    Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary"): payOf.CompareMode = 1   ' name -> Payroll #
+    Dim i As Long, nm As String, key As String, nPeople As Long, other As String, nOther As Long, m As Double
+    For i = 1 To rep.nTot
+        nm = RosterNameFor(rep.TotId(i), rep.TotName(i), nameMap, numMap)
+        If nm <> "" Then
+            If Not payOf.Exists(nm) Then payOf.Add nm, rep.TotId(i): nPeople = nPeople + 1
+            key = nm & "|" & rep.TotCode(i)
+            If tot.Exists(key) Then tot(key) = tot(key) + rep.TotHrs(i) Else tot.Add key, rep.TotHrs(i)
+            m = PremiumMultiplier(rep.TotCode(i), PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+            If m < 0 And Abs(rep.TotHrs(i)) > 0.001 Then
+                nOther = nOther + 1
+                If nOther <= 10 Then other = other & vbNewLine & "    " & nm & ": " & rep.TotCode(i) & " " & HoursText(rep.TotHrs(i)) & " h"
+            End If
+        End If
+    Next i
+    If nOther > 10 Then other = other & vbNewLine & "    ... and " & (nOther - 10) & " more"
+    Dim nChanges As Long, line As String
+    If kind = "day" Then
+        nChanges = WriteLedgerDay(rep.ToD, tot, payOf, srcName, stamp)
+        Dim lf As Date: lf = KronosLedgerFrom()
+        If lf = 0 Or rep.ToD < lf Then SetDateName KLEDGER_NAME, rep.ToD
+        line = "one-day report for " & Format$(rep.ToD, "ddd mmm d") & ": " & nPeople & " roster people into the Worked Days ledger" & _
+               IIf(rep.ToD <= KronosCumThrough(), " (inside the Totals through " & Format$(KronosCumThrough(), "mmm d") & ": kept, not added)", "") & _
+               IIf(nChanges > 0, "; " & nChanges & " figure(s) differed from the day as first imported (Worked Changes)", "")
+    Else
+        nChanges = WriteCumulative(rep, tot, payOf, srcName, stamp)
+        line = "the year to date " & span & ": " & nPeople & " roster people into the Kronos Totals" & _
+               IIf(nChanges > 0, "; " & nChanges & " figure(s) differed from what the ledger expected - timecard edits, in Worked Changes", "")
+    End If
+    IngestReport = line & qTxt & IIf(other <> "", vbNewLine & "  codes NOT counted on roster people (" & nOther & "):" & other, "")
+End Function
+
+' The ledger table, made on first use (admin-only, never published)
+Public Function WorkedDaysTable(Optional ByVal create As Boolean = False) As ListObject
+    Set WorkedDaysTable = KronosTable(WD_SHEET, WD_TABLE, create, _
+        Array("Payroll #", "Employee", "Date", "Pay Code", "Hours", "Weighted", "Source", "Imported At"), _
+        Array(11, 24, 12, 20, 8, 9, 40, 17))
+End Function
+
+' The snapshot of the last cumulative report, made on first use (admin-only, never published)
+Public Function KronosTotalsTable(Optional ByVal create As Boolean = False) As ListObject
+    Set KronosTotalsTable = KronosTable(KT_SHEET, KT_TABLE, create, _
+        Array("Payroll #", "Employee", "Pay Code", "Hours", "Through", "Imported At"), _
+        Array(11, 24, 20, 8, 12, 17))
+End Function
+
+' The change log, made on first use (admin-only, never published; rows are only ever appended)
+Public Function WorkedChangesTable(Optional ByVal create As Boolean = False) As ListObject
+    Set WorkedChangesTable = KronosTable(WC_SHEET, WC_TABLE, create, _
+        Array("When", "Payroll #", "Employee", "Date", "Pay Code", "Hours Before", "Hours After", "Change", "Weighted Change", "Kind", "Note", "Source", "Imported By"), _
+        Array(17, 11, 24, 12, 20, 9, 9, 8, 9, 8, 36, 40, 12))
+End Function
+
+' One pattern for the three tables above (and WorkedPeriodsTable's): the sheet at the end, the table on A1
+Private Function KronosTable(ByVal sheetName As String, ByVal tableName As String, ByVal create As Boolean, _
+                             ByVal heads As Variant, ByVal widths As Variant) As ListObject
+    Dim ws As Worksheet, lo As ListObject, nCols As Long, c As Long
+    nCols = UBound(heads) - LBound(heads) + 1
+    If SheetExists(sheetName) Then
+        Set ws = ThisWorkbook.Worksheets(sheetName)
+        On Error Resume Next
+        Set lo = ws.ListObjects(tableName)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            UnlockStructure
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = sheetName
+            RelockStructure
+            SetTabColor ws, RGB(96, 125, 139)
+        End If
+        UnlockSheet ws
+        ws.Range("A1").Resize(1, nCols).Value = heads
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, nCols), , xlYes)
+        lo.Name = tableName
+        lo.TableStyle = "TableStyleLight9"
+        For c = 1 To nCols
+            ws.Columns(c).ColumnWidth = widths(LBound(widths) + c - 1)
+        Next c
+        ProtectSheet ws
+    End If
+    Set KronosTable = lo
+End Function
+
+' A table's rows as a 2-D array (Empty when none; a blank first row counts as none)
+Private Function TableRows(ByVal lo As ListObject) As Variant
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Function
+    TableRows = RangeTo2D(lo.DataBodyRange)
+End Function
+
+' Replaces a table's rows with outA (n rows), or empties it; the sheet unlocked and protected around the write
+Private Sub ReplaceRows(ByVal lo As ListObject, ByRef outA As Variant, ByVal n As Long, ByVal nCols As Long, ByVal dateCols As String, ByVal stampCols As String)
+    Dim ws As Worksheet: Set ws = lo.Parent
+    UnlockSheet ws
+    If Not lo.DataBodyRange Is Nothing Then lo.DataBodyRange.Delete
+    If n > 0 Then
+        lo.Resize lo.HeaderRowRange.Resize(n + 1)
+        With lo.HeaderRowRange.Offset(1, 0).Resize(n, nCols)
+            .Columns(1).NumberFormat = "@"
+            .Value = outA
+            FormatCols .Cells, dateCols, "mmm d, yyyy"
+            FormatCols .Cells, stampCols, "mmm d, yyyy h:mm"
+        End With
+    End If
+    ProtectSheet ws
+End Sub
+
+' Appends outA (n rows) to a table
+Private Sub AppendRows(ByVal lo As ListObject, ByRef outA As Variant, ByVal n As Long, ByVal nCols As Long, ByVal dateCols As String, ByVal stampCols As String)
+    If n = 0 Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Dim cnt As Long: cnt = lo.ListRows.Count
+    If Not lo.DataBodyRange Is Nothing Then
+        If cnt = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then cnt = 0
+    End If
+    UnlockSheet ws
+    lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
+    With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, nCols)
+        .Columns(2).NumberFormat = "@"
+        .Value = outA
+        FormatCols .Cells, dateCols, "mmm d, yyyy"
+        FormatCols .Cells, stampCols, "mmm d, yyyy h:mm"
+    End With
+    ProtectSheet ws
+End Sub
+
+Private Sub FormatCols(ByVal rng As Range, ByVal cols As String, ByVal fmt As String)
+    Dim p As Variant, c As Variant
+    If cols = "" Then Exit Sub
+    p = Split(cols, ",")
+    For Each c In p
+        rng.Columns(CLng(c)).NumberFormat = fmt
+    Next c
+End Sub
+
+Public Function KronosCumThrough() As Date
+    KronosCumThrough = GetDateName(KCUM_NAME)
+End Function
+
+Public Function KronosLedgerFrom() As Date
+    KronosLedgerFrom = GetDateName(KLEDGER_NAME)
+End Function
+
+' One snapshot day into the ledger: the day's rows for roster people replaced (a difference from the day as
+' first imported logged, kind "day"). Returns the number of change rows written.
+Private Function WriteLedgerDay(ByVal d As Date, ByVal tot As Object, ByVal payOf As Object, ByVal srcName As String, ByVal stamp As Date) As Long
+    Dim lo As ListObject: Set lo = WorkedDaysTable(True)
+    If lo Is Nothing Then Err.Raise vbObjectError + 790, , "the Worked Days sheet couldn't be made"
+    Dim v As Variant: v = TableRows(lo)
+    Dim keep As Long, i As Long, n As Long, key As String, c As Long
+    Dim oldDay As Object: Set oldDay = CreateObject("Scripting.Dictionary"): oldDay.CompareMode = 1
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If IsDate(v(i, 3)) Then
+                If Int(CDbl(CDate(v(i, 3)))) = Int(CDbl(d)) And payOf.Exists(Trim$(SafeStr(v(i, 2)))) Then
+                    key = Trim$(SafeStr(v(i, 2))) & "|" & Trim$(SafeStr(v(i, 4)))
+                    If oldDay.Exists(key) Then oldDay(key) = oldDay(key) + NumOr0(v(i, 5)) Else oldDay.Add key, NumOr0(v(i, 5))
+                Else
+                    keep = keep + 1
+                End If
+            End If
+        Next i
+    End If
+    n = keep + tot.Count
+    Dim outA() As Variant: ReDim outA(1 To IIf(n > 0, n, 1), 1 To WD_NCOLS)
+    Dim r As Long
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If IsDate(v(i, 3)) Then
+                If Not (Int(CDbl(CDate(v(i, 3)))) = Int(CDbl(d)) And payOf.Exists(Trim$(SafeStr(v(i, 2))))) Then
+                    r = r + 1
+                    For c = 1 To WD_NCOLS
+                        outA(r, c) = v(i, c)
+                    Next c
+                End If
+            End If
+        Next i
+    End If
+    Dim kk As Variant, nm As String, code As String, m As Double
+    For Each kk In tot.Keys
+        r = r + 1
+        nm = Left$(CStr(kk), InStr(CStr(kk), "|") - 1): code = Mid$(CStr(kk), InStr(CStr(kk), "|") + 1)
+        m = PremiumMultiplier(code, PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+        outA(r, 1) = SafeStr(payOf(nm)): outA(r, 2) = nm: outA(r, 3) = CDate(Int(CDbl(d))): outA(r, 4) = code
+        outA(r, 5) = tot(kk): outA(r, 6) = IIf(m < 0, 0, tot(kk) * m): outA(r, 7) = srcName: outA(r, 8) = stamp
+    Next kk
+    ReplaceRows lo, outA, r, WD_NCOLS, "3", "8"
+    ' the differences from the day as first imported (the first import of a day logs nothing: the ledger IS the record)
+    If oldDay.Count > 0 Then
+        Dim noRep As KronosReport                     ' a "day" change has no edit to date: an empty report
+        WriteLedgerDay = LogChanges(oldDay, tot, payOf, d, "day", "the day re-imported", srcName, stamp, noRep)
+    End If
+End Function
+
+' The cumulative report into the Kronos Totals snapshot; the differences from what the ledger expected logged, kind
+' "edit" (dated by the report's Transactions block when it names that person and code on an earlier day). Returns the
+' number of change rows written. The first cumulative ever (no snapshot) logs nothing: it is the baseline.
+Private Function WriteCumulative(ByRef rep As KronosReport, ByVal tot As Object, ByVal payOf As Object, ByVal srcName As String, ByVal stamp As Date) As Long
+    Dim lo As ListObject: Set lo = KronosTotalsTable(True)
+    If lo Is Nothing Then Err.Raise vbObjectError + 791, , "the Kronos Totals sheet couldn't be made"
+    Dim oldThrough As Date: oldThrough = KronosCumThrough()
+    Dim v As Variant: v = TableRows(lo)
+    Dim i As Long, key As String
+    ' what the ledger expected: the old snapshot + the snapshot days after its Through, up to the new Through
+    Dim expected As Object: Set expected = CreateObject("Scripting.Dictionary"): expected.CompareMode = 1
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If Trim$(SafeStr(v(i, 2))) <> "" Then
+                key = Trim$(SafeStr(v(i, 2))) & "|" & Trim$(SafeStr(v(i, 3)))
+                If expected.Exists(key) Then expected(key) = expected(key) + NumOr0(v(i, 4)) Else expected.Add key, NumOr0(v(i, 4))
+            End If
+        Next i
+    End If
+    Dim lv As Variant: lv = TableRows(WorkedDaysTable(False))
+    If IsArray(lv) Then
+        For i = 1 To UBound(lv, 1)
+            If IsDate(lv(i, 3)) Then
+                If CDate(lv(i, 3)) > oldThrough And CDate(lv(i, 3)) <= rep.ToD And Trim$(SafeStr(lv(i, 2))) <> "" Then
+                    key = Trim$(SafeStr(lv(i, 2))) & "|" & Trim$(SafeStr(lv(i, 4)))
+                    If expected.Exists(key) Then expected(key) = expected(key) + NumOr0(lv(i, 5)) Else expected.Add key, NumOr0(lv(i, 5))
+                End If
+            End If
+        Next i
+    End If
+    ' the new snapshot
+    Dim n As Long: n = tot.Count
+    Dim outA() As Variant: ReDim outA(1 To IIf(n > 0, n, 1), 1 To KT_NCOLS)
+    Dim kk As Variant, r As Long, nm As String, code As String
+    For Each kk In tot.Keys
+        r = r + 1
+        nm = Left$(CStr(kk), InStr(CStr(kk), "|") - 1): code = Mid$(CStr(kk), InStr(CStr(kk), "|") + 1)
+        outA(r, 1) = SafeStr(payOf(nm)): outA(r, 2) = nm: outA(r, 3) = code: outA(r, 4) = tot(kk)
+        outA(r, 5) = CDate(Int(CDbl(rep.ToD))): outA(r, 6) = stamp
+    Next kk
+    ReplaceRows lo, outA, r, KT_NCOLS, "5", "6"
+    SetDateName KCUM_NAME, rep.ToD
+    If oldThrough > 0 Then WriteCumulative = LogChanges(expected, tot, payOf, rep.ToD, "edit", "differs from the ledger", srcName, stamp, rep)
+End Function
+
+' Every "name|code" whose hours differ between before and after into Worked Changes; the date is d, or for an "edit"
+' the latest day the report's Transactions block names for that person and code on or before the old Through
+' (with who edited it in the Note). Returns the rows written.
+Private Function LogChanges(ByVal before As Object, ByVal after As Object, ByVal payOf As Object, ByVal d As Date, ByVal kind As String, _
+                            ByVal note As String, ByVal srcName As String, ByVal stamp As Date, ByRef rep As KronosReport) As Long
+    Dim keys As Object: Set keys = CreateObject("Scripting.Dictionary"): keys.CompareMode = 1
+    Dim kk As Variant
+    For Each kk In before.Keys
+        keys(kk) = True
+    Next kk
+    For Each kk In after.Keys
+        keys(kk) = True
+    Next kk
+    Dim outA() As Variant: ReDim outA(1 To IIf(keys.Count > 0, keys.Count, 1), 1 To WC_NCOLS)
+    Dim n As Long, b As Double, a As Double, nm As String, code As String, m As Double, whenD As Date, who As String, i As Long
+    Dim oldThrough As Date: oldThrough = KronosCumThrough()
+    For Each kk In keys.Keys
+        b = 0: a = 0
+        If before.Exists(kk) Then b = before(kk)
+        If after.Exists(kk) Then a = after(kk)
+        If Abs(a - b) > 0.005 Then
+            nm = Left$(CStr(kk), InStr(CStr(kk), "|") - 1): code = Mid$(CStr(kk), InStr(CStr(kk), "|") + 1)
+            m = PremiumMultiplier(code, PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+            If m < 0 Then m = 0
+            whenD = CDate(Int(CDbl(d))): who = note
+            If kind = "edit" Then
+                ' the latest day the Transactions block names for this person and code on or before the old Through
+                Dim best As Date: best = 0
+                For i = 1 To rep.nTx
+                    If rep.TxId(i) <> "" And rep.TxId(i) = SafeStr(payOf(nm)) And StrComp(rep.TxCode(i), code, vbTextCompare) = 0 Then
+                        If (rep.TxDate(i) <= oldThrough Or oldThrough = 0) And rep.TxDate(i) > best Then
+                            best = rep.TxDate(i)
+                            who = IIf(rep.TxBy(i) <> "", "timecard edited by " & rep.TxBy(i), "timecard edited")
+                        End If
+                    End If
+                Next i
+                If best > 0 Then whenD = CDate(Int(CDbl(best)))
+            End If
+            n = n + 1
+            outA(n, 1) = stamp: outA(n, 2) = SafeStr(payOf(nm)): outA(n, 3) = nm: outA(n, 4) = whenD: outA(n, 5) = code
+            outA(n, 6) = b: outA(n, 7) = a: outA(n, 8) = a - b: outA(n, 9) = (a - b) * m: outA(n, 10) = kind
+            outA(n, 11) = who: outA(n, 12) = srcName: outA(n, 13) = CurrentUser()
+        End If
+    Next kk
+    If n > 0 Then AppendRows WorkedChangesTable(True), outA, n, WC_NCOLS, "4", "1"
+    LogChanges = n
+End Function
+
+' Worked (H) for every roster person the snapshot or the ledger knows, in the pivot's shape (Payroll #, Employee
+' Name, Grand Total) so the matching in SyncKronosData runs unchanged: the snapshot's codes + the ledger days after
+' its Through, each code's hours x its multiplier, rounded whole (WeightedTotal). through = the last day covered.
+Public Function PivotFromLedger(ByRef through As Date) As Variant
+    Dim cumThrough As Date: cumThrough = KronosCumThrough()
+    through = cumThrough
+    Dim spec As Object: Set spec = CreateObject("Scripting.Dictionary"): spec.CompareMode = 1   ' name -> "code=h;code=h"
+    Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary"): payOf.CompareMode = 1
+    Dim v As Variant, i As Long, nm As String
+    v = TableRows(KronosTotalsTable(False))
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            nm = Trim$(SafeStr(v(i, 2)))
+            If nm <> "" Then
+                spec(nm) = SafeStr(spec(nm)) & IIf(SafeStr(spec(nm)) = "", "", ";") & Trim$(SafeStr(v(i, 3))) & "=" & Trim$(Str$(NumOr0(v(i, 4))))   ' Str$: "." whatever the PC's separator
+                If SafeStr(payOf(nm)) = "" Then payOf(nm) = SafeStr(v(i, 1))
+            End If
+        Next i
+    End If
+    v = TableRows(WorkedDaysTable(False))
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            nm = Trim$(SafeStr(v(i, 2)))
+            If nm <> "" And IsDate(v(i, 3)) Then
+                If CDate(v(i, 3)) > cumThrough Then
+                    spec(nm) = SafeStr(spec(nm)) & IIf(SafeStr(spec(nm)) = "", "", ";") & Trim$(SafeStr(v(i, 4))) & "=" & Trim$(Str$(NumOr0(v(i, 5))))
+                    If SafeStr(payOf(nm)) = "" Then payOf(nm) = SafeStr(v(i, 1))
+                    If CDate(v(i, 3)) > through Then through = CDate(Int(CDbl(CDate(v(i, 3)))))
+                End If
+            End If
+        Next i
+    End If
+    Dim out() As Variant: ReDim out(1 To spec.Count + 1, 1 To 3)
+    out(1, 1) = "Payroll #": out(1, 2) = "Employee Name": out(1, 3) = "Grand Total"
+    Dim kk As Variant, n As Long, w As String, p As Long
+    n = 1
+    For Each kk In spec.Keys
+        n = n + 1
+        w = WeightedTotal(CStr(spec(kk)), PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+        p = InStr(w, "|")
+        If p > 0 Then w = Left$(w, p - 1)
+        out(n, 1) = SafeStr(payOf(kk)): out(n, 2) = CStr(kk): out(n, 3) = Val(w)
+    Next kk
+    PivotFromLedger = out
+End Function
+
+' The Worked Periods table from the ledger: every snapshot day's weighted hours summed per roster person per pay
+' period (exact from KronosLedgerFrom on; the days inside the cumulative's Through included - they are history, the
+' snapshot only replaces them in H). Returns the line for the message.
+Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Date) As String
     Set mTxPeriods = CreateObject("Scripting.Dictionary"): mTxPeriods.CompareMode = 1
     Set mTxCodes = CreateObject("Scripting.Dictionary"): mTxCodes.CompareMode = 1
     Set mTxRaw = CreateObject("Scripting.Dictionary"): mTxRaw.CompareMode = 1
     Set mTxPay = CreateObject("Scripting.Dictionary"): mTxPay.CompareMode = 1
-    Dim totals As Object: Set totals = CreateObject("Scripting.Dictionary")
-    totals.CompareMode = 1
     mTxSkipped = 0
-    Dim i As Long, raw As String, k As String, hrs As Double, d As Date, pk As String, code As String
-    For i = hdrRow + 1 To UBound(src, 1)
-        raw = Trim$(SafeStr(src(i, cEmp)))
-        k = NameKey(raw)
-        ' a transaction row only: a pay code and a date (a total or title line has neither; those are counted and reported)
-        code = Trim$(SafeStr(src(i, cCode)))
-        If k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) And code = "" Or _
-           k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) And Not IsDate(src(i, cDt)) Then
-            mTxSkipped = mTxSkipped + 1
-        ElseIf k <> "" And IsNumeric(src(i, cHrs)) And Not IsEmpty(src(i, cHrs)) Then
-            hrs = CDbl(src(i, cHrs))
-            If Not totals.Exists(k) Then
-                totals.Add k, 0#
-                mTxRaw(k) = raw
-                If cId > 0 Then mTxPay(k) = PayrollText(src(i, cId))
-            End If
-            totals(k) = totals(k) + hrs
-            If IsDate(src(i, cDt)) Then
-                d = CDate(src(i, cDt))
+    Dim rosterOf As Object: Set rosterOf = CreateObject("Scripting.Dictionary"): rosterOf.CompareMode = 1
+    Dim v As Variant: v = TableRows(WorkedDaysTable(False))
+    Dim i As Long, nm As String, k As String, pk As String, w As Double, d As Date
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            nm = Trim$(SafeStr(v(i, 2)))
+            If nm <> "" And IsDate(v(i, 3)) Then
+                k = NameKey(nm)
+                If Not rosterOf.Exists(k) Then rosterOf.Add k, nm: mTxRaw(k) = nm: mTxPay(k) = SafeStr(v(i, 1))
+                d = CDate(v(i, 3))
                 pk = k & "|" & CLng(Int(CDbl(PeriodStartFor(d))))
-                If mTxPeriods.Exists(pk) Then mTxPeriods(pk) = mTxPeriods(pk) + hrs Else mTxPeriods.Add pk, hrs
-                mTxCodes(pk) = SafeStr(mTxCodes(pk)) & IIf(SafeStr(mTxCodes(pk)) = "", "", "; ") & code & " " & HoursText(hrs)
+                w = NumOr0(v(i, 6))
+                If mTxPeriods.Exists(pk) Then mTxPeriods(pk) = mTxPeriods(pk) + w Else mTxPeriods.Add pk, w
+                If w <> 0 Then mTxCodes(pk) = SafeStr(mTxCodes(pk)) & IIf(SafeStr(mTxCodes(pk)) = "", "", "; ") & Format$(d, "mmm d") & " " & Trim$(SafeStr(v(i, 4))) & " " & HoursText(NumOr0(v(i, 5)))
             End If
+        Next i
+    End If
+    RebuildWorkedPeriods = WriteWorkedPeriods(rosterOf, stamp)
+    Dim lf As Date: lf = KronosLedgerFrom()
+    If lf > 0 Then RebuildWorkedPeriods = RebuildWorkedPeriods & " Exact from " & Format$(lf, "mmm d, yyyy") & " (the first snapshot day); earlier periods are not available."
+End Function
+
+' name -> "Refused|sum of the pay-period cells": what a Kronos import must leave untouched (RosterTotalsMap without Total,
+' which H moves by design)
+Private Function RosterRefusedMap() As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary"): d.CompareMode = 1
+    Dim m As Object: Set m = RosterTotalsMap()
+    Dim k As Variant, s As String
+    For Each k In m.Keys
+        s = CStr(m(k))
+        d(k) = Mid$(s, InStr(s, "|") + 1)
+    Next k
+    Set RosterRefusedMap = d
+End Function
+
+' TotalsDifference for the Refused map: names whose Refused or period sum moved, or that came or went ("" = nothing)
+Private Function TotalsDifferenceRef(ByVal before As Object, ByVal after As Object) As String
+    Dim k As Variant, s As String, n As Long
+    For Each k In before.Keys
+        If Not after.Exists(k) Then
+            n = n + 1: If n <= 10 Then s = s & "  " & k & ": no longer on the roster" & vbNewLine
+        ElseIf before(k) <> after(k) Then
+            n = n + 1: If n <= 10 Then s = s & "  " & k & ": Refused / periods were " & Replace(before(k), "|", " / ") & ", now " & Replace(after(k), "|", " / ") & vbNewLine
         End If
-    Next i
-    Dim out() As Variant: ReDim out(1 To totals.Count + 1, 1 To 3)
-    out(1, 1) = "Payroll #": out(1, 2) = "Employee Name": out(1, 3) = "Grand Total"
-    Dim kk As Variant, n As Long
-    n = 1
-    For Each kk In totals.Keys
-        n = n + 1
-        out(n, 1) = SafeStr(mTxPay(kk)): out(n, 2) = mTxRaw(kk): out(n, 3) = totals(kk)
-    Next kk
-    PivotFromTransactions = out
+    Next k
+    For Each k In after.Keys
+        If Not before.Exists(k) Then n = n + 1: If n <= 10 Then s = s & "  " & k & ": appeared on the roster" & vbNewLine
+    Next k
+    If n > 10 Then s = s & "  ...and " & (n - 10) & " more" & vbNewLine
+    TotalsDifferenceRef = s
 End Function
 
 ' The Worked Periods sheet's table, made on first use (admin-only, never published as a sheet)

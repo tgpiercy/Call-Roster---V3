@@ -319,6 +319,17 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsPayrollHeader(i1), "yes", "no")
         Case "payroll"                             ' roster number, in Kronos Y|N, names agree Y|N -> name / number / mismatch
             RunCase = PayrollDecision(i1, (i2 = "Y"), (i3 = "Y"))
+        Case "kmult"                               ' v27: a Kronos pay code -> its multiplier / none (the settings' table)
+            Dim km As Double: km = PremiumMultiplier(i1, PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+            RunCase = IIf(km < 0, "none", NumText(km))
+        Case "kweight"                             ' v27: "code=hours;code=hours" -> the weighted whole-hour total | the codes not counted
+            RunCase = WeightedTotal(i1, PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+        Case "kperiod"                             ' v27: the report's Time Period line -> yyyy-mm-dd|yyyy-mm-dd or the problem
+            Dim kf As Date, kt As Date, kp As String
+            kp = TimePeriodCore(i1, kf, kt)
+            RunCase = IIf(kp <> "", kp, Format$(kf, "yyyy-mm-dd") & "|" & Format$(kt, "yyyy-mm-dd"))
+        Case "kkind"                               ' v27: from, to, the roster year's first and last day -> day / cumulative / range / outside
+            RunCase = ReportKindCore(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -1613,5 +1624,42 @@ Private Sub LoadCases4()
     AddCase "postcap,max-4,12,4,Y,,,4"
     AddCase "postcap,max-0-not-charged,12,0,Y,,,0"
     AddCase "postcap,max-equal,12,12,Y,,,12"
+    AddCase "kmult,overtime,OVERTIME,,,,,1.75"
+    AddCase "kmult,ca-prefix,CA OVERTIME,,,,,1.75"
+    AddCase "kmult,any-case,ca overtime,,,,,1.75"
+    AddCase "kmult,ot-dt-split,CA OT - DT Split,,,,,2"
+    AddCase "kmult,lieu-ot,CA LIEU OT,,,,,1.5"
+    AddCase "kmult,lieu-dt,CA LIEU DT,,,,,2"
+    AddCase "kmult,lieu-ot-dt-split,CA LIEU OT - DT Split,,,,,1.5"
+    AddCase "kmult,lieu-st,CA LIEU ST,,,,,1"
+    AddCase "kmult,callin-ot,CA CALLIN OT,,,,,1.75"
+    AddCase "kmult,min-4,CA MIN 4,,,,,1.5"
+    AddCase "kmult,statwk,CA STATWK 2.0,,,,,2"
+    AddCase "kmult,dbltime-not-counted,CA DBLTIME,,,,,none"
+    AddCase "kmult,unapproved-not-counted,CA Uanpproved OT,,,,,none"
+    AddCase "kmult,lieu-taken-not-counted,CA LIEU TKN,,,,,none"
+    AddCase "kmult,reg-not-counted,CA REG,,,,,none"
+    AddCase "kmult,blank,,,,,,none"
+    AddCase "kweight,one-code,CA OVERTIME=4,,,,,7"
+    AddCase "kweight,two-codes,CA OVERTIME=4;CA OT - DT Split=2,,,,,11"
+    AddCase "kweight,rounds-half-up,CA OVERTIME=0.3,,,,,1"
+    AddCase "kweight,rounds-down,CA OVERTIME=0.2,,,,,0"
+    AddCase "kweight,other-code-named,CA OVERTIME=2;CA DBLTIME=12,,,,,4|CA DBLTIME"
+    AddCase "kweight,lieu-st-plain,CA LIEU ST=10;CA LIEU TKN=3,,,,,10|CA LIEU TKN"
+    AddCase "kweight,empty,,,,,,0"
+    AddCase "kweight,stat-and-min,CA STATWK 2.0=12;CA MIN 4=4,,,,,30"
+    AddCase "kperiod,year-to-date,Time Period : 01/11/2026 - 10/17/2026,,,,,2026-01-11|2026-10-17"
+    AddCase "kperiod,one-day,10/19/2026 - 10/19/2026,,,,,2026-10-19|2026-10-19"
+    AddCase "kperiod,label-only,Time Period :,,,,,no dates"
+    AddCase "kperiod,end-first,10/20/2026 - 10/19/2026,,,,,end before start"
+    AddCase "kperiod,bad-day,2/30/2026 - 3/1/2026,,,,,no dates"
+    AddCase "kperiod,one-date,Executed on : 10/21/2026 11:56 AM,,,,,no dates"
+    AddCase "kkind,snapshot,2026-10-19,2026-10-19,2025-12-28,2026-12-26,,day"
+    AddCase "kkind,year-to-date-jan-11,2026-01-11,2026-10-17,2025-12-28,2026-12-26,,cumulative"
+    AddCase "kkind,year-to-date-dec-28,2025-12-28,2026-10-17,2025-12-28,2026-12-26,,cumulative"
+    AddCase "kkind,starts-late,2026-01-12,2026-10-17,2025-12-28,2026-12-26,,range"
+    AddCase "kkind,one-week,2026-10-13,2026-10-19,2025-12-28,2026-12-26,,range"
+    AddCase "kkind,last-year,2025-11-01,2025-11-30,2025-12-28,2026-12-26,,outside"
+    AddCase "kkind,next-year-day,2027-01-05,2027-01-05,2025-12-28,2026-12-26,,outside"
 ' <<< CASES
 End Sub

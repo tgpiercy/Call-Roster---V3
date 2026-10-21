@@ -20,6 +20,11 @@ CHARGE_MAX_GRADE = 2            # modOvertimeEntry.CHARGE_MAX_GRADE
 PEER_MAX_GRADE = 2              # modLeave.PEER_MAX_GRADE
 DST_USE_ACTUAL_HOURS = True     # modOvertimeEntry.DST_USE_ACTUAL_HOURS
 USUAL_SHIFT_HOURS = 12.0
+# v27 (briefs/v27-kronos.md): the Kronos pay codes that count toward Worked (H) and their straight-time multipliers
+# (modOvertimeEntry.PREMIUM_CODES / PREMIUM_MULTIPLIERS, parallel lists; test_drift compares them)
+PREMIUM_CODES = "OVERTIME,OT - DT Split,LIEU OT,LIEU DT,LIEU OT - DT Split,LIEU ST,CALLIN OT,MIN 4,STATWK 2.0"
+PREMIUM_MULTIPLIERS = "1.75,2,1.5,2,1.5,1,1.75,1.5,2"
+KRONOS_YEAR_SLACK = 14          # ImportKronosData.KRONOS_YEAR_SLACK: a cumulative report starts within this of the year's first day
 
 # ---------------------------------------------------------------- rotation
 # modShiftCycle: 28-day cycle, day 1 = Sun Dec 28, 2025 (B days / A nights)
@@ -1554,6 +1559,77 @@ def posting_closed(closes_on: date, as_of: date | datetime) -> bool:
     moment the printed sheet and the members' file use). A date as-of is that day's midnight."""
     at = as_of if isinstance(as_of, datetime) else datetime(as_of.year, as_of.month, as_of.day)
     return at >= datetime(closes_on.year, closes_on.month, closes_on.day, POSTING_CLOSE_HOUR)
+
+
+# ---------------------------------------------------------------- the Kronos report (v27, ImportKronosData)
+def premium_multiplier(code: str, codes: str = PREMIUM_CODES, mults: str = PREMIUM_MULTIPLIERS) -> float:
+    """ImportKronosData.PremiumMultiplier: the code without its 'CA ' prefix, any case, against the parallel
+    lists; -1 = not a roster code."""
+    c = code.strip()
+    if c[:3].upper() == "CA ":
+        c = c[3:].strip()
+    if not c:
+        return -1
+    cs = [x.strip() for x in codes.split(",")]
+    ms = [x.strip() for x in mults.split(",")]
+    for i, x in enumerate(cs):
+        if x.lower() == c.lower():
+            return float(ms[i]) if i < len(ms) else -1
+    return -1
+
+
+def round_half_up(x: float) -> float:
+    """ImportKronosData.RoundHalfUp: Excel's ROUND(x, 0), half away from zero (VBA's Round is half-to-even)."""
+    import math
+    sign = -1 if x < 0 else 1
+    return float(math.floor(abs(x) + 0.5000001)) * sign
+
+
+def weighted_total(spec: str, codes: str = PREMIUM_CODES, mults: str = PREMIUM_MULTIPLIERS) -> str:
+    """ImportKronosData.WeightedTotal: 'code=hours;code=hours' -> the roster codes' hours x their multiplier,
+    summed and rounded whole, then '|' + the codes not counted (when any)."""
+    tot = 0.0
+    other: list[str] = []
+    for part in spec.split(";"):
+        if not part.strip() or "=" not in part:
+            continue
+        code, hrs = part.split("=", 1)
+        m = premium_multiplier(code.strip(), codes, mults)
+        if m < 0:
+            other.append(code.strip())
+        else:
+            tot += float(hrs) * m
+    out = f"{round_half_up(tot):g}"
+    return out + ("|" + ";".join(other) if other else "")
+
+
+def time_period(text: str) -> str:
+    """ImportKronosData.TimePeriodCore: the two m/d/yyyy dates in the report's Time Period line ->
+    'yyyy-mm-dd|yyyy-mm-dd', or 'no dates' / 'end before start'."""
+    import re as _re
+    found: list[date] = []
+    for tok in _re.findall(r"\d{1,2}/\d{1,2}/\d{4}", text):
+        m, d_, y = (int(x) for x in tok.split("/"))
+        try:
+            found.append(date(y, m, d_))
+        except ValueError:
+            continue
+    if len(found) < 2:
+        return "no dates"
+    a, b = found[0], found[1]
+    if b < a:
+        return "end before start"
+    return f"{a.isoformat()}|{b.isoformat()}"
+
+
+def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str:
+    """ImportKronosData.ReportKindCore: 'day' (one day: a snapshot), 'cumulative' (starts within KRONOS_YEAR_SLACK of
+    the year's first day), 'range' (several days, not the year to date: refused), 'outside' (not this year)."""
+    if to_d < year_from or from_d > year_to:
+        return "outside"
+    if from_d == to_d:
+        return "day"
+    return "cumulative" if from_d <= year_from + timedelta(days=KRONOS_YEAR_SLACK) else "range"
 
 
 def view_mode_for(login: str, admin_list: str, desk_list: str, sup_list: str = "") -> str:

@@ -2677,6 +2677,9 @@ Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, By
     AddNameCol los, cols, labels, n, CrewTable(False), CH_EMP, "Crew History"
     AddNameCol los, cols, labels, n, PlannedTable(False), PM_EMP, "Planned moves"     ' v24.3
     AddNameCol los, cols, labels, n, WorkedPeriodsTable(False), 2, "Worked Periods"  ' v26.5.5 (A8): the per-period Kronos hours
+    AddNameCol los, cols, labels, n, WorkedDaysTable(False), 2, "Worked Days"        ' v27: the Kronos ledger, snapshot and change log
+    AddNameCol los, cols, labels, n, KronosTotalsTable(False), 2, "Kronos Totals"
+    AddNameCol los, cols, labels, n, WorkedChangesTable(False), 3, "Worked Changes"
     NameColumns = n
 End Function
 

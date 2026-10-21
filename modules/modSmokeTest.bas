@@ -943,7 +943,18 @@ Private Function SmkKronosHeadings(ByRef st As SmkState, ByRef why As String) As
     src(2, 4) = "Grand Total": src(2, 2) = "Name": src(4, 2) = "Employee Name"
     w = KronosHeadingProblem(src, nameCol, totCol, hdrName, hdrTot)
     If InStr(w, "same heading row") = 0 Then why = "headings on two rows weren't refused (" & w & ")": Exit Function
-    st.Note = "found by heading; 'Total' for 'Grand Total' refused; headings on two rows refused"
+    ' v27: the report's rules - the multiplier table, the weighted whole-hour total, the Time Period line, the report's kind
+    If PremiumMultiplier("CA OVERTIME", PREMIUM_CODES, PREMIUM_MULTIPLIERS) <> 1.75 Then why = "OVERTIME's multiplier is not 1.75": Exit Function
+    If PremiumMultiplier("CA DBLTIME", PREMIUM_CODES, PREMIUM_MULTIPLIERS) >= 0 Then why = "DBLTIME would be counted (it is never an operator's)": Exit Function
+    w = WeightedTotal("CA OVERTIME=4;CA DBLTIME=12", PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+    If w <> "7|CA DBLTIME" Then why = "4 h OVERTIME + 12 h DBLTIME gave " & w & ", not 7|CA DBLTIME": Exit Function
+    Dim fromD As Date, toD As Date
+    w = TimePeriodCore("Time Period : 10/19/2026 - 10/19/2026", fromD, toD)
+    If w <> "" Or fromD <> DateSerial(2026, 10, 19) Or toD <> fromD Then why = "the Time Period line was not read (" & w & ")": Exit Function
+    If ReportKindCore(fromD, toD, DateSerial(2025, 12, 28), DateSerial(2026, 12, 26)) <> "day" Then why = "a one-day report is not a day": Exit Function
+    If ReportKindCore(DateSerial(2026, 1, 11), DateSerial(2026, 10, 17), DateSerial(2025, 12, 28), DateSerial(2026, 12, 26)) <> "cumulative" Then why = "Jan 11 .. Oct 17 is not the year to date": Exit Function
+    If ReportKindCore(DateSerial(2026, 10, 13), DateSerial(2026, 10, 19), DateSerial(2025, 12, 28), DateSerial(2026, 12, 26)) <> "range" Then why = "a week is not refused as a range": Exit Function
+    st.Note = "found by heading; 'Total' for 'Grand Total' refused; headings on two rows refused; v27: multipliers, the weighted total, the Time Period line, day / cumulative / range"
     SmkKronosHeadings = True
 End Function
 

@@ -239,6 +239,15 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_header_match(i1, i2) else "no"
     if suite == "payroll":                       # roster number, in Kronos, names agree -> name / number / mismatch
         return rules.payroll_decision(i1, i2 == "Y", i3 == "Y")
+    if suite == "kmult":                         # v27: a Kronos pay code -> its multiplier / none
+        km = rules.premium_multiplier(i1)
+        return "none" if km < 0 else fmt_num(km)
+    if suite == "kweight":                       # v27: "code=hours;code=hours" -> the weighted whole-hour total | codes not counted
+        return rules.weighted_total(i1)
+    if suite == "kperiod":                       # v27: the report's Time Period line -> yyyy-mm-dd|yyyy-mm-dd or the problem
+        return rules.time_period(i1)
+    if suite == "kkind":                         # v27: from, to, the roster year's first and last day -> day / cumulative / range / outside
+        return rules.report_kind(d(i1), d(i2), d(i3), d(i4))
     if suite == "dryname":                       # file name -> yes / no
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "backupname":                    # v24.3.1: file name -> yes / no (a backup, FINAL or pre-change copy)

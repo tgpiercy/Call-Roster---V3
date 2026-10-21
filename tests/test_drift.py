@@ -66,6 +66,14 @@ def test_charging_constants_match_vba():
     assert vba_const("modOvertimeEntry.bas", "BACKUP_BASENAME").strip('"') == rules.BACKUP_BASENAME
 
 
+def test_kronos_code_table_matches_vba():
+    """v27: the premium codes and their multipliers are one table in two places."""
+    assert vba_const("modOvertimeEntry.bas", "PREMIUM_CODES").strip('"') == rules.PREMIUM_CODES
+    assert vba_const("modOvertimeEntry.bas", "PREMIUM_MULTIPLIERS").strip('"') == rules.PREMIUM_MULTIPLIERS
+    assert len(rules.PREMIUM_CODES.split(",")) == len(rules.PREMIUM_MULTIPLIERS.split(","))
+    assert int(vba_const("ImportKronosData.bas", "KRONOS_YEAR_SLACK")) == rules.KRONOS_YEAR_SLACK
+
+
 def test_attendance_constants_match_vba():
     for name in ("PAID_SICK_DAYS", "PAID_SICK_OCC", "PERSONAL_DAYS", "COMBINED_LIMIT"):
         assert int(vba_const("modAttendance.bas", name)) == getattr(rules, name), name

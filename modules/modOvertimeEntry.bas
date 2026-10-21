@@ -90,10 +90,20 @@ Public Const PUB_NAME As String = "MembersPublishedAt"
 Public Const SIGNUPS_ON As Boolean = True       ' v26.5 (Graeme, Oct 19): on for the beta - members' Sign me up / Withdraw write into the Signups folder beside the members' file
 Public Const SIGNUP_FOLDER As String = ".\Signups"
 Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox files this old for a closed posting
-Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"   ' v26.5: the Kronos EXPORT file ("Employee Transactions and Totals"), or the FOLDER the exports are saved in (ending in \: the newest file is read); the pivot workbook still works, without the per-period hours
+Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"   ' v27: the FOLDER the Kronos reports are saved in (ending in \: every report newer than the last import is read, oldest first), or one report file; the processing workbook ("Sorted Data Here") still works as the fall-back
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)
+' v27 (briefs/v27-kronos.md): the Kronos report "Employee Transactions and Totals" - its TOTALS block (one row per person per
+' pay code, no date) holds the hours; the dated Transactions block is timecard edits and is never summed. Worked (H) = the sum
+' over the ROSTER codes of hours x that code's multiplier (straight-time equivalent, as Graeme's processing workbook did),
+' rounded to a whole number per person. The two lists are parallel; a code is matched without its "CA " prefix, any case.
+' Any other code on a roster person (DBLTIME, Uanpproved OT, LIEU TKN: never an operator's) is reported, never counted.
+Public Const PREMIUM_CODES As String = "OVERTIME,OT - DT Split,LIEU OT,LIEU DT,LIEU OT - DT Split,LIEU ST,CALLIN OT,MIN 4,STATWK 2.0"
+Public Const PREMIUM_MULTIPLIERS As String = "1.75,2,1.5,2,1.5,1,1.75,1.5,2"   ' Graeme, Oct 21: LIEU OT 1.5 and LIEU DT 2 (his workbook had them swapped)
+Public Const KRONOS_QUERY As String = "Welland Hourly"   ' the report's Query line; another query is imported with a warning
+Public Const KCUM_NAME As String = "KronosCumThrough"    ' hidden name: the last CUMULATIVE report's Time Period end (the Kronos Totals snapshot runs through it)
+Public Const KLEDGER_NAME As String = "KronosLedgerFrom" ' hidden name: the first day the Worked Days ledger holds (per-period figures are exact from it)
 Public Const REFUSED_NAME As String = "RefusedThrough"  ' v26.5 hidden name: the current pay period's start - Refused (I) counts the periods up to it
 
 ' Daily backup (v21): the first admin open each day saves "Call Out Roster yyyy-mm-dd.xlsm"
@@ -1757,7 +1767,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
-                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log
         If SheetExists(CStr(nm)) Then
             Dim showIt As Boolean
             showIt = adminView And Not gDeskMode

@@ -645,6 +645,30 @@ Private Sub CheckOrphans()
         Next i
         If wpSeen.Count > 10 Then AddIssue SEV_WARN, "Not on roster", "... and " & (wpSeen.Count - 10) & " more names on Worked Periods", ""
     End If
+    ' v27: the Kronos ledger, snapshot and change log name people too (the roster's spelling, written by the import)
+    OrphanTableNames WD_TABLE, 2, "Worked Days", former
+    OrphanTableNames KT_TABLE, 2, "Kronos Totals", former
+    OrphanTableNames WC_TABLE, 3, "Worked Changes", former
+End Sub
+
+' v27: names in one table's column that are on neither the roster nor the Former sheet (a rename that missed them)
+Private Sub OrphanTableNames(ByVal tableName As String, ByVal col As Long, ByVal label As String, ByVal former As Object)
+    Dim v As Variant: v = TableValues(tableName)
+    If Not IsArray(v) Then Exit Sub
+    Dim seen As Object: Set seen = CreateObject("Scripting.Dictionary")
+    seen.CompareMode = 1
+    Dim i As Long, emp As String
+    For i = 1 To UBound(v, 1)
+        emp = Trim$(SafeStr(v(i, col)))
+        If emp <> "" Then
+            If Not mOnRoster.Exists(emp) And Not former.Exists(emp) And Not seen.Exists(emp) Then
+                seen.Add emp, True
+                If seen.Count <= 10 Then AddIssue SEV_WARN, "Not on roster", label & " has rows for " & emp & ", who isn't on the roster or the Former sheet", _
+                                                 "A rename that missed the table, or they left: Rename matches it; the rows stay as history"
+            End If
+        End If
+    Next i
+    If seen.Count > 10 Then AddIssue SEV_WARN, "Not on roster", "... and " & (seen.Count - 10) & " more names on " & label, ""
 End Sub
 
 Private Sub OrphanSwitchName(ByVal id As String, ByVal emp As String)
@@ -854,6 +878,82 @@ End Sub
 ' ---- 8. Kronos ----
 Private Sub CheckKronos()
     If KronosIsStale() Then AddIssue SEV_WARN, "Kronos", KronosStatusText(), "Run Import Kronos"
+    ' v27 (briefs/v27-kronos.md): Worked (H) must be what the Kronos Totals snapshot + the Worked Days ledger give
+    Dim through As Date, piv As Variant
+    piv = PivotFromLedger(through)
+    If UBound(piv, 1) < 2 Then Exit Sub                     ' no report imported yet: the pivot sheet fed H, nothing to compare
+    Dim expectH As Object: Set expectH = CreateObject("Scripting.Dictionary")
+    expectH.CompareMode = 1
+    Dim i As Long
+    For i = 2 To UBound(piv, 1)
+        expectH(Trim$(SafeStr(piv(i, 2)))) = NumOr0(piv(i, 3))
+    Next i
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long, nm As String, h As Double, nBad As Long
+    For r = R_FIRST To RosterLastRow()
+        nm = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
+        If nm <> "" Then
+            If expectH.Exists(nm) Then
+                h = NumOr0(ws.Cells(r, C_WORKED).Value)
+                If Abs(h - CDbl(expectH(nm))) > 0.001 Then
+                    nBad = nBad + 1
+                    If nBad <= 10 Then AddIssue SEV_ERR, "Kronos", nm & ": Worked (H) is " & HoursText(h) & " but the Kronos Totals + ledger give " & HoursText(CDbl(expectH(nm))), _
+                                                "Run Import Kronos: it rewrites H from the tables (the sanity confirm names who moves)"
+                End If
+            End If
+        End If
+    Next r
+    If nBad > 10 Then AddIssue SEV_ERR, "Kronos", "... and " & (nBad - 10) & " more people whose Worked (H) differs from the Kronos tables", "Run Import Kronos"
+    ' the ledger: every day inside the roster year; the snapshot days since the ledger began with no rows at all
+    Dim v As Variant: v = TableValues(WD_TABLE)
+    Dim days As Object: Set days = CreateObject("Scripting.Dictionary")
+    Dim notCounted As Object: Set notCounted = CreateObject("Scripting.Dictionary")
+    notCounted.CompareMode = 1
+    Dim d As Date, nOut As Long
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If IsDate(v(i, 3)) Then
+                d = CDate(v(i, 3))
+                days(CLng(Int(CDbl(d)))) = True
+                If d < RosterYearFrom() Or d > RosterYearTo() Then
+                    nOut = nOut + 1
+                    If nOut <= 5 Then AddIssue SEV_ERR, "Kronos", "Worked Days holds a row dated " & Format$(d, "mmm d, yyyy") & " (" & Trim$(SafeStr(v(i, 2))) & "), outside this roster's year", _
+                                               "A report for another year was imported: an admin removes the row (UnlockForRepair) and re-imports"
+                End If
+                If PremiumMultiplier(Trim$(SafeStr(v(i, 4))), PREMIUM_CODES, PREMIUM_MULTIPLIERS) < 0 And NumOr0(v(i, 5)) <> 0 Then _
+                    notCounted(Trim$(SafeStr(v(i, 2))) & ": " & Trim$(SafeStr(v(i, 4)))) = True
+            End If
+        Next i
+    End If
+    v = TableValues(KT_TABLE)
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            If PremiumMultiplier(Trim$(SafeStr(v(i, 3))), PREMIUM_CODES, PREMIUM_MULTIPLIERS) < 0 And NumOr0(v(i, 4)) <> 0 Then _
+                notCounted(Trim$(SafeStr(v(i, 2))) & ": " & Trim$(SafeStr(v(i, 3)))) = True
+        Next i
+    End If
+    Dim kk As Variant, nShown As Long
+    For Each kk In notCounted.Keys
+        nShown = nShown + 1
+        If nShown <= 10 Then AddIssue SEV_WARN, "Kronos", "A roster person has hours under a code the roster does not count - " & kk, _
+                                     "DBLTIME, Uanpproved OT and LIEU TKN are never an operator's: check the person's codes with payroll, or the PREMIUM_CODES setting"
+    Next kk
+    If notCounted.Count > 10 Then AddIssue SEV_WARN, "Kronos", "... and " & (notCounted.Count - 10) & " more codes not counted", ""
+    Dim lf As Date: lf = KronosLedgerFrom()
+    Dim cum As Date: cum = KronosCumThrough()
+    If lf > 0 Then
+        Dim first As Date: first = lf
+        If cum + 1 > first Then first = cum + 1
+        Dim missing As String, nMiss As Long
+        For d = first To Date - 1
+            If Not days.Exists(CLng(Int(CDbl(d)))) Then
+                nMiss = nMiss + 1
+                If nMiss <= 10 Then missing = missing & IIf(missing = "", "", ", ") & Format$(d, "ddd mmm d")
+            End If
+        Next d
+        If nMiss > 0 Then AddIssue SEV_WARN, "Kronos", "No one-day Kronos report for " & nMiss & " day(s) since the ledger began: " & missing & IIf(nMiss > 10, " ...", ""), _
+                                        "Run the report for each missing day into the Kronos folder, then Import Kronos (or the year to date at the period's end)"
+    End If
 End Sub
 
 

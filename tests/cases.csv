@@ -698,3 +698,40 @@ postcap,max-above-posting,12,16,Y,,,12
 postcap,max-4,12,4,Y,,,4
 postcap,max-0-not-charged,12,0,Y,,,0
 postcap,max-equal,12,12,Y,,,12
+kmult,overtime,OVERTIME,,,,,1.75
+kmult,ca-prefix,CA OVERTIME,,,,,1.75
+kmult,any-case,ca overtime,,,,,1.75
+kmult,ot-dt-split,CA OT - DT Split,,,,,2
+kmult,lieu-ot,CA LIEU OT,,,,,1.5
+kmult,lieu-dt,CA LIEU DT,,,,,2
+kmult,lieu-ot-dt-split,CA LIEU OT - DT Split,,,,,1.5
+kmult,lieu-st,CA LIEU ST,,,,,1
+kmult,callin-ot,CA CALLIN OT,,,,,1.75
+kmult,min-4,CA MIN 4,,,,,1.5
+kmult,statwk,CA STATWK 2.0,,,,,2
+kmult,dbltime-not-counted,CA DBLTIME,,,,,none
+kmult,unapproved-not-counted,CA Uanpproved OT,,,,,none
+kmult,lieu-taken-not-counted,CA LIEU TKN,,,,,none
+kmult,reg-not-counted,CA REG,,,,,none
+kmult,blank,,,,,,none
+kweight,one-code,CA OVERTIME=4,,,,,7
+kweight,two-codes,CA OVERTIME=4;CA OT - DT Split=2,,,,,11
+kweight,rounds-half-up,CA OVERTIME=0.3,,,,,1
+kweight,rounds-down,CA OVERTIME=0.2,,,,,0
+kweight,other-code-named,CA OVERTIME=2;CA DBLTIME=12,,,,,4|CA DBLTIME
+kweight,lieu-st-plain,CA LIEU ST=10;CA LIEU TKN=3,,,,,10|CA LIEU TKN
+kweight,empty,,,,,,0
+kweight,stat-and-min,CA STATWK 2.0=12;CA MIN 4=4,,,,,30
+kperiod,year-to-date,Time Period : 01/11/2026 - 10/17/2026,,,,,2026-01-11|2026-10-17
+kperiod,one-day,10/19/2026 - 10/19/2026,,,,,2026-10-19|2026-10-19
+kperiod,label-only,Time Period :,,,,,no dates
+kperiod,end-first,10/20/2026 - 10/19/2026,,,,,end before start
+kperiod,bad-day,2/30/2026 - 3/1/2026,,,,,no dates
+kperiod,one-date,Executed on : 10/21/2026 11:56 AM,,,,,no dates
+kkind,snapshot,2026-10-19,2026-10-19,2025-12-28,2026-12-26,,day
+kkind,year-to-date-jan-11,2026-01-11,2026-10-17,2025-12-28,2026-12-26,,cumulative
+kkind,year-to-date-dec-28,2025-12-28,2026-10-17,2025-12-28,2026-12-26,,cumulative
+kkind,starts-late,2026-01-12,2026-10-17,2025-12-28,2026-12-26,,range
+kkind,one-week,2026-10-13,2026-10-19,2025-12-28,2026-12-26,,range
+kkind,last-year,2025-11-01,2025-11-30,2025-12-28,2026-12-26,,outside
+kkind,next-year-day,2027-01-05,2027-01-05,2025-12-28,2026-12-26,,outside

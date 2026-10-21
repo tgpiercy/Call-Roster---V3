@@ -791,7 +791,7 @@ Private Sub btnSubmit_Click()
         C("lblStatus").Caption = SaveBlockText() & "  (Session " & sessionID & ")"
         Exit Sub
     End If
-    MsgBox shortSummary, vbInformation, "Session " & sessionID & " submitted"
+    ShowReceipt                                   ' v27 (item 7): the receipt card (SubmitCalloutSession filled it); the detail stays on the status bar
 
     ResetForm
 End Sub

@@ -1372,7 +1372,11 @@ Public Function SubmitAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
     Next i
     Dim calTxt As String: calTxt = CalendarOutcome(p, calNames, anyPartial)
     If Not gSmokeRun Then EmailAward p, lst, n, awardShow      ' v24.2: SmokeTest opens no email draft
-    Tell p.ID & " awarded to " & awardShow & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
+    ' v27 (item 7): the receipt instead of the box (WriteOutcome filled WHAT WAS RECORDED and WHO IT CHANGED)
+    ShowReceiptNow p.ID & " awarded to " & awardShow, gReceipt.Recorded, gReceipt.Changed, _
+                   "  Calendar: " & calTxt & vbNewLine & "  Postings sheet: " & p.ID & " is Awarded; the award email " & IIf(gSmokeRun, "was not sent (test)", "went to the crew list") & "." & vbNewLine & _
+                   "  OT Log: the rows with Ref ID " & p.ID & " (the charges carry the pay period starting " & Format$(ps, "mmm d") & ")." & vbNewLine & _
+                   "  The members' file shows it after the next Update the members' file." & vbNewLine, WrongText() & "  Reopen Posting (admin) opens it again and marks the charged people not chargeable." & vbNewLine
     SubmitAward = True
 End Function
 
@@ -1462,7 +1466,10 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
         calTxt = CalendarOutcome(p, CalName(outName))
     End If
     If Not gSmokeRun Then EmailAward p, lst, n, awardTxt & IIf(outPartial, " (" & HoursText(outTake) & " h)", ""), outName
-    Tell p.ID & " awarded out of department to " & outName & "." & vbNewLine & "Calendar: " & calTxt, vbInformation, "Award"
+    ShowReceiptNow p.ID & " awarded out of department to " & outName, gReceipt.Recorded, gReceipt.Changed, _
+                   "  Calendar: " & calTxt & vbNewLine & "  Postings sheet: " & p.ID & " is Awarded (out of department)." & vbNewLine & _
+                   "  OT Log: the rows with Ref ID " & p.ID & " (everyone eligible in the unit who did not sign up is charged, pay period starting " & Format$(ps, "mmm d") & ")." & vbNewLine & _
+                   "  The members' file shows it after the next Update the members' file." & vbNewLine, WrongText() & "  Reopen Posting (admin) opens it again." & vbNewLine
     SubmitAwardOutside = True
 End Function
 
@@ -1548,7 +1555,11 @@ Public Function SubmitNoTakers(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
               "Pay period starting " & Format$(ps, "mmm d, yyyy") & vbNewLine & vbNewLine & "Submit?", _
               vbOKCancel + vbExclamation, "Confirm no takers", vbOK) <> vbOK Then Exit Function
     If Not WriteOutcome(p, lst, n, "No takers", "", ps, 0) Then Exit Function
-    Tell p.ID & " closed - no takers." & vbNewLine & "Calendar: " & CalendarOutcome(p, "No takers"), vbInformation, "No takers"
+    Dim ntCal As String: ntCal = CalendarOutcome(p, "No takers")
+    ShowReceiptNow p.ID & " closed - no takers", gReceipt.Recorded, gReceipt.Changed, _
+                   "  Calendar: " & ntCal & vbNewLine & "  Postings sheet: " & p.ID & " is No takers." & vbNewLine & _
+                   "  OT Log: one Refused row per eligible person (pay period starting " & Format$(ps, "mmm d") & ")." & vbNewLine & _
+                   "  The members' file shows it after the next Update the members' file." & vbNewLine, WrongText() & "  Reopen Posting (admin) opens it again." & vbNewLine
     SubmitNoTakers = True
 End Function
 
@@ -1612,13 +1623,15 @@ Public Function SubmitCancel(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
     ComputeCancel lst, n
     On Error GoTo Failed
     UpdatePostingRecords p, lst, n, "Cancelled", ""
-    If UpdateCoverageBySource(p.ID, "NCN") = 0 Then
-        Tell p.ID & " cancelled. It wasn't on the calendar, so there was nothing to change there.", vbInformation, "Cancel request"
-    End If
+    Dim onCal As Boolean: onCal = (UpdateCoverageBySource(p.ID, "NCN") > 0)
     RefreshCalendar
     MarkMembersDirty
     If Not gSmokeRun Then ArchiveSignups p.ID      ' as WriteOutcome: SmokeTest never touches the inbox
     SaveIfWritable
+    ' v27 (item 7): the receipt (no OT Log rows: nobody is awarded, nobody is charged)
+    ShowReceiptNow p.ID & " cancelled", "  (no OT Log rows: nobody awarded, nobody charged)" & vbNewLine, "  Nobody's Total Hours changed." & vbNewLine, _
+                   IIf(onCal, "  Calendar: the line keeps its text with NCN (no coverage needed) as the coverage." & vbNewLine, "  Calendar: it was not on the calendar, so nothing changed there." & vbNewLine) & _
+                   "  Postings sheet: " & p.ID & " is Cancelled." & vbNewLine, "  Reopen Posting (admin) opens it again." & vbNewLine
     SubmitCancel = True
     Exit Function
 Failed:
@@ -1645,6 +1658,8 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
     If outName <> "" Then nRows = nRows + 1
 
     On Error GoTo Failed
+    Dim before As Object: Set before = ReceiptBefore()      ' v27 (receipts): Total Hours before the rows land
+    gReceipt.Recorded = "": gReceipt.Changed = ""
     If nRows > 0 Then
         Dim data() As Variant: ReDim data(1 To nRows, 1 To L_NCOLS)
         Dim user As String, stamp As Date
@@ -1720,7 +1735,9 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
             data(k, L_STAMP) = stamp
         End If
         If Not AppendLogRows(data) Then Exit Function
+        gReceipt.Recorded = RowsText(data, k)                   ' v27: the receipt's first part (the finisher adds the rest and shows it)
     End If
+    gReceipt.Changed = ReceiptChanges(before)
 
     UpdatePostingRecords p, lst, n, newStatus, awardNames
     MarkMembersDirty                    ' v24.1: the members' file is behind now

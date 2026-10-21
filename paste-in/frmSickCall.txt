@@ -212,9 +212,13 @@ Private Sub mSaveOnly_Click()
     Dim id As String: id = SaveIt()
     If id = "" Then Exit Sub
     Dim d0 As Date: PickedDate d0
-    MsgBox "Saved: " & mEmp.Text & " is off " & Format$(d0, "ddd mmm d") & " " & mShift.Text & _
-           " and the 24 h after it. The line is OPEN on the calendar.  (" & id & ")" & _
-           IIf(IsAdmin(), "", vbNewLine & vbNewLine & "Wrong person? Ask " & PRIMARY_ADMIN_NAME & " to void it."), vbInformation, "Sick Call"   ' v26.5.5 (B9)
+    ' v27 (item 7): the receipt card (v26.5.5's box said the same)
+    ShowReceiptNow "Sick call " & id & " saved", _
+                   "  " & id & "  Sick  " & mEmp.Text & "  " & Format$(d0, "ddd mmm d") & " " & mShift.Text & "  (an Absences row; no OT Log row)" & vbNewLine, _
+                   "  Nobody's Total Hours changed. " & mEmp.Text & " is off call lists for this shift and the 24 h after it." & vbNewLine, _
+                   "  Calendar: " & Format$(d0, "ddd mmm d") & " " & mShift.Text & ", " & C("cboUnit").Text & " - the line is OPEN (Fill a shift now, or Post a shift)." & vbNewLine & _
+                   "  Attendance (admin): the sick / personal counters." & vbNewLine & "  The members' file shows " & mEmp.Text & " as Off after the next update." & vbNewLine, _
+                   IIf(IsAdmin(), "  Book Time Off > Void this booking (or the calendar line's menu) voids it." & vbNewLine, "  Wrong person or shift? Ask " & PRIMARY_ADMIN_NAME & " to void it." & vbNewLine)
     Unload Me
 End Sub
 

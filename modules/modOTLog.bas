@@ -321,9 +321,13 @@ Public Sub AddAdjustment()
     data(1, L_PERIOD) = ps
     data(1, L_USER) = CurrentUser()
     data(1, L_STAMP) = Now
+    Dim before As Object: Set before = ReceiptBefore()        ' v27 (item 7)
     If AppendLogRows(data) Then
         SaveIfWritable
-        MsgBox "Adjustment " & refId & " added.", vbInformation, "Call Out Roster"
+        gReceipt.Recorded = RowsText(data, 1)
+        ShowReceiptNow "Adjustment " & refId & " added", gReceipt.Recorded, ReceiptChanges(before), _
+                       "  OT Log: the Adjustment row " & refId & " (type " & adjType & ", the reason in its Note). Roster: " & nm & "'s Total Hours, pay period starting " & Format$(ps, "mmm d") & "." & vbNewLine & _
+                       "  The members' file shows it after the next update." & vbNewLine, WrongText()
     End If
     Exit Sub
 Oops:
@@ -380,10 +384,16 @@ Private Sub VoidEntryFor(ByVal k As String, ByVal lead As String)
     If why = "" Then Exit Sub
 
     Dim calN As Long
+    Dim before As Object: Set before = ReceiptBefore()        ' v27 (item 7)
     cnt = VoidRef(k, why, calN)
     If cnt = 0 Then Exit Sub                       ' (review) VoidRef said why (nothing matched, or it stopped part-way and blocked the save)
-    MsgBox cnt & " row(s) voided. Roster totals updated." & _
-           IIf(calN > 0, vbNewLine & "Calendar: " & calN & " line(s) updated.", ""), vbInformation, "Call Out Roster"
+    ShowReceiptNow k & " voided (" & cnt & " row" & IIf(cnt = 1, "", "s") & ")", _
+                   "  " & k & "  " & cnt & " row(s) marked VOID, reason: " & why & vbNewLine & "  " & Replace(nameList, vbNewLine, vbNewLine & "  ") & vbNewLine, _
+                   ReceiptChanges(before), _
+                   "  OT Log: the rows keep their place, Status VOID with the reason in Void Note." & vbNewLine & _
+                   IIf(calN > 0, "  Calendar: " & calN & " line(s) updated (the coverage released)." & vbNewLine, "") & _
+                   "  The members' file shows it after the next update." & vbNewLine, _
+                   "  A void is not undone: log the entry again if it was right." & vbNewLine
 End Sub
 
 ' v25.5 (A9) "Undo my last log entry" (the admin Desk; "Undo last entry" on the bar): the newest non-void OT Log entry THIS login

@@ -386,6 +386,9 @@ Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolea
     recs(2).Outcome = "Accepted": taken(2) = 8                  ' takes 8 of the 12 on offer: the shift closes (v25, D-E4)
     If n >= 3 Then recs(3).Outcome = "Left Message"             ' below the partial: offered nothing, never charged
     If Not SubmitCalloutSession(st.Unit, "Days", CREW_ALL, d, USUAL_SHIFT_HOURS, recs, taken, n, st.SessionId, summary) Then Exit Function
+    ' v27 (item 7): the receipt was logged (not shown) and names the session and the test person's change
+    If InStr(gReceiptLog, "Session " & st.SessionId & " submitted") = 0 Then why = "no receipt was logged for " & st.SessionId: Exit Function
+    If InStr(gReceiptLog, "WHO IT CHANGED") = 0 Then why = "the receipt has no WHO IT CHANGED part": Exit Function
 
     ' the rows must carry the v25 rule (v25.1: this step still expected v24.1's "the rest offered down the
     ' list" and failed on Graeme's Oct 16 test): the first refusal charged on 12 h, the acceptance 8 h, the

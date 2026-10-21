@@ -1307,6 +1307,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
         End If
     Next i
 
+    Dim before As Object: Set before = ReceiptBefore()     ' v27 (receipts): everyone's Total Hours before the rows land
     If Not AppendLogRows(data) Then Exit Function     ' the caller keeps its entries so nothing is lost
     Dim savedOk As Boolean: savedOk = SaveIfWritable()     ' v26.5.5 (A1): a failed save is in the summary; the rows ARE in the log
 
@@ -1353,6 +1354,17 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
         shortSummary = SaveBlockText() & vbNewLine & shortSummary
         summary = IIf(NoSave(), "SAVING IS BLOCKED - log this session again after closing without saving.", "NOT SAVED TO DISK.") & vbNewLine & summary
     End If
+    ' v27 (item 7): the receipt - the pop-up shows it (or the box when the save failed); SmokeTest logs it here
+    gReceipt.Title = "Session " & sessionID & " submitted"
+    gReceipt.Recorded = RowsText(data, k)
+    gReceipt.Changed = ReceiptChanges(before)
+    gReceipt.WhereTxt = "  OT Log: the rows with Ref ID " & sessionID & " (newest first)." & vbNewLine & _
+                        "  Roster: " & dept & "'s Total Hours now carry the charges; the pay period starting " & Format$(ps, "mmm d") & "." & vbNewLine & _
+                        IIf(calTxt <> "", "  Calendar:" & Replace(calTxt, vbNewLine & "  ", " ") & vbNewLine, "  Calendar: nothing placed (nobody accepted)." & vbNewLine) & _
+                        "  The members' file shows it after the next Update the members' file." & vbNewLine & _
+                        "  " & nextTxt & vbNewLine
+    gReceipt.WrongTxt = WrongText()
+    If gSmokeRun Then ShowReceipt
     SubmitCalloutSession = True
 End Function
 

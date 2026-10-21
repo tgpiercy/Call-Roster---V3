@@ -577,7 +577,11 @@ Private Sub Finished(ByVal report As String, ByVal title As String)
     C("mClear").Clear: mMoveN = 0: C("mHEmp").Caption = ""
     C("rNew").Text = ""
     If keepMove <> "" Then SelectIn mMoveEmp, keepMove
-    MsgBox report, vbInformation, title
+    ' v27 (item 7): the receipt card (the report already names the before / after figures and the row written)
+    ShowReceiptNow title & ": " & Split(report, vbNewLine)(0), "  " & Replace(report, vbNewLine, vbNewLine & "  ") & vbNewLine, _
+                   "  (see the report above: a top-up or an opening balance is an Adjustment row; a rename, a crew or code change moves no hours)" & vbNewLine, _
+                   "  Roster: the person's row. OT Log: any Adjustment row named above. Grade Log / Crew History / Planned Moves / Former: as the report says." & vbNewLine & _
+                   "  The members' file shows it after the next update." & vbNewLine, WrongText()
 End Sub
 
 Private Sub SaveAdd()

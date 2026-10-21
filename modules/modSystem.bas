@@ -29,12 +29,12 @@ Public Const EXPECTED_RELEASE As String = "v26.5.5"
 Public Const WHATS_NEW As String = "The 16 h rule: OT already accepted, an award or a switch on the shift that touches the one on offer counts as worked time, so the call-out and award pop-ups show max N h beside anyone who can only take part (A or a full award is refused; P and a partial sign-up up to the max are fine).|" & _
                                    "Before 7 AM the date box is yesterday (the night under way); the Hours box fills itself; a sick call asks before it saves; every submitted session ends with what to do next; the keys say what they cost (R and L charged x1.75, U not charged); the trust strip on every pop-up and printout says how current the hours are.|" & _
                                    "A save that fails is REPORTED (NOT SAVED in red on the Desk until it goes through) and a file someone else saved meanwhile refuses to be overwritten; Practice on a copy (the Desk's grey row) opens a throw-away copy with a red banner."
-Private Const N_MODULES As Long = 27           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats
+Private Const N_MODULES As Long = 28           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v26.5.5"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v26.5.5,frmNewPosting|v26.5.5,frmPostingEntry|v26.5.5,frmShiftSwitch|v26.5.5," & _
-                                        "frmTimeOff|v26.5.5,frmLeave|v26.5.5,frmSickCall|v26.5.5,frmConvert|v26.5.5,frmEmployee|v26.5"   ' v26.5.5: every form but frmEmployee re-pasted (a title on every box; the call-out, sick-call, posting and award pop-ups changed), ThisWorkbook too (save guard, stale copy, practice banner)
+                                        "frmTimeOff|v26.5.5,frmLeave|v26.5.5,frmSickCall|v26.5.5,frmConvert|v26.5.5,frmEmployee|v26.5,frmReceipt|v26.5.5"   ' v26.5.5: every form but frmEmployee re-pasted (a title on every box; the call-out, sick-call, posting and award pop-ups changed), ThisWorkbook too (save guard, stale copy, practice banner); v27: + frmReceipt (new, the receipt card) - the release-prep commit bumps every form the receipts touched
 
 Private mBackupWarned As Boolean
 
@@ -70,6 +70,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     VerCheck "modReports", REP_VERSION, warn, nOk
     VerCheck "modReconcile", RC_VERSION, warn, nOk           ' v27: the Reconcile sheet
     VerCheck "modStats", STATS_VERSION, warn, nOk            ' v27: the quarterly Stats report
+    VerCheck "modReceipt", RCPT_VERSION, warn, nOk           ' v27: the receipt card after every save
     VerCheck "modSignups", SG_VERSION, warn, nOk
     VerCheck "modErrorLog", EL_VERSION, warn, nOk
     VerCheck "modSmokeTest", SMK_VERSION, warn, nOk

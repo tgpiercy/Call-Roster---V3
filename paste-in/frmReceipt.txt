@@ -1,0 +1,92 @@
+Option Explicit
+' @version v26.5.5 (Oct 21)
+
+' ================================================================
+' RECEIPT (v27, item 7): the card after every save - what was recorded,
+'  who it changed, where to see it, if this is wrong, the trust strip.
+'  Reads modReceipt.gReceipt. Print receipt = a PDF beside the roster;
+'  Email me this = a mail draft with the text. Every control is built in
+'  code below (new form: Insert > UserForm, name it frmReceipt, paste this).
+' ================================================================
+
+Private WithEvents mPrint As MSForms.CommandButton
+Private WithEvents mMail As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+
+Private Const LBL_L As Long = 14
+Private Const BOX_W As Long = 440
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single) As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "rc_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 15)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+' a section: a bold heading and a read-only, scrollable text box with the lines
+Private Function AddSection(ByVal nm As String, ByVal head As String, ByVal txt As String, ByVal T As Single, ByVal H As Single) As Single
+    Dim o As Object
+    Set o = AddLabel("h" & nm, head, LBL_L, T, BOX_W)
+    o.Font.Bold = True: o.ForeColor = RGB(30, 56, 100)
+    Set o = AddCtl("Forms.TextBox.1", "t" & nm, LBL_L, T + 16, BOX_W, H)
+    o.MultiLine = True: o.WordWrap = True: o.Locked = True: o.ScrollBars = 2    ' fmScrollBarsVertical
+    o.BackColor = RGB(250, 250, 252): o.Font.Size = 9.5
+    o.Text = Replace(txt, vbNewLine, vbCrLf)
+    AddSection = T + 16 + H + 8
+End Function
+
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Me.Caption = IIf(gReceipt.Title = "", "Saved", gReceipt.Title)
+    Me.Width = 470
+
+    Dim o As Object, y As Single
+    Set o = AddLabel("hdr", IIf(gReceipt.Title = "", "SAVED", UCase$(gReceipt.Title)), LBL_L, 8, BOX_W)
+    o.Font.Bold = True: o.Font.Size = 11: o.ForeColor = RGB(0, 128, 70)
+    Set o = AddLabel("when", Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & "  -  " & CurrentUser(), LBL_L, 26, BOX_W)
+    o.Font.Size = 8: o.ForeColor = RGB(120, 130, 140)
+    y = 46
+    y = AddSection("rec", "WHAT WAS RECORDED", IIf(gReceipt.Recorded = "", "  (nothing written to the OT Log)", gReceipt.Recorded), y, 64)
+    y = AddSection("chg", "WHO IT CHANGED", IIf(gReceipt.Changed = "", "  Nobody's Total Hours changed.", gReceipt.Changed), y, 52)
+    y = AddSection("whr", "WHERE TO SEE IT", gReceipt.WhereTxt, y, 46)
+    y = AddSection("wrg", "IF THIS IS WRONG", gReceipt.WrongTxt, y, 34)
+    Set o = AddLabel("trust", gReceipt.Trust, LBL_L, y, BOX_W)
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 7.5: o.ForeColor = RGB(120, 130, 140)
+    y = y + 30
+
+    Set mPrint = AddCtl("Forms.CommandButton.1", "cmdPrint", LBL_L, y, 130, 28)
+    mPrint.Caption = "Print receipt (PDF)"
+    Set mMail = AddCtl("Forms.CommandButton.1", "cmdMail", LBL_L + 138, y, 130, 28)
+    mMail.Caption = "Email me this"
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + BOX_W - 90, y, 90, 28)
+    mClose.Caption = "Close"
+    mClose.Cancel = True: mClose.Default = True
+    Me.Height = y + 28 + 36
+
+    ApplyFormTheme Me
+    mClose.BackColor = RGB(30, 56, 100): mClose.ForeColor = vbWhite
+    ScaleForm Me                                 ' x UI_SCALE (modUI), the last line
+End Sub
+
+Private Sub mPrint_Click()
+    ReceiptPdf
+End Sub
+
+Private Sub mMail_Click()
+    ReceiptMail
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

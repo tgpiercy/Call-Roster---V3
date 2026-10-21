@@ -398,6 +398,13 @@ Private Sub mSave_Click()
     LoadList
     C("status").Caption = "Saved: " & mEmp.Text & ", " & Left$(C("cboType").Text, 3) & ", " & _
                           Format$(ds, "mmm d") & " to " & IIf(mOpen.Value, "open", Format$(de, "mmm d")) & "  (" & id & ")."
+    ' v27 (item 7): the receipt card
+    ShowReceiptNow "Time off " & id & " saved", _
+                   "  " & id & "  " & C("cboType").Text & "  " & mEmp.Text & "  " & Format$(ds, "ddd mmm d") & " to " & IIf(mOpen.Value, "open-ended", Format$(de, "ddd mmm d")) & "  (an Absences row; no OT Log row)" & vbNewLine, _
+                   "  Nobody's Total Hours changed. " & mEmp.Text & " is off call lists for the booked shifts." & vbNewLine, _
+                   "  Calendar: one line per booked shift (OPEN until covered, or NCN)." & vbNewLine & _
+                   "  Absences sheet (admin). The members' file shows the booking after the next update (leave types show as Leave; sick and personal as Off)." & vbNewLine, _
+                   "  Void this booking on this pop-up; Set end date shortens it." & vbNewLine
     ' ready for the next booking
     mStart.Text = "": mEnd.Text = "": C("txtTimes").Text = "": C("txtNote").Text = ""
     mOpen.Value = False

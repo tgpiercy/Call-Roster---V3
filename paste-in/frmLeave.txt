@@ -265,7 +265,13 @@ Private Sub SaveGoing()
     C("status").Caption = "Saved: " & mEmp.Text & " on leave from " & Format$(d1, "mmm d") & _
                           IIf(IsDate(d2), ", back " & Format$(d2, "mmm d"), ", open-ended") & ". Home unit " & IIf(hu = "", "(none)", hu) & ".  (" & id & ")"
     LoadLeaves
-    MsgBox C("status").Caption, vbInformation, "Leave"
+    ' v27 (item 7): the receipt card
+    ShowReceiptNow "Leave " & id & " saved", _
+                   "  " & id & "  Leave going  " & mEmp.Text & "  from " & Format$(d1, "ddd mmm d") & IIf(IsDate(d2), " to " & Format$(CDate(d2), "ddd mmm d"), " (open-ended)") & "  (an Absences row; no OT Log row yet)" & vbNewLine, _
+                   "  Nobody's Total Hours changed. The return top-up is worked out when they come back (Leave: returning), from home unit " & IIf(hu = "", "(none - set it with Employee > Edit)", hu) & "." & vbNewLine, _
+                   "  Calendar: Leave on every scheduled shift; the Absences sheet (admin); Needs Attention lists the open leave." & vbNewLine & _
+                   "  The members' file shows Leave after the next update (never the type)." & vbNewLine, _
+                   "  Book Time Off > Void this booking (admin) voids it." & vbNewLine
 End Sub
 
 Private Sub SaveReturning()
@@ -287,13 +293,18 @@ Private Sub SaveReturning()
     msg = msg & vbNewLine & "This logs one Adjustment (Ref LV-####, Reason 'Leave return'" & IIf(hrs = 0, ", 0 h: the return goes on record", "") & _
           ") and closes the leave. Void Entry undoes it." & vbNewLine & vbNewLine & "Save?"
     If MsgBox(msg, vbOKCancel + vbQuestion, "Confirm leave return") <> vbOK Then Exit Sub
+    Dim before As Object: Set before = ReceiptBefore()        ' v27 (item 7)
     Dim id As String: id = SaveLeaveReturn(mCalc, hrs, why)
     If id = "" Then Exit Sub
     RefreshCalendar
     C("status").Caption = "Saved: " & Format$(hrs, "0.0") & " h added to " & mCalc.Emp & "; leave closed.  (" & id & ")"
     mCalcOk = False
     LoadLeaves
-    MsgBox C("status").Caption, vbInformation, "Leave"
+    ShowReceiptNow "Leave return " & id & " saved", _
+                   "  " & id & "  Adjustment (Leave return)  " & mCalc.Emp & "  " & Format$(hrs, "0.0") & " h" & IIf(why <> "", "  (" & why & ")", "") & vbNewLine & _
+                   "  " & Replace(mCalc.Summary, vbNewLine, vbNewLine & "  ") & vbNewLine, ReceiptChanges(before), _
+                   "  OT Log: the Adjustment row " & id & " with the calculation in its Note. Roster: " & mCalc.Emp & "'s Total Hours. Calendar: the leave is closed." & vbNewLine & _
+                   "  The members' file shows it after the next update." & vbNewLine, WrongText()
 End Sub
 
 Private Sub mClose_Click()

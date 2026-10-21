@@ -100,6 +100,8 @@ Public Type PListRec
     SignupHrs As Double         ' v24: 0 = signed up for the whole shift; otherwise the part they'll take
     ESign As String             ' v24.1: "<login> <time>" when the tick came from an electronic sign-up
     ExemptNote As String        ' v24: "Exempt - moved Jan 12" / "Exempt - left Jan 12": never charged on this posting
+    MaxHours As Double          ' v26.5.5 (item 9): the most of this shift they may take under the 16 h rule, as of now
+    MaxSet As Boolean           ' v26.5.5: MaxHours was worked out (the award pop-up fills it; a bare LoadPosting has no limit)
 End Type
 
 
@@ -1537,11 +1539,23 @@ Public Function PartialHoursValue(ByVal txt As String, ByVal postHours As Double
     If hrs >= postHours Then hrs = 0
 End Function
 
+' v26.5.5 (item 9): the hours a listed person would take against their 16 h rule maximum: "" = fine,
+' otherwise why it is refused. A list whose maximum was never worked out (MaxSet False) has no limit.
+Public Function AwardMaxProblem(ByRef lst() As PListRec, ByVal i As Long, ByVal take As Double) As String
+    If Not lst(i).MaxSet Then Exit Function
+    If take > lst(i).MaxHours + 0.001 Then
+        AwardMaxProblem = lst(i).EmpName & " can take at most " & HoursText(lst(i).MaxHours) & " h of this shift (the 16 h rule: " & _
+                          "OT accepted, an award or a switch touches it). A partial sign-up at or under that is allowed."
+    End If
+End Function
+
 ' The selected person signed up for part of the shift (0 = the whole of it). False = refused (why).
 Public Function SetPartialHours(ByRef lst() As PListRec, ByVal i As Long, ByVal txt As String, ByVal postHours As Double, _
                                 ByRef why As String) As Boolean
     Dim h As Double
     why = PartialHoursValue(txt, postHours, h)
+    If why <> "" Then Exit Function
+    why = AwardMaxProblem(lst, i, IIf(h > 0, h, postHours))      ' v26.5.5 (item 9)
     If why <> "" Then Exit Function
     lst(i).SignedUp = True
     lst(i).SignupHrs = h

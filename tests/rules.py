@@ -1125,6 +1125,23 @@ def staff_short(scheduled: int, off: int, covered: int, minimum: int) -> str:
     return f"SHORT {staffed}/{minimum}" if staffed < minimum else ""
 
 
+FATIGUE_MAX_HOURS = 16.0   # modOvertimeEntry (v26.5.5): the plant's maximum consecutive hours
+FATIGUE_MIN_REST = 11.0    # ... and the rest before the next shift
+
+
+def fatigue_max_hours(worked_before: float, hours_to_next: float) -> float:
+    """modCalendar.FatigueMaxHours (v26.5.5, item 9): the most OT that fits, given the consecutive hours of work
+    ending when the OT starts and the hours from the OT's start to the next work's start (99 = none)."""
+    m = FATIGUE_MAX_HOURS - worked_before
+    m = min(m, hours_to_next - FATIGUE_MIN_REST)
+    return max(m, 0.0)
+
+
+def fatigue_problem(worked_before: float, hours_offered: float, hours_to_next: float) -> str:
+    """modCalendar.FatigueProblem: '' or '16 h rule' when the hours offered do not fit."""
+    return "16 h rule" if hours_offered > fatigue_max_hours(worked_before, hours_to_next) + 0.001 else ""
+
+
 def owed_status_text(days: int, warn_days: int) -> str:
     """modShiftSwitch.OwedStatusText (v26): the Needs Attention status for a payback owed `days` days."""
     if days <= warn_days:

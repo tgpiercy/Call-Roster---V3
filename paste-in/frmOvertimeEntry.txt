@@ -419,6 +419,8 @@ Private Sub RefreshList()
         End If
 
         If mSS(i) <> "" Then displayName = displayName & "  [S/S]"
+        ' v26.5.5 (item 9): the 16 h rule leaves them less than the offer - a partial (P) up to that is allowed
+        If mEntries(i).MaxHours < mHours - 0.001 Then displayName = displayName & "  [max " & HoursText(mEntries(i).MaxHours) & " h]"
         lstEmployees.AddItem displayName
         lstEmployees.List(i - 1, 1) = IIf(mEntries(i).Phone = "", "- no phone -", mEntries(i).Phone)
         lstEmployees.List(i - 1, 2) = Format$(mEntries(i).TotalHrs, "0") & IIf(mEntries(i).ProvHrs > 0, "*", "") & _
@@ -460,6 +462,10 @@ Private Sub UpdateCurrentLabel()
     ' v24.1: after a partial acceptance above them, this person is offered what is left
     Dim offerNow As Double: offerNow = OfferFor(mCurrent)
     If offerNow < mHours Then info = info & "   -   offering " & HoursText(offerNow) & " of " & HoursText(mHours) & " h (part already taken)"
+    ' v26.5.5 (item 9): OT accepted, an award or a switch touches this shift
+    If mEntries(mCurrent).MaxHours < offerNow - 0.001 Then
+        info = info & "   -   16 h RULE: can take at most " & HoursText(mEntries(mCurrent).MaxHours) & " h (press P for part of the hours)"
+    End If
     C("lblInfo").Caption = info
 End Sub
 
@@ -646,9 +652,19 @@ Private Sub mPartAcc_Click()
     h = CDbl(a)
     If h <= 0 Then mTaken(mCurrent) = was: MsgBox "The hours must be more than 0.", vbExclamation: FocusList: Exit Sub
     If h >= offer Then h = 0                              ' the whole of what was on offer
+    If IIf(h > 0, h, offer) > mEntries(mCurrent).MaxHours + 0.001 Then      ' v26.5.5 (item 9)
+        mTaken(mCurrent) = was
+        MsgBox FatigueRefusalText(mCurrent), vbExclamation, "16 h rule": FocusList: Exit Sub
+    End If
     mTaken(mCurrent) = h
     RecordOutcome "Accepted", "", True
 End Sub
+
+' v26.5.5 (item 9): the one sentence for an acceptance over the person's 16 h rule maximum
+Private Function FatigueRefusalText(ByVal idx As Long) As String
+    FatigueRefusalText = mEntries(idx).EmpName & " can take at most " & HoursText(mEntries(idx).MaxHours) & " h of this shift (the 16 h rule: " & _
+                         "OT accepted, an award or a switch touches it). Press P and enter the hours they are taking, or log the outcome they gave."
+End Function
 
 Private Function LoggedCount() As Long
     Dim i As Long
@@ -686,6 +702,11 @@ End Sub
 
 Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String, Optional ByVal keepTaken As Boolean = False)
     If mCurrent < 1 Or mCurrent > mCount Then Exit Sub
+    If outcome = "Accepted" And Not keepTaken Then       ' v26.5.5 (item 9): the whole offer must fit the 16 h rule
+        If mEntries(mCurrent).MaxHours < OfferFor(mCurrent) - 0.001 Then
+            MsgBox FatigueRefusalText(mCurrent), vbExclamation, "16 h rule": FocusList: Exit Sub
+        End If
+    End If
     If Not keepTaken Then mTaken(mCurrent) = 0           ' only ACCEPTED PART sets partial hours
 
     mEntries(mCurrent).Outcome = outcome

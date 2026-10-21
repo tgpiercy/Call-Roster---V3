@@ -301,11 +301,14 @@ End Function
 Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal isNight As Boolean) As String
     Dim shiftLbl As String: shiftLbl = IIf(isNight, "Nights", "Days")
     Dim code As String: code = EmpCrewCode(empName, d)
-    Select Case NotFreeReason(empName, code, d, shiftLbl)
+    ' v26.5.5 (item 9): a switch is the whole shift, so the whole shift must fit the 16 h rule
+    Select Case NotFreeReason(empName, code, d, shiftLbl, DefaultShiftHours(d, isNight, USUAL_SHIFT_HOURS))
         Case "scheduled"
             WorksConflict = "is already working " & LCase$(CrewShiftOn(CrewOn(empName, d, code), d)) & " that day"
         Case "rest"
             If isNight Then WorksConflict = "starts days the next morning" Else WorksConflict = "is coming off nights that morning"
+        Case "16 h rule"
+            WorksConflict = "would go past " & FATIGUE_MAX_HOURS & " h of work with the OT they have accepted around that shift (the 16 h rule)"
     End Select
 End Function
 

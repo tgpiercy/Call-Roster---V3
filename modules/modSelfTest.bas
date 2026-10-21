@@ -213,6 +213,10 @@ Private Function RunCase(f() As String) As String
         Case "minstaff"                            ' v26: scheduled, off, covered, minimum -> ok / SHORT staffed/minimum
             RunCase = StaffShort(CLng(Val(i1)), CLng(Val(i2)), CLng(Val(i3)), CLng(Val(i4)))
             If RunCase = "" Then RunCase = "ok"
+        Case "fatigue"                             ' v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
+            RunCase = FatigueProblem(CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)))
+            If RunCase = "" Then RunCase = "ok"
+            RunCase = RunCase & "|" & NumText(FatigueMaxHours(CDbl(Val(i1)), CDbl(Val(i3))))
         Case "chargewhy"                           ' v26: type, outcome, call order, hours|charged, code -> the sentence
             Dim hc As Variant: hc = Split(i4 & "|", "|")
             RunCase = Replace(ChargeWhy(i1, i2, CLng(Val(i3)), Val(hc(0)), Val(hc(1)), i5), ",", ";")   ' ; for , (no commas in a case)
@@ -1531,5 +1535,20 @@ Private Sub LoadCases()
     AddCase "refthrough,next-period-waits,2026-10-25,2026-10-11,,,,waits"
     AddCase "refthrough,two-periods-out-waits,2026-11-08,2026-10-11,,,,waits"
     AddCase "refthrough,year-start,2025-12-28,2026-10-11,,,,counts"
+    AddCase "fatigue,free,0,12,99,,,ok|16"
+    AddCase "fatigue,night-then-day,12,12,99,,,16 h rule|4"
+    AddCase "fatigue,night-then-4h,12,4,99,,,ok|4"
+    AddCase "fatigue,12-plus-4-partial-accepted,16,4,99,,,16 h rule|0"
+    AddCase "fatigue,12-plus-8-refused-counts-nothing,12,12,99,,,16 h rule|4"
+    AddCase "fatigue,day-then-night,12,12,99,,,16 h rule|4"
+    AddCase "fatigue,switch-given-up-is-rest,0,12,99,,,ok|16"
+    AddCase "fatigue,next-shift-in-12,0,12,12,,,16 h rule|1"
+    AddCase "fatigue,next-shift-in-12-one-hour,0,1,12,,,ok|1"
+    AddCase "fatigue,next-shift-in-24,0,12,24,,,ok|13"
+    AddCase "fatigue,gap-exactly-11-after-12,0,12,23,,,ok|12"
+    AddCase "fatigue,gap-10-after-12,0,12,22,,,16 h rule|11"
+    AddCase "fatigue,dst-13h-night-then-day,13,12,99,,,16 h rule|3"
+    AddCase "fatigue,24-h-block,24,1,99,,,16 h rule|0"
+    AddCase "fatigue,half-hour-fits,15.5,0.5,99,,,ok|0.5"
 ' <<< CASES
 End Sub

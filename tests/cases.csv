@@ -648,3 +648,19 @@ refthrough,last-period,2026-09-27,2026-10-11,,,,counts
 refthrough,next-period-waits,2026-10-25,2026-10-11,,,,waits
 refthrough,two-periods-out-waits,2026-11-08,2026-10-11,,,,waits
 refthrough,year-start,2025-12-28,2026-10-11,,,,counts
+
+fatigue,free,0,12,99,,,ok|16
+fatigue,night-then-day,12,12,99,,,16 h rule|4
+fatigue,night-then-4h,12,4,99,,,ok|4
+fatigue,12-plus-4-partial-accepted,16,4,99,,,16 h rule|0
+fatigue,12-plus-8-refused-counts-nothing,12,12,99,,,16 h rule|4
+fatigue,day-then-night,12,12,99,,,16 h rule|4
+fatigue,switch-given-up-is-rest,0,12,99,,,ok|16
+fatigue,next-shift-in-12,0,12,12,,,16 h rule|1
+fatigue,next-shift-in-12-one-hour,0,1,12,,,ok|1
+fatigue,next-shift-in-24,0,12,24,,,ok|13
+fatigue,gap-exactly-11-after-12,0,12,23,,,ok|12
+fatigue,gap-10-after-12,0,12,22,,,16 h rule|11
+fatigue,dst-13h-night-then-day,13,12,99,,,16 h rule|3
+fatigue,24-h-block,24,1,99,,,16 h rule|0
+fatigue,half-hour-fits,15.5,0.5,99,,,ok|0.5

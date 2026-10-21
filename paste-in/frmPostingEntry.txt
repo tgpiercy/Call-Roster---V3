@@ -231,6 +231,11 @@ Private Sub btnLoad_Click()
 
     mN = LoadPosting(CStr(mIds(idx)), mP, mL)
     If mN = 0 Then MsgBox "That posting has no list.", vbExclamation: Exit Sub
+    Dim fi As Long                                   ' v26.5.5 (item 9): each listed person's 16 h rule maximum, as of now
+    For fi = 1 To mN
+        mL(fi).MaxHours = FatigueMaxFor(mL(fi).EmpName, mL(fi).EmpShift, mP.ShiftDate, mP.ShiftLbl)
+        mL(fi).MaxSet = True
+    Next fi
     mDirty = False
 
     C("lblInfo").Caption = mP.ID & "   " & mP.Unit & "   -   " & Format$(mP.ShiftDate, "dddd mmm d, yyyy") & vbLf & _
@@ -304,6 +309,8 @@ Private Sub RefreshList(ByVal keepIdx As Long)
                 res = ""
                 If mL(i).ExemptNote <> "" Then res = LCase$(Mid$(mL(i).ExemptNote, Len(EXEMPT_TAG) + 1))     ' "Exempt - moved Jan 12" -> "moved jan 12"
         End Select
+        ' v26.5.5 (item 9): the 16 h rule leaves them less than the posting - a partial sign-up up to that is allowed
+        If res = "" And mL(i).MaxSet And mL(i).MaxHours < mP.Hours - 0.001 Then res = "max " & HoursText(mL(i).MaxHours) & " h (16 h rule)"
         lstEmployees.List(i - 1, 5) = res
     Next i
     If keepIdx >= 0 And keepIdx < mN Then lstEmployees.ListIndex = keepIdx
@@ -339,6 +346,10 @@ End Sub
 Private Sub btnPassed_Click()           ' AWARD toggle
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation: Exit Sub
+    If Not mL(i).Awarded Then                        ' v26.5.5 (item 9): the hours they would take must fit the 16 h rule
+        Dim mxWhy As String: mxWhy = AwardMaxProblem(mL, i, IIf(mL(i).SignupHrs > 0, mL(i).SignupHrs, mP.Hours))
+        If mxWhy <> "" Then MsgBox mxWhy, vbExclamation, "16 h rule": Exit Sub
+    End If
     SetAwarded mL, i, Not mL(i).Awarded              ' v25: the rule is modPostings.SetAwarded
     mDirty = True
     RefreshList i - 1

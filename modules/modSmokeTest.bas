@@ -405,7 +405,28 @@ Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolea
         If Abs(belowH) > 0.0001 Then why = "the person below the partial was offered " & belowH & " h, expected 0 (the shift closed)": Exit Function
         If InStr(1, belowWhy, "Not offered", vbTextCompare) = 0 Then why = "the row below the partial should say 'Not offered ...'; it says '" & belowWhy & "'": Exit Function
     End If
-    st.Note = st.SessionId & ", charged " & HoursText(got) & IIf(n >= 3, " (0 h offered below the partial)", "")
+    ' v26.5.5 (item 9): the 16 h rule sees the acceptance as WORKED time on that day shift - for the night that
+    ' follows, the accepted 8 h are the block before it and the refusal counts nothing
+    RefreshCalCache
+    Dim wb2 As Double, wb1 As Double, mx2 As Double
+    wb2 = WorkedBlockBefore(recs(2).EmpName, recs(2).EmpShift, d, True)
+    wb1 = WorkedBlockBefore(recs(1).EmpName, recs(1).EmpShift, d, True)
+    If Abs(wb2 - 8) > 0.0001 Then why = "the 16 h rule sees " & wb2 & " h worked before the night for the person who accepted 8 h, expected 8": Exit Function
+    If Abs(wb1) > 0.0001 Then why = "the 16 h rule sees " & wb1 & " h worked before the night for the person who REFUSED, expected 0": Exit Function
+    mx2 = FatigueMaxFor(recs(2).EmpName, recs(2).EmpShift, d, "Nights")
+    If Abs(mx2 - FatigueMaxHours(8, HoursToNextWork(recs(2).EmpName, recs(2).EmpShift, d, True))) > 0.0001 Then
+        why = "FatigueMaxFor gives " & mx2 & " h for the night after an 8 h acceptance; the core disagrees": Exit Function
+    End If
+    If mx2 > 8.0001 Then why = "the night after an 8 h acceptance allows " & mx2 & " h, more than 16 - 8": Exit Function
+    Dim recsN() As EmpRec, nN As Long, offN As String
+    nN = LoadEligible(st.Unit, CrewFilter(CREW_ALL), recsN, 999, CALLOUT_INCLUDE_DAYS, d)
+    If nN > 0 Then nN = FilterNotFree(recsN, nN, d, "Nights", offN)
+    For i = 1 To nN
+        If StrComp(recsN(i).EmpName, recs(2).EmpName, vbTextCompare) = 0 Then
+            If Abs(recsN(i).MaxHours - mx2) > 0.0001 Then why = "the night list carries max " & recsN(i).MaxHours & " h for the acceptor, FatigueMaxFor says " & mx2: Exit Function
+        End If
+    Next i
+    st.Note = st.SessionId & ", charged " & HoursText(got) & IIf(n >= 3, " (0 h offered below the partial)", "") & "; 16 h rule: max " & HoursText(mx2) & " h that night"
     SmkCallout = True
 End Function
 

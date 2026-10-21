@@ -59,6 +59,11 @@ Public Const CALLOUT_INCLUDE_DAYS As Boolean = True        ' DAYS employees appe
 ' actual 13 h (fall back) or 11 h (spring forward); False = keep 12 and only warn
 Public Const DST_USE_ACTUAL_HOURS As Boolean = True
 Public Const USUAL_SHIFT_HOURS As Double = 12
+' v26.5.5 (item 9, Graeme Oct 19-21): the plant's fatigue rule. At most FATIGUE_MAX_HOURS of consecutive
+' work (the shift already worked that touches the OT, plus the OT), and at least FATIGUE_MIN_REST before the
+' next shift. Accepted call-outs, awards and switches are WORKED shifts for it (modCalendar.FatigueMaxFor).
+Public Const FATIGUE_MAX_HOURS As Double = 16
+Public Const FATIGUE_MIN_REST As Double = 11
 
 ' {YEAR} is replaced by the roster year (v23), so reports follow the rollover: use ReportFolder()
 Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\{YEAR}\"
@@ -172,6 +177,7 @@ Public Type EmpRec
     Reason As String
     RosterHrs As Double         ' v24.3: Total Hours on the roster (set by LoadEligible)
     EstHrs As Boolean           ' v24.3: TotalHrs is a planned mover's hours AFTER the top-up, an estimate for call order
+    MaxHours As Double          ' v26.5.5 (item 9): the most OT they may take on the listed shift under the 16 h rule (FilterNotFree sets it)
 End Type
 
 ' Session flags
@@ -516,6 +522,7 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                         .EmpShift = crewTxt
                         .Outcome = ""
                         .Reason = ""
+                        .MaxHours = FATIGUE_MAX_HOURS       ' v26.5.5: no limit until FilterNotFree looks at the date and shift
                     End With
                     If movedIn Then
                         recMover(n) = True

@@ -117,6 +117,7 @@ End Type
 Private mAbs As Variant
 Private mCov As Variant
 Private mShiftMap As Object
+Private mOt As Object               ' v26.5.5 (item 9): "name|yyyymmdd|D/N" -> OT hours accepted / awarded (non-void log rows)
 Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the tables are never read
 
 ' ====================================================================
@@ -367,6 +368,7 @@ End Sub
 Public Sub ResetCalCacheAll()
     If mTestMode Then Exit Sub              ' SelfTest's fixtures stay until it clears them
     mAbs = Empty: mCov = Empty: Set mShiftMap = Nothing: Set mHomeMap = Nothing     ' v25.2: and the home-unit map
+    Set mOt = Nothing                                                                ' v26.5.5: and the OT-worked map
 End Sub
 
 Public Function CovTable(Optional ByVal create As Boolean = False) As ListObject
@@ -499,6 +501,7 @@ Private Sub LoadCache()
     If mTestMode Then Exit Sub
     mAbs = TableData(AbsTable())
     mCov = TableData(CovTable())
+    LoadOtWorked                                             ' v26.5.5 (item 9): the OT each person has accepted / been awarded
     Set mShiftMap = CreateObject("Scripting.Dictionary")
     mShiftMap.CompareMode = 1
     Set mHomeMap = CreateObject("Scripting.Dictionary")      ' v25.2 (item 4, C7): name -> Home Unit, one read
@@ -637,8 +640,11 @@ Public Function AbsentForShift(ByVal empName As String, ByVal d As Date, ByVal s
 End Function
 
 Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String, _
-                              ByVal d As Date, ByVal shiftLbl As String) As String
+                              ByVal d As Date, ByVal shiftLbl As String, _
+                              Optional ByVal hoursOffered As Double = 0, Optional ByRef maxHours As Double) As String
+    ' v26.5.5 (item 9): hoursOffered > 0 = the whole offer must fit the 16 h rule; maxHours comes back for the listed
     If mShiftMap Is Nothing Then LoadCache
+    maxHours = FATIGUE_MAX_HOURS
     Dim night As Boolean: night = IsNightShift(shiftLbl)
     Dim t As String
     If AbsentForShift(empName, d, shiftLbl, t) Then NotFreeReason = t: Exit Function
@@ -656,6 +662,112 @@ Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String,
     If SwitchOffOn(empName, d) <> "" Then NotFreeReason = "S/S off": Exit Function
     If Not night And SwitchWorkingOn(empName, d - 1, "Nights") <> "" Then NotFreeReason = "rest": Exit Function
     If night And SwitchWorkingOn(empName, d + 1, "Days") <> "" Then NotFreeReason = "rest": Exit Function
+    ' v26.5.5 (item 9): the 16 h rule. The rules above keep a SCHEDULED shift on either side off the list;
+    ' this one sees OT already accepted or awarded (and a switch) on the shift touching the one on offer.
+    ' With hours given, not free unless the whole of them fits; without, not free only when nothing fits
+    ' (the lists keep a person who can still take a partial, and the pop-ups show "max N h").
+    maxHours = FatigueMaxFor(empName, crewCode, d, shiftLbl)
+    If maxHours < IIf(hoursOffered > 0, hoursOffered, 0.5) - 0.001 Then NotFreeReason = "16 h rule"
+End Function
+
+' ====================================================================
+'  v26.5.5 (item 9): THE 16 H RULE - accepted OT, awards and switches are WORKED shifts
+'  The plant's rule (Graeme, Oct 19-21, 2026): at most FATIGUE_MAX_HOURS of consecutive work and at
+'  least FATIGUE_MIN_REST before the next shift. Only the work BEFORE the offer counts toward the 16 h
+'  (the shift touching it, and the one before that when the touching shift was worked whole); the work
+'  AFTER it is governed by the rest gap: from the offer's start to the next work's start, less the rest.
+'  A partial OT on a touching shift is counted whole (its clock time is not recorded) and the next work is
+'  taken to start a whole shift later, so the rule errs on the safe side; the worked block uses the shift's
+'  actual length (a DST night is 13 / 11 h), the gap counts 12 h steps.
+'  PURE (SelfTest "fatigue"): FatigueMaxHours / FatigueProblem. Readers: WorkedHoursOn (one shift),
+'  WorkedBlockBefore, HoursToNextWork, FatigueMaxFor (what the pop-ups show as "max N h").
+' ====================================================================
+Public Function FatigueMaxHours(ByVal workedBefore As Double, ByVal hoursToNext As Double) As Double
+    Dim m As Double: m = FATIGUE_MAX_HOURS - workedBefore
+    If hoursToNext - FATIGUE_MIN_REST < m Then m = hoursToNext - FATIGUE_MIN_REST
+    If m < 0 Then m = 0
+    FatigueMaxHours = m
+End Function
+
+Public Function FatigueProblem(ByVal workedBefore As Double, ByVal hoursOffered As Double, ByVal hoursToNext As Double) As String
+    If hoursOffered > FatigueMaxHours(workedBefore, hoursToNext) + 0.001 Then FatigueProblem = "16 h rule"
+End Function
+
+' The OT each person has ACCEPTED (a call-out) or been AWARDED (a posting), from the non-void log rows:
+' the row's Hours (an Accepted row carries the hours taken, an Awarded row the hours awarded)
+Private Sub LoadOtWorked()
+    Set mOt = CreateObject("Scripting.Dictionary")
+    mOt.CompareMode = 1
+    Dim v As Variant: v = LogRowsNow()
+    If Not IsArray(v) Then Exit Sub
+    Dim i As Long, k As String
+    For i = 1 To UBound(v, 1)
+        If UCase$(SafeStr(v(i, L_STATUS))) <> "VOID" And IsDate(v(i, L_DATE)) Then
+            Select Case SafeStr(v(i, L_OUTCOME))
+                Case "Accepted", "Awarded"
+                    k = Trim$(SafeStr(v(i, L_EMP))) & "|" & Format$(CDate(v(i, L_DATE)), "yyyymmdd") & "|" & _
+                        IIf(IsNightShift(SafeStr(v(i, L_SHIFTLBL))), "N", "D")
+                    mOt(k) = NumOr0(mOt(k)) + NumOr0(v(i, L_BASEHRS))
+            End Select
+        End If
+    Next i
+End Sub
+
+' OT this person accepted / was awarded on one shift (0 = none)
+Public Function OtWorkedOn(ByVal empName As String, ByVal d As Date, ByVal isNight As Boolean) As Double
+    If mOt Is Nothing Then Exit Function
+    Dim k As String: k = Trim$(empName) & "|" & Format$(d, "yyyymmdd") & "|" & IIf(isNight, "N", "D")
+    If mOt.Exists(k) Then OtWorkedOn = mOt(k)
+End Function
+
+' Hours this person WORKS on one shift: OT accepted / awarded, a switch worked, or scheduled by the
+' rotation (unless booked off for it or given up in a switch). 0 = not working it.
+Public Function WorkedHoursOn(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal isNight As Boolean) As Double
+    Dim lbl As String: lbl = IIf(isNight, "Nights", "Days")
+    Dim t As String
+    If AbsentForShift(empName, d, lbl, t) Then Exit Function
+    Dim ot As Double: ot = OtWorkedOn(empName, d, isNight)
+    If ot > 0 Then WorkedHoursOn = ot: Exit Function
+    Dim full As Double: full = DefaultShiftHours(d, isNight, USUAL_SHIFT_HOURS)
+    If SwitchWorkingOn(empName, d, lbl) <> "" Then WorkedHoursOn = full: Exit Function
+    If SwitchOffOn(empName, d, lbl) <> "" Then Exit Function
+    If CrewShiftOn(CrewOn(empName, d, crewCode), d) = lbl Then WorkedHoursOn = full
+End Function
+
+' The consecutive hours of work that END when the OT on offer starts: the touching shift, plus the one
+' before it when the touching shift was worked whole (a partial OT does not join the two)
+Public Function WorkedBlockBefore(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal isNight As Boolean) As Double
+    Dim d1 As Date, n1 As Boolean, d2 As Date, n2 As Boolean
+    If isNight Then
+        d1 = d: n1 = False: d2 = d - 1: n2 = True            ' a night offer: that date's day shift, then the night before it
+    Else
+        d1 = d - 1: n1 = True: d2 = d - 1: n2 = False        ' a day offer: the night before, then that night's day shift
+    End If
+    Dim h1 As Double: h1 = WorkedHoursOn(empName, crewCode, d1, n1)
+    If h1 <= 0 Then Exit Function
+    WorkedBlockBefore = h1
+    If h1 >= DefaultShiftHours(d1, n1, USUAL_SHIFT_HOURS) - 0.01 Then WorkedBlockBefore = h1 + WorkedHoursOn(empName, crewCode, d2, n2)
+End Function
+
+' Hours from the start of the OT on offer to the start of this person's next work: the next two shifts
+' are looked at (12 h steps); 99 = nothing there
+Public Function HoursToNextWork(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal isNight As Boolean) As Double
+    Dim d1 As Date, n1 As Boolean, d2 As Date, n2 As Boolean
+    If isNight Then
+        d1 = d + 1: n1 = False: d2 = d + 1: n2 = True
+    Else
+        d1 = d: n1 = True: d2 = d + 1: n2 = False
+    End If
+    HoursToNextWork = 99
+    If WorkedHoursOn(empName, crewCode, d1, n1) > 0 Then HoursToNextWork = USUAL_SHIFT_HOURS: Exit Function
+    If WorkedHoursOn(empName, crewCode, d2, n2) > 0 Then HoursToNextWork = 2 * USUAL_SHIFT_HOURS
+End Function
+
+' The most OT this person may take on d / shiftLbl under the 16 h rule (FATIGUE_MAX_HOURS when nothing touches it)
+Public Function FatigueMaxFor(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String) As Double
+    If mShiftMap Is Nothing Then LoadCache
+    Dim night As Boolean: night = IsNightShift(shiftLbl)
+    FatigueMaxFor = FatigueMaxHours(WorkedBlockBefore(empName, crewCode, d, night), HoursToNextWork(empName, crewCode, d, night))
 End Function
 
 ' Names for the Shift Switch pop-up drop-downs, alphabetical. Everyone listed
@@ -738,17 +850,19 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
                               ByRef removed As String, Optional ByVal useCache As Boolean = False) As Long
     If Not useCache Then LoadCache
     removed = ""
-    Dim i As Long, k As Long, why As String
-    Dim nSched As Long, nRest As Long, offTxt As String, ssTxt As String
+    Dim i As Long, k As Long, why As String, mx As Double
+    Dim nSched As Long, nRest As Long, offTxt As String, ssTxt As String, fatTxt As String
     For i = 1 To n
-        why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, d, shiftLbl)
+        why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, d, shiftLbl, 0, mx)
         Select Case why
             Case ""
                 k = k + 1
                 If k <> i Then recs(k) = recs(i)
+                recs(k).MaxHours = mx                      ' v26.5.5 (item 9): the pop-ups grey anyone whose max is under the offer
             Case "scheduled": nSched = nSched + 1
             Case "rest": nRest = nRest + 1
             Case "S/S", "S/S off": ssTxt = ssTxt & IIf(ssTxt = "", "", ", ") & CalName(recs(i).EmpName)
+            Case "16 h rule": fatTxt = fatTxt & IIf(fatTxt = "", "", ", ") & CalName(recs(i).EmpName)
             Case Else: offTxt = offTxt & IIf(offTxt = "", "", ", ") & CalName(recs(i).EmpName) & " (" & why & ")"
         End Select
     Next i
@@ -756,6 +870,7 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     If nRest > 0 Then removed = removed & IIf(removed = "", "", ", ") & nRest & " rest rule (off nights / days next morning)"
     If offTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "booked off: " & offTxt
     If ssTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "shift switch: " & ssTxt
+    If fatTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "16 h rule (OT accepted / awarded or a switch touching the shift): " & fatTxt
     FilterNotFree = k
 End Function
 

@@ -257,6 +257,9 @@ def evaluate(row: dict) -> str:
         return "counts" if rules.refused_counts(d(i1), d(i2)) else "waits"
     if suite == "minstaff":                      # v26: scheduled, off, covered, minimum -> '' (shown as ok) / SHORT staffed/minimum
         return rules.staff_short(int(i1), int(i2), int(i3), int(i4)) or "ok"
+    if suite == "fatigue":                       # v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
+        mx = rules.fatigue_max_hours(float(i1), float(i3))
+        return (rules.fatigue_problem(float(i1), float(i2), float(i3)) or "ok") + "|" + (str(int(mx)) if mx == int(mx) else str(mx))
     if suite == "chargewhy":                     # v26: type, outcome, call order, 'hours|charged', code -> the sentence
         hc = i4.split("|")
         return rules.charge_why(i1, i2, int(i3 or 0), float(hc[0] or 0), float(hc[1] or 0), i5).replace(",", ";")   # ; for ,

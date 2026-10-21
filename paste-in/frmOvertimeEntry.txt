@@ -204,9 +204,10 @@ Private Sub UserForm_Initialize()
         .Enabled = False
     End With
 
-    MakeLabel "lblStatus", "", 10, 549, 472, 9.5
-    C("lblStatus").Height = Px(30)
+    MakeLabel "lblStatus", "", 10, 545, 472, 9
+    C("lblStatus").Height = Px(44)                   ' v26.5.5 (5.2): the trust strip on its first line, the details under it
     C("lblStatus").WordWrap = True
+    C("lblStatus").Caption = TrustStrip()
 
     FillCombo "cmbDept", DeptList()
     FillCombo "cmbShift", CrewPickList()
@@ -262,7 +263,7 @@ Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As Stri
     C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
     If hrs > 0 Then C("txtHours").Value = HoursText(hrs): mAutoHours = ""
     If statusTxt = "" Then statusTxt = "Sick call"
-    C("lblStatus").Caption = statusTxt & ": " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - check the hours and click LOAD LIST." & _
+    C("lblStatus").Caption = TrustStrip() & vbLf & statusTxt & ": " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - check the hours and click LOAD LIST." & _
                              IIf(statusTxt = "Sick call" And Not IsAdmin(), "  Wrong person? Ask " & PRIMARY_ADMIN_NAME & " to void the sick call.", "")
     On Error GoTo 0
 End Sub
@@ -383,7 +384,7 @@ Private Sub btnLoad_Click()
     ' v26.5.5 (B5): old worked hours are said in red on the status line for a supervisor (an admin got the Yes / No)
     Dim kLine As String: kLine = KronosStaleLine()
     C("lblStatus").ForeColor = IIf(kLine <> "", RGB(190, 30, 30), RGB(51, 51, 51))
-    C("lblStatus").Caption = IIf(kLine <> "", kLine & "   |   ", "") & _
+    C("lblStatus").Caption = TrustStrip() & vbLf & IIf(kLine <> "", kLine & "   |   ", "") & _
                              C("cmbDept").Value & " | " & mShiftLbl & " | Crew " & C("cmbShift").Value & _
                              " | " & C("txtDate").Value & " | " & hoursStr & " hrs" & _
                              IIf(nSS > 0, "   |   " & nSS & " working a shift switch (S/S)", "") & _
@@ -462,7 +463,7 @@ Private Sub UpdateCurrentLabel()
 
     ' one line: code, total hours (+ provisional / estimate), the grade note, the S/S note, the offer
     Dim info As String
-    info = "Code " & mEntries(mCurrent).DeptCode & "   -   " & Format$(mEntries(mCurrent).TotalHrs, "0") & " h"
+    info = "Code " & mEntries(mCurrent).DeptCode & "   -   " & TotalText(mEntries(mCurrent).TotalHrs, KronosDataThrough())   ' v26.5.5 (5.2): "141 h (to Oct 18)"
     If mEntries(mCurrent).ProvHrs > 0 Then info = info & " incl. " & HoursText(mEntries(mCurrent).ProvHrs) & " provisional"
     If mEntries(mCurrent).EstHrs Then
         info = info & ", after their planned unit move's top-up (" & Format$(mEntries(mCurrent).RosterHrs, "0") & " today)"
@@ -811,7 +812,8 @@ Private Sub ResetForm()
     C("txtDate").Value = DateText(DefaultShiftDate(Now))       ' v26.5.5 (B1)
     UpdateCurrentLabel
     UpdateProgress
-    C("lblStatus").Caption = ""
+    C("lblStatus").Caption = TrustStrip()            ' v26.5.5 (5.2)
+    C("lblStatus").ForeColor = RGB(51, 51, 51)
     SetOutcomeButtons False
     btnSubmit.Enabled = False
 End Sub

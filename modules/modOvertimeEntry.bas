@@ -551,6 +551,45 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
     LoadEligible = n
 End Function
 
+' ---- v26.5.5 (5.2): the trust strip and the two hour texts ----
+' One line that says what the figures on a pop-up, a printed roster, the board or the month PDF rest on:
+' how current the worked hours are, how many totals carry provisional OT, that Refused is capped at the
+' current pay period, and when the members' file was last updated.
+Public Function TrustStrip() As String
+    Dim dt As Date: dt = KronosDataThrough()
+    Dim s As String
+    If dt = 0 Then s = "Worked hours: none imported from Kronos yet" Else s = "Worked hours through " & Format$(dt, "ddd mmm d") & " (Kronos)"
+    Dim nProv As Long: nProv = ProvisionalCount()
+    s = s & "  |  " & IIf(nProv = 0, "no", CStr(nProv)) & " total" & IIf(nProv = 1, "", "s") & " with provisional OT"
+    s = s & "  |  Refused counted to the current pay period (from " & Format$(RefusedThrough(), "mmm d") & ")"
+    Dim p As Date: p = MembersPublishedAt()
+    s = s & "  |  Members' file " & IIf(p = 0, "never published", "updated " & Format$(p, "ddd h:mm AM/PM"))
+    TrustStrip = s
+End Function
+
+' How many roster totals include provisional accepted OT (column C > 0) right now
+Public Function ProvisionalCount() As Long
+    If Not ProvisionalLive() Then Exit Function
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    If lastRow < R_FIRST Then Exit Function
+    Dim v As Variant: v = ws.Range(ws.Cells(R_FIRST, C_PROV), ws.Cells(lastRow, C_PROV)).Value2
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If NumOr0(v(i, 1)) > 0 Then ProvisionalCount = ProvisionalCount + 1
+    Next i
+End Function
+
+' "21 charged (12 h x 1.75)" - the hours on offer and what they cost
+Public Function ChargedText(ByVal hours As Double, ByVal charged As Double) As String
+    ChargedText = HoursText(charged) & " charged (" & HoursText(hours) & " h x " & CHARGE_MULTIPLIER & ")"
+End Function
+
+' "141 h (to Oct 18)" - a total and the date its worked hours run to
+Public Function TotalText(ByVal total As Double, ByVal through As Date) As String
+    TotalText = HoursText(total) & " h" & IIf(through = 0, "", " (to " & Format$(through, "mmm d") & ")")
+End Function
+
 ' v26.5.5 (A4): the one message for a roster figure that is an error (LoadEligible, the publish's BuildRoster).
 ' The pop-ups show it through their handlers (ReportError); the publish stops with it.
 Public Sub RaiseTotalError(ByVal nm As String)

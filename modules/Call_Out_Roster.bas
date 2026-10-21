@@ -115,7 +115,7 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
     With ws.Range("A2:E2")
         .Merge
         .Value = "Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d, yyyy") & "     |     " & _
-                 KronosStatusText() & "     |     printed " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM")
+                 TrustStrip() & "     |     printed " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM")    ' v26.5.5 (5.2): the trust strip
         .Font.Size = 9: .Font.Color = greyTxt
         .HorizontalAlignment = xlLeft
     End With

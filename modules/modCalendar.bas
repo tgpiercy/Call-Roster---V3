@@ -3064,6 +3064,9 @@ Public Sub CalPrintPdf()
     If hideTo < 3 Then hideTo = 3
     UnlockSheet ws
     ws.Rows("3:" & hideTo).Hidden = True
+    Dim ftWas As String: ftWas = ws.PageSetup.LeftFooter        ' v26.5.5 (5.2): the trust strip in the PDF's / print's footer
+    ws.PageSetup.LeftFooter = "&8" & TrustStrip()
+    Err.Clear
     ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=folder & fName, Quality:=xlQualityStandard, _
         IncludeDocProperties:=False, IgnorePrintAreas:=False, OpenAfterPublish:=False
     If Err.Number <> 0 Then msg = "PDF NOT saved: " & Err.Description Else msg = "PDF saved: " & folder & fName
@@ -3072,6 +3075,7 @@ Public Sub CalPrintPdf()
         ws.PrintOut Copies:=1
         If Err.Number <> 0 Then msg = msg & vbNewLine & "NOT printed: " & Err.Description Else msg = msg & vbNewLine & "Sent to printer."
     End If
+    ws.PageSetup.LeftFooter = ftWas
     ws.Rows("3:" & hideTo).Hidden = False
     ProtectSheet ws
     On Error GoTo Oops
@@ -3147,7 +3151,7 @@ Public Sub BoardPrint()
             End With
             r = r + 1
             ws.Cells(r, 1).Value = "Drawn " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & ".  OPEN = nobody covers it yet; NCN = no coverage needed; " & _
-                                   "POSTED = waiting for sign-ups.  The calendar tab has the details and the options."
+                                   "POSTED = waiting for sign-ups.  The calendar tab has the details and the options.  " & TrustStrip()   ' v26.5.5 (5.2)
             ws.Cells(r, 1).Font.Size = 8: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = thMuted()
             r = r + 1
             ws.Range(ws.Cells(r, 1), ws.Cells(r, 4)).Value = Array("Date", "Crews on", "DAYS  7 AM - 7 PM", "NIGHTS  7 PM - 7 AM")

@@ -417,7 +417,7 @@ Public Sub FindPerson()
             If StrComp(recs(i).EmpName, firstNm, vbTextCompare) = 0 Then pos = i: Exit For
         Next i
         If pos > 0 Then
-            txt = txt & ":   " & pos & " of " & n & " in the " & hu & " call order today"
+            txt = txt & ":   " & pos & " of " & n & " in the " & hu & " call order today, " & TotalText(recs(pos).TotalHrs, KronosDataThrough())   ' v26.5.5 (5.2)
         Else
             txt = txt & ":   no " & hu & " code on the roster today"
         End If

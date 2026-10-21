@@ -212,9 +212,9 @@ Private Sub LoadChoices()
         For i = LBound(d) To UBound(d)
             C("cmbPosting").AddItem d(i)
         Next i
-        C("lblStatus").Caption = (UBound(d) - LBound(d) + 1) & " open posting(s)."
+        C("lblStatus").Caption = TrustStrip() & vbLf & (UBound(d) - LBound(d) + 1) & " open posting(s)."    ' v26.5.5 (5.2)
     Else
-        C("lblStatus").Caption = "No open postings."
+        C("lblStatus").Caption = TrustStrip() & vbLf & "No open postings."
     End If
 End Sub
 
@@ -303,7 +303,7 @@ Private Sub RefreshList(ByVal keepIdx As Long)
             Case "Awarded"
                 res = "AWARDED"
                 If IsPartialSignup(mP.Hours, mL(i).SignupHrs) Then res = res & "  " & HoursText(mL(i).SignupHrs) & " h"
-            Case "Charged": res = "Not signed up: charged " & HoursText(mL(i).Charged) & " h"    ' v26.5.5 (5.1): the consequence in words
+            Case "Charged": res = "Not signed up: " & ChargedText(mP.Hours, mL(i).Charged)    ' v26.5.5 (5.1 / 5.2): "21 charged (12 h x 1.75)"
             Case "Signed up": res = "Signed up: not charged"
             Case Else
                 res = ""

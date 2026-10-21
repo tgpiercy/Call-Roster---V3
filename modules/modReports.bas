@@ -1089,8 +1089,8 @@ Private Function AskReportUnit(ByRef unit As String, ByRef allUnits As Boolean) 
 End Function
 
 ' v26: fileBase is the PDF's name before the date (was fixed to "Refused hours <what>"); ttl the box title
-Private Sub ReportPdf(ByVal ws As Worksheet, ByVal fileBase As String, Optional ByVal ttl As String = "Refusals report", _
-                      Optional ByVal besideRoster As Boolean = False)
+Public Sub ReportPdf(ByVal ws As Worksheet, ByVal fileBase As String, Optional ByVal ttl As String = "Refusals report", _
+                     Optional ByVal besideRoster As Boolean = False)     ' v27: Public - the Reconcile sheet saves its page with it
     Dim folder As String: folder = EnsureSlash(ReportFolder())
     If besideRoster Or Not FolderExists(folder) Then folder = EnsureSlash(ThisWorkbook.Path)
     Dim pdfPath As String: pdfPath = folder & fileBase & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"

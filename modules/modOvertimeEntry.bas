@@ -1767,7 +1767,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
-                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, RECON_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log, the Reconcile sheet
         If SheetExists(CStr(nm)) Then
             Dim showIt As Boolean
             showIt = adminView And Not gDeskMode
@@ -1789,6 +1789,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     LockRosterCells rs, adminView                   ' v25 (R4)
     If SheetExists(HOL_SHEET) Then LockHolidayCells adminView
     If SheetExists(MINSTAFF_SHEET) Then LockMinStaffCells adminView   ' v26: the Minimum / Note cells open for an admin
+    If SheetExists(RECON_SHEET) Then LockReconcileCells adminView     ' v27: the paper names, decisions and notes open for an admin
     Dim leftWas As Double: leftWas = rs.Cells(1, C_SHIFT).Left
     rs.Columns(C_PHONE).Hidden = Not adminView
     rs.Columns(C_EMAIL).Hidden = Not adminView Or gDeskMode          ' v25.3: a Desk user keeps Phone, not these two

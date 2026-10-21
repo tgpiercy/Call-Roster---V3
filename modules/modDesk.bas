@@ -272,6 +272,10 @@ Public Sub DrawDesk()
     yF = yF + BTN_H + GAP
     DeskBtn ws, "dk_btn_history", "Employee history (report)", "modDesk.DeskHistory", xF, yF, dkNavy()   ' v26: one person, a date range, a PDF
     yF = yF + BTN_H + GAP
+    If Not sup Then
+        DeskBtn ws, "dk_btn_reconcile", "Reconcile with the paper roster", "modDesk.DeskReconcile", xF, yF, dkNavy()   ' v27 (item 4): the parallel run's sheet
+        yF = yF + BTN_H + GAP
+    End If
 
     ' ---- the footer row: help, the two emails, Undo (admin), Practice - grey, reached for rarely ----
     yy = yN: If yP > yy Then yy = yP
@@ -687,6 +691,15 @@ Public Sub DeskHistory()
     Exit Sub
 Oops:
     ReportError "DeskHistory"
+End Sub
+
+' v27 (item 4): the Reconcile sheet - the paper call order beside the roster's (admin)
+Public Sub DeskReconcile()
+    On Error GoTo Oops
+    ShowReconcile
+    Exit Sub
+Oops:
+    ReportError "DeskReconcile"
 End Sub
 
 ' v25.5 (A9) "Undo my last log entry": the admin Desk; voids this login's newest entry of today through Void Entry's path

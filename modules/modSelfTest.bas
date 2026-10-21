@@ -330,6 +330,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(kp <> "", kp, Format$(kf, "yyyy-mm-dd") & "|" & Format$(kt, "yyyy-mm-dd"))
         Case "kkind"                               ' v27: from, to, the roster year's first and last day -> day / cumulative / range / outside
             RunCase = ReportKindCore(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
+        Case "reconcile"                           ' v27: the paper's names (;), the roster's names (;) -> positions that differ|not listed|not on paper
+            RunCase = ReconcileDiffCore(i1, i2)
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -1661,5 +1663,14 @@ Private Sub LoadCases4()
     AddCase "kkind,one-week,2026-10-13,2026-10-19,2025-12-28,2026-12-26,,range"
     AddCase "kkind,last-year,2025-11-01,2025-11-30,2025-12-28,2026-12-26,,outside"
     AddCase "kkind,next-year-day,2027-01-05,2027-01-05,2025-12-28,2026-12-26,,outside"
+    AddCase "reconcile,same,Ann B;Bob C;Cal D,Ann B;Bob C;Cal D,,,,-|-|-"
+    AddCase "reconcile,two-swapped,Ann B;Bob C;Cal D,Ann B;Cal D;Bob C,,,,2;3|-|-"
+    AddCase "reconcile,case-and-spaces,ann b; BOB C,Ann B;Bob C,,,,-|-|-"
+    AddCase "reconcile,paper-has-stranger,Ann B;Zed Q;Cal D,Ann B;Bob C;Cal D,,,,2|Zed Q|Bob C"
+    AddCase "reconcile,paper-shorter,Ann B,Ann B;Bob C,,,,2|-|Bob C"
+    AddCase "reconcile,roster-shorter,Ann B;Bob C,Ann B,,,,2|Bob C|-"
+    AddCase "reconcile,blank-paper-line,Ann B;;Cal D,Ann B;Bob C;Cal D,,,,2|-|Bob C"
+    AddCase "reconcile,empty-paper,,Ann B;Bob C,,,,1;2|-|Ann B;Bob C"
+    AddCase "reconcile,both-empty,,,,,,-|-|-"
 ' <<< CASES
 End Sub

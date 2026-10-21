@@ -1632,6 +1632,26 @@ def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str
     return "cumulative" if from_d <= year_from + timedelta(days=KRONOS_YEAR_SLACK) else "range"
 
 
+# ---------------------------------------------------------------- the Reconcile sheet (v27, modReconcile)
+def reconcile_diff(paper: str, roster: str) -> str:
+    """modReconcile.ReconcileDiffCore: names top to bottom, ';' between -> 'positions that differ|paper names
+    the roster does not list|roster names not on the paper', '-' for an empty part; names compare trimmed,
+    any case; a blank paper line is an empty position."""
+    p = [x.strip() for x in paper.split(";")] if paper.strip() else []
+    r = [x.strip() for x in roster.split(";")] if roster.strip() else []
+    n = max(len(p), len(r))
+
+    def at(lst: list[str], i: int) -> str:
+        return lst[i] if i < len(lst) else ""
+
+    diff = [str(i + 1) for i in range(n) if at(p, i).lower() != at(r, i).lower()]
+    rl = [x.lower() for x in r]
+    pl = [x.lower() for x in p]
+    missing = [x for x in p if x and x.lower() not in rl]
+    extra = [x for x in r if x and x.lower() not in pl]
+    return "|".join(";".join(part) if part else "-" for part in (diff, missing, extra))
+
+
 def view_mode_for(login: str, admin_list: str, desk_list: str, sup_list: str = "") -> str:
     """v25.3 modDesk.ViewModeFor: 'desk' = on ADMIN_USERS and DESK_USERS, 'admin' = ADMIN_USERS only,
     'supervisor' (v25.5) = on SUPERVISOR_USERS and not an admin, 'user' = none of them (a desk-only login

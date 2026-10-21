@@ -248,6 +248,8 @@ def evaluate(row: dict) -> str:
         return rules.time_period(i1)
     if suite == "kkind":                         # v27: from, to, the roster year's first and last day -> day / cumulative / range / outside
         return rules.report_kind(d(i1), d(i2), d(i3), d(i4))
+    if suite == "reconcile":                     # v27: the paper's names (;), the roster's names (;) -> positions that differ|not listed|not on paper
+        return rules.reconcile_diff(i1, i2)
     if suite == "dryname":                       # file name -> yes / no
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "backupname":                    # v24.3.1: file name -> yes / no (a backup, FINAL or pre-change copy)

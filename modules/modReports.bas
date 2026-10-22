@@ -30,6 +30,8 @@ Public Const SP_POSTING As Long = 1
 Public Const SP_OTHER As Long = 2
 Public Const SP_NCALLOUT As Long = 3    ' how many charged rows
 Public Const SP_NPOSTING As Long = 4
+Public Const HANDOVER_SHEET As String = "Handover"   ' v27 (item 25): the shift handover page, output only (supervisors and admins)
+Public Const HANDOVER_HOURS As Long = 12
 
 Private mSplit As Object                ' name -> the array above, for the status bar
 Private mSplitStamp As String
@@ -1195,3 +1197,147 @@ Public Sub ReportPdf(ByVal ws As Worksheet, ByVal fileBase As String, Optional B
         MsgBox "The PDF couldn't be saved (" & em & "). Is it open?", vbExclamation, ttl
     End If
 End Sub
+
+' ====================================================================
+'  THE SHIFT HANDOVER (v27 item 25, 1.4)
+' ====================================================================
+' Everything logged in the last HANDOVER_HOURS hours on one printable page: the OT Log rows (call-outs, postings,
+' adjustments; a void shows in Status), the time off / sick calls / leave booked, the shift switches entered.
+' Supervisors and admins (both Desks' FINISH band). No logins, no notes, leave shown as "Leave" (TypeLong);
+' never published. Changes no data.
+Public Sub ShiftHandover()
+    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating     ' captured before the handler (convention 6)
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    On Error GoTo Oops
+    If Not IsSupervisor() Then MsgBox "The shift handover is for supervisors and admins.", vbInformation, "Shift handover": Exit Sub
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Dim since As Date: since = Now - HANDOVER_HOURS / 24#
+    Dim ws As Worksheet: Set ws = ReportSheetNamed(HANDOVER_SHEET)
+    SetSheetVisible ws, xlSheetVisible
+    UnlockSheet ws
+    ws.Cells.Clear
+    ws.Range("A1").Value = "SHIFT HANDOVER  -  logged since " & Format$(since, "ddd mmm d h:mm AM/PM") & " (the last " & HANDOVER_HOURS & " h)"
+    ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 14
+    ws.Range("A2").Value = "'Drawn " & Format$(Now, "ddd mmm d h:mm AM/PM") & ".  " & Replace(TrustStrip(), vbLf, "   ")
+    Dim r As Long: r = 4
+    Dim i As Long, n As Long, st As Variant
+
+    ' 1. the OT Log
+    HandoverHead ws, r, "OT LOG", Array("Logged at", "Ref", "Type", "Shift date", "Unit", "Shift", "Employee", "Outcome", "Charged", "Status")
+    Dim lg As Variant: lg = LogRowsNow()
+    n = 0
+    If IsArray(lg) Then
+        For i = 1 To UBound(lg, 1)                  ' newest first, as the log
+            st = lg(i, L_STAMP)
+            If IsDate(st) Then
+                If CDate(st) >= since Then
+                    HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(lg(i, L_REF)), SafeStr(lg(i, L_TYPE)), _
+                        DayText(lg(i, L_DATE)), SafeStr(lg(i, L_DEPT)), SafeStr(lg(i, L_SHIFTLBL)), SafeStr(lg(i, L_EMP)), _
+                        SafeStr(lg(i, L_OUTCOME)), HoursText(NumOr0(lg(i, L_CHARGED))), SafeStr(lg(i, L_STATUS)))
+                    n = n + 1
+                End If
+            End If
+        Next i
+    End If
+    If n = 0 Then HandoverRow ws, r, Array("Nothing logged.")
+    r = r + 1
+
+    ' 2. time off, sick calls, leave
+    HandoverHead ws, r, "TIME OFF, SICK CALLS AND LEAVE BOOKED", Array("Entered at", "ID", "Employee", "Unit", "Type", "From", "To", "Status")
+    n = 0
+    Dim alo As ListObject: Set alo = AbsTable(False)
+    Dim av As Variant
+    If Not alo Is Nothing Then
+        If Not alo.DataBodyRange Is Nothing Then
+            av = RangeTo2D(alo.DataBodyRange)
+            For i = UBound(av, 1) To 1 Step -1      ' newest last in the table: shown newest first
+                st = av(i, AB_STAMP)
+                If IsDate(st) Then
+                    If CDate(st) >= since Then
+                        HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(av(i, AB_ID)), SafeStr(av(i, AB_EMP)), _
+                            SafeStr(av(i, AB_UNIT)), TypeLong(SafeStr(av(i, AB_TYPE))), DayText(av(i, AB_START)), _
+                            IIf(IsDate(av(i, AB_END)), DayText(av(i, AB_END)), "open-ended"), SafeStr(av(i, AB_STATUS)))
+                        n = n + 1
+                    End If
+                End If
+            Next i
+        End If
+    End If
+    If n = 0 Then HandoverRow ws, r, Array("Nothing booked.")
+    r = r + 1
+
+    ' 3. shift switches
+    HandoverHead ws, r, "SHIFT SWITCHES ENTERED", Array("Entered at", "ID", "Date", "Shift", "Unit", "Gives up", "Works", "Status")
+    n = 0
+    Dim slo As ListObject: Set slo = SwitchTable(False)
+    Dim sv As Variant
+    If Not slo Is Nothing Then
+        If Not slo.DataBodyRange Is Nothing Then
+            sv = RangeTo2D(slo.DataBodyRange)
+            For i = UBound(sv, 1) To 1 Step -1
+                st = sv(i, SW_STAMP)
+                If IsDate(st) Then
+                    If CDate(st) >= since Then
+                        HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(sv(i, SW_ID)), DayText(sv(i, SW_DATE)), _
+                            SafeStr(sv(i, SW_SHIFT)), SafeStr(sv(i, SW_UNIT)), SafeStr(sv(i, SW_OFF)), SafeStr(sv(i, SW_WORKS)), _
+                            SafeStr(sv(i, SW_STATUS)))
+                        n = n + 1
+                    End If
+                End If
+            Next i
+        End If
+    End If
+    If n = 0 Then HandoverRow ws, r, Array("No switches entered.")
+
+    ws.Columns(1).ColumnWidth = 16
+    ws.Columns(2).ColumnWidth = 10
+    For i = 3 To 10
+        ws.Columns(i).ColumnWidth = 13
+    Next i
+    ws.Columns(7).ColumnWidth = 22
+    With ws.PageSetup
+        .Orientation = xlLandscape
+        .Zoom = False: .FitToPagesWide = 1: .FitToPagesTall = False
+        .CenterFooter = "Shift handover - " & Format$(Now, "ddd mmm d h:mm AM/PM") & " - page &P of &N"
+    End With
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+    ws.Activate
+    If Ask("The handover page is drawn (the Handover tab)." & vbNewLine & vbNewLine & "Print it now?", vbYesNo + vbQuestion, "Shift handover", vbNo) = vbYes Then ws.PrintOut
+    Exit Sub
+Oops:
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+    ReportError "ShiftHandover"
+End Sub
+
+Private Sub HandoverHead(ByVal ws As Worksheet, ByRef r As Long, ByVal title As String, ByVal heads As Variant)
+    ws.Cells(r, 1).Value = title
+    ws.Cells(r, 1).Font.Bold = True
+    ws.Cells(r, 1).Font.Color = RGB(30, 56, 100)
+    r = r + 1
+    Dim j As Long
+    For j = LBound(heads) To UBound(heads)
+        ws.Cells(r, 1 + j - LBound(heads)).Value = heads(j)
+    Next j
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r, 1 + UBound(heads) - LBound(heads)))
+        .Font.Bold = True: .Font.Size = 9
+        .Interior.Color = RGB(222, 229, 240)
+    End With
+    r = r + 1
+End Sub
+
+Private Sub HandoverRow(ByVal ws As Worksheet, ByRef r As Long, ByVal vals As Variant)
+    Dim j As Long
+    For j = LBound(vals) To UBound(vals)
+        ws.Cells(r, 1 + j - LBound(vals)).Value = "'" & CStr(vals(j))
+    Next j
+    r = r + 1
+End Sub
+
+' a date cell as "Mon Oct 12" ("" when it is not a date)
+Private Function DayText(ByVal x As Variant) As String
+    If IsDate(x) Then DayText = Format$(CDate(x), "ddd mmm d")
+End Function

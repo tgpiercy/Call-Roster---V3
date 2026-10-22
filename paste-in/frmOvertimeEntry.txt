@@ -427,6 +427,13 @@ Private Function LoadListNow() As Boolean
                              " | " & C("txtDate").Value & " | " & hoursStr & " hrs" & _
                              IIf(nSS > 0, "   |   " & nSS & " working a shift switch (S/S)", "") & _
                              IIf(offList <> "", "   |   Not listed (booked off): " & offList, "")
+    ' v27 (item 25, 1.4): the unit's standing note from the Min Staff sheet, in the rotation line's place (the crew is
+    ' picked by now; a date change puts the rotation back)
+    Dim unitNote As String: unitNote = MinStaffNote(mDept, mShiftLbl)
+    If unitNote <> "" Then
+        C("lblRot").ForeColor = RGB(150, 75, 0)
+        C("lblRot").Caption = "Unit note (" & UnitDisplayName(mDept) & " " & mShiftLbl & "): " & unitNote
+    End If
     FocusList
     LoadListNow = True
 End Function

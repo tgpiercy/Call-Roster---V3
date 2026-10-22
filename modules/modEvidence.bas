@@ -40,6 +40,7 @@ Private Const EV_USER As Long = 8
 Private Const EV_STAMP As Long = 9
 Private Const EV_STATUS As Long = 10
 Private Const CP_N As Long = 9                  ' Period, Closed At, By, Log Rows, Charged, CSV, PDF, SHA-256, Previous Hash
+Public Const EXPORT_KEEP_DAYS As Long = 30      ' v27 (item 25): the daily CSV exports of every table are kept this many days
 
 ' ---- the two tables (made on first use, admin-only, never published) ----
 Private Function MakeTable(ByVal sheetName As String, ByVal tableName As String, ByRef heads As Variant, ByVal create As Boolean) As ListObject
@@ -496,4 +497,117 @@ Oops:
     SetSheetVisible ThisWorkbook.Worksheets(CP_SHEET & " print"), xlSheetVeryHidden   ' (review L12) never left showing
     Application.ScreenUpdating = scrWas
     Application.EnableEvents = evWas
+End Sub
+
+' ====================================================================
+'  THE DAILY TABLE EXPORT (v27 item 25, 1.4)
+' ====================================================================
+' Workbook_Open step 12: the first writable open of the live roster each day writes every table in the workbook
+' to CSV in <backup folder>\csv\<yyyy-mm-dd>\ (one file per table, every column, every row whatever the view),
+' then prunes the day folders older than EXPORT_KEEP_DAYS. Plain text a person can open without Excel: the
+' backup copy's second form, and what a later SharePoint List would be loaded from. Any writable open takes it,
+' as the daily backup does (decided Oct 19-20); a practice, backup or read-only copy does nothing. Quiet: a
+' failure goes to the Error Log, never a box.
+Public Sub ExportTablesOnOpen()
+    On Error GoTo Quit
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then Exit Sub
+    If Trim$(BACKUP_FOLDER) = "" Then Exit Sub
+    Dim root As String: root = EnsureSlash(BackupFolderPath())
+    If Not FolderExists(root) Then Exit Sub             ' the backup step already said so
+    Dim csvRoot As String: csvRoot = root & "csv\"
+    If Not FolderExists(csvRoot) Then MkDir Left$(csvRoot, Len(csvRoot) - 1)
+    Dim dayDir As String: dayDir = csvRoot & Format$(Date, "yyyy-mm-dd") & "\"
+    If FolderExists(dayDir) Then Exit Sub               ' already taken today
+    MkDir Left$(dayDir, Len(dayDir) - 1)
+    ExportTablesTo dayDir
+    PruneCsvExports csvRoot
+    Exit Sub
+Quit:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    LogError "ExportTablesOnOpen", en, em
+End Sub
+
+' Alt+F8 (admin): the same export now, into a folder of its own (<date> <hhnn>), and says where
+Public Sub ExportTables()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    Dim root As String: root = EnsureFolderPath(BACKUP_FOLDER)
+    If root = "" Then MsgBox "The backup folder (" & BACKUP_FOLDER & ") can't be reached.", vbExclamation, "Export tables": Exit Sub
+    Dim csvRoot As String: csvRoot = root & "csv\"
+    If Not FolderExists(csvRoot) Then MkDir Left$(csvRoot, Len(csvRoot) - 1)
+    Dim dayDir As String: dayDir = csvRoot & Format$(Now, "yyyy-mm-dd hhnn") & "\"
+    If Not FolderExists(dayDir) Then MkDir Left$(dayDir, Len(dayDir) - 1)
+    Dim n As Long: n = ExportTablesTo(dayDir)
+    Tell n & " tables written as CSV to:" & vbNewLine & dayDir, vbInformation, "Export tables"
+    Exit Sub
+Oops:
+    ReportError "ExportTables"
+End Sub
+
+' Every ListObject in the workbook -> <folder><table name>.csv. Returns how many were written. An error closes
+' the open file and goes up to the caller.
+Private Function ExportTablesTo(ByVal folder As String) As Long
+    Dim ws As Worksheet, lo As ListObject, ff As Integer, v As Variant, i As Long, j As Long, ln As String
+    On Error GoTo Fail
+    For Each ws In ThisWorkbook.Worksheets
+        For Each lo In ws.ListObjects
+            ff = FreeFile
+            Open folder & lo.Name & ".csv" For Output As #ff
+            ln = ""
+            For j = 1 To lo.ListColumns.Count
+                ln = ln & IIf(j = 1, "", ",") & Csv(lo.ListColumns(j).Name)
+            Next j
+            Print #ff, ln
+            If Not lo.DataBodyRange Is Nothing Then
+                v = RangeTo2D(lo.DataBodyRange)
+                For i = 1 To UBound(v, 1)
+                    ln = ""
+                    For j = 1 To UBound(v, 2)
+                        ln = ln & IIf(j = 1, "", ",") & Csv(v(i, j))
+                    Next j
+                    Print #ff, ln
+                Next i
+            End If
+            Close #ff
+            ff = 0
+            ExportTablesTo = ExportTablesTo + 1
+        Next lo
+    Next ws
+    Exit Function
+Fail:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    If ff <> 0 Then Close #ff
+    Err.Raise en, "ExportTablesTo", em
+End Function
+
+' The day folders (named yyyy-mm-dd ...) older than EXPORT_KEEP_DAYS: their CSV files deleted, then the folder.
+' Only this export's own folders and files are touched. Never raises.
+Private Sub PruneCsvExports(ByVal csvRoot As String)
+    On Error Resume Next                            ' never raises
+    Dim dirs As Collection: Set dirs = New Collection
+    Dim nm As String: nm = Dir$(csvRoot & "*", vbDirectory)
+    Do While nm <> ""
+        If nm Like "####-##-##*" Then dirs.Add nm
+        nm = Dir$()
+    Loop
+    Dim k As Variant, d As Date, files As Collection, f As Variant
+    For Each k In dirs
+        d = 0
+        d = DateSerial(CLng(Left$(k, 4)), CLng(Mid$(k, 6, 2)), CLng(Mid$(k, 9, 2)))
+        If d > 0 And Date - d > EXPORT_KEEP_DAYS Then
+            Set files = New Collection
+            nm = Dir$(csvRoot & k & "\*.csv")
+            Do While nm <> ""
+                files.Add nm
+                nm = Dir$()
+            Loop
+            For Each f In files
+                Kill csvRoot & k & "\" & f
+            Next f
+            RmDir csvRoot & k                       ' fails quietly when something else was put in it
+        End If
+    Next k
 End Sub

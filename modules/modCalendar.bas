@@ -3887,6 +3887,26 @@ Public Function MinStaffMap() As Object
     Next i
 End Function
 
+' v27 (item 25, 1.4): the admin-typed Note on the Min Staff sheet for a unit and shift ("" when none). The call-out
+' pop-up shows it at LOAD - a unit's standing instruction ("train 2 needs a PH3 operator", ...). Never raises.
+Public Function MinStaffNote(ByVal unit As String, ByVal shiftLbl As String) As String
+    On Error Resume Next                            ' never raises
+    Dim lo As ListObject: Set lo = MinStaffTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    If UBound(v, 2) < 4 Then Exit Function
+    Dim i As Long, sh As String, want As String
+    want = IIf(IsNightShift(shiftLbl), "N", "D")
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, 1))), Trim$(unit), vbTextCompare) = 0 Then
+            sh = UCase$(Left$(Trim$(SafeStr(v(i, 2))), 1))
+            If sh <> "N" Then sh = "D"
+            If sh = want And Trim$(SafeStr(v(i, 4))) <> "" Then MinStaffNote = Trim$(SafeStr(v(i, 4))): Exit Function
+        End If
+    Next i
+End Function
+
 ' One sweep's caches (the start of DrawCalendar / DrawNeeds): the minimums, the names per unit, and the
 ' "busy" names - anyone with an absence row on file or on a switch dated near the window. The off / switch
 ' lookups scan whole tables per name, so they run only for those (review: the sweep's cost).
@@ -4353,7 +4373,7 @@ Private Function AsDate(ByVal x As Variant) As Date
     If IsDate(x) Then AsDate = CDate(x)
 End Function
 
-Private Function TypeLong(ByVal code As String) As String
+Public Function TypeLong(ByVal code As String) As String      ' v27 (item 25): Public - the handover page shows leave as "Leave" the same way
     Select Case UCase$(code)
         Case "PER": TypeLong = "Personal day"
         Case "VAC": TypeLong = "Vacation"
@@ -4983,6 +5003,20 @@ Public Sub DrawNeeds()
         Next uk
     End If
 
+    ' D2. v27 (item 25, 1.4): the DATA CHECK - roster details that look wrong (modPeople.DataCheckLines)
+    Dim dcR() As NARow, nDc As Long, dcV As Variant, dcL As Variant, dcP As Variant
+    ReDim dcR(1 To 20)
+    On Error Resume Next
+    dcV = DataCheckLines()
+    On Error GoTo Failed
+    If IsArray(dcV) Then
+        For Each dcL In dcV
+            dcP = Split(CStr(dcL) & vbTab, vbTab)
+            NAAdd dcR, nDc, "", "", EmpCrewOf(CStr(dcP(0))), "", CStr(dcP(0)) & ":  " & CStr(dcP(1)), "Roster", "Data check", "", _
+                  "U:" & CStr(dcP(0)), 0, thMuted(), thPosted(), -1, thMuted()
+        Next dcL
+    End If
+
     ' V. unit moves entered ahead of time (v24.3): waiting for their date, or due and not applied
     Dim vr() As NARow, nV As Long, pmv As Variant, pmD As Date, pmDue As Boolean, pmWho As String
     ReDim vr(1 To 10)
@@ -5106,6 +5140,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "HOME UNIT NOT SET  -  double-click a name: the Employee pop-up opens on Edit, pick the home unit there", _
                       nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
         r = NARows(ws, r, ur, nU, "")
+    End If
+    If nDc > 0 Then                                 ' v27 (item 25)
+        r = NASection(ws, r, "DATA CHECK  -  roster details that look wrong (double-click: the roster row; Employee > Edit fixes it)", _
+                      nDc, thMuted(), Array("", "", "Crew", "", "Who and what", "Type", "Status", ""))
+        r = NARows(ws, r, dcR, nDc, "")
     End If
     If nE > 0 Then
         r = NASection(ws, r, "ERRORS  -  something didn't finish (double-click to open the Error Log)", _

@@ -257,6 +257,8 @@ Public Sub DrawDesk()
     yP = yP + BTN_H + GAP
     DeskBtn ws, "dk_btn_award", "Award a posting", "modDesk.DeskAward", xP, yP, dkGreen()
     yP = yP + BTN_H + GAP
+    DeskBtn ws, "dk_btn_ledger", "Paybacks owed (ledger)", "modDesk.DeskLedger", xP, yP, dkGreen()   ' v27 (item 25): by person and age, a statement per person
+    yP = yP + BTN_H + GAP
     If Not sup Then
         DeskBtn ws, "dk_btn_timeoff", "Book time off", "modDesk.DeskTimeOff", xP, yP, dkGreen()
         yP = yP + BTN_H + GAP
@@ -271,6 +273,8 @@ Public Sub DrawDesk()
     DeskBtn ws, "dk_btn_print", "Print the call-out roster", "modDesk.DeskPrint", xF, yF, dkNavy()
     yF = yF + BTN_H + GAP
     DeskBtn ws, "dk_btn_history", "Employee history (report)", "modDesk.DeskHistory", xF, yF, dkNavy()   ' v26: one person, a date range, a PDF
+    yF = yF + BTN_H + GAP
+    DeskBtn ws, "dk_btn_handover", "Shift handover (last 12 h)", "modDesk.DeskHandover", xF, yF, dkNavy()   ' v27 (item 25): one printable page
     yF = yF + BTN_H + GAP
     If Not sup Then
         DeskBtn ws, "dk_btn_reconcile", "Reconcile with the paper roster", "modDesk.DeskReconcile", xF, yF, dkNavy()   ' v27 (item 4): the parallel run's sheet
@@ -718,6 +722,23 @@ Oops:
 End Sub
 
 ' v27 (item 26): the quarterly Stats report (admin)
+' v27 (item 25): the shift handover page and the payback ledger (supervisors and admins)
+Public Sub DeskHandover()
+    On Error GoTo Oops
+    ShiftHandover
+    Exit Sub
+Oops:
+    ReportError "DeskHandover"
+End Sub
+
+Public Sub DeskLedger()
+    On Error GoTo Oops
+    SwitchLedger
+    Exit Sub
+Oops:
+    ReportError "DeskLedger"
+End Sub
+
 Public Sub DeskStats()
     On Error GoTo Oops
     StatsReport
@@ -1058,6 +1079,14 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "per unit group, one row per date with the crews on and the Days and Nights lines as the calendar shows them, OPEN lines " & _
         "in red; a PDF goes beside the month calendars, then it asks whether to print. Nothing is changed: it is a picture of the " & _
         "calendar for the board in the control room."
+    HelpAdd h, n, "Shift handover", _
+        "Shift handover (last 12 h) in the Desk's FINISH band draws one page of everything logged in the last 12 hours - the OT Log rows " & _
+        "(call-outs, awards, adjustments, with a void shown in Status), the time off, sick calls and leave booked (leave shows as Leave), " & _
+        "and the shift switches entered - and offers to print it. It changes nothing; it is drawn again from the data each time."
+    HelpAdd h, n, "Paybacks owed (the ledger)", _
+        "Paybacks owed (ledger) in the Desk's PLAN band lists every shift switch still waiting for its payback: whoever gave up a " & _
+        "shift owes the one who worked it, oldest first, the ones over the warning age in amber. Type part of a name for that " & _
+        "person's statement (what they owe and what they are owed) and save it as a PDF to hand them."
     HelpAdd h, n, "Employee history (report)", _
         "Employee history on the bar's FIND group or the Desk: part of a name, then a From and To date (the boxes open on the whole roster " & _
         "year; the member-safe report takes the pay periods starting in the range, the full one the shift dates), and the History Report tab lists every OT Log entry for that person in the range, newest first: call-outs with " & _

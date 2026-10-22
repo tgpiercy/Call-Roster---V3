@@ -414,6 +414,8 @@ def evaluate(row: dict) -> str:
     if suite == "merge":                         # 'date;date;...' -> 'start..end;...'
         runs = rules.merge_runs([d(p) for p in i1.split(";") if p])
         return ";".join(f"{iso(a)}..{iso(b)}" for a, b in runs)
+    if suite == "datashape":                    # v27 (item 25): kind, value -> what looks wrong / ok
+        return rules.data_shape_problem(i1, i2) or "ok"
     raise ValueError(f"unknown suite {suite}")
 
 

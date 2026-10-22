@@ -1823,3 +1823,30 @@ def view_mode_for(login: str, admin_list: str, desk_list: str, sup_list: str = "
 
     a, d, s = in_list(admin_list), in_list(desk_list), in_list(sup_list)
     return "desk" if a and d else "admin" if a else "supervisor" if s else "user"
+
+
+def data_shape_problem(kind: str, v: str) -> str:
+    """modPeople.DataShapeProblem (v27 item 25): '' when a roster detail looks right, else what is wrong."""
+    v = v.strip()
+    k = kind.lower()
+    if k == "phone":
+        if v == "":
+            return ""
+        low = v.lower()
+        digits = sum(1 for c in low if c in "0123456789")
+        bad = any(c in "abcdefghijklmnopqrstuvwxyz" and c not in "ext" for c in low)
+        return "phone does not look like a phone number" if bad or digits < 7 or digits > 15 else ""
+    if k == "email":
+        if v == "":
+            return ""
+        at = v.find("@") + 1                          # 1-based like InStr; 0 = none
+        if at < 2:
+            bad = True
+        else:
+            bad = ("@" in v[at:] or v.find(".", at + 1) == -1 or " " in v or v.endswith("."))
+        return "email does not look like an address" if bad else ""
+    if k == "code":
+        return f"code {v} has no grade number" if v != "" and dept_code_value(v) == 999 else ""
+    if k == "crew":
+        return "crew blank" if v == "" else ""
+    return ""

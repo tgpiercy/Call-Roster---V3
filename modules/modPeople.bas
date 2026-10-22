@@ -3479,3 +3479,86 @@ Failed:
     Application.ScreenUpdating = scrWas
     MsgBox "The setup stopped part-way: " & em & vbNewLine & "Saving is blocked. Close WITHOUT saving. Backup: " & bk, vbCritical, "Setup People"
 End Sub
+
+' ====================================================================
+'  THE DATA CHECK (v27 item 25, 1.4)
+' ====================================================================
+' The shape a roster detail should have: "" when it is fine (or blank where blank is allowed), else what is
+' wrong. PURE (suite "datashape"; tests/rules.py data_shape_problem). kind: phone (7 to 15 digits, no letters
+' but an "ext" / "x"), email (one @ with something before it and a dot after it, no space), code (a grade
+' number in it, as DeptCodeValue reads it), crew (not blank).
+Public Function DataShapeProblem(ByVal kind As String, ByVal v As String) As String
+    Dim i As Long, ch As String, nDig As Long, bad As Boolean, at As Long
+    v = Trim$(v)
+    Select Case LCase$(kind)
+        Case "phone"
+            If v = "" Then Exit Function
+            For i = 1 To Len(v)
+                ch = LCase$(Mid$(v, i, 1))
+                If ch >= "0" And ch <= "9" Then
+                    nDig = nDig + 1
+                ElseIf ch >= "a" And ch <= "z" Then
+                    If InStr("ext", ch) = 0 Then bad = True
+                End If
+            Next i
+            If bad Or nDig < 7 Or nDig > 15 Then DataShapeProblem = "phone does not look like a phone number"
+        Case "email"
+            If v = "" Then Exit Function
+            at = InStr(v, "@")
+            If at < 2 Then
+                bad = True
+            ElseIf InStr(at + 1, v, "@") > 0 Or InStr(at + 2, v, ".") = 0 Or InStr(v, " ") > 0 Or Right$(v, 1) = "." Then
+                bad = True
+            End If
+            If bad Then DataShapeProblem = "email does not look like an address"
+        Case "code"
+            If v <> "" And DeptCodeValue(v) = 999 Then DataShapeProblem = "code " & v & " has no grade number"
+        Case "crew"
+            If v = "" Then DataShapeProblem = "crew blank"
+    End Select
+End Function
+
+' The roster's details that look wrong, one "name" & vbTab & "what" per finding (Needs Attention's DATA CHECK).
+' Every row is read, whatever the view (convention 4); a name on two rows is named once per extra row.
+Public Function DataCheckLines() As Variant
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    If lastRow < R_FIRST Then Exit Function
+    Dim v As Variant: v = RangeTo2D(ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(lastRow, UnitColLast())))
+    Dim out() As String, n As Long: ReDim out(1 To 50)
+    Dim seen As Object: Set seen = CreateObject("Scripting.Dictionary")
+    seen.CompareMode = 1
+    Dim i As Long, nm As String, p As String, d As Variant, c As Long
+    For i = 1 To UBound(v, 1)
+        nm = Trim$(SafeStr(v(i, C_NAME)))
+        If nm <> "" Then
+            If seen.Exists(nm) Then
+                AddCheckLine out, n, nm, "on the roster twice (rows " & seen(nm) & " and " & (i + R_FIRST - 1) & ")"
+            Else
+                seen.Add nm, i + R_FIRST - 1
+            End If
+            p = DataShapeProblem("crew", SafeStr(v(i, C_SHIFT)))
+            If p <> "" Then AddCheckLine out, n, nm, p
+            p = DataShapeProblem("phone", SafeStr(v(i, C_PHONE)))
+            If p <> "" Then AddCheckLine out, n, nm, p
+            p = DataShapeProblem("email", SafeStr(v(i, C_EMAIL)))
+            If p <> "" Then AddCheckLine out, n, nm, p
+            For Each d In DeptList()
+                c = DeptCol(CStr(d))
+                If c > 0 And c <= UBound(v, 2) Then
+                    p = DataShapeProblem("code", SafeStr(v(i, c)))
+                    If p <> "" Then AddCheckLine out, n, nm, p & " (" & CStr(d) & ")"
+                End If
+            Next d
+        End If
+    Next i
+    If n = 0 Then Exit Function
+    ReDim Preserve out(1 To n)
+    DataCheckLines = out
+End Function
+
+Private Sub AddCheckLine(ByRef out() As String, ByRef n As Long, ByVal nm As String, ByVal what As String)
+    n = n + 1
+    If n > UBound(out) Then ReDim Preserve out(1 To n + 50)
+    out(n) = nm & vbTab & what
+End Sub

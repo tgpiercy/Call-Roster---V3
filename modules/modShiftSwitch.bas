@@ -13,6 +13,7 @@ Option Explicit
 Public Const SS_VERSION As String = "Shift switches v26.5.5 (Oct 21)"
 Public Const SS_SHEET As String = "Shift Switches"
 Public Const SS_TABLE As String = "tblShiftSwitch"
+Public Const LEDGER_SHEET As String = "Paybacks"     ' v27 (item 25): the payback ledger, output only (supervisors and admins)
 
 Public Const SW_ID As Long = 1
 Public Const SW_DATE As Long = 2
@@ -783,3 +784,143 @@ Public Function VoidSwitch(ByVal id As String, Optional ByVal reasonTxt As Strin
     RefreshCalendar
     VoidSwitch = True
 End Function
+
+' ====================================================================
+'  THE PAYBACK LEDGER (v27 item 25, 1.4)
+' ====================================================================
+' Every payback still owed (an original switch with no payback logged): who gave up a shift owes the one who
+' worked it. Everyone = one table by the person who owes, oldest first, with its age and the
+' over-PAYBACK_WARN_DAYS status in amber; a name typed = that person's statement (what they owe, what they are
+' owed), with a PDF beside the roster on request. Supervisors and admins; changes no data; never published.
+Public Sub SwitchLedger()
+    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    On Error GoTo Oops
+    If Not IsSupervisor() Then MsgBox "The payback ledger is for supervisors and admins.", vbInformation, "Paybacks owed": Exit Sub
+    Dim a As Variant
+    a = Application.InputBox(Prompt:="One person's statement: part of the name." & vbNewLine & "Leave it blank for everyone.", Title:="Paybacks owed", Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub
+    Dim who As String
+    If Trim$(CStr(a)) <> "" Then
+        who = ResolvePersonName(Trim$(CStr(a)), "Paybacks owed")
+        If who = "" Then Exit Sub
+    End If
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Dim v As Variant: v = SwitchData()
+    Dim idx() As Long, n As Long, i As Long, j As Long, t As Long
+    If IsArray(v) Then
+        ReDim idx(1 To UBound(v, 1))
+        For i = 1 To UBound(v, 1)
+            If IsOwed(v, i) And IsDate(v(i, SW_DATE)) Then
+                If who = "" Or StrComp(Trim$(SafeStr(v(i, SW_OFF))), who, vbTextCompare) = 0 _
+                   Or StrComp(Trim$(SafeStr(v(i, SW_WORKS))), who, vbTextCompare) = 0 Then
+                    n = n + 1: idx(n) = i
+                End If
+            End If
+        Next i
+        For i = 2 To n                              ' by the person who owes, then oldest first
+            t = idx(i): j = i - 1
+            Do While j >= 1
+                If LedgerKey(v, idx(j)) <= LedgerKey(v, t) Then Exit Do
+                idx(j + 1) = idx(j): j = j - 1
+            Loop
+            idx(j + 1) = t
+        Next i
+    End If
+    Dim ws As Worksheet: Set ws = ReportSheetNamed(LEDGER_SHEET)
+    SetSheetVisible ws, xlSheetVisible
+    UnlockSheet ws
+    ws.Cells.Clear
+    Dim warn As Long: warn = PaybackWarnDays()
+    ws.Range("A1").Value = IIf(who = "", "PAYBACKS OWED  -  everyone", "PAYBACK STATEMENT  -  " & who)
+    ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 14
+    ws.Range("A2").Value = "'As of " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & ".  Over " & warn & " days in amber.  Whoever gave up a shift owes the one who worked it."
+    Dim r As Long: r = 4
+    If who = "" Then
+        LedgerPart ws, r, "OWED PAYBACKS (by the person who owes)", v, idx, n, "", warn
+    Else
+        LedgerPart ws, r, who & " OWES (gave up a shift)", v, idx, n, "off:" & who, warn
+        r = r + 1
+        LedgerPart ws, r, who & " IS OWED (worked someone's shift)", v, idx, n, "works:" & who, warn
+    End If
+    ws.Columns(1).ColumnWidth = 24
+    ws.Columns(2).ColumnWidth = 24
+    For i = 3 To 8
+        ws.Columns(i).ColumnWidth = 12
+    Next i
+    ws.Columns(7).ColumnWidth = 22
+    With ws.PageSetup
+        .Orientation = xlLandscape
+        .Zoom = False: .FitToPagesWide = 1: .FitToPagesTall = False
+        .CenterFooter = "Paybacks owed - " & Format$(Now, "ddd mmm d, yyyy") & " - page &P of &N"
+    End With
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+    ws.Activate
+    If Ask(n & " payback(s) owed" & IIf(who = "", "", " involving " & who) & ". The Paybacks tab lists them." & vbNewLine & vbNewLine & _
+           "Save a PDF beside the roster as well?", vbYesNo + vbQuestion, "Paybacks owed", vbNo) = vbYes Then
+        ReportPdf ws, IIf(who = "", "Paybacks owed", "Paybacks " & CalName(who)), "Paybacks owed", True
+    End If
+    Exit Sub
+Oops:
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+    ReportError "SwitchLedger"
+End Sub
+
+' the sort key: the person who owes, then the switch date
+Private Function LedgerKey(ByVal v As Variant, ByVal i As Long) As String
+    LedgerKey = LCase$(Trim$(SafeStr(v(i, SW_OFF)))) & "|" & Format$(CDate(v(i, SW_DATE)), "yyyymmdd")
+End Function
+
+' one block of the ledger; only "off:<name>" / "works:<name>" rows when a filter is given
+Private Sub LedgerPart(ByVal ws As Worksheet, ByRef r As Long, ByVal title As String, ByVal v As Variant, ByRef idx() As Long, _
+                       ByVal n As Long, ByVal filt As String, ByVal warn As Long)
+    ws.Cells(r, 1).Value = title
+    ws.Cells(r, 1).Font.Bold = True
+    ws.Cells(r, 1).Font.Color = RGB(30, 56, 100)
+    r = r + 1
+    Dim heads As Variant: heads = Array("Owes (gave up)", "Owed to (worked it)", "Switch date", "Shift", "Unit", "Days", "Status", "Switch")
+    Dim j As Long
+    For j = 0 To 7
+        ws.Cells(r, 1 + j).Value = heads(j)
+    Next j
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r, 8))
+        .Font.Bold = True: .Font.Size = 9
+        .Interior.Color = RGB(222, 229, 240)
+    End With
+    r = r + 1
+    Dim k As Long, i As Long, days As Long, shown As Long, keep As Boolean, nm As String
+    For k = 1 To n
+        i = idx(k)
+        keep = True
+        If Left$(filt, 4) = "off:" Then
+            nm = Mid$(filt, 5)
+            keep = (StrComp(Trim$(SafeStr(v(i, SW_OFF))), nm, vbTextCompare) = 0)
+        ElseIf Left$(filt, 6) = "works:" Then
+            nm = Mid$(filt, 7)
+            keep = (StrComp(Trim$(SafeStr(v(i, SW_WORKS))), nm, vbTextCompare) = 0)
+        End If
+        If keep Then
+            days = Int(Date) - Int(CDate(v(i, SW_DATE)))
+            ws.Cells(r, 1).Value = "'" & SafeStr(v(i, SW_OFF))
+            ws.Cells(r, 2).Value = "'" & SafeStr(v(i, SW_WORKS))
+            ws.Cells(r, 3).Value = "'" & Format$(CDate(v(i, SW_DATE)), "ddd mmm d, yyyy")
+            ws.Cells(r, 4).Value = "'" & SafeStr(v(i, SW_SHIFT))
+            ws.Cells(r, 5).Value = "'" & SafeStr(v(i, SW_UNIT))
+            ws.Cells(r, 6).Value = days
+            ws.Cells(r, 7).Value = "'" & OwedStatusText(days, warn)
+            ws.Cells(r, 8).Value = "'" & SafeStr(v(i, SW_ID))
+            If days > warn Then ws.Range(ws.Cells(r, 1), ws.Cells(r, 8)).Interior.Color = RGB(255, 235, 156)
+            r = r + 1
+            shown = shown + 1
+        End If
+    Next k
+    If shown = 0 Then
+        ws.Cells(r, 1).Value = "None."
+        ws.Cells(r, 1).Font.Italic = True
+        r = r + 1
+    End If
+End Sub

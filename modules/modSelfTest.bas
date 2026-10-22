@@ -201,6 +201,9 @@ Private Function RunCase(f() As String) As String
         Case "backupdate"                          ' v25: file name -> the date a daily backup carries / none
             Dim bdD As Date: bdD = BackupFileDate(i1)
             RunCase = IIf(bdD = 0, "none", FmtD(bdD))
+        Case "datashape"                           ' v27 (item 25): kind, value -> what looks wrong / ok
+            RunCase = DataShapeProblem(i1, i2)
+            If RunCase = "" Then RunCase = "ok"
         Case "deptcode"                            ' v25: grade code (_ = space) -> its numeric part (999 = none)
             RunCase = NumText(DeptCodeValue(Replace(i1, "_", " ")))
         Case "hourstext"                           ' v25: hours -> the text every message shows (no trailing point)
@@ -1826,5 +1829,24 @@ Private Sub LoadCases5()
     AddCase "clockchg,two-quiet-days,2027-01-10-09-00,2027-01-12-09-00,,,,N"
     AddCase "clockchg,reversed-pair,2027-03-14-03-00,2027-03-14-01-30,,,,Y"
     AddCase "chargewhy,callout-exception,Callout,Exception,4,12|0,D1,Not charged: 4th on the call list; plant upset (exception)"
+    AddCase "datashape,phone-dashed,phone,905-555-1234,,,,ok"
+    AddCase "datashape,phone-brackets,phone,(905) 555 1234,,,,ok"
+    AddCase "datashape,phone-local-seven,phone,555-1234,,,,ok"
+    AddCase "datashape,phone-with-ext,phone,905 555 1234 ext 22,,,,ok"
+    AddCase "datashape,phone-words,phone,call me,,,,phone does not look like a phone number"
+    AddCase "datashape,phone-five-digits,phone,12345,,,,phone does not look like a phone number"
+    AddCase "datashape,phone-blank,phone,,,,,ok"
+    AddCase "datashape,email-ok,email,jo.smith@syensqo.com,,,,ok"
+    AddCase "datashape,email-no-at,email,jo.smith,,,,email does not look like an address"
+    AddCase "datashape,email-no-dot,email,jo@local,,,,email does not look like an address"
+    AddCase "datashape,email-two-ats,email,jo@@x.com,,,,email does not look like an address"
+    AddCase "datashape,email-space,email,jo smith@x.com,,,,email does not look like an address"
+    AddCase "datashape,email-nothing-before,email,@x.com,,,,email does not look like an address"
+    AddCase "datashape,email-dot-end,email,jo@x.,,,,email does not look like an address"
+    AddCase "datashape,code-grade,code,D1.5,,,,ok"
+    AddCase "datashape,code-letter-only,code,D,,,,code D has no grade number"
+    AddCase "datashape,code-blank,code,,,,,ok"
+    AddCase "datashape,crew-blank,crew,,,,,crew blank"
+    AddCase "datashape,crew-set,crew,A,,,,ok"
 ' <<< CASES
 End Sub

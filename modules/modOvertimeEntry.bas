@@ -2063,7 +2063,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     Dim supView As Boolean: supView = adminView Or IsSupervisor()
     If SheetExists(DESK_SHEET) Then SetSheetVisible ThisWorkbook.Worksheets(DESK_SHEET), IIf(adminView Or (SUPERVISOR_DESK And supView), xlSheetVisible, xlSheetVeryHidden)   ' v25.3: admins' and supervisors' Desk
     ' v26: the member-safe history report and the board are a supervisor's output sheets (hidden from a plain user)
-    For Each nm In Array(HISTORY_SHEET, BOARD_SHEET)
+    For Each nm In Array(HISTORY_SHEET, BOARD_SHEET, HANDOVER_SHEET, LEDGER_SHEET)     ' v27 (item 25): + the handover page, the payback ledger
         If SheetExists(CStr(nm)) Then SetSheetVisible ThisWorkbook.Worksheets(CStr(nm)), IIf(supView, xlSheetVisible, xlSheetVeryHidden)
     Next nm
     Dim rs As Worksheet: Set rs = RosterSheet()

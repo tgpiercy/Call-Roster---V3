@@ -1825,5 +1825,6 @@ Private Sub LoadCases5()
     AddCase "clockchg,a-year-apart,2027-01-10-09-00,2027-12-01-09-00,,,,Y"
     AddCase "clockchg,two-quiet-days,2027-01-10-09-00,2027-01-12-09-00,,,,N"
     AddCase "clockchg,reversed-pair,2027-03-14-03-00,2027-03-14-01-30,,,,Y"
+    AddCase "chargewhy,callout-exception,Callout,Exception,4,12|0,D1,Not charged: 4th on the call list; plant upset (exception)"
 ' <<< CASES
 End Sub

@@ -759,7 +759,12 @@ Private Sub btnUnavailable_Click()
         C("cmbReason").SetFocus
         Exit Sub
     End If
-    RecordOutcome "Unavailable", C("cmbReason").Value
+    ' v27 (item 24): the plant-upset reason is its own outcome - Exception: nobody charged, flagged on Needs Attention
+    If StrComp(C("cmbReason").Value, EXCEPTION_REASON, vbTextCompare) = 0 Then
+        RecordOutcome "Exception", C("cmbReason").Value
+    Else
+        RecordOutcome "Unavailable", C("cmbReason").Value
+    End If
 End Sub
 
 ' v27 (item 21, review M4): a Function - False = the weekly-cap reason box was cancelled and NOTHING changed (the

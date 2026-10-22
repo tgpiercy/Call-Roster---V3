@@ -405,6 +405,14 @@ Private Sub mSave_Click()
                    "  Calendar: one line per booked shift (OPEN until covered, or NCN)." & vbNewLine & _
                    "  Absences sheet (admin). The members' file shows the booking after the next update (leave types show as Leave; sick and personal as Off)." & vbNewLine, _
                    "  Void this booking on this pop-up; Set end date shortens it." & vbNewLine
+    ' v27 (item 24): one posting per scheduled shift of the booking, in one go (a closed-ended booking; supervisors)
+    If Not mOpen.Value And IsSupervisor() Then
+        If Ask("Post a shift for every scheduled shift of this booking now (" & Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & ")?" & vbNewLine & vbNewLine & _
+               "One posting per shift, each on its calendar line, saved as PDFs (not printed).", vbYesNo + vbQuestion + vbDefaultButton2, "Post all lines", vbNo) = vbYes Then
+            Dim posted As String: posted = PostAllLines(mEmp.Text, C("cboUnit").Text, id, ds, de)
+            If posted <> "" Then C("status").Caption = "Posted: " & posted & "  (" & id & ")."
+        End If
+    End If
     ' ready for the next booking
     mStart.Text = "": mEnd.Text = "": C("txtTimes").Text = "": C("txtNote").Text = ""
     mOpen.Value = False

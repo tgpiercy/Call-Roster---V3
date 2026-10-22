@@ -443,7 +443,7 @@ End Sub
 ' Which non-void rows a key means: "S-0012" = every row of that Ref ID, "#245" = one
 ' Entry ID. Fills hit(1..rows); returns how many, their charged hours and a short list.
 Private Function VoidHits(ByRef v As Variant, ByVal k As String, ByRef hit() As Boolean, ByRef hrs As Double, _
-                          ByRef nameList As String) As Long
+                          ByRef nameList As String, Optional ByVal onlyOutcome As String = "") As Long
     Dim i As Long, cnt As Long
     ReDim hit(1 To UBound(v, 1))
     hrs = 0: nameList = ""
@@ -454,6 +454,7 @@ Private Function VoidHits(ByRef v As Variant, ByVal k As String, ByRef hit() As 
             Else
                 hit(i) = (UCase$(SafeStr(v(i, L_REF))) = k)
             End If
+            If hit(i) And onlyOutcome <> "" Then hit(i) = (StrComp(Trim$(SafeStr(v(i, L_OUTCOME))), onlyOutcome, vbTextCompare) = 0)   ' v27 (item 24)
             If hit(i) Then
                 cnt = cnt + 1
                 hrs = hrs + NumOr0(v(i, L_CHARGED))
@@ -468,7 +469,8 @@ End Function
 ' v24.2: the voiding itself, with no questions. Marks every non-void row of the key
 ' VOID with the reason, takes voided call-outs / awards back off the calendar and
 ' saves. Returns the number of rows voided. Void Entry and SmokeTest both call it.
-Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Long) As Long
+' v27 (item 24): onlyOutcome = "Awarded" voids that outcome's rows alone (Withdraw award keeps the refusals)
+Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Long, Optional ByVal onlyOutcome As String = "") As Long
     calN = 0
     k = UCase$(Trim$(k))
     If k = "" Or Trim$(why) = "" Then Exit Function
@@ -478,7 +480,7 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
     Dim i As Long, cnt As Long, hrs As Double, nameList As String
     Dim hit() As Boolean
-    cnt = VoidHits(v, k, hit, hrs, nameList)
+    cnt = VoidHits(v, k, hit, hrs, nameList, onlyOutcome)
     If cnt = 0 Then Exit Function
 
     Dim ws As Worksheet: Set ws = lo.Parent

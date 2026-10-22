@@ -119,6 +119,7 @@ Public Function ChargeWhy(ByVal typ As String, ByVal outcome As String, ByVal ca
     Dim aboveTxt As String: aboveTxt = IIf(Trim$(code) = "", "no code", gradeTxt & " is above " & HoursText(CHARGE_MAX_GRADE))
     If t = "callout" Then
         posTxt = IIf(callOrder > 0, OrdinalText(callOrder) & " on the call list, ", "")     ' the list position (a skipped person has no row - review)
+        If o = "exception" Then ChargeWhy = "Not charged: " & posTxt & "plant upset (exception)": Exit Function   ' v27 (item 24)
         If charged <> 0 Then
             ChargeWhy = "Charged " & HoursText(charged) & " h: " & posTxt & Trim$(outcome) & ", " & HoursText(hours) & _
                         " h offered x " & HoursText(CHARGE_MULTIPLIER) & " (" & gradeTxt & ")"

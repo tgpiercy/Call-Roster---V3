@@ -4930,6 +4930,21 @@ Public Sub DrawNeeds()
         NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
               "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
     End If
+    ' v27 (item 24): call-out rows logged as Exception (a plant upset, nobody charged) in the last 30 days - for the superintendent
+    Dim xl As Variant: xl = LogRowsNow()
+    If IsArray(xl) Then
+        Dim xi As Long, nX As Long
+        For xi = 1 To UBound(xl, 1)
+            If UCase$(Trim$(SafeStr(xl(xi, L_OUTCOME)))) = "EXCEPTION" And UCase$(Trim$(SafeStr(xl(xi, L_STATUS)))) <> "VOID" And IsDate(xl(xi, L_DATE)) Then
+                If Int(CDate(xl(xi, L_DATE))) >= Int(Date) - 30 And nX < 12 Then
+                    nX = nX + 1
+                    NAAdd er, nE, Format$(CDate(xl(xi, L_DATE)), "ddd mmm d"), SafeStr(xl(xi, L_SHIFTLBL)), "", SafeStr(xl(xi, L_DEPT)), _
+                          "Exception (plant upset): " & SafeStr(xl(xi, L_REF)) & "  " & CalName(SafeStr(xl(xi, L_EMP))) & "  -  " & Left$(SafeStr(xl(xi, L_TASK)), 60), "Exception", _
+                          "Review", "", "Q:exception", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+                End If
+            End If
+        Next xi
+    End If
     ' v27 (item 23): the open disputes, one line each (an admin settles one through CloseDispute)
     Dim nDp As Long, dpTxt As String: dpTxt = OpenDisputesText(nDp)
     If nDp > 0 Then

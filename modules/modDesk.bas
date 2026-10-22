@@ -281,6 +281,8 @@ Public Sub DrawDesk()
         yF = yF + BTN_H + GAP
         DeskBtn ws, "dk_btn_close", "Close the pay period", "modEvidence.ClosePeriod", xF, yF, dkNavy()   ' v27 (item 23): the CSV + PDF + hash
         yF = yF + BTN_H + GAP
+        DeskBtn ws, "dk_btn_withdraw", "Withdraw an award / edit a posting", "modDesk.DeskPostingJobs", xF, yF, dkNavy()   ' v27 (item 24)
+        yF = yF + BTN_H + GAP
     End If
 
     ' ---- the footer row: help, the two emails, Undo (admin), Practice - grey, reached for rarely ----
@@ -1122,6 +1124,18 @@ Oops:
 End Sub
 
 ' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it
+' v27 (item 24): the two admin posting jobs behind one button
+Public Sub DeskPostingJobs()
+    On Error GoTo Oops
+    Select Case MsgBox("Yes = withdraw an award (its Awarded rows voided, the line opens again)." & vbNewLine & "No = edit an open posting (hours, date, positions).", vbYesNoCancel + vbQuestion, "Posting jobs")
+        Case vbYes: WithdrawAward
+        Case vbNo: EditPosting
+    End Select
+    Exit Sub
+Oops:
+    ReportError "DeskPostingJobs"
+End Sub
+
 Public Sub DeskReport()
     On Error GoTo Oops
     Dim body As String

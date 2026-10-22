@@ -64,6 +64,7 @@ Public Const CALLOUT_INCLUDE_DAYS As Boolean = True        ' DAYS employees appe
 Public Const DST_USE_ACTUAL_HOURS As Boolean = True
 Public Const USUAL_SHIFT_HOURS As Double = 12
 Public Const RECENT_SESSION_HOURS As Double = 12  ' v27 (item 10): a second call-out session for the same unit, date and shift inside this asks first
+Public Const EXCEPTION_REASON As String = "Plant upset (exception: nobody charged)"   ' v27 (item 24): picked under U, logged as the Exception outcome - nobody charged, flagged for the superintendent
 Public Const WEEK_MAX_HOURS As Double = 48        ' v27 (item 21): an accept or award that takes a person past this in the trailing 7 days warns and needs a reason (never blocks)
 Public Const RS_SHEET As String = "Restrictions"  ' v27 (item 21): OT restrictions (tblRestrictions): not listed while restricted, never charged; admin-only, never published
 Public Const RS_TABLE As String = "tblRestrictions"
@@ -293,7 +294,7 @@ End Function
 Public Function UnavailableReasons() As Variant
     UnavailableReasons = Array("Vacation", "Already Working OT", "Training", _
                                "Scheduled Off Site", "Modified Duties", _
-                               "Not Qualified for Task", "Other", "Working days elsewhere")   ' v26.5.5 (Graeme, Oct 21): was "Days"
+                               "Not Qualified for Task", "Other", "Working days elsewhere", EXCEPTION_REASON)   ' v26.5.5 (Graeme, Oct 21): was "Days"; v27 (item 24): the plant-upset exception
 End Function
 
 ' Department -> roster column holding that department's grade code
@@ -1281,7 +1282,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
 
     Dim data() As Variant: ReDim data(1 To logged, 1 To L_NCOLS)
     Dim charged As Double, totalCharged As Double
-    Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long, accTxt As String
+    Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long, nExc As Long, accTxt As String
     ' v24.1: the hours each person was offered (less than the call-out's below a partial acceptance)
     Dim oc() As String, offers() As Double, worked As Double
     ReDim oc(1 To n)
@@ -1343,6 +1344,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
                 Case "Refused": nRef = nRef + 1
                 Case "Left Message": nMsg = nMsg + 1
                 Case "Unavailable": nUna = nUna + 1
+                Case "Exception": nExc = nExc + 1             ' v27 (item 24): a plant upset - nobody charged
             End Select
         End If
     Next i
@@ -1366,7 +1368,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
 
     ' v25.5: the four lines the pop-up shows (the detail below stays on the status bar and in the OT Log)
     shortSummary = "Session " & sessionID & " submitted: " & nAcc & " accepted" & IIf(accShort <> "", " (" & accShort & ")", "") & _
-                   ", " & nRef & " refused, " & nMsg & " left message, " & nUna & " unavailable." & vbNewLine & _
+                   ", " & nRef & " refused, " & nMsg & " left message, " & nUna & " unavailable" & IIf(nExc > 0, ", " & nExc & " exception (plant upset)", "") & "." & vbNewLine & _
                    "Charged " & HoursText(totalCharged) & " h (Refused and Left Message, grade " & CHARGE_MAX_GRADE & " and below, x " & CHARGE_MULTIPLIER & ")." & vbNewLine & _
                    dept & "  |  " & shiftLbl & "  |  crew " & crewSel & "  |  " & Format$(entryDate, "ddd mmm d") & "  |  " & HoursText(hours) & " h" & _
                    IIf(calTxt <> "", vbNewLine & "Calendar:" & Replace(calTxt, vbNewLine & "  ", " "), "")
@@ -1377,7 +1379,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
               "  Accepted: " & nAcc & accTxt & vbNewLine & _
               "  Refused: " & nRef & vbNewLine & _
               "  Left Message: " & nMsg & vbNewLine & _
-              "  Unavailable: " & nUna & vbNewLine & vbNewLine & _
+              "  Unavailable: " & nUna & IIf(nExc > 0, vbNewLine & "  Exception (plant upset, nobody charged): " & nExc, "") & vbNewLine & vbNewLine & _
               "  Total charged: " & HoursText(totalCharged) & " hrs" & _
               IIf(calTxt <> "", vbNewLine & vbNewLine & "Calendar:" & calTxt, "")
     ' v26.5.5 (B13): what to do next, from the outcome (a partial acceptance closed the shift; nobody = the line stays open).

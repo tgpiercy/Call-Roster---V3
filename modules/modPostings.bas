@@ -317,8 +317,9 @@ End Function
 ' Core: assigns the ID, snapshots the eligible list, saves both, draws
 ' the Overtime Posting sheet, then prints it and/or saves the PDF.
 ' p needs Unit, ShiftDate, ShiftLbl, Reason, Crew, Hours, Positions, ClosesOn.
+' v27 (item 24): quiet = no "Create posting?" box (PostAllLines makes several in one go after ONE question)
 Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As Boolean = True, _
-                                  Optional ByVal doPdf As Boolean = True) As Boolean
+                                  Optional ByVal doPdf As Boolean = True, Optional ByVal quiet As Boolean = False) As Boolean
     If Not RequireSupervisor() Then Exit Function     ' v25.3: a supervisor's job (Graeme, Oct 17)
     If Not RequireWritable() Then Exit Function
     If Not PostingTablesReady() Then Exit Function
@@ -353,14 +354,16 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     Else
         outTxt = "It will be put on the Overtime Posting tab (not printed)."
     End If
-    If Ask("Create posting " & p.ID & "?" & vbNewLine & vbNewLine & _
-              p.Unit & "  |  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & "  |  " & p.ShiftLbl & vbNewLine & _
-              "Crew: " & p.Crew & "   Hours: " & p.Hours & "   Positions: " & p.Positions & vbNewLine & _
-              "Reason: " & p.Reason & vbNewLine & _
-              "Closes: " & Format$(p.ClosesOn, "ddd mmm d, yyyy") & " @ " & POSTING_CLOSE_TIME & vbNewLine & vbNewLine & _
-              n & " eligible employees will be listed. " & outTxt & _
-              IIf(offList <> "", vbNewLine & vbNewLine & "Not listed: " & offList, ""), _
-              vbOKCancel + vbQuestion, "Create Posting", vbOK) <> vbOK Then Exit Function
+    If Not quiet Then
+        If Ask("Create posting " & p.ID & "?" & vbNewLine & vbNewLine & _
+                  p.Unit & "  |  " & Format$(p.ShiftDate, "ddd mmm d, yyyy") & "  |  " & p.ShiftLbl & vbNewLine & _
+                  "Crew: " & p.Crew & "   Hours: " & p.Hours & "   Positions: " & p.Positions & vbNewLine & _
+                  "Reason: " & p.Reason & vbNewLine & _
+                  "Closes: " & Format$(p.ClosesOn, "ddd mmm d, yyyy") & " @ " & POSTING_CLOSE_TIME & vbNewLine & vbNewLine & _
+                  n & " eligible employees will be listed. " & outTxt & _
+                  IIf(offList <> "", vbNewLine & vbNewLine & "Not listed: " & offList, ""), _
+                  vbOKCancel + vbQuestion, "Create Posting", vbOK) <> vbOK Then Exit Function
+    End If
 
     ' --- save posting + snapshot list ---
     Dim pr() As Variant: ReDim pr(1 To 1, 1 To PS_N)
@@ -469,6 +472,220 @@ Private Function OutputPosting(ByRef p As PostRec, ByRef lst() As PListRec, ByVa
     OutputPosting = True
 End Function
 
+' The PDF's file name (no folder, no extension): "P-0012 Phosphine 2026-11-05 A" with the illegal characters replaced
+Private Function PostingPdfName(ByRef p As PostRec) As String
+    Dim fName As String, ch As Variant
+    fName = p.ID & " " & p.Unit & " " & Format$(p.ShiftDate, "yyyy-mm-dd") & " " & p.Crew
+    For Each ch In Array("/", "\", ":", "*", "?", """", "<", ">", "|")
+        fName = Replace(fName, CStr(ch), "-")
+    Next ch
+    PostingPdfName = fName
+End Function
+
+' The folder the posting PDFs go to (REPORT_FOLDER\Postings\ when it exists, else beside the workbook)
+Private Function PostingPdfFolder() As String
+    Dim folder As String: folder = EnsureSlash(ReportFolder())
+    If FolderExists(folder) Then
+        Dim subF As String: subF = folder & POSTING_PDF_SUBFOLDER & Application.PathSeparator
+        If FolderExists(subF) Then folder = subF
+    Else
+        folder = EnsureSlash(ThisWorkbook.Path)
+    End If
+    PostingPdfFolder = folder
+End Function
+
+' ====================================================================
+'  v27 (item 24, 1.2): THE JOBS THE FORMS COULD NOT RECORD
+' ====================================================================
+' Withdraw award (admin): a closed posting's AWARDED rows are voided (the refusals stay charged - the people ahead
+' still refused), the calendar line opens again (VoidRef releases it), the list row reads "Awarded - withdrawn",
+' "still paid" yes / no and the reason go into the Void Note, a receipt; then the offer of a call-out for the shift.
+' Not a reopen: a re-award would charge the refusers again, and Reopen needs every row voided (Void Entry > P-n).
+Public Sub WithdrawAward()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If Not PostingTablesReady() Then Exit Sub
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    If lo Is Nothing Then Exit Sub
+    If lo.DataBodyRange Is Nothing Then Exit Sub
+    Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long, listTxt As String, nAw As Long
+    For i = UBound(pv, 1) To 1 Step -1
+        If SafeStr(pv(i, PS_STATUS)) = "Awarded" And nAw < 12 Then
+            nAw = nAw + 1
+            listTxt = listTxt & SafeStr(pv(i, PS_ID)) & "  " & SafeStr(pv(i, PS_UNIT)) & "  " & Format$(ToDate(pv(i, PS_DATE)), "ddd mmm d") & "  " & SafeStr(pv(i, PS_SHIFT)) & "  -> " & SafeStr(pv(i, PS_AWARDTO)) & vbNewLine
+        End If
+    Next i
+    If nAw = 0 Then MsgBox "No awarded postings.", vbInformation, "Withdraw award": Exit Sub
+    Dim a As Variant
+    a = Application.InputBox(Prompt:="Awarded postings (newest first):" & vbNewLine & listTxt & vbNewLine & "Withdraw which award? Type the posting id:", Title:="Withdraw award", Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub
+    Dim id As String: id = UCase$(Trim$(CStr(a)))
+    Dim p As PostRec, lst() As PListRec, n As Long
+    n = LoadPosting(id, p, lst)
+    If n = 0 Then MsgBox id & " was not found.", vbExclamation, "Withdraw award": Exit Sub
+    If p.Status <> "Awarded" Then MsgBox id & " is " & p.Status & ", not Awarded.", vbExclamation, "Withdraw award": Exit Sub
+    Dim paid As Long: paid = MsgBox("Withdraw the award of " & id & " (" & p.Unit & " " & Format$(p.ShiftDate, "ddd mmm d") & " " & p.ShiftLbl & ")?" & vbNewLine & vbNewLine & _
+                                    "Is the awarded person STILL PAID for it?  Yes = still paid.  No = not paid.  Cancel = leave the award.", vbYesNoCancel + vbQuestion, "Withdraw award")
+    If paid = vbCancel Then Exit Sub
+    Dim why As String: why = AskRequired("Why is the award withdrawn? (kept in the Void Note)", "Withdraw award")
+    If why = "" Then Exit Sub
+    why = "Award withdrawn (still paid: " & IIf(paid = vbYes, "yes", "no") & ") - " & why
+    Dim before As Object: Set before = ReceiptBefore()
+    Dim calN As Long, cnt As Long
+    cnt = VoidRef(id, why, calN, "Awarded")
+    If cnt = 0 Then MsgBox "No live Awarded row for " & id & " (voided already?).", vbExclamation, "Withdraw award": Exit Sub
+    ' the list row says so (LoadPosting reads Awarded = Result "Awarded", so this takes the person off the awarded set)
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If Not lr Is Nothing Then
+        If Not lr.DataBodyRange Is Nothing Then
+            Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
+            Dim hit As Boolean
+            For i = 1 To UBound(lv, 1)
+                If StrComp(Trim$(SafeStr(lv(i, PL_ID))), id, vbTextCompare) = 0 And SafeStr(lv(i, PL_RESULT)) = "Awarded" Then
+                    If Not hit Then UnlockSheet lr.Parent: hit = True
+                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = "Awarded - withdrawn"
+                End If
+            Next i
+            If hit Then ProtectSheet lr.Parent
+        End If
+    End If
+    SaveIfWritable
+    ShowReceiptNow "Award of " & id & " withdrawn", _
+                   "  " & id & "  " & cnt & " Awarded row(s) voided: " & why & vbNewLine & "  (the refusals stay charged: the people ahead still refused)" & vbNewLine, _
+                   ReceiptChanges(before), _
+                   "  Calendar: " & p.Unit & " " & Format$(p.ShiftDate, "ddd mmm d") & " " & p.ShiftLbl & " - the line is OPEN again (" & calN & " line(s) released)." & vbNewLine & _
+                   "  Postings sheet: " & id & " stays Awarded with the list row marked withdrawn; Void Entry > " & id & " + Reopen is the way to award it again." & vbNewLine, _
+                   WrongText()
+    If Ask("Fill the shift now with a call-out?", vbYesNo + vbQuestion, "Withdraw award", vbNo) = vbYes Then
+        If LogTable() Is Nothing Then Exit Sub
+        Load frmOvertimeEntry
+        frmOvertimeEntry.Prefill p.Unit, p.ShiftDate, p.ShiftLbl, "Withdrawn award", p.Hours
+        frmOvertimeEntry.Show
+    End If
+    Exit Sub
+Oops:
+    ReportError "WithdrawAward"
+End Sub
+
+' Edit posting (admin): the hours, date or positions of an OPEN posting. The frozen list is untouched (its hours are
+' the people's hours at posting; the sign-ups stay); a changed date moves the calendar line (the old one voided,
+' the posting placed again); the old PDF is renamed "... superseded"; the sheet is redrawn and printed.
+Public Sub EditPosting()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If Not PostingTablesReady() Then Exit Sub
+    Dim ids As Variant, ch As Variant: ch = OpenPostingChoices(ids)
+    If Not IsArray(ids) Then MsgBox "No open postings.", vbInformation, "Edit posting": Exit Sub
+    Dim i As Long, listTxt As String
+    For i = LBound(ids) To UBound(ids)
+        If i - LBound(ids) < 14 Then listTxt = listTxt & CStr(ch(i)) & vbNewLine
+    Next i
+    Dim a As Variant
+    a = Application.InputBox(Prompt:="Open postings:" & vbNewLine & listTxt & vbNewLine & "Edit which? Type the posting id:", Title:="Edit posting", Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub
+    Dim id As String: id = UCase$(Trim$(CStr(a)))
+    Dim p As PostRec, lst() As PListRec, n As Long
+    n = LoadPosting(id, p, lst)
+    If n = 0 Then MsgBox id & " was not found.", vbExclamation, "Edit posting": Exit Sub
+    If p.Status <> "Open" Then MsgBox id & " is " & p.Status & ": only an open posting is edited.", vbExclamation, "Edit posting": Exit Sub
+    Dim pOld As PostRec: pOld = p
+    a = Application.InputBox(Prompt:="Hours (now " & HoursText(p.Hours) & "):", Title:="Edit posting", Default:=HoursText(p.Hours), Type:=1)
+    If VarType(a) = vbBoolean Then Exit Sub
+    If CDbl(a) <= 0 Or CDbl(a) > 24 Then MsgBox "Hours must be between 0 and 24.", vbExclamation, "Edit posting": Exit Sub
+    p.Hours = CDbl(a)
+    a = Application.InputBox(Prompt:="Shift date (now " & DateText(p.ShiftDate) & "):", Title:="Edit posting", Default:=DateText(p.ShiftDate), Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub
+    Dim d2 As Date
+    If Not ParseTypedDate(Trim$(CStr(a)), d2) Then MsgBox "That isn't a date I can read.", vbExclamation, "Edit posting": Exit Sub
+    If Int(d2) < RosterYearFrom() Then MsgBox "A shift before the roster year.", vbExclamation, "Edit posting": Exit Sub
+    p.ShiftDate = Int(d2)
+    a = Application.InputBox(Prompt:="Positions (now " & p.Positions & "):", Title:="Edit posting", Default:=p.Positions, Type:=1)
+    If VarType(a) = vbBoolean Then Exit Sub
+    If CLng(a) < 1 Then MsgBox "At least one position.", vbExclamation, "Edit posting": Exit Sub
+    p.Positions = CLng(a)
+    If p.Hours = pOld.Hours And Int(p.ShiftDate) = Int(pOld.ShiftDate) And p.Positions = pOld.Positions Then MsgBox "Nothing changed.", vbInformation, "Edit posting": Exit Sub
+    If Int(p.ShiftDate) <> Int(pOld.ShiftDate) Then
+        If p.ClosesOn >= p.ShiftDate Then p.ClosesOn = p.ShiftDate - PostingCloseDays()
+        If p.ClosesOn < Date Then p.ClosesOn = Date
+    End If
+    If Ask(id & ": " & HoursText(pOld.Hours) & " h -> " & HoursText(p.Hours) & " h, " & DateText(pOld.ShiftDate) & " -> " & DateText(p.ShiftDate) & ", " & pOld.Positions & " -> " & p.Positions & " position(s)." & vbNewLine & vbNewLine & _
+           "The list and its sign-ups stay as they are; the sheet is redrawn and printed, the old PDF renamed superseded. Go ahead?", vbYesNo + vbQuestion, "Edit posting", vbYes) = vbNo Then Exit Sub
+    ' the row
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
+    Dim r As Long
+    For i = 1 To UBound(pv, 1)
+        If StrComp(Trim$(SafeStr(pv(i, PS_ID))), id, vbTextCompare) = 0 Then r = i: Exit For
+    Next i
+    If r = 0 Then MsgBox id & " was not found on the Postings sheet.", vbExclamation, "Edit posting": Exit Sub
+    UnlockSheet lo.Parent
+    lo.DataBodyRange.Cells(r, PS_HOURS).Value = p.Hours
+    lo.DataBodyRange.Cells(r, PS_DATE).Value = p.ShiftDate
+    lo.DataBodyRange.Cells(r, PS_POS).Value = p.Positions
+    lo.DataBodyRange.Cells(r, PS_CLOSES).Value = p.ClosesOn
+    ProtectSheet lo.Parent
+    ' the calendar line follows a date change; the hours on the line follow the hours
+    Dim calTxt As String
+    If Int(p.ShiftDate) <> Int(pOld.ShiftDate) Then
+        VoidCoverageBySource id
+        calTxt = CalendarPosted(p)
+    ElseIf p.Hours <> pOld.Hours Then
+        UpdateCoverageBySource id, "POSTED " & id, p.Hours, False
+        calTxt = "the line's hours updated"
+    End If
+    MarkCalDirty
+    ' the old PDF, if it is there, becomes "superseded"
+    Dim oldPdf As String: oldPdf = PostingPdfFolder() & PostingPdfName(pOld) & ".pdf"
+    On Error Resume Next
+    If Len(Dir$(oldPdf)) > 0 Then Name oldPdf As PostingPdfFolder() & PostingPdfName(pOld) & " superseded.pdf"
+    On Error GoTo Oops
+    Dim rpt As String
+    PostingOutput id, False, True, True, rpt
+    SaveIfWritable
+    ShowReceiptNow "Posting " & id & " edited", _
+                   "  " & id & "  " & HoursText(p.Hours) & " h  " & Format$(p.ShiftDate, "ddd mmm d") & "  " & p.Positions & " position(s)  (the Postings row; no OT Log row)" & vbNewLine, _
+                   "  Nobody's Total Hours changed. The list's frozen hours and sign-ups are as they were." & vbNewLine, _
+                   "  Calendar: " & IIf(calTxt = "", "unchanged", calTxt) & vbNewLine & "  " & rpt & vbNewLine & "  The old PDF is renamed superseded." & vbNewLine, _
+                   "  Edit it again, or Cancel Request on the award pop-up." & vbNewLine)
+    Exit Sub
+Oops:
+    ReportError "EditPosting"
+End Sub
+
+' Post all lines (supervisors; from Book Time Off): one posting per scheduled shift of the booking, each covering its own
+' calendar line (gCalPostKey), no question per posting, no print (each posting makes its PDF). Returns the ids.
+Public Function PostAllLines(ByVal emp As String, ByVal unit As String, ByVal absId As String, ByVal dFrom As Date, ByVal dTo As Date) As String
+    If Not RequireSupervisor() Then Exit Function
+    If Not RequireWritable() Then Exit Function
+    If Not PostingTablesReady() Then Exit Function
+    Dim d As Date, sh As String, p As PostRec, ids As String, nMade As Long, nSkip As Long
+    If dTo - dFrom > 31 Then dTo = dFrom + 31
+    For d = Int(dFrom) To Int(dTo)
+        sh = EmpShiftOn(emp, d)
+        If sh <> "" Then
+            p.ID = "": p.Status = "": p.Unit = unit: p.ShiftDate = d: p.ShiftLbl = sh: p.Crew = CREW_ALL
+            p.Hours = DefaultShiftHours(d, IsNightShift(sh), USUAL_SHIFT_HOURS): p.Positions = 1
+            p.Reason = CalName(emp) & " off"                  ' never the type: a leave word must not reach the posting
+            p.ClosesOn = d - PostingCloseDays()
+            If p.ClosesOn < Date Then p.ClosesOn = Date
+            gCalPostKey = "A:" & absId: gCalPostDate = d: gCalPostShift = sh     ' the posting covers this booking's line
+            If CreatePostingFrom(p, False, True, True) Then
+                nMade = nMade + 1
+                ids = ids & IIf(ids = "", "", ", ") & p.ID
+            Else
+                nSkip = nSkip + 1
+            End If
+            gCalPostKey = ""
+        End If
+    Next d
+    If nMade = 0 And nSkip = 0 Then Tell emp & " has no scheduled shift between " & DateText(dFrom) & " and " & DateText(dTo) & ": nothing to post.", vbInformation, "Post all lines"
+    If nSkip > 0 Then Tell nSkip & " shift(s) were not posted (nobody free, or refused) - post them one at a time from the Calendar.", vbExclamation, "Post all lines"
+    PostAllLines = ids
+End Function
+
 ' PDF goes to REPORT_FOLDER\Postings\ (made if missing), else next to the workbook
 Private Function PostingPdf(ByVal ws As Worksheet, ByRef p As PostRec, ByRef pdfPath As String, _
                             ByRef em As String) As Boolean
@@ -486,12 +703,7 @@ Private Function PostingPdf(ByVal ws As Worksheet, ByRef p As PostRec, ByRef pdf
         folder = EnsureSlash(ThisWorkbook.Path)
     End If
 
-    Dim fName As String, ch As Variant
-    fName = p.ID & " " & p.Unit & " " & Format$(p.ShiftDate, "yyyy-mm-dd") & " " & p.Crew
-    For Each ch In Array("/", "\", ":", "*", "?", """", "<", ">", "|")
-        fName = Replace(fName, CStr(ch), "-")
-    Next ch
-    pdfPath = folder & fName & ".pdf"
+    pdfPath = folder & PostingPdfName(p) & ".pdf"
 
     On Error Resume Next
     ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=pdfPath, Quality:=xlQualityStandard, _

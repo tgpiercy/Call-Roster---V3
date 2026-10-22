@@ -1140,6 +1140,8 @@ def charge_why(typ: str, outcome: str, call_order: int, hours: float, charged: f
     mult = hours_text(CHARGE_MULTIPLIER)
     if t == "callout":
         pos = f"{ordinal_text(call_order)} on the call list, " if call_order > 0 else ""
+        if o == "exception":
+            return f"Not charged: {pos}plant upset (exception)"
         if charged != 0:
             return f"Charged {hours_text(charged)} h: {pos}{oc}, {hours_text(hours)} h offered x {mult} ({grade_txt})"
         if o == "accepted":

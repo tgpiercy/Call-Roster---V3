@@ -789,13 +789,6 @@ Public Function AbsentOn(ByVal empName As String, ByVal d As Date, Optional ByRe
     Next r
 End Function
 
-' Fresh check (reloads the tables): is this person booked off on d?
-' typ gets the public label (Vac / Trn / Leave) - never STD / PAR.
-Public Function BookedOff(ByVal empName As String, ByVal d As Date, Optional ByRef typ As String) As Boolean
-    If mShiftMap Is Nothing Then LoadCache
-    If Not mTestMode Then mAbs = TableData(AbsTable())   ' just the absences - cheap enough per keystroke
-    BookedOff = AbsentOn(empName, d, typ)
-End Function
 
 ' v25 (D-L1): BookedOff for ONE shift - a sick call blocks the shifts inside its 24 h window,
 ' other absences the whole date (AbsentForShift). The switch paths use it wherever the shift
@@ -811,14 +804,6 @@ Public Function BookedOffShift(ByVal empName As String, ByVal d As Date, ByVal s
     End If
 End Function
 
-' The rotation part of the rule, pure (v21 - mirrored in tests/):
-'   "scheduled" on that shift's date, "rest" (coming off nights that
-'   morning for day OT, starting days the next morning for night OT),
-'   "" otherwise. A/B, C/D and DAYS codes are handled by CrewShiftOn,
-'   including plant holidays for DAYS.
-Public Function RotationFreeReason(ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String) As String
-    RotationFreeReason = RotationFreeReason3(crewCode, crewCode, crewCode, d, shiftLbl)
-End Function
 
 ' The same rule when the person's crew can differ from one day to the next
 ' (v24, crew history): crewPrev / crewOnD / crewNext = their crew on d - 1, d, d + 1.
@@ -1182,23 +1167,6 @@ Private Function CapNames(ByVal txt As String, ByVal n As Long) As String
     CapNames = s & " +" & (UBound(parts) + 1 - n) & " more"
 End Function
 
-' Drops anyone booked off on date d from a call / posting list.
-' removed gets "Name (Vac), Name (Leave)". Returns the new count.
-Public Function FilterAbsent(ByRef recs() As EmpRec, ByVal n As Long, ByVal d As Date, ByRef removed As String) As Long
-    LoadCache
-    removed = ""
-    Dim i As Long, k As Long, t As String
-    For i = 1 To n
-        t = ""
-        If AbsentOn(recs(i).EmpName, d, t) Then
-            removed = removed & IIf(removed = "", "", ", ") & recs(i).EmpName & " (" & t & ")"
-        Else
-            k = k + 1
-            If k <> i Then recs(k) = recs(i)
-        End If
-    Next i
-    FilterAbsent = k
-End Function
 
 ' ====================================================================
 '  SLOTS (what the calendar shows for one date + shift)

@@ -58,6 +58,7 @@ INTRINSIC = {"long", "integer", "string", "double", "single", "boolean", "date",
 # an assignment to NAME at the start of a statement, or after Then / Else on a one-line If
 ASSIGN = r"(?:^\s*|\bThen\s+|\bElse\s+)(?:Set\s+)?{name}\s*=(?!=)"
 PROC_MAX_LINES = 300
+EXTERNAL_ENTRY = {"modsmoke"}     # v27: the Install panel (Roster Updater.xlsm, another project) runs these through Application.Run
 KNOWN_LONG = {"synckronosdata", "drawcalendar", "drawneeds"}      # v27 (item 30): the v27.5 refactor splits these
 
 
@@ -72,14 +73,28 @@ def swallowers(mod: Module) -> list[str]:
         if not rn:
             continue
         last = rn[-1]
-        if any(re.match(r"^\s*[A-Za-z_]\w*:\s*(?:'.*)?$", ln) for ln in body[1:last + 1]):
-            continue                                   # in an error handler's clean-up
+        on_err = {m.group(1).lower() for ln in body for m in [re.search(r"On\s+Error\s+GoTo\s+([A-Za-z_]\w*)", ln.split("'")[0], re.I)] if m}
+        gotos = {m.group(1).lower() for ln in body for m in re.finditer(r"(?<![\w.])GoTo\s+([A-Za-z_]\w*)", ln.split("'")[0], re.I)}
+        handler = False
+        seen_exit = False
+        for ln in body[1:last + 1]:
+            if re.search(r"\bExit\s+(Sub|Function)\b", ln.split("'")[0], re.I):
+                seen_exit = True
+            mm = re.match(r"^\s*([A-Za-z_]\w*):\s*(?:'.*)?$", ln)
+            if mm and (mm.group(1).lower() in on_err or (mm.group(1).lower() in gotos and seen_exit)):
+                handler = True
+        if handler:
+            continue                                   # in an error handler's or a clean-up tail's code (review: a loop label is not one)
         if any(re.search(r"On\s+Error\s+GoTo\s", ln.split("'")[0], re.I) for ln in body[last + 1:]):
             continue
         key = str(mod.path)
         lines = _RAW.get(key) or mod.path.read_text(encoding="ascii", errors="replace").replace("\r\n", "\n").split("\n")
         head_i = next((i for i, ln in enumerate(lines) if ln == body[0]), 0)
-        above = lines[max(0, head_i - 4):head_i]
+        above = []                                     # the comment block right above the header, no further (review)
+        k = head_i - 1
+        while k >= 0 and lines[k].lstrip().startswith("'") and len(above) < 6:
+            above.append(lines[k])
+            k -= 1
         if any("never raises" in ln.lower() for ln in body + above):
             continue
         out.append(name)
@@ -510,17 +525,34 @@ def check_project(files: list[Path], label: str) -> int:
             nm = mm.group(1).lower()
             if nm not in pub:
                 say("MACROSTR", m, mm.group(1), "no module has a Public procedure of that name")
-    words: dict[str, int] = {}
+    def no_comments(line: str) -> str:
+        inside = False
+        for i, ch in enumerate(line):
+            if ch == '"':
+                inside = not inside
+            elif ch == "'" and not inside:
+                return line[:i]
+        return line
+
+    # (review) words outside comments, and outside the procedure's own body (its return-value assignments)
+    code_lines = {m.name.lower(): [no_comments(ln) for ln in m.path.read_text(encoding="ascii", errors="replace").replace("\r\n", "\n").split("\n")] for m in mods}
     for m in mods:
-        for w in re.findall(r"[A-Za-z_]\w*", texts[m.name.lower()]):
-            words[w.lower()] = words.get(w.lower(), 0) + 1
-    for m in mods:
-        if m.is_class or m.path.suffix.lower() != ".bas":
+        if m.is_class or m.path.suffix.lower() != ".bas" or m.name.lower() in EXTERNAL_ENTRY:
             continue
         for p in by_mod[m.name.lower()].values():
             if p.private or p.kind == "property" or not p.params:
                 continue
-            if words.get(p.name.lower(), 0) <= 1:
+            own = {ln for ln in raw_proc_lines(m, p.name)}
+            pat = re.compile(r"(?<![\w.])" + re.escape(p.name) + r"\b", re.I)
+            used = False
+            for mm in mods:
+                for ln in code_lines[mm.name.lower()]:
+                    if pat.search(ln) and not (mm is m and ln in {no_comments(x) for x in own}):
+                        used = True
+                        break
+                if used:
+                    break
+            if not used:
                 say("DEADPUB", m, p.name, "a Public procedure nothing calls: Private, or delete it")
     # ---- RESTORE verdicts: a restore in a procedure this one calls (any depth) counts ----
     def restores(key, what, seen):

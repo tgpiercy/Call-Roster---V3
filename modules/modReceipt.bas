@@ -508,12 +508,12 @@ Public Function PaperLines(ByRef data As Variant, ByVal nRows As Long) As String
         If Left$(note, 5) = "Took " Or InStr(1, note, "a partial acceptance closed the shift", vbTextCompare) > 0 Then
             If InStr(ids, "|CH-2|") = 0 Then ids = ids & "|CH-2|"
         End If
-        If InStr(1, note, "16 h rule", vbTextCompare) > 0 Then
+        If InStr(1, note, "(the 16 h rule", vbTextCompare) > 0 Or InStr(1, note, "the 16 h rule allowed", vbTextCompare) > 0 Then     ' (review) the cap's own words, not a typed reason
             If InStr(ids, "|EL-4|") = 0 Then ids = ids & "|EL-4|"
         End If
         d = data(i, L_DATE)
         If IsDate(d) And NumOr0(data(i, L_CHARGED)) > 0 And IsNightShift(SafeStr(data(i, L_SHIFTLBL))) Then
-            If DstNightHours(CDate(d)) <> 12 Then
+            If DstNightHours(CDate(d)) <> 12 And Abs(NumOr0(data(i, L_BASEHRS)) - DstNightHours(CDate(d))) < 0.001 Then     ' (review) charged AT the night's actual hours
                 If InStr(ids, "|TH-3|") = 0 Then ids = ids & "|TH-3|"
             End If
         End If

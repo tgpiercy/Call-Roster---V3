@@ -1206,19 +1206,12 @@ End Sub
 ' Checks.
 Private Sub CheckLogRows()
     Dim i As Long, ref As String, typ As String, oc As String, chg As Double, hrs As Double, gr As Double, want As Double
-    Dim nBad As Long, nPer As Long, nVoid As Long, sd As Variant, eid As Double, mx As Double, mn As Double, nIds As Long
+    Dim nBad As Long, nPer As Long, nVoid As Long, sd As Variant
     Dim twice As Object: Set twice = CreateObject("Scripting.Dictionary")
     twice.CompareMode = 1
     Dim key As String, kk As Variant, nTwice As Long
-    mn = -1
     For i = 1 To LogRows()
         ref = UCase$(Trim$(SafeStr(mLog(i, L_REF))))
-        eid = NumOr0(mLog(i, L_ENTRY))
-        If eid > 0 Then
-            nIds = nIds + 1
-            If eid > mx Then mx = eid
-            If mn < 0 Or eid < mn Then mn = eid
-        End If
         If IsVoidRow(i) Then
             If Trim$(SafeStr(mLog(i, L_VOIDNOTE))) = "" Or Trim$(SafeStr(mLog(i, L_USER))) = "" Then
                 nVoid = nVoid + 1
@@ -1258,18 +1251,13 @@ Private Sub CheckLogRows()
     If nBad > 10 Then AddIssue SEV_ERR, "Log rows", (nBad - 10) & " more row(s) charged other than the rule gives", "Run IntegrityCheck again after fixing the ones above"
     If nPer > 10 Then AddIssue SEV_ERR, "Log rows", (nPer - 10) & " more row(s) in the wrong pay period", "Run IntegrityCheck again after fixing the ones above"
     If nVoid > 5 Then AddIssue SEV_WARN, "Log rows", (nVoid - 5) & " more VOID row(s) with no Void Note or Logged By", ""
-    ' Entry IDs: none above the high-water mark (a later NextEntryID could reuse it); a gap is a row removed by hand
-    Dim mark As Long: mark = IdMark("ENTRY")
-    If mark > 0 And mx > mark Then
-        AddIssue SEV_ERR, "Log rows", "The highest Entry ID in the log (" & CLng(mx) & ") is above the ENTRY high-water mark (" & mark & ")", "Alt+F8 > RepairIdMarks raises the mark"
-    End If
-    If nIds > 1 And mx - mn + 1 > nIds Then
-        AddIssue SEV_WARN, "Log rows", "Entry IDs run from " & CLng(mn) & " to " & CLng(mx) & " but only " & nIds & " rows carry one: " & CLng(mx - mn + 1 - nIds) & " missing", "A row removed by hand? Compare with the newest backup"
-    End If
+    ' (review H1) no Entry ID test here: IdMark_ENTRY is a FLOOR (NextEntryID takes the larger of it and the log's
+    ' maximum), so live rows above it are normal, and check 3 already flags a mark below an archived year's maximum;
+    ' gaps are normal after a rollover (the kept rows sit among the archived ones)
     For Each kk In twice.Keys
         If InStr(twice(kk), ",") > 0 Then
             nTwice = nTwice + 1
-            If nTwice <= 5 Then AddIssue SEV_WARN, "Log rows", Split(CStr(kk), "|")(0) & " is charged more than once for " & Split(CStr(kk), "|")(1) & " " & Split(CStr(kk), "|")(2) & " " & IIf(Split(CStr(kk), "|")(3) = "N", "Nights", "Days") & " (" & twice(kk) & ")", "Two call-outs (or a posting and a call-out) for one shift: check both were meant"
+            If nTwice <= 5 Then AddIssue SEV_INFO, "Log rows", Split(CStr(kk), "|")(0) & " is charged more than once for " & Split(CStr(kk), "|")(1) & " " & Split(CStr(kk), "|")(2) & " " & IIf(Split(CStr(kk), "|")(3) = "N", "Nights", "Days") & " (" & twice(kk) & ")", "Two call-outs (or a posting and a call-out) for one shift: check both were meant"
         End If
     Next kk
 End Sub
@@ -1281,30 +1269,38 @@ End Sub
 ' who has left (the Former sheet) still on an open posting's list and not marked exempt.
 Private Sub CheckRecords()
     Dim i As Long, j As Long, n As Long
-    ' bookings that overlap
+    ' bookings that overlap - compared within each person's own bookings (review: never the whole table x itself)
     Dim av As Variant: av = TableValues(AB_TABLE)
     If IsArray(av) Then
         Dim aFrom As Date, aTo As Date, bFrom As Date, bTo As Date, shA As String, shB As String
+        Dim hasShift As Boolean: hasShift = (UBound(av, 2) >= AB_SHIFT)      ' (review) an older table has no Shift column
+        Dim byEmp As Object: Set byEmp = CreateObject("Scripting.Dictionary")
+        byEmp.CompareMode = 1
         For i = 1 To UBound(av, 1)
             If UCase$(SafeStr(av(i, AB_STATUS))) <> "VOID" And IsDate(av(i, AB_START)) And UCase$(SafeStr(av(i, AB_TYPE))) <> "SIC" Then
-                aFrom = Int(CDate(av(i, AB_START)))
-                If IsDate(av(i, AB_END)) Then aTo = Int(CDate(av(i, AB_END))) Else aTo = DateSerial(9999, 1, 1)
-                shA = UCase$(Left$(Trim$(SafeStr(av(i, AB_SHIFT))), 1))
-                For j = i + 1 To UBound(av, 1)
-                    If UCase$(SafeStr(av(j, AB_STATUS))) <> "VOID" And IsDate(av(j, AB_START)) And UCase$(SafeStr(av(j, AB_TYPE))) <> "SIC" Then
-                        If StrComp(Trim$(SafeStr(av(i, AB_EMP))), Trim$(SafeStr(av(j, AB_EMP))), vbTextCompare) = 0 Then
-                            bFrom = Int(CDate(av(j, AB_START)))
-                            If IsDate(av(j, AB_END)) Then bTo = Int(CDate(av(j, AB_END))) Else bTo = DateSerial(9999, 1, 1)
-                            shB = UCase$(Left$(Trim$(SafeStr(av(j, AB_SHIFT))), 1))
-                            If aFrom <= bTo And bFrom <= aTo And Not ((shA = "D" And shB = "N") Or (shA = "N" And shB = "D")) Then
-                                n = n + 1
-                                If n <= 5 Then AddIssue SEV_WARN, "Records", SafeStr(av(i, AB_EMP)) & ": " & SafeStr(av(i, AB_ID)) & " and " & SafeStr(av(j, AB_ID)) & " overlap (" & Format$(IIf(aFrom > bFrom, aFrom, bFrom), "mmm d") & ")", "Book the time off again, or void the one that is wrong"
-                            End If
-                        End If
-                    End If
-                Next j
+                byEmp(Trim$(SafeStr(av(i, AB_EMP)))) = byEmp(Trim$(SafeStr(av(i, AB_EMP)))) & "," & i
             End If
         Next i
+        Dim ek As Variant, ix As Variant, x As Long, y As Long
+        For Each ek In byEmp.Keys
+            ix = Split(Mid$(byEmp(ek), 2), ",")
+            For x = 0 To UBound(ix) - 1
+                i = CLng(ix(x))
+                aFrom = Int(CDate(av(i, AB_START)))
+                If IsDate(av(i, AB_END)) Then aTo = Int(CDate(av(i, AB_END))) Else aTo = DateSerial(9999, 1, 1)
+                shA = "": If hasShift Then shA = UCase$(Left$(Trim$(SafeStr(av(i, AB_SHIFT))), 1))
+                For y = x + 1 To UBound(ix)
+                    j = CLng(ix(y))
+                    bFrom = Int(CDate(av(j, AB_START)))
+                    If IsDate(av(j, AB_END)) Then bTo = Int(CDate(av(j, AB_END))) Else bTo = DateSerial(9999, 1, 1)
+                    shB = "": If hasShift Then shB = UCase$(Left$(Trim$(SafeStr(av(j, AB_SHIFT))), 1))
+                    If aFrom <= bTo And bFrom <= aTo And Not ((shA = "D" And shB = "N") Or (shA = "N" And shB = "D")) Then
+                        n = n + 1
+                        If n <= 5 Then AddIssue SEV_WARN, "Records", SafeStr(av(i, AB_EMP)) & ": " & SafeStr(av(i, AB_ID)) & " and " & SafeStr(av(j, AB_ID)) & " overlap (" & Format$(IIf(aFrom > bFrom, aFrom, bFrom), "mmm d") & ")", "Book the time off again, or void the one that is wrong"
+                    End If
+                Next y
+            Next x
+        Next ek
     End If
     If n > 5 Then AddIssue SEV_WARN, "Records", (n - 5) & " more overlapping booking(s)", ""
     ' a payback dated before its switch
@@ -1321,7 +1317,7 @@ Private Sub CheckRecords()
             If orig <> "" And UCase$(SafeStr(sv(i, SW_STATUS))) <> "VOID" And IsDate(sv(i, SW_DATE)) Then
                 If dates.Exists(orig) Then
                     If Int(CDate(sv(i, SW_DATE))) < Int(dates(orig)) Then
-                        AddIssue SEV_WARN, "Records", SafeStr(sv(i, SW_ID)) & " pays back " & orig & " but is dated " & Format$(CDate(sv(i, SW_DATE)), "mmm d") & ", before the switch (" & Format$(dates(orig), "mmm d") & ")", "Check the dates of both switches"
+                        AddIssue SEV_INFO, "Records", SafeStr(sv(i, SW_ID)) & " pays back " & orig & " but is dated " & Format$(CDate(sv(i, SW_DATE)), "mmm d") & ", before the switch (" & Format$(dates(orig), "mmm d") & ")", "Check the dates of both switches"
                     End If
                 End If
             End If
@@ -1354,7 +1350,9 @@ Private Sub CheckRecords()
         Dim openIds As Object: Set openIds = CreateObject("Scripting.Dictionary")
         openIds.CompareMode = 1
         For i = 1 To UBound(ptv, 1)
-            If SafeStr(ptv(i, PS_STATUS)) = "Open" Then openIds(Trim$(SafeStr(ptv(i, PS_ID)))) = True
+            If SafeStr(ptv(i, PS_STATUS)) = "Open" And IsDate(ptv(i, PS_DATE)) Then
+                If Int(CDate(ptv(i, PS_DATE))) >= Date Then openIds(Trim$(SafeStr(ptv(i, PS_ID)))) = True     ' (review) a shift still to come
+            End If
         Next i
         Dim nm As String
         For i = 1 To UBound(plv, 1)

@@ -1138,11 +1138,8 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
     Application.EnableEvents = evWas
     Application.ScreenUpdating = scrWas
 
-    If MsgBox("The report is on the '" & ws.Name & "' tab (" & n & " entries)." & vbNewLine & vbNewLine & _
-              "Save a PDF as well?", vbYesNo + vbQuestion, "Employee history") = vbYes Then
-        ReportPdf ws, "History " & nm & " " & Format$(dFrom, "yyyy-mm-dd") & " to " & Format$(dTo, "yyyy-mm-dd") & _
-                      IIf(full, " FULL", ""), "Employee history", full     ' the FULL one (logins) stays beside the master (review)
-    End If
+    ' (review M1) no "Save a PDF?" box here: the history pop-up's PDF tick decides (RunHistoryReport), so a run asks once
+    ' and SmokeTest's step 22 draws without a click
     Exit Sub
 Failed:
     em = Err.Description

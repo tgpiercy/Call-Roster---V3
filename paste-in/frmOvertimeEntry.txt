@@ -29,6 +29,7 @@ Private WithEvents mReason As MSForms.ComboBox           ' v25.5: Enter in the r
 Private WithEvents mCallBack As MSForms.CommandButton    ' v25.5: the call-back pile
 Private WithEvents mNotListed As MSForms.CommandButton   ' v27 (item 18): "Not listed (N)..." - who is off this list and why
 Private mNotListedTxt As String                          ' v27 (item 18): the grouped names and reasons from FilterNotFree
+Private mRotTxt As String                                ' v27 (item 25, review M2): the rotation line a unit note took the place of
 
 Private mEntries() As EmpRec
 Private mSS() As String          ' SS ID if that person is working a shift switch that shift
@@ -427,12 +428,18 @@ Private Function LoadListNow() As Boolean
                              " | " & C("txtDate").Value & " | " & hoursStr & " hrs" & _
                              IIf(nSS > 0, "   |   " & nSS & " working a shift switch (S/S)", "") & _
                              IIf(offList <> "", "   |   Not listed (booked off): " & offList, "")
-    ' v27 (item 25, 1.4): the unit's call-out note from the Min Staff sheet, under the rotation line (review M2: an
-    ' earlier load's note is taken off first, and the rotation line - a DST warning in red included - stays)
-    Dim rotTxt As String: rotTxt = C("lblRot").Caption
-    If InStr(rotTxt, vbLf & "Unit note (") > 0 Then rotTxt = Left$(rotTxt, InStr(rotTxt, vbLf & "Unit note (") - 1)
+    ' v27 (item 25, 1.4): the unit's call-out note from the Min Staff sheet, in the rotation line's place once the list is
+    ' loaded (the line holds two lines and the crew is picked by now); a red DST warning keeps the line (re-review M2);
+    ' an earlier load's note is put back to its rotation line first
+    If Left$(C("lblRot").Caption, 11) = "Unit note (" Then
+        C("lblRot").Caption = mRotTxt: C("lblRot").ForeColor = NAVY
+    End If
     Dim unitNote As String: unitNote = MinStaffNote(mDept, mShiftLbl)
-    C("lblRot").Caption = rotTxt & IIf(unitNote <> "", vbLf & "Unit note (" & UnitDisplayName(mDept) & " " & mShiftLbl & "): " & unitNote, "")
+    If unitNote <> "" And C("lblRot").ForeColor <> RGB(190, 30, 30) Then
+        mRotTxt = C("lblRot").Caption
+        C("lblRot").ForeColor = RGB(150, 75, 0)
+        C("lblRot").Caption = "Unit note (" & UnitDisplayName(mDept) & " " & mShiftLbl & "): " & unitNote
+    End If
     FocusList
     LoadListNow = True
 End Function

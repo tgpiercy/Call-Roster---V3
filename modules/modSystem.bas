@@ -1190,10 +1190,10 @@ Public Sub OpensOnOpen()
     On Error GoTo Quit
     If ThisWorkbook.ReadOnly Then Exit Sub
     If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then Exit Sub
+    Application.EnableEvents = False                ' (review) before the sheet is made: no SheetActivate during the open
     Dim lo As ListObject: Set lo = OpensTable(True)
-    If lo Is Nothing Then Exit Sub
+    If lo Is Nothing Then Application.EnableEvents = evWas: Exit Sub
     Dim ws As Worksheet: Set ws = lo.Parent
-    Application.EnableEvents = False
     UnlockSheet ws
     Dim i As Long
     If Not lo.DataBodyRange Is Nothing Then          ' the rows older than the keep go first
@@ -1228,6 +1228,7 @@ Quit:
     Dim en As Long: en = Err.Number
     Dim em As String: em = Err.Description
     Application.EnableEvents = evWas
+    If SheetExists(OP_SHEET) Then ProtectSheetQuiet ThisWorkbook.Worksheets(OP_SHEET)     ' (review) never left unprotected
     LogError "OpensOnOpen", en, em
 End Sub
 
@@ -1265,7 +1266,7 @@ Public Function OpensTable(Optional ByVal create As Boolean = False) As ListObje
         ws.Columns(7).ColumnWidth = 15
         ws.Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
         ProtectSheet ws
-        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+        SetSheetVisible ws, IIf(gAdminUnlocked And Not gDeskMode, xlSheetVisible, xlSheetVeryHidden)     ' (review) the Desk view hides admin sheets
     End If
     Set OpensTable = lo
 End Function

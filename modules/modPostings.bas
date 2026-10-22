@@ -102,6 +102,7 @@ Public Type PListRec
     ExemptNote As String        ' v24: "Exempt - moved Jan 12" / "Exempt - left Jan 12": never charged on this posting
     MaxHours As Double          ' v26.5.5 (item 9): the most of this shift they may take under the 16 h rule, as of now
     MaxSet As Boolean           ' v26.5.5: MaxHours was worked out (the award pop-up fills it; a bare LoadPosting has no limit)
+    OverrideNote As String      ' v27 (item 21): "[over 48 h/week: ...]" - the weekly-cap reason the award pop-up took; goes into the row's Reason
 End Type
 
 
@@ -1688,6 +1689,7 @@ Private Function WriteOutcome(ByRef p As PostRec, ByRef lst() As PListRec, ByVal
                     If IsPartialSignup(p.Hours, lst(i).SignupHrs) Then
                         data(k, L_REASON) = "Partial award: " & HoursText(lst(i).SignupHrs) & " of " & HoursText(p.Hours) & " h"
                     End If
+                    If lst(i).OverrideNote <> "" Then data(k, L_REASON) = Trim$(SafeStr(data(k, L_REASON)) & "  " & lst(i).OverrideNote)   ' v27 (item 21)
                 ElseIf lst(i).Charged > 0 Then
                     data(k, L_OUTCOME) = "Refused"
                     ' v26.5.5 (the 16 h rule): the row's Hours are the hours they could have taken, so the Why sentence adds up

@@ -1706,6 +1706,13 @@ def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str
     return "cumulative" if from_d <= year_from + timedelta(days=KRONOS_YEAR_SLACK) else "range"
 
 
+# ---------------------------------------------------------------- the weekly cap (v27 item 21, modOvertimeEntry)
+def week_cap_over(hours_before: float, offer: float, cap: float) -> float:
+    """modOvertimeEntry.WeekCapOver: the hours past the weekly cap (0 = the offer fits)."""
+    o = hours_before + offer - cap
+    return o if o > 0.001 else 0.0
+
+
 # ---------------------------------------------------------------- the receipts (v27, modReceipt)
 _REF = re.compile(r"(?<![A-Za-z0-9])[A-Z]{1,4}-[0-9]+(?![A-Za-z0-9])")
 

@@ -116,6 +116,17 @@ End Type
 ' cache for one operation (tables + roster shifts)
 Private mAbs As Variant
 Private mCov As Variant
+Private mRst As Variant                 ' v27 (item 21): the Restrictions table (Empty when none)
+Public Const RS_ID As Long = 1          ' v27 (item 21): tblRestrictions - RS-nnnn, Employee, From, To (blank = open), Reason, Status, Entered By, Entered At, Void Note
+Public Const RS_EMP As Long = 2
+Public Const RS_FROM As Long = 3
+Public Const RS_TO As Long = 4
+Public Const RS_REASON As Long = 5
+Public Const RS_STATUS As Long = 6
+Public Const RS_USER As Long = 7
+Public Const RS_STAMP As Long = 8
+Public Const RS_VOIDNOTE As Long = 9
+Public Const RS_N As Long = 9
 Private mShiftMap As Object
 Private mOt As Object               ' v26.5.5 (item 9): "name|yyyymmdd|D/N" -> OT hours accepted / awarded (non-void log rows)
 Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the tables are never read
@@ -501,6 +512,9 @@ Private Sub LoadCache()
     If mTestMode Then Exit Sub
     mAbs = TableData(AbsTable())
     mCov = TableData(CovTable())
+    mRst = Empty                                             ' v27 (item 21): the restrictions, when the table exists
+    Dim rlo As ListObject: Set rlo = RstTable(False)
+    If Not rlo Is Nothing Then mRst = TableData(rlo)
     Set mOt = Nothing                                        ' v26.5.5 (item 9): the OT-worked map is read lazily (OtWorkedOn) from the log
     Set mShiftMap = CreateObject("Scripting.Dictionary")
     mShiftMap.CompareMode = 1
@@ -552,6 +566,211 @@ Private Function AbsActiveOn(ByVal r As Long, ByVal d As Date) As Boolean
         If Int(CDate(mAbs(r, AB_END))) < Int(d) Then Exit Function
     End If
     AbsActiveOn = True
+End Function
+
+' ====================================================================
+'  v27 (item 21, 1.1): OT RESTRICTED - tblRestrictions on the admin-only Restrictions sheet (made on first use).
+'  A restricted person is NOT LISTED for call-outs and postings between From and To (open = until ended) and
+'  is never charged (decided Oct 21: never charged while restricted); the calendar and the staffing count
+'  ignore it (they still work their scheduled shifts); nothing of it is published (members see a shorter list).
+'  RestrictOT / RestrictOTFor (admin: the Employee pop-up's Edit, Alt+F8) write a row; EndRestriction voids one.
+' ====================================================================
+Public Function RstTable(Optional ByVal create As Boolean = False) As ListObject
+    Dim ws As Worksheet, lo As ListObject
+    If SheetExists(RS_SHEET) Then
+        Set ws = ThisWorkbook.Worksheets(RS_SHEET)
+        On Error Resume Next
+        Set lo = ws.ListObjects(RS_TABLE)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            Dim was As Object: Set was = ThisWorkbook.ActiveSheet
+            UnlockStructure
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = RS_SHEET
+            RelockStructure
+            SetTabColor ws, RGB(176, 0, 32)
+            On Error Resume Next
+            If Not was Is Nothing Then was.Activate
+            On Error GoTo 0
+        End If
+        UnlockSheet ws
+        ws.Range("A1").Resize(1, RS_N).Value = Array("Restriction ID", "Employee", "From", "To", "Reason", "Status", "Entered By", "Entered At", "Void Note")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, RS_N), , xlYes)
+        lo.Name = RS_TABLE
+        lo.TableStyle = "TableStyleLight9"
+        ws.Columns(3).NumberFormat = "ddd mmm d, yyyy": ws.Columns(4).NumberFormat = "ddd mmm d, yyyy"
+        ws.Columns(8).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+        ws.Columns(2).ColumnWidth = 24: ws.Columns(5).ColumnWidth = 40
+        ProtectSheet ws
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+    End If
+    Set RstTable = lo
+End Function
+
+' True while an active restriction covers d; why = its reason and dates
+Public Function OtRestrictedOn(ByVal empName As String, ByVal d As Date, Optional ByRef why As String) As Boolean
+    If mShiftMap Is Nothing Then LoadCache
+    why = ""
+    If Not IsArray(mRst) Then Exit Function
+    Dim r As Long
+    For r = 1 To UBound(mRst, 1)
+        If StrComp(Trim$(SafeStr(mRst(r, RS_EMP))), Trim$(empName), vbTextCompare) = 0 Then
+            If UCase$(SafeStr(mRst(r, RS_STATUS))) <> "VOID" And IsDate(mRst(r, RS_FROM)) Then
+                If Int(CDate(mRst(r, RS_FROM))) <= Int(d) Then
+                    If Not IsDate(mRst(r, RS_TO)) Or Int(CDate(mRst(r, RS_TO))) >= Int(d) Then
+                        why = SafeStr(mRst(r, RS_ID)) & ": " & SafeStr(mRst(r, RS_REASON)) & " (from " & Format$(CDate(mRst(r, RS_FROM)), "mmm d") & _
+                              IIf(IsDate(mRst(r, RS_TO)), " to " & Format$(CDate(mRst(r, RS_TO)), "mmm d"), ", open") & ")"
+                        OtRestrictedOn = True
+                        Exit Function
+                    End If
+                End If
+            End If
+        End If
+    Next r
+End Function
+
+' The active restrictions as of today, one per line (Needs Attention; "" = none). count = how many.
+Public Function ActiveRestrictionsText(ByRef count As Long) As String
+    count = 0
+    If mShiftMap Is Nothing Then LoadCache
+    If Not IsArray(mRst) Then Exit Function
+    Dim r As Long, s As String
+    For r = 1 To UBound(mRst, 1)
+        If UCase$(SafeStr(mRst(r, RS_STATUS))) <> "VOID" And IsDate(mRst(r, RS_FROM)) Then
+            If Not IsDate(mRst(r, RS_TO)) Or Int(CDate(mRst(r, RS_TO))) >= Int(Date) Then
+                count = count + 1
+                s = s & IIf(s = "", "", vbNewLine) & SafeStr(mRst(r, RS_ID)) & "  " & CalName(SafeStr(mRst(r, RS_EMP))) & "  " & _
+                    IIf(IsDate(mRst(r, RS_TO)), "until " & Format$(CDate(mRst(r, RS_TO)), "ddd mmm d"), "open-ended") & "  -  " & SafeStr(mRst(r, RS_REASON))
+            End If
+        End If
+    Next r
+    ActiveRestrictionsText = s
+End Function
+
+' Writes one restriction (admin). dTo Empty = open-ended. Returns the id ("" = not written).
+Public Function SaveRestriction(ByVal emp As String, ByVal dFrom As Date, ByVal dTo As Variant, ByVal reason As String) As String
+    If Not RequireAdmin() Then Exit Function
+    If Not RequireWritable() Then Exit Function
+    Dim lo As ListObject: Set lo = RstTable(True)
+    If lo Is Nothing Then Exit Function
+    Dim id As String: id = NextId(lo, "RS")
+    Dim rec() As Variant: ReDim rec(1 To 1, 1 To RS_N)
+    rec(1, RS_ID) = id: rec(1, RS_EMP) = emp: rec(1, RS_FROM) = Int(dFrom)
+    If IsDate(dTo) Then rec(1, RS_TO) = Int(CDate(dTo)) Else rec(1, RS_TO) = Empty
+    rec(1, RS_REASON) = "'" & Left$(reason, 200): rec(1, RS_STATUS) = "Active"
+    rec(1, RS_USER) = CurrentUser(): rec(1, RS_STAMP) = Now: rec(1, RS_VOIDNOTE) = ""
+    If Not AppendTo(lo, rec, RS_N) Then Exit Function
+    RefreshCalCache
+    MarkCalDirty
+    SaveIfWritable
+    SaveRestriction = id
+End Function
+
+' Alt+F8 (admin): a restriction for a name typed
+Public Sub RestrictOT()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    Dim q As Variant
+    q = Application.InputBox(Prompt:="Who is restricted from overtime? Part of the name (the last name is enough):", Title:="OT restriction", Type:=2)
+    If VarType(q) = vbBoolean Then Exit Sub
+    Dim nm As String: nm = ResolvePersonName(Trim$(CStr(q)), "OT restriction")
+    If nm = "" Then Exit Sub
+    RestrictOTFor nm
+    Exit Sub
+Oops:
+    ReportError "RestrictOT"
+End Sub
+
+' The Employee pop-up's Edit (admin): From / To / the reason asked, the row written, a receipt shown
+Public Sub RestrictOTFor(ByVal emp As String)
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim why As String
+    If OtRestrictedOn(emp, Date, why) Then
+        If MsgBox(emp & " is already restricted: " & why & vbNewLine & vbNewLine & "Add another restriction anyway? (No = end the current one through Alt+F8 > EndRestriction.)", vbYesNo + vbQuestion + vbDefaultButton2, "OT restriction") = vbNo Then Exit Sub
+    End If
+    Dim a As Variant, dFrom As Date, dTo As Variant, t As String
+    a = Application.InputBox(Prompt:="Restricted from (date, e.g. Oct 26):", Title:="OT restriction", Default:=DateText(Date), Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub
+    If Not ParseTypedDate(Trim$(CStr(a)), dFrom) Then MsgBox "That isn't a date I can read.", vbExclamation, "OT restriction": Exit Sub
+    a = Application.InputBox(Prompt:="Restricted until (date, included). Leave blank for open-ended (ended by hand later):", Title:="OT restriction", Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub
+    t = Trim$(CStr(a))
+    dTo = Empty
+    If t <> "" Then
+        Dim d2 As Date
+        If Not ParseTypedDate(t, d2) Then MsgBox "That isn't a date I can read.", vbExclamation, "OT restriction": Exit Sub
+        If d2 < dFrom Then MsgBox "The end is before the start.", vbExclamation, "OT restriction": Exit Sub
+        dTo = d2
+    End If
+    Dim reason As String: reason = AskRequired("The reason (kept on the Restrictions sheet, admin-only; never published):", "OT restriction")
+    If reason = "" Then Exit Sub
+    Dim id As String: id = SaveRestriction(emp, dFrom, dTo, reason)
+    If id = "" Then MsgBox "The restriction was not written.", vbExclamation, "OT restriction": Exit Sub
+    ShowReceiptNow "OT restriction " & id & " saved", _
+                   "  " & id & "  " & emp & "  from " & Format$(dFrom, "ddd mmm d") & IIf(IsDate(dTo), " to " & Format$(CDate(dTo), "ddd mmm d"), " (open-ended)") & "  (a Restrictions row; no OT Log row)" & vbNewLine, _
+                   "  Nobody's Total Hours changed. " & emp & " is off every call-out and posting list while restricted and is never charged." & vbNewLine, _
+                   "  Needs Attention lists it; the call-out pop-up's Not listed names it; the members' file shows nothing of it." & vbNewLine, _
+                   "  Alt+F8 > EndRestriction ends it early (the row is voided with a note)." & vbNewLine)
+    Exit Sub
+Oops:
+    ReportError "RestrictOTFor"
+End Sub
+
+' Alt+F8 (admin): voids one active restriction by its id, with a note
+Public Sub EndRestriction()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    Dim n As Long, txt As String: txt = ActiveRestrictionsText(n)
+    If n = 0 Then MsgBox "No active OT restrictions.", vbInformation, "OT restriction": Exit Sub
+    Dim a As Variant
+    a = Application.InputBox(Prompt:="Active restrictions:" & vbNewLine & txt & vbNewLine & vbNewLine & "Which one ends now? Type its id (RS-0001):", Title:="OT restriction", Type:=2)
+    If VarType(a) = vbBoolean Then Exit Sub
+    Dim id As String: id = UCase$(Trim$(CStr(a)))
+    Dim lo As ListObject: Set lo = RstTable(False)
+    If lo Is Nothing Then Exit Sub
+    Dim v As Variant: v = TableData(lo)
+    Dim r As Long: r = RowOf(v, id)
+    If r = 0 Then MsgBox id & " is not a restriction id.", vbExclamation, "OT restriction": Exit Sub
+    If UCase$(SafeStr(v(r, RS_STATUS))) = "VOID" Then MsgBox id & " is already ended.", vbInformation, "OT restriction": Exit Sub
+    Dim note As String: note = AskRequired("Why does it end now? (kept on the row)", "OT restriction")
+    If note = "" Then Exit Sub
+    UnlockSheet lo.Parent
+    lo.DataBodyRange.Cells(r, RS_STATUS).Value = "VOID"
+    lo.DataBodyRange.Cells(r, RS_VOIDNOTE).Value = "'" & note & " - " & CurrentUser() & " " & Format$(Now, "mmm d, yyyy h:mm AM/PM")
+    ProtectSheet lo.Parent
+    RefreshCalCache
+    MarkCalDirty
+    SaveIfWritable
+    Tell id & " ended: " & SafeStr(v(r, RS_EMP)) & " is back on the call lists from the next load.", vbInformation, "OT restriction"
+    Exit Sub
+Oops:
+    ReportError "EndRestriction"
+End Sub
+
+' v27 (item 21): the hours worked in the 7 days before an offer (both shifts of each day, and the other shift of
+' the offer's own day when it comes first) - scheduled shifts, accepted OT, awards and switches, as the 16 h rule
+' reads them (WorkedHoursOn). The weekly cap's "hoursBefore".
+Public Function WeekHoursBefore(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String) As Double
+    Dim k As Long, t As Double
+    For k = 1 To 7
+        t = t + WorkedHoursOn(empName, crewCode, d - k, False) + WorkedHoursOn(empName, crewCode, d - k, True)
+    Next k
+    If IsNightShift(shiftLbl) Then t = t + WorkedHoursOn(empName, crewCode, d, False)   ' the day shift of the same day comes before a night
+    WeekHoursBefore = t
+End Function
+
+' "" when the offer fits the week; otherwise the sentence the pop-ups show before asking for a reason
+Public Function WeekCapProblem(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String, ByVal offer As Double) As String
+    Dim before As Double: before = WeekHoursBefore(empName, crewCode, d, shiftLbl)
+    Dim over As Double: over = WeekCapOver(before, offer, WEEK_MAX_HOURS)
+    If over <= 0 Then Exit Function
+    WeekCapProblem = CalName(empName) & ": " & HoursText(before) & " h worked in the 7 days before this shift + " & HoursText(offer) & " h on offer = " & _
+                     HoursText(before + offer) & " h, over the " & HoursText(WEEK_MAX_HOURS) & " h week by " & HoursText(over) & " h."
 End Function
 
 ' Is this person booked off (any absence type) on date d?
@@ -648,6 +867,7 @@ Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String,
     Dim night As Boolean: night = IsNightShift(shiftLbl)
     Dim t As String
     If AbsentForShift(empName, d, shiftLbl, t) Then NotFreeReason = t: Exit Function
+    If OtRestrictedOn(empName, d) Then NotFreeReason = "restricted": Exit Function     ' v27 (item 21): an admin's OT restriction - not listed, never charged
     ' v24: the crew on each of the three days comes from the crew history; crewCode
     ' (the roster's crew) is only the answer for someone with no history rows
     NotFreeReason = RotationFreeReason3(CrewOn(empName, d - 1, crewCode), CrewOn(empName, d, crewCode), _
@@ -887,7 +1107,7 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     removed = "": detail = ""
     Dim i As Long, k As Long, why As String, mx As Double
     Dim nSched As Long, nRest As Long, offTxt As String, ssTxt As String, fatTxt As String, otTxt As String
-    Dim schedTxt As String, restTxt As String
+    Dim schedTxt As String, restTxt As String, rstTxt As String
     ' v26.5.5 (review): the 16 h readers look at four shifts per person - one read of the switch table for the list;
     ' the batch is ended on every path (a batch left on would feed stale switch rows to the rest of the session)
     Dim batched As Boolean
@@ -905,6 +1125,7 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
             Case "S/S", "S/S off": ssTxt = ssTxt & IIf(ssTxt = "", "", ", ") & CalName(recs(i).EmpName)
             Case "16 h rule": fatTxt = fatTxt & IIf(fatTxt = "", "", ", ") & CalName(recs(i).EmpName)
             Case "on OT": otTxt = otTxt & IIf(otTxt = "", "", ", ") & CalName(recs(i).EmpName)
+            Case "restricted": rstTxt = rstTxt & IIf(rstTxt = "", "", ", ") & CalName(recs(i).EmpName)   ' v27 (item 21)
             Case Else: offTxt = offTxt & IIf(offTxt = "", "", ", ") & CalName(recs(i).EmpName) & " (" & why & ")"
         End Select
     Next i
@@ -915,6 +1136,7 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     If ssTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "shift switch: " & ssTxt
     If otTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "already on OT that shift: " & otTxt
     If fatTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "16 h rule (OT accepted / awarded or a switch touching the shift): " & fatTxt
+    If rstTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "OT restricted: " & rstTxt
     ' v27 (item 18): the same people, every name, one line per reason
     If nSched > 0 Then detail = "Scheduled that day (" & nSched & "): " & schedTxt
     If nRest > 0 Then detail = detail & IIf(detail = "", "", vbNewLine) & "Rest rule - off nights that morning / on days next morning (" & nRest & "): " & restTxt
@@ -922,6 +1144,7 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     If ssTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "Shift switch that day (working one, or gave the shift up): " & ssTxt
     If otTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "Already on OT that shift: " & otTxt
     If fatTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "16 h rule (OT accepted / awarded or a switch touching the shift; nothing fits): " & fatTxt
+    If rstTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "OT restricted by an admin (not listed, never charged): " & rstTxt
     FilterNotFree = k
     Exit Function
 Failed:
@@ -4681,6 +4904,15 @@ Public Sub DrawNeeds()
     If nErrLines > 0 Then
         NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
               "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+    End If
+    ' v27 (item 21): the active OT restrictions, one line each (information: an admin ends one through EndRestriction)
+    Dim nRs As Long, rsTxt As String: rsTxt = ActiveRestrictionsText(nRs)
+    If nRs > 0 Then
+        Dim rsLine As Variant
+        For Each rsLine In Split(rsTxt, vbNewLine)
+            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "OT restricted: " & CStr(rsLine), "Restriction", _
+                  "Alt+F8 > EndRestriction", "", "J:restriction", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+        Next rsLine
     End If
     ' v27 (item 9): receipt answers ("Was this right?") nobody has read yet (modReceipt)
     Dim nFb As Long: nFb = UnseenFeedbackCount()

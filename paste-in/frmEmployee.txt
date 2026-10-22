@@ -40,6 +40,7 @@ Private WithEvents mMoveEmp As MSForms.ComboBox
 Private WithEvents mCalcBtn As MSForms.CommandButton
 Private WithEvents mSave As MSForms.CommandButton
 Private WithEvents mClose As MSForms.CommandButton
+Private WithEvents mRestrict As MSForms.CommandButton    ' v27 (item 21): Edit - an OT restriction for this person (modCalendar.RestrictOTFor)
 
 Private mGroups As Object               ' "A" / "M" / "R" / "X" / "B" / "E" -> Collection of controls
 Private mMoveUnits() As String          ' units behind the "codes to clear" list
@@ -284,6 +285,11 @@ Private Sub UserForm_Initialize()
     mSave.Caption = "SAVE"
     mSave.Font.Bold = True: mSave.Font.Size = 11
     Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 330, RowT(15) + 4, 130, 30)
+    ' v27 (item 21): in Edit only - a restriction row for the person on the card (the pop-up hides while it asks)
+    Set mRestrict = AddCtl("Forms.CommandButton.1", "cmdRestrict", LBL_L + 330, RowT(14) - 2, 130, 24)
+    mRestrict.Caption = "OT restriction..."
+    mRestrict.Font.Size = 9
+    mRestrict.Visible = False
     mClose.Caption = "Close"
     mClose.Cancel = True
     Set o = AddLabel("status", "", LBL_L, RowT(16) + 14, 460)
@@ -386,6 +392,7 @@ Private Sub SetMode()
         Case "B": Me.Caption = "Employee - bring back": mSave.Caption = "BRING BACK"
         Case "E": Me.Caption = "Employee - edit details": mSave.Caption = "SAVE CHANGES"
     End Select
+    If Not mRestrict Is Nothing Then mRestrict.Visible = (key = "E")     ' v27 (item 21)
     C("result").Caption = IIf(key = "A" Or key = "M", "Fill in the boxes, then click Work out the hours. Nothing is saved until you click " & mSave.Caption & ".", "")
     C("result").ForeColor = RGB(30, 56, 100)
 End Sub
@@ -747,4 +754,17 @@ End Sub
 
 Private Sub mClose_Click()
     Unload Me
+End Sub
+
+' v27 (item 21): the restriction for the person picked in Edit (modCalendar asks the dates and the reason)
+Private Sub mRestrict_Click()
+    On Error GoTo Oops
+    If mEditEmp.ListIndex < 0 Then MsgBox "Pick the person first.", vbExclamation, "OT restriction": Exit Sub
+    Dim nm As String: nm = mEditEmp.Text
+    Me.Hide
+    RestrictOTFor nm
+    Me.Show
+    Exit Sub
+Oops:
+    ReportError "frmEmployee.Restrict"
 End Sub

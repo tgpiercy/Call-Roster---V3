@@ -248,6 +248,8 @@ def evaluate(row: dict) -> str:
         return rules.time_period(i1)
     if suite == "kkind":                         # v27: from, to, the roster year's first and last day -> day / cumulative / range / outside
         return rules.report_kind(d(i1), d(i2), d(i3), d(i4))
+    if suite == "weekcap":                       # v27 (item 21): hours before, offer, cap -> the overage
+        return fmt_num(rules.week_cap_over(float(i1), float(i2), float(i3)))
     if suite == "firstref":                      # v27 (item 8): a block of text -> its first Ref ID, or '-' for none
         return rules.first_ref(i1) or "-"
     if suite == "reconcile":                     # v27: the paper's names (;), the roster's names (;) -> positions that differ|not listed|not on paper

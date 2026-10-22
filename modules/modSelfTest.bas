@@ -334,6 +334,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(kp <> "", kp, Format$(kf, "yyyy-mm-dd") & "|" & Format$(kt, "yyyy-mm-dd"))
         Case "kkind"                               ' v27: from, to, the roster year's first and last day -> day / cumulative / range / outside
             RunCase = ReportKindCore(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
+        Case "weekcap"                             ' v27 (item 21): hours before, offer, cap -> the overage (0 = fits)
+            RunCase = NumText(WeekCapOver(CDbl(i1), CDbl(i2), CDbl(i3)))
         Case "firstref"                            ' v27 (item 8): a block of text -> its first Ref ID, or "" as "-"
             RunCase = FirstRefIn(i1)
             If RunCase = "" Then RunCase = "-"
@@ -1808,5 +1810,11 @@ Private Sub LoadCases5()
     AddCase "sgsuspect,clock-change-65-min-later,2027-03-13-22-00,2027-03-13-23-05,Y,,,ok"
     AddCase "sgsuspect,clock-change-but-two-hours,2027-03-13-22-00,2027-03-14-00-00,Y,,,suspect"
     AddCase "sgsuspect,no-clock-change-an-hour-later,2027-01-10-09-00,2027-01-10-10-00,N,,,suspect"
+    AddCase "weekcap,fits,36,12,48,,,0"
+    AddCase "weekcap,exactly-at-cap,36,12,48,,,0"
+    AddCase "weekcap,one-over,37,12,48,,,1"
+    AddCase "weekcap,partial-pushes-over,44,8,48,,,4"
+    AddCase "weekcap,nothing-before,0,12,48,,,0"
+    AddCase "weekcap,dst-night,36,13,48,,,1"
 ' <<< CASES
 End Sub

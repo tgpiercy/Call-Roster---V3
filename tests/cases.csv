@@ -826,3 +826,9 @@ sgsuspect,clock-change-an-hour-later,2027-03-13-22-00,2027-03-13-23-00,Y,,,ok
 sgsuspect,clock-change-65-min-later,2027-03-13-22-00,2027-03-13-23-05,Y,,,ok
 sgsuspect,clock-change-but-two-hours,2027-03-13-22-00,2027-03-14-00-00,Y,,,suspect
 sgsuspect,no-clock-change-an-hour-later,2027-01-10-09-00,2027-01-10-10-00,N,,,suspect
+weekcap,fits,36,12,48,,,0
+weekcap,exactly-at-cap,36,12,48,,,0
+weekcap,one-over,37,12,48,,,1
+weekcap,partial-pushes-over,44,8,48,,,4
+weekcap,nothing-before,0,12,48,,,0
+weekcap,dst-night,36,13,48,,,1

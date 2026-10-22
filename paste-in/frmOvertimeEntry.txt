@@ -767,6 +767,17 @@ Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String, Optio
         End If
     End If
     If Not keepTaken Then mTaken(mCurrent) = 0           ' only ACCEPTED PART sets partial hours
+    ' v27 (item 21): the weekly cap - a warning and a reason into the row, never a block
+    If outcome = "Accepted" Then
+        Dim wc As String
+        wc = WeekCapProblem(mEntries(mCurrent).EmpName, mEntries(mCurrent).EmpShift, mDate, mShiftLbl, IIf(keepTaken And mTaken(mCurrent) > 0, mTaken(mCurrent), OfferFor(mCurrent)))
+        If wc <> "" Then
+            MsgBox wc & vbNewLine & vbNewLine & "The plant's weekly limit is " & HoursText(WEEK_MAX_HOURS) & " h. It can be accepted with a reason, which goes into the log row.", vbExclamation, "Weekly hours"
+            Dim wr As String: wr = AskRequired("Why is this acceptance OK past the weekly limit?", "Weekly hours")
+            If wr = "" Then FocusList: Exit Sub
+            reason = Trim$(reason & " [over " & HoursText(WEEK_MAX_HOURS) & " h/week: " & wr & "]")
+        End If
+    End If
 
     mEntries(mCurrent).Outcome = outcome
     mEntries(mCurrent).Reason = reason

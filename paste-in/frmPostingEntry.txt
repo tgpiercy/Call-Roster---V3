@@ -414,6 +414,20 @@ End Sub
 ' ================================================================
 Private Sub btnSubmit_Click()
     If mN = 0 Then Exit Sub
+    ' v27 (item 21): the weekly cap on every awarded person - a warning and a reason into the row, never a block
+    Dim i As Long, wc As String, wr As String
+    For i = 1 To mN
+        mL(i).OverrideNote = ""
+        If mL(i).Awarded Then
+            wc = WeekCapProblem(mL(i).EmpName, mL(i).EmpShift, mP.ShiftDate, mP.ShiftLbl, AwardedHours(mP.Hours, mL(i).SignupHrs))
+            If wc <> "" Then
+                MsgBox wc & vbNewLine & vbNewLine & "The plant's weekly limit is " & HoursText(WEEK_MAX_HOURS) & " h. The award can go ahead with a reason, which goes into the log row.", vbExclamation, "Weekly hours"
+                wr = AskRequired("Why is this award OK past the weekly limit?", "Weekly hours")
+                If wr = "" Then Exit Sub
+                mL(i).OverrideNote = "[over " & HoursText(WEEK_MAX_HOURS) & " h/week: " & wr & "]"
+            End If
+        End If
+    Next i
     If SubmitAward(mP, mL, mN) Then
         Finished mP.ID & " awarded."
     Else

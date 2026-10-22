@@ -191,11 +191,17 @@ Public Sub MarkChangedTotals()
                     ' comment, which AddComment refuses) is skipped whole, so no colour is ever left without the note that clears it
                     If MarkableCell(ws.Cells(R_FIRST + i - 1, C_TOTAL)) Then
                         If Not .Comment Is Nothing Then .Comment.Delete
+                        On Error Resume Next                 ' (re-review L2) a threaded comment (Range.Comment is Nothing for it) makes AddComment raise: skip the cell, go on
                         .AddComment MARK_TAG & parts(0) & ", " & IIf(Left$(parts(1), 1) = "-", "", "+") & parts(1) & " from " & refTxt & " (" & stampTxt & ")"
-                        .Comment.Visible = False
-                        .Interior.Color = MARK_FILL
-                        .Font.Color = MARK_INK
-                        n = n + 1
+                        Dim added As Boolean: added = (Err.Number = 0)
+                        Err.Clear
+                        On Error GoTo Quiet
+                        If added Then
+                            .Comment.Visible = False
+                            .Interior.Color = MARK_FILL
+                            .Font.Color = MARK_INK
+                            n = n + 1
+                        End If
                     End If
                 End With
             End If
@@ -211,6 +217,7 @@ Quiet:
     On Error Resume Next
     If Not ws Is Nothing Then ProtectSheet ws
     Application.EnableEvents = evWas
+    If n > 0 Then mMarkedAt = Now                  ' (re-review L3) the cells painted before the error still expire on a click
     LogError "MarkChangedTotals", en, em
 End Sub
 
@@ -231,7 +238,7 @@ Public Sub ClearTotalMarks()
         If c.Parent.Column = C_TOTAL And c.Parent.Row >= R_FIRST Then
             If Left$(c.Text, Len(MARK_TAG)) = MARK_TAG Then
                 c.Parent.Interior.ColorIndex = xlNone
-                c.Parent.Font.ColorIndex = xlAutomatic
+                c.Parent.Font.Color = 3355443        ' the roster's ink, RGB(51, 51, 51) (modUI.INK; re-review L4 - xlAutomatic is black)
                 c.Delete
             End If
         End If
@@ -368,10 +375,18 @@ End Function
 ' One answer (Yes / Not sure / No) with its optional line, against the receipt on screen (its first Ref ID).
 ' True when the row landed. Never raises, never shows anything (the card says thanks or that it could not be kept).
 Public Function SaveFeedback(ByVal answer As String, ByVal note As String) As Boolean
+    ' (review L8) a copy that will not be saved: the answer would be thrown away at close - the card says so.
+    ' (re-review H1) the refusal sits HERE, not in the write: SmokeTest runs with saving blocked from its first
+    ' line and tests both - this refusal, and the row through WriteFeedbackRow.
+    If ThisWorkbook.ReadOnly Or NoSave() Then Exit Function
+    SaveFeedback = WriteFeedbackRow(answer, note)
+End Function
+
+' The row itself (the card's answer, or SmokeTest's). True when it landed. Never raises.
+Public Function WriteFeedbackRow(ByVal answer As String, ByVal note As String) As Boolean
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim lo As ListObject, ws As Worksheet, cnt As Long
     On Error GoTo Quit
-    If ThisWorkbook.ReadOnly Or NoSave() Then GoTo Quit    ' (review L8) a copy that will not be saved: the answer would be thrown away at close - the card says so
     Application.EnableEvents = False               ' before the sheet is made: adding it must not start a redraw
     Set lo = FeedbackTable(True)
     If lo Is Nothing Then GoTo Quit
@@ -395,12 +410,12 @@ Public Function SaveFeedback(ByVal answer As String, ByVal note As String) As Bo
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, FB_N).Value = rec
     lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, 1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
     ProtectSheet ws
-    SaveFeedback = True
+    WriteFeedbackRow = True
 Quit:
-    If Not SaveFeedback Then
+    If Not WriteFeedbackRow Then
         Dim en As Long: en = Err.Number
         Dim em As String: em = Err.Description
-        If en <> 0 Then LogError "SaveFeedback", en, em
+        If en <> 0 Then LogError "WriteFeedbackRow", en, em
     End If
     On Error Resume Next
     RelockStructure                                ' (review L7) a failure while the sheet was being made

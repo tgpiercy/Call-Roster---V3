@@ -827,6 +827,7 @@ End Sub
 ' WARN ON CLOSE (the old version unloaded even when you said No)
 ' ================================================================
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    RestartMarkClock                               ' v27 (item 8, re-review L5): the roster's marks were painted under this form - their 60 s run from here
     If gErrorClosing Then Exit Sub                 ' v24.2: closed by the error handler, which says what happened
     If mSaveFailed Then Exit Sub                   ' v26.5.5: the entries are logged already; closing is the way to File > Save
     If mCount = 0 Then Exit Sub

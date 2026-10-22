@@ -394,9 +394,11 @@ Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolea
     ' v27 (item 8): the acceptor's Total Hours cell carries the before / after mark (+8 provisional, from this session)
     Dim mk As String: mk = TotalMarkText(recs(2).EmpName)
     If InStr(mk, "+" & HoursText(8)) = 0 Or InStr(mk, st.SessionId) = 0 Then why = "no before / after mark on " & recs(2).EmpName & "'s Total Hours naming +8 and " & st.SessionId & " (note: " & mk & ")": Exit Function
-    ' v27 (item 9): a receipt answer lands in the Feedback table against this session and counts as unread
+    ' v27 (item 9): on this copy saving is blocked (MarkNoSave, the first line of SmokeTest), so the card's SaveFeedback
+    ' must REFUSE (the answer would be lost at close); the row itself, through WriteFeedbackRow, lands and counts as unread
     Dim fbWas As Long: fbWas = UnseenFeedbackCount()
-    If Not SaveFeedback("Yes", "SmokeTest step 4") Then why = "the receipt answer could not be kept (the Feedback table)": Exit Function
+    If SaveFeedback("Yes", "SmokeTest step 4") Then why = "SaveFeedback kept an answer on a copy that will not be saved": Exit Function
+    If Not WriteFeedbackRow("Yes", "SmokeTest step 4") Then why = "the receipt answer could not be written (the Feedback table)": Exit Function
     If UnseenFeedbackCount() <> fbWas + 1 Then why = "the Feedback table's unread count did not rise by one": Exit Function
 
     ' the rows must carry the v25 rule (v25.1: this step still expected v24.1's "the rest offered down the

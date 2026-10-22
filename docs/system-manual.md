@@ -2,7 +2,7 @@
 
 This manual states the current rules of the overtime call-out system, for supervisors and the union committee.
 
-Current as of v26.5.5 (Oct 21, 2026). It replaces the rules in all older guides.
+Current as of v27 (Oct 22, 2026). It replaces the rules in all older guides.
 
 ## 1. What the system is
 
@@ -59,7 +59,7 @@ The system works out the same 11 holidays for any year: New Year's Day, Family D
 
 | Part | What it is | Where it comes from |
 |---|---|---|
-| Worked | Premium hours worked this year | The Kronos import (since v26.5 it reads the Kronos export itself: the sum of the premium pay codes per person, and the same per pay period on the Worked Periods sheet) |
+| Worked | Premium hours worked this year, as straight-time equivalents | The Kronos import (v27): the "Employee Transactions and Totals" report's Totals block - the year to date - plus the one-day reports after it; each premium code's hours x its weight (OVERTIME 1.75, OT - DT Split 2, LIEU OT 1.5, LIEU DT 2, LIEU OT - DT Split 1.5, LIEU ST 1, CALLIN OT 1.75, MIN 4 1.5, STATWK 2.0 2), rounded whole per person; per pay period on the Worked Periods sheet. Every change a later report makes to a day already counted is logged on the Worked Changes sheet. |
 | Refused | Hours charged this year, plus adjustments | Hours Charged in the OT Log for this year's pay periods **up to the current one** (v26.5): a posting's refusal charges carry the shift's pay period, so a refusal for a shift two periods out shows in its column and starts counting when that period begins. Voided rows do not count. |
 | Provisional | Accepted overtime that Kronos does not show yet | Accepted call-outs and awarded postings in the OT Log |
 
@@ -75,7 +75,7 @@ The system works out the same 11 holidays for any year: New Year's Day, Family D
 
 | Rule | Detail |
 |---|---|
-| Data-through date | Kronos data runs through the day before the Kronos file date. |
+| Data-through date | Kronos data runs through the report's Time Period end (v27; the older pivot-sheet route: the day before the file date). |
 | Day shift on date D | Covered when D is on or before the data-through date. |
 | Night shift on date D | Covered when D + 1 is on or before the data-through date. |
 
@@ -110,6 +110,8 @@ A person is not free when one of these applies.
 | Booked off | A time-off booking covers the date. |
 | Shift switch | They are working a switch that day, or gave up a shift that day (not free for the other shift either). A switch worked the night before or the day after also counts for the rest rule; a shift GIVEN UP in a switch relieves the next day's rest rule, since they did not work it. |
 | Sick window | They called in sick. They are off that shift and any shift starting within 24 hours after it ends, and inside that window they can neither work nor give up a shift in a switch. |
+| OT restricted (v27) | An admin has restricted their overtime between two dates (the Restrictions sheet): not listed for call-outs or postings while it runs, and never charged. The calendar, the staffing count and the switch rules ignore it. |
+| The weekly warning (v27) | Not a reason to be left off: an acceptance or an award that takes a person's overtime past 48 hours in the 7 days before the shift asks for a reason, kept in the log row. It never blocks. |
 | The 16 h rule (v26.5.5) | Overtime they have already accepted, a posting awarded to them or a switch they work on the shift that touches the one on offer counts as worked time. The work that ends when the offer starts (that shift, plus the one before it when it was worked whole) plus the offer may not pass 16 consecutive hours, and the offer must leave 11 hours before their next work (scheduled, or overtime already accepted). Only when nothing fits are they off the list; otherwise the pop-up shows "max N h" beside the name: a full acceptance or award is refused, a partial up to that many hours is allowed, and the person is OFFERED only those hours, so a refusal or a left message is charged on them (a posting they did not sign up for charges the hours they could have taken; none = not charged). A switch is a whole shift, so it must fit entirely (the payback too). Overtime already held on the shift on offer leaves the person off a second list for it. A partial already accepted on the touching shift is counted whole and joins the shift before it, so the rule errs on the safe side. |
 
 Old-calendar vacation lines that were imported are display only. They keep nobody off a list until the admin converts them into bookings.
@@ -132,10 +134,12 @@ Charged hours go into Refused, so they raise Total Hours.
 | Call-out: Accepted | Nobody. The hours count as provisional. | - |
 | Call-out: part of the hours accepted | The shift is closed: nobody below is offered the rest and nobody is charged for it. Refusals logged before the partial keep their charge. (Since v25; before it the rest was offered down the list.) | - |
 | Call-out: Unavailable (a reason is required) | Nobody | - |
+| Call-out: Exception (v27: the reason "Plant upset ...") | Nobody. The row is logged with the outcome Exception and listed on Needs Attention for 30 days. | - |
 | Posting: Submit Award | People ahead of the last awarded person in call order who did not sign up | Shift date |
 | Posting: Award Out of Dept | Everyone eligible in the department who did not sign up | Shift date |
 | Posting: No Takers | Everyone eligible on the list | Shift date |
 | Posting: Cancel Request | Nobody | - |
+| Posting: Withdraw an award (v27, admin) | The awarded rows are voided; the refusals stay charged (the people ahead still refused). The line opens again. | - |
 
 Since v26.5 a charge counts in Refused and Total Hours only once its pay period has started: a posting refusal for a shift in a later period is logged at the award, shows in that period's column, and joins the totals (and the call order) when the period begins. A call-out's charge carries its shift's period the same way, so a call-out for a shift in a later period waits too (call-outs are mostly same-day).
 
@@ -400,14 +404,15 @@ The steps are in docs/rollover-one-pager.md.
 
 | Sheet | What it shows |
 |---|---|
-| Home | When the file was updated and the Kronos data date |
+| Home (Members M4, v27) | Me first: the name picked last time on that PC is remembered (Excel's own per-user setting store - nothing in the shared file; Not me forgets it); "since you last looked" (new postings I can sign up for, postings that closed, my place moving); four tiles - Total hours (worked + charged (refusals) + accepted), My call position ("4th of 14 in Phosphine"), Am I next? (with the next open posting's own Sign me up button), Sick time (counts only) - then the buttons, my open postings, the days near the top of the list and the days I am not listed and why. Every sheet carries the same header band: < Home, Larger type, How it works and the published stamp, red with "N days old: ask a supervisor to update" when old. |
 | Roster | Everyone's hours and each unit's call order. A member can find their own name. |
-| Who's next | For a unit, date and shift in the next 14 days: who is free, in call order |
+| Who's next | For a unit, date and shift in the next 14 days: who is free, in call order (my own row shaded), then who is not listed and a reason word (scheduled, rest rule, switch, 16 h rule, on OT that shift, off - never a kind of leave or sickness) |
 | Calendar | Who is off and what needs cover, by month and unit. Leave shows as "Leave"; sick and personal days as "Off". |
 | Postings | Open postings with their closing dates and lists. With electronic sign-ups switched on, a Sign me up button. A member who moved unit shows no rank and no button on the old unit's list (v26). |
 | My history | For any name: this year's entries, outcomes and charges; since v26 each entry's place in the call order and a Why line for every charge, and a Print / PDF button; since v26.5 the pay-period block shows the charged hours, the posting refusals, the call-out refusals and the premium hours worked (from the Kronos export) per period |
 | Where I stand | For the name picked with Find me: their call position in each unit, **Am I next?** (the next shift they are listed for and their place; v26), their open postings, and their five sick-time counts (section 10) |
-| Larger type (v26) | A button on Home: every sheet at 130 % for the session |
+| Larger type (v26) | On every sheet's header band (v27): every sheet at 130 % for the session |
+| How it works (v27) | The rules in plain words: the call order, why a charge, what is never charged, ~ and *, sign-ups, who is free, and the legend |
 
 ## 18. Who can do what
 
@@ -419,19 +424,23 @@ The steps are in docs/rollover-one-pager.md.
 
 - Phone numbers and email addresses are hidden from people not on the admin list.
 - The file is always saved in the restricted view, and so is every copy the system makes (pre-change backups, practice copies, the updater's backup).
-- Every sheet is protected in both views. Since v26.5 nothing on the roster is typed into (a person's details change through Employee > Edit; Worked comes from the Kronos import); the Holidays sheet's "Observed on" and the Min Staff sheet's Minimum / Note are the only typed-into cells; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
+- Every sheet is protected in both views. Since v26.5 nothing on the roster is typed into (a person's details change through Employee > Edit; Worked comes from the Kronos import); since v27 the Holidays and the minimum staffing have their own pop-up too, so only the Reconcile sheet's typed paper order and the Rules sheet's Basis column take typing; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
 
 ## 19. Safeguards
 
 | Safeguard | What it does |
 |---|---|
 | Automatic save | The file saves after each entry, and again when it is closed. |
-| Daily backup | A dated copy is saved the first time an admin opens the live file each day. 30 days are kept, of the daily copies and (v26) of the "Backup before ..." copies made before a people change. A backup, the frozen year-end file or a practice copy never takes that day's slot. SystemCheck says how many copies are kept and their size. |
+| Backups | A dated copy is saved the first time anyone opens the live file for writing each day (v27; it was an admin's open), and an hourly copy before a save when the newest is older than 4 hours (kept 7 days); 30 days of daily copies are kept, and the first daily copy of each pay period 400 days. The "Backup before ..." copies made before a people change are kept 30 days. A backup, the frozen year-end file or a practice copy never takes a slot. SystemCheck says how many copies are kept and their size. RestoreDrill (admin) proves the newest backup opens and matches. |
+| The daily CSV export (v27) | The first admin open each day writes the tables a supervisor's view shows as plain CSV files beside the backups (kept 30 days); the admin-only tables stay in the backup copies. |
+| The period close (v27) | Close the pay period (admin) writes the period's OT Log rows, the roster totals and the postings to a CSV, its SHA-256 hash, a PDF with the hash in the footer, and a Closed Periods row carrying the previous period's hash, so a later change to a closed period shows. |
+| Receipts (v27) | Every job that writes something ends with one card saying what was recorded, whose Total Hours moved (before -> after, the cells marked on the roster), where to look and how to undo it. |
+| The session draft (v27) | A call-out in progress is kept after every outcome and the file saved every 2 minutes, so a crash loses minutes, not the session. |
 | Error log | A button or pop-up that fails part-way writes a line to the admin-only Error Log sheet (and a text file beside the roster) and shows "This didn't finish ... Error Log line N" instead of a code error. |
-| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 20 steps (v26.5) through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, edit a person's details, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos heading rule, a planted leave word stopping the publish, void, remove, integrity) and checks every total comes back. It never saves. |
+| Smoke test | On a practice copy (MakePracticeCopy), SmokeTest runs 22 steps (v27) through the roster's own functions (add a person, post, award, call out, book off, sick call, switch, crew change, unit move, planned move, edit a person's details, rename, publish, no takers / out of department / reopen, a leave going and returning, the Kronos report reader, a planted leave word stopping the publish, void, remove, integrity, the Desk, bring back and remove again, the output pages) and checks every total comes back and nothing it logged is left live. It never saves. |
 | One parser, one rule | Every date box reads through one parser; every rule (call order, who is free, closing, charging, the trim, the switch stops) lives in one module function the pop-ups call, with known answers in SelfTest. |
 | Checked changes | A change to the roster's layout is compared before and after. If the totals differ, saving is blocked. |
 | SystemCheck | Confirms the installed code is the right release and the data is in order. |
-| IntegrityCheck | Compares every roster total with the OT Log, and looks for typed numbers, missing formulas, duplicate IDs and (v26) an ID counter below an archived year's highest number. It only reads. It runs each time an admin opens the file, and the result is on the roster's status line. |
+| IntegrityCheck | Compares every roster total with the OT Log, and looks for typed numbers, missing formulas, duplicate IDs and (v26) an ID counter below an archived year's highest number; v27: every accepted or awarded row has its calendar line, the Settings rows are settings, every call-out and posting row is charged what its own outcome, hours and code give and sits in its shift's pay period, and (Checks) overlapping bookings, voids with no note, a former person on an open posting. It only reads. It runs each time an admin opens the file, and the result is on the roster's status line and the admin Desk's This morning tile. |
 | Year-end checks | The rollover runs IntegrityCheck first and stops on any problem. It checks the frozen copy and the new roster before it saves. |
 | SelfTest | Runs known-answer cases against the rules. It writes nothing. |

@@ -1,6 +1,6 @@
 # Year-end rollover: one page
 
-The steps for rolling the Call Out Roster from one year to the next. Current as of v26.5 (Oct 2026): Refused counts the pay periods up to the current one, so a December practice run on a copy dated into the new year gives 0 for the kept rows.
+The steps for rolling the Call Out Roster from one year to the next. Current as of v27 (Oct 22, 2026): v27 adds IntegrityCheck checks 14 ("Log rows": every call-out and posting row charged what its own outcome, hours and code give, in its shift's pay period) and 15 ("Records") - a PROBLEM in either stops the rollover like any other; the rollover empties the Kronos Totals and Worked Days tables and keeps the Kronos Files record; close the year's last pay period (Close the pay period) before rolling. From v26.5: Refused counts the pay periods up to the current one, so a December practice run on a copy dated into the new year gives 0 for the kept rows.
 
 **Two people.** The admin drives. The second person reads each check aloud and ticks it off. Allow 30 minutes. Do it with nobody else in the file.
 

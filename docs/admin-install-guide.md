@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v26.5.5 (Oct 21, 2026).
+Current as of v27 (Oct 22, 2026).
 
 ## 1. Before you start
 
@@ -96,7 +96,13 @@ Most releases need no one-time macro: the Planned Moves, Error Log and Refusal R
 | `SelfTest` | Section 5 |
 | `IntegrityCheck` | Section 13. Reads only. |
 | `MakePracticeCopy` | Saves and opens a practice copy (COPY in its name) in a `Practice` folder, with the members' template beside it. |
-| `SmokeTest` | In a practice copy only: 20 steps (v26.5) through the roster's own functions; every total must come back. Never saves. |
+| `SmokeTest` | In a practice copy only: 22 steps (v27) through the roster's own functions; every total must come back and nothing it logged may be left live. Never saves. |
+| `RestoreDrill` (v27) | Copies the newest daily backup to the Practice folder as a DRILL COPY, opens it, runs SystemCheck, IntegrityCheck and SelfTest in it, compares its log and totals with the live file, and writes an Install Log row. |
+| `ExportTables` (v27) | The daily CSV export now, into its own dated folder (the open does it once a day). |
+| `RestrictOT` / `EndRestriction` (v27) | An OT restriction for a person between two dates (also from Employee > Edit > OT restriction...), and its end. |
+| `SetSetting` (v27) | Overrides one of the six tunable settings (Kronos stale days, the weekly cap, members stale days, sign-up stale days, payback warning days, posting close days) on the Settings sheet, keeping the old value. |
+| `RaiseDispute` / `CloseDispute` (v27) | A dispute against a Ref ID, kept on the Evidence sheet until closed with its outcome; Needs Attention lists the open ones. |
+| `ShowHolidayEditor` / `ShowMinStaffEditor` (v27) | The Holidays and the Min Staff pop-ups (the admin Desk's Holidays / minimum staffing). |
 | `ShowErrorLog` | Opens the Error Log sheet and marks every line seen. `ErrorLogTest` writes one test line so you can see the box a supervisor gets. |
 | `ApplyPlannedMoves` | Applies the planned unit moves that are due (the open asks the same question). |
 | `ApplyPlannedMoves` / Needs Attention > Planned unit moves | Cancel a planned move, or apply one that is due. |
@@ -147,7 +153,7 @@ After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)"
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v26.5: 649 cases in 75 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v27: 876 cases in 100 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|
@@ -164,14 +170,14 @@ If any case fails, do not log on that file. Go back to your backup and report th
 
 | Item | Detail |
 |---|---|
-| When | The first time an admin opens the writable file each day |
+| When | The first time anyone opens the writable file each day (v27; before, an admin's open), and an hourly copy before a save when the newest is older than 4 hours |
 | File name | `Call Out Roster yyyy-mm-dd.xlsm` |
 | Where | The folder in `BACKUP_FOLDER` |
 | `BACKUP_FOLDER = "."` | The folder the roster is in. This is the shipped setting. |
 | `BACKUP_FOLDER = ".\Backups"` | A subfolder of the roster's folder. It must already exist. |
 | `BACKUP_FOLDER = ""` | Backups are off. SystemCheck says so. |
 | A full path | That folder, for example a network folder |
-| How many are kept | 30 days (`BACKUP_KEEP_DAYS`). Older copies in that folder are deleted. **v26:** the "Backup before ..." copies beside the roster (saved before a rename, a removal, a planned move, the Home Unit set-up) are pruned at 30 days too, this roster's name only, by their exact name pattern; a copy whose stamp can't be read is never touched. |
+| How many are kept | 30 days (`BACKUP_KEEP_DAYS`); the hourly copies 7 days; the first daily copy of each pay period 400 days (v27). Older copies in that folder are deleted. **v26:** the "Backup before ..." copies beside the roster (saved before a rename, a removal, a planned move, the Home Unit set-up) are pruned at 30 days too, this roster's name only, by their exact name pattern; a copy whose stamp can't be read is never touched. |
 | What SystemCheck says (v26) | "Backups kept: N daily (M MB) in the backup folder, K pre-change (L MB) beside the roster; copies older than 30 days are removed on the first admin open of the day" |
 | If the folder cannot be reached | You get one warning. The roster opens as usual. |
 | Opening a backup to look at it | Fine. Since v24.3.1 a dated backup, the FINAL or a "Backup before" copy never takes that day's backup slot and Member View refuses to publish from it. Nothing you log in it reaches the roster. |
@@ -345,7 +351,7 @@ Restore the backup only if the reopened file is wrong.
 | Status bar (bottom left) | Click a roster row to see that person's Refused hours by kind; **v26:** click an OT Log row to see why it was (or wasn't) charged |
 | **Employee history** (FIND group, the Desk; v26) | One person and a date range -> the History Report tab and a PDF: every log row with its call-order place, outcome, charge and Why line, then the pay-period totals. An admin picks **Full** (Logged by, When, Status, Void note, void rows struck through; the admin-only `History Report (admin)` tab) or **member-safe** (the members' My history columns, row for row); a supervisor gets member-safe only. Since v26.5 the pay-period block shows the charged hours, the posting refusals, the call-out refusals and Worked (Kronos). |
 | **Board** (Calendar's top row; v26) | The two-week board: today and the next 13 days, one page per unit group, PDF beside the month calendars, then print |
-| **Min Staff** sheet (v26) | The minimum operators per unit and shift (Unit, Shift, Minimum, Note). Made with the plant's numbers on an admin's first open after the install; type into Minimum and Note only; blank = no minimum on that shift. The calendar's date cells (a red "N short" flag; click the date for which) and Needs Attention (BELOW MINIMUM STAFFING) flag a short shift for the next 14 days. It only reads. The short flag and Needs Attention count every unit whatever group is shown (v26.5). |
+| **Min Staff** sheet (v26) | The minimum operators per unit and shift (Unit, Shift, Minimum, Note; v27: + Call-out note, shown on the call-out pop-up). Made with the plant's numbers on an admin's first open after the install; since v27 changed through the Holidays / minimum staffing pop-up only; blank = no minimum on that shift. The calendar's date cells (a red "N short" flag; click the date for which) and Needs Attention (BELOW MINIMUM STAFFING) flag a short shift for the next 14 days. It only reads. The short flag and Needs Attention count every unit whatever group is shown (v26.5). |
 | **Worked Periods** sheet (v26.5) | Each person's premium hours per pay period from the Kronos export, rebuilt at every import; what the members' My history shows as Worked (Kronos) |
 | `RepairIdMarks` (Alt+F8; v26) | Raises the hidden ID counters (`IdMark_*`) to the highest number in the archived years and the live log when IntegrityCheck's IDs line says one is below an archive. It never lowers a counter. |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |
@@ -353,8 +359,10 @@ Restore the backup only if the reopened file is wrong.
 | `MakePracticeCopy`, `SmokeTest` (Alt+F8) | Section 3, step 14 |
 | `ShowErrorLog`, `ErrorLogTest` (Alt+F8) | The Error Log sheet (admin only, never published) |
 | `ReopenPosting` (Alt+F8) | Reopens a closed posting after its log rows are voided; refuses a shift before the roster year; names anyone it marks not chargeable (moved, left, no code now) |
-| Typing on the sheets (v25; v26.5) | Every sheet stays protected in both views, and **since v26.5 nothing on the roster is typed into**: a person's home unit, crew, phone, email, seniority date and unit codes change through the Employee pop-up's **Edit** (double-click the row, or click it and press Employee); Worked (H) is filled by the Kronos import. The only typed-into cells left are the Holidays sheet's "Observed on" and the Min Staff sheet's Minimum / Note. Everything else (totals, pay-period cells, every other sheet) goes through the buttons; sorting a selected block by hand is refused (the sort buttons sort in code). A message that asks you to fix a cell on a protected sheet says how (the VBA editor's Immediate window: `UnlockSheet Sheets("name")`, the fix, then `ProtectAll`). Sheets can't be added, deleted or unhidden by hand. Copies made by the system (pre-change, practice, the updater's backup) are saved in the restricted view. |
+| Typing on the sheets (v25; v26.5) | Every sheet stays protected in both views, and **since v26.5 nothing on the roster is typed into**: a person's home unit, crew, phone, email, seniority date and unit codes change through the Employee pop-up's **Edit** (double-click the row, or click it and press Employee); Worked (H) is filled by the Kronos import. Since v27 the Holidays and the minimum staffing have their own pop-up too; the only typed-into cells left are the Reconcile sheet's paper order and the Rules sheet's Basis column. Everything else (totals, pay-period cells, every other sheet) goes through the buttons; sorting a selected block by hand is refused (the sort buttons sort in code). A message that asks you to fix a cell on a protected sheet says how (the VBA editor's Immediate window: `UnlockSheet Sheets("name")`, the fix, then `ProtectAll`). Sheets can't be added, deleted or unhidden by hand. Copies made by the system (pre-change, practice, the updater's backup) are saved in the restricted view. |
 | `ShowGradeLog` (Alt+F8) | Shows the log of grade code changes |
+| The admin Desk's v27 jobs | **Reconcile with the paper roster** (the paper order typed beside the roster's, the reason per difference, a PDF), **Stats (quarterly report)**, **The rules (sheet)** (the rules the roster applies; type each rule's Basis), **Close the pay period** (CSV + SHA-256 + PDF + the hash chain on the Closed Periods sheet), **Withdraw an award / edit a posting**, **Holidays / minimum staffing**, **Shift handover**, **Paybacks owed (ledger)**; Needs Attention gains the DATA CHECK (phones, emails, codes, crews, a name twice), receipt answers, OT restrictions, open disputes and the last 30 days' plant-upset exceptions. |
+| New admin-only sheets (v27; each made on first use) | Feedback, Draft (very hidden), Restrictions, Rules, Settings, Evidence, Closed Periods, Opens, Kronos Totals, Worked Days, Worked Changes, Kronos Files, Reconcile, Stats; Handover and Paybacks are a supervisor's output sheets. |
 | `SystemCheck`, `SelfTest` (Alt+F8) | See sections 4 and 5 |
 
 ## 13. IntegrityCheck

@@ -1132,6 +1132,7 @@ Private Function SmkEdit(ByRef st As SmkState, ByRef why As String) As Boolean
             If GradeLogTable(False).ListRows.Count <= glBefore Then why = "the Grade Log didn't get a row for the new code": Exit Function
             ' v27 (item 13): a phone / email change writes a "(details)" row too, so the code's own row is looked for
             Dim glv As Variant: glv = RangeTo2D(GradeLogTable(False).DataBodyRange)
+            If glBefore = 1 And Trim$(SafeStr(glv(1, 1))) = "" Then glBefore = 0        ' (review) a placeholder row is written over, not after
             Dim gi As Long, codeRow As Boolean
             For gi = glBefore + 1 To UBound(glv, 1)
                 If SafeStr(glv(gi, 3)) <> "(details)" And SafeStr(glv(gi, 2)) = st.Emp Then codeRow = True

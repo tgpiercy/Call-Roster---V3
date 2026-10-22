@@ -1096,6 +1096,11 @@ Public Function SaveAbsence(ByVal emp As String, ByVal unit As String, ByVal typ
 End Function
 
 ' Sets an absence's end date without asking (v22: leave return, sick call)
+' the previous End for a Note: a block If, never CDate on a text cell (review)
+Private Function OldEndText(ByVal x As Variant) As String
+    If IsDate(x) Then OldEndText = Format$(CDate(x), "mmm d, yyyy") Else OldEndText = "open-ended"
+End Function
+
 Public Function SetAbsenceEndTo(ByVal id As String, ByVal dEnd As Date) As Boolean
     Dim lo As ListObject: Set lo = AbsTable()
     Dim v As Variant: v = TableData(lo)
@@ -1104,7 +1109,7 @@ Public Function SetAbsenceEndTo(ByVal id As String, ByVal dEnd As Date) As Boole
     UnlockSheet lo.Parent
     ' v27 (item 13): the previous end stays in the Note here too
     lo.DataBodyRange.Cells(r, AB_NOTE).Value = Trim$(SafeStr(v(r, AB_NOTE)) & IIf(Trim$(SafeStr(v(r, AB_NOTE))) = "", "", " | ") & _
-                                               "End was " & IIf(IsDate(v(r, AB_END)), Format$(CDate(v(r, AB_END)), "mmm d, yyyy"), "open-ended") & " (changed " & Format$(Now, "mmm d") & ")")
+                                               "End was " & OldEndText(v(r, AB_END)) & " (changed " & Format$(Now, "mmm d") & ")")
     lo.DataBodyRange.Cells(r, AB_END).Value = Int(dEnd)
     lo.DataBodyRange.Cells(r, AB_END).NumberFormat = "ddd mmm d, yyyy"
     ProtectSheet lo.Parent
@@ -1412,7 +1417,14 @@ Public Function ReleaseCoverage(ByVal source As String, Optional ByVal empName A
         For k = 1 To nRep
             reps(k, CV_ID) = NextIdAfter(lo, "CV", k - 1)
         Next k
-        AppendTo lo, reps, CV_N
+        If Not AppendTo(lo, reps, CV_N) Then
+            ' (review) the copies did not land: the lines go back to Active, so no need vanishes from the calendar
+            For k = 1 To UBound(v, 1)
+                If StrComp(SafeStr(v(k, CV_SOURCE)), source, vbTextCompare) = 0 And UCase$(SafeStr(v(k, CV_STATUS))) <> "VOID" Then lo.DataBodyRange.Cells(k, CV_STATUS).Value = SafeStr(v(k, CV_STATUS))
+            Next k
+            ProtectSheet lo.Parent
+            Err.Raise vbObjectError + 792, , "the released coverage lines could not be re-written"
+        End If
         FormatCovDates lo
     End If
     If hit Then ProtectSheet lo.Parent

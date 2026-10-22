@@ -49,11 +49,14 @@ Private mMarksFresh As Boolean              ' True between a ReceiptChanges and 
 Private mMarkedAt As Date                   ' when the marks were painted (0 = none on the roster)
 Public Const MARK_SECONDS As Long = 60      ' the marks come off at the first click on the roster after this
 Private Const MARK_TAG As String = "Was "   ' every mark's note starts with it: how ClearTotalMarks finds them
-Private Const MARK_FILL As Long = 13101055  ' RGB(255, 243, 199): a light amber on the moved Total Hours cells
+Private Const MARK_FILL As Long = 13104127  ' RGB(255, 243, 199): a light amber on the moved Total Hours cells (the banding's
+                                            ' conditional format wins on every second visible row - review M3 - so the FONT marks too)
+Private Const MARK_INK As Long = 23470      ' RGB(174, 91, 0): the amber ink on a marked Total Hours cell
 
 ' The roster's Total Hours before a save, for ReceiptChanges (name -> "Total|Refused|periods")
 Public Function ReceiptBefore() As Object
     ClearTotalMarks                               ' v27 (item 8): the last save's marks come off before this save's go on
+    Set mMarks = Nothing: mMarksFresh = False      ' (review M2) and a map a failed save left behind is forgotten
     On Error Resume Next                          ' (review M4) a receipt must never stop a save: an empty map when the roster cannot be read
     Set ReceiptBefore = CreateObject("Scripting.Dictionary")
     Set ReceiptBefore = RosterTotalsMap()
@@ -139,10 +142,12 @@ Public Sub ShowReceipt()
     End If
     On Error GoTo Fallback
     frmReceipt.Show
+    RestartMarkClock                             ' (review M4) the MARK_SECONDS run from the card's close, not its paint
     Exit Sub
 Fallback:
     LogError "ShowReceipt", Err.Number, Err.Description
     MsgBox ReceiptText(gReceipt), vbInformation, IIf(gReceipt.Title = "", "Saved", gReceipt.Title)
+    RestartMarkClock
 End Sub
 
 ' ====================================================================
@@ -158,7 +163,8 @@ End Sub
 ' Paints the marks from the last ReceiptChanges (once per receipt: a card without a ReceiptChanges of its
 ' own - a cancelled posting - repaints nothing)
 Public Sub MarkChangedTotals()
-    Dim ws As Worksheet, evWas As Boolean, n As Long
+    Dim ws As Worksheet, n As Long
+    Dim evWas As Boolean: evWas = Application.EnableEvents    ' (review M1) captured BEFORE On Error: Quiet restores it on every path
     On Error GoTo Quiet
     If Not mMarksFresh Then Exit Sub
     mMarksFresh = False
@@ -171,8 +177,7 @@ Public Sub MarkChangedTotals()
     If refTxt = "" Then refTxt = FirstRefIn(gReceipt.Title)
     If refTxt = "" Then refTxt = "this save"
     Dim stampTxt As String: stampTxt = Format$(Now, "h:mm AM/PM")
-    Dim names As Variant: names = ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)).Value2
-    evWas = Application.EnableEvents
+    Dim names As Variant: names = RangeTo2D(ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)))   ' a one-person roster is still 2-D
     Application.EnableEvents = False
     UnlockSheet ws
     Dim i As Long, nm As String, parts() As String
@@ -182,12 +187,17 @@ Public Sub MarkChangedTotals()
             If mMarks.Exists(nm) Then
                 parts = Split(CStr(mMarks(nm)), "|")
                 With ws.Cells(R_FIRST + i - 1, C_TOTAL)
-                    .Interior.Color = MARK_FILL
-                    If Not .Comment Is Nothing Then .Comment.Delete
-                    .AddComment MARK_TAG & parts(0) & ", " & IIf(Left$(parts(1), 1) = "-", "", "+") & parts(1) & " from " & refTxt & " (" & stampTxt & ")"
-                    .Comment.Visible = False
+                    ' (review L6) the note first, then the colours: a cell whose note is not ours (or holds a threaded
+                    ' comment, which AddComment refuses) is skipped whole, so no colour is ever left without the note that clears it
+                    If MarkableCell(ws.Cells(R_FIRST + i - 1, C_TOTAL)) Then
+                        If Not .Comment Is Nothing Then .Comment.Delete
+                        .AddComment MARK_TAG & parts(0) & ", " & IIf(Left$(parts(1), 1) = "-", "", "+") & parts(1) & " from " & refTxt & " (" & stampTxt & ")"
+                        .Comment.Visible = False
+                        .Interior.Color = MARK_FILL
+                        .Font.Color = MARK_INK
+                        n = n + 1
+                    End If
                 End With
-                n = n + 1
             End If
         End If
     Next i
@@ -207,12 +217,12 @@ End Sub
 ' Takes every mark off the roster (the fill and the note; a Total Hours note that is not ours is left alone).
 ' Safe to call any time, on any sheet, in any view; a roster that cannot be read is left as it is.
 Public Sub ClearTotalMarks()
-    Dim ws As Worksheet, evWas As Boolean
+    Dim ws As Worksheet
+    Dim evWas As Boolean: evWas = Application.EnableEvents    ' (review M1) captured before On Error
     On Error GoTo Quiet
     mMarkedAt = 0
     Set ws = RosterSheet()
-    If ws.Comments.Count = 0 Then Exit Sub         ' the note is the mark: a fill is never left behind without one
-    evWas = Application.EnableEvents
+    If ws.Comments.Count = 0 Then Exit Sub         ' the note is the mark: a colour is never left behind without one
     Application.EnableEvents = False
     UnlockSheet ws
     Dim i As Long, c As Comment
@@ -221,6 +231,7 @@ Public Sub ClearTotalMarks()
         If c.Parent.Column = C_TOTAL And c.Parent.Row >= R_FIRST Then
             If Left$(c.Text, Len(MARK_TAG)) = MARK_TAG Then
                 c.Parent.Interior.ColorIndex = xlNone
+                c.Parent.Font.ColorIndex = xlAutomatic
                 c.Delete
             End If
         End If
@@ -235,6 +246,21 @@ Quiet:
     If Not ws Is Nothing Then ProtectSheet ws
     Application.EnableEvents = evWas
     LogError "ClearTotalMarks", en, em
+End Sub
+
+' True when the cell can take our note: no note, or ours (a stranger's note, or a threaded comment, is left alone)
+Private Function MarkableCell(ByVal cell As Range) As Boolean
+    On Error GoTo No
+    If cell.Comment Is Nothing Then MarkableCell = True: Exit Function
+    MarkableCell = (Left$(cell.Comment.Text, Len(MARK_TAG)) = MARK_TAG)
+    Exit Function
+No:
+    MarkableCell = False
+End Function
+
+' (review M4) the MARK_SECONDS count from the moment the card closes: the reader may sit on it for a while
+Public Sub RestartMarkClock()
+    If mMarkedAt > 0 Then mMarkedAt = Now
 End Sub
 
 ' True once marks have sat on the roster for MARK_SECONDS (the next click takes them off)
@@ -345,6 +371,7 @@ Public Function SaveFeedback(ByVal answer As String, ByVal note As String) As Bo
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim lo As ListObject, ws As Worksheet, cnt As Long
     On Error GoTo Quit
+    If ThisWorkbook.ReadOnly Or NoSave() Then GoTo Quit    ' (review L8) a copy that will not be saved: the answer would be thrown away at close - the card says so
     Application.EnableEvents = False               ' before the sheet is made: adding it must not start a redraw
     Set lo = FeedbackTable(True)
     If lo Is Nothing Then GoTo Quit
@@ -376,6 +403,7 @@ Quit:
         If en <> 0 Then LogError "SaveFeedback", en, em
     End If
     On Error Resume Next
+    RelockStructure                                ' (review L7) a failure while the sheet was being made
     If Not ws Is Nothing Then ProtectSheet ws       ' a failed write leaves the sheet protected
     Application.EnableEvents = evWas
     MarkCalDirty                                   ' Needs Attention's feedback line
@@ -425,6 +453,7 @@ Public Sub ShowFeedback()
     Exit Sub
 Failed:
     Dim em As String: em = Err.Description
+    LogError "ShowFeedback", Err.Number, em        ' (review L10) convention 15: right after the capture
     On Error Resume Next
     If Not ws Is Nothing Then ProtectSheet ws
     Application.EnableEvents = evWas

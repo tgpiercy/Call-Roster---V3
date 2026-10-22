@@ -398,6 +398,7 @@ Public Function TotalBreakdownText(ByVal nm As String) As String
                 If UCase$(Trim$(SafeStr(lg(i, L_STATUS)))) <> "VOID" Then
                     ps = CLng(Int(CDbl(CDate(lg(i, L_PERIOD)))))
                     ch = NumOr0(lg(i, L_CHARGED))
+                    If Abs(ch) < 0.0001 Then GoTo NextRow      ' (review L5) only rows that charged: an Accepted / Awarded row adds nothing here
                     If tot.Exists(ps) Then tot(ps) = tot(ps) + ch Else tot.Add ps, ch
                     Select Case RefusedBucket(SafeStr(lg(i, L_TYPE)))
                         Case "callout": If tc.Exists(ps) Then tc(ps) = tc(ps) + ch Else tc.Add ps, ch
@@ -405,6 +406,7 @@ Public Function TotalBreakdownText(ByVal nm As String) As String
                     End Select
                 End If
             End If
+NextRow:
         Next i
     End If
     Dim worked As Object: Set worked = WorkedPeriodsFor(nm)
@@ -426,7 +428,7 @@ Public Function TotalBreakdownText(ByVal nm As String) As String
     s = s & vbNewLine & "Charged by pay period" & IIf(nk = 0, ": nothing this year.", " (newest first):") & vbNewLine
     Dim shown As Long, cc As Double, pp As Double, wTxt As String
     For i = 1 To nk
-        If shown >= 8 Then s = s & "  ... and " & (nk - shown) & " more (the Employee history report lists them)" & vbNewLine: Exit For
+        If shown >= 6 Then s = s & "  ... and " & (nk - shown) & " more: see Employee history" & vbNewLine: Exit For   ' (review L5) MsgBox shows 1,024 characters at most
         cc = 0: pp = 0
         If tc.Exists(ks(i)) Then cc = tc(ks(i))
         If tp.Exists(ks(i)) Then pp = tp(ks(i))
@@ -436,8 +438,8 @@ Public Function TotalBreakdownText(ByVal nm As String) As String
             IIf(CDate(ks(i)) > capAt, "  - counts from " & Format$(CDate(ks(i)), "mmm d"), "") & wTxt & vbNewLine
         shown = shown + 1
     Next i
-    s = s & vbNewLine & "A charge carries the pay period of its shift and counts in Total Hours once that period begins. " & _
-        "Employee history (the Desk, or Find a person's group) draws every row."
+    s = s & vbNewLine & "A charge counts in Total Hours once its shift's pay period begins. Employee history (the Desk) draws every row."
+    If Len(s) > 1000 Then s = Left$(s, 990) & " ..."     ' (review L5) never cut off without saying so
     TotalBreakdownText = s
 End Function
 

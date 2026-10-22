@@ -93,7 +93,7 @@ Private Sub UserForm_Initialize()
     mMail.Caption = "Email me this"
     Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + BOX_W - 90, y, 90, 28)
     mClose.Caption = "Close"
-    mClose.Cancel = True: mClose.Default = True
+    mClose.Cancel = True                         ' Esc closes; Enter is NOT Close (review L9): a word typed in the note box must not shut the card
     Me.Height = y + 28 + 36
 
     mClose.TabIndex = 0                          ' Close has the focus, not the first text box (review)
@@ -124,7 +124,11 @@ Private Sub FbAnswer(ByVal answer As String)
         mYes.Enabled = False: mUnsure.Enabled = False: mNo.Enabled = False: mNote.Enabled = False
         mClose.SetFocus
     Else
-        mFbHint.Caption = "That answer could not be kept (the Feedback sheet could not be written). Tell " & PRIMARY_ADMIN_NAME & " instead."
+        If ThisWorkbook.ReadOnly Or NoSave() Then
+            mFbHint.Caption = "Not kept: this copy will not be saved, so the answer would be lost at close. Tell " & PRIMARY_ADMIN_NAME & " instead."
+        Else
+            mFbHint.Caption = "That answer could not be kept (the Feedback sheet could not be written). Tell " & PRIMARY_ADMIN_NAME & " instead."
+        End If
         mFbHint.ForeColor = RGB(176, 0, 32)
     End If
 End Sub

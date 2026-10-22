@@ -789,6 +789,7 @@ Private Sub btnSubmit_Click()
         SetOutcomeButtons False
         C("lblStatus").ForeColor = RGB(190, 30, 30)
         C("lblStatus").Caption = SaveBlockText() & "  (Session " & sessionID & ")"
+        MarkChangedTotals                         ' v27 (item 8, review M2): the rows ARE in the log - the marks go on under this session's ref, not a later card's
         Exit Sub
     End If
     ShowReceipt                                   ' v27 (item 7): the receipt card (SubmitCalloutSession filled it); the detail stays on the status bar

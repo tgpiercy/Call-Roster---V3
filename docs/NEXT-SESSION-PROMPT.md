@@ -140,7 +140,10 @@ REVIEW STATE at the end of the session: two read-only Opus reviews were RUNNING 
 the 6e4e61d fixes, (b) items 27, 31 and the four M4 commits. If no "review fixes" commit for them follows 1fa6e06 on
 main, re-run both (same scopes) and fix before release prep. Every earlier commit is reviewed and fixed.
 
-SEVEN QUESTIONS FOR GRAEME (the 7th answered by default) (all in briefs/v27.md at their items; ask them as multiple choice, the built default first):
+ANSWERED BY GRAEME Oct 22 (end of session): the CSV export stays supervisor-level (Q3), no dStats for now (Q5), the
+paper-position column is DROPPED (Q4) - all as built. Q1 (the weekly cap) he asked to have explained: the explanation
+and the choice were put to him at the end of the session.
+SEVEN QUESTIONS FOR GRAEME (the 7th answered by default; 3, 4 and 5 answered above) (all in briefs/v27.md at their items; ask them as multiple choice, the built default first):
 1. Weekly cap (item 21): built as OVERTIME hours in the trailing 7 days. Keep / a calendar week / all hours?
 2. The FULL history PDF (logins, void notes) lands beside the roster: keep / REPORT_FOLDER?
 3. The daily CSV export (item 25) writes only supervisor-visible tables beside the roster: name an admin-only folder

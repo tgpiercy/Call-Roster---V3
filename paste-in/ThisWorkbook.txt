@@ -21,6 +21,7 @@ Private Sub Workbook_Open()
     OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
     SetShortcuts True                  ' v25.5: Ctrl+Shift+S / C / K / D while this workbook is active (modUI)
     WhatsNewOnOpen                     ' v25.5: the what's-new box once per login per release (modSystem) - last, on a painted screen (review)
+    FirstOpenOnOpen                    ' v27 (item 20): a login's very first open - the three things that matter (modSystem)
     ThisWorkbook.Saved = True          ' the hidden name it may write goes with the next real save
     On Error GoTo 0
 End Sub

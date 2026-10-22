@@ -271,7 +271,7 @@ Private Sub UserForm_Initialize()
     Set mCalcBtn = AddCtl("Forms.CommandButton.1", "cmdCalc", BOX_L, RowT(8), 150, 24, "AM")
     mCalcBtn.Caption = "Work out the hours"
     Set o = AddLabel("result", "", LBL_L, RowT(9) + 4, 460, "AM")
-    o.Height = 104: o.WordWrap = True: o.Font.Size = 9
+    o.Height = 104: o.WordWrap = True: o.Font.Size = 10   ' v27 (item 20, B14)
     AddLabel "aLOver", "Override hours", LBL_L, RowT(13) + 12, 110, "A"
     AddText "aOver", BOX_L, RowT(13) + 9, 60, "A"
     AddLabel "aLWhy", "reason", BOX_L + 68, RowT(13) + 12, 40, "A"
@@ -287,7 +287,7 @@ Private Sub UserForm_Initialize()
     mClose.Caption = "Close"
     mClose.Cancel = True
     Set o = AddLabel("status", "", LBL_L, RowT(16) + 14, 460)
-    o.Font.Size = 8
+    o.Font.Size = 10                             ' v27 (item 20, B14)
 
     ApplyFormTheme Me
     mSave.BackColor = RGB(30, 56, 100): mSave.ForeColor = vbWhite
@@ -296,10 +296,10 @@ Private Sub UserForm_Initialize()
         C(CStr(k)).Font.Bold = True
     Next k
     For Each k In Array("aHName", "aHCode", "mHEmp", "mHClear", "xHDate", "eHEmp", "eHFrom", "eHSen")
-        C(CStr(k)).Font.Size = 8: C(CStr(k)).ForeColor = RGB(120, 120, 120)
+        C(CStr(k)).Font.Size = 9: C(CStr(k)).ForeColor = RGB(120, 120, 120)   ' v27 (item 20): the field hints at 9
     Next k
     For Each k In Array("rInfo", "xInfo", "bInfo", "eInfo")
-        C(CStr(k)).Font.Size = 8.5: C(CStr(k)).ForeColor = RGB(30, 56, 100)
+        C(CStr(k)).Font.Size = 10: C(CStr(k)).ForeColor = RGB(30, 56, 100)   ' v27 (item 20, B14)
     Next k
     mOptEdit.Value = True                        ' v26.5: opens on Edit
     SetMode

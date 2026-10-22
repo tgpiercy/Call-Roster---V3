@@ -57,7 +57,7 @@ Private Const MUTED As Long = 9211020           ' RGB(140, 140, 140)
 ' CONTROL HELPERS  (every position, size and point size x UI_SCALE)
 ' ================================================================
 Private Function Px(ByVal v As Double) As Double
-    Px = v * UI_SCALE
+    Px = v * UiScale()                           ' v27 (item 20, B14): per login (modUI)
 End Function
 
 Private Function C(nm As String) As Object

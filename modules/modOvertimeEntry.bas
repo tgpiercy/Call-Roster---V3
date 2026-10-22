@@ -2061,6 +2061,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     rs.Shapes("ui_sup_lbl_find").Left = fx
     rs.Shapes("ui_sup_Find").Left = fx
     rs.Shapes("ui_sup_History").Left = fx              ' v26: the group's second button moves with it
+    rs.Shapes("ui_btn_Help").Left = fx                ' v27 (item 20): the Help button, the group's third
     On Error GoTo 0
     If SheetExists(CALLOUT_SHEET) Then
         ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView   ' v27 (item 16, review): the renderer shows it to a supervisor for the print; every SAVED view (BeforeSave, SaveRestrictedCopy) hides it again

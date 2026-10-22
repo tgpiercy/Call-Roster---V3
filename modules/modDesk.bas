@@ -283,7 +283,7 @@ Public Sub DrawDesk()
     yy = yN: If yP > yy Then yy = yP
     If yF > yy Then yy = yF
     yy = yy + 10
-    Dim nFoot As Long: nFoot = IIf(sup, 4, 5)
+    Dim nFoot As Long: nFoot = IIf(sup, 5, 6)           ' v27 (item 20, B14): + Larger type
     Dim fw As Double: fw = (bandW - (nFoot - 1) * GAP) / nFoot
     xx = x0
     DeskBtn ws, "dk_btn_guide", "How do I ...", "modDesk.DeskGuide", xx, yy, dkGrey(), fw, dkInk(), 10
@@ -299,6 +299,9 @@ Public Sub DrawDesk()
     End If
     ' v26.5.5 (5.4): a practice copy for anyone who may log - nothing done in it counts
     DeskBtn ws, "dk_btn_practice", "Practice on a copy", "modDesk.DeskPractice", xx, yy, dkGrey(), fw, dkInk(), 10
+    xx = xx + fw + GAP
+    ' v27 (item 20, B14): this login's pop-ups at 120 % (a hidden name per login; the next pop-up shows it)
+    DeskBtn ws, "dk_btn_larger", IIf(UiScale() > 1.05, "Normal type", "Larger type"), "modDesk.DeskLargerType", xx, yy, dkGrey(), fw, dkInk(), 10
 
     ' ---- the links, then the shortcut keys (v25.5, A5) ----
     yy = yy + BTN_H + 10
@@ -1103,6 +1106,18 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
 End Sub
 
 ' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it
+' v27 (item 20, B14): toggles this login's pop-up scale (UiScale_<login>) and redraws the Desk
+Public Sub DeskLargerType()
+    On Error GoTo Oops
+    Dim larger As Boolean: larger = (UiScale() <= 1.05)
+    SetUiScaleForMe larger
+    Tell IIf(larger, "Your pop-ups open at " & CLng(UI_LARGER_SCALE * 100) & " % from now on (this login, this roster). Click again for normal type.", "Your pop-ups open at the normal size again."), vbInformation, "Larger type"
+    DrawDesk
+    Exit Sub
+Oops:
+    ReportError "DeskLargerType"
+End Sub
+
 Public Sub DeskReport()
     On Error GoTo Oops
     Dim body As String

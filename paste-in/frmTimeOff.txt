@@ -150,7 +150,7 @@ Private Sub UserForm_Initialize()
     AddCtl "Forms.TextBox.1", "txtNote", BOX_L, RowT(9), 268, 20
 
     Set o = AddLabel("info", "", LBL_L, RowT(10) + 2, 372)
-    o.Height = 26: o.WordWrap = True: o.Font.Size = 9
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 10   ' v27 (item 20, B14)
 
     Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(11) + 4, 250, 30)
     mSave.Caption = "SAVE"
@@ -168,13 +168,13 @@ Private Sub UserForm_Initialize()
     o.IntegralHeight = False: o.Height = 90
     o.ColumnCount = 5
     o.ColumnWidths = "52;34;96;96;80"
-    o.Font.Size = 8.5
+    o.Font.Size = 10                             ' v27 (item 20, B14)
     Set mSetEnd = AddCtl("Forms.CommandButton.1", "cmdEnd", LBL_L, t + 116, 120, 22, "P")
     mSetEnd.Caption = "Change end date"
     Set mVoid = AddCtl("Forms.CommandButton.1", "cmdVoid", LBL_L + 126, t + 116, 90, 22, "P")
     mVoid.Caption = "Void this booking"
     AddLabel "status", "", LBL_L, t + 144, 372
-    C("status").Font.Size = 8
+    C("status").Font.Size = 10                  ' v27 (item 20, B14)
 
     ApplyFormTheme Me
     mSave.BackColor = RGB(31, 56, 100): mSave.ForeColor = vbWhite
@@ -183,7 +183,7 @@ Private Sub UserForm_Initialize()
     End With
     Dim h As Variant
     For Each h In Array("hStart", "hEnd", "hHrs", "hTimes")
-        C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
+        C(CStr(h)).Font.Size = 9: C(CStr(h)).ForeColor = RGB(120, 120, 120)   ' v27 (item 20): the field hints at 9
     Next h
     mOpen.BackStyle = 0: mOptPerson.BackStyle = 0: mOptNeed.BackStyle = 0
     ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI); SetMode's height goes through UiPx

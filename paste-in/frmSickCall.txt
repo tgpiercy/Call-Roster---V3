@@ -94,10 +94,10 @@ Private Sub UserForm_Initialize()
 
     ' v22.1: sick / personal day counters and whether this shift is paid
     Set o = AddLabel("hAtt", "", LBL_L, RowT(7) + 2, 372)
-    o.Height = 48: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(120, 60, 0)
+    o.Height = 48: o.WordWrap = True: o.Font.Size = 10: o.ForeColor = RGB(120, 60, 0)   ' v27 (item 20, B14): floors at 10
 
     Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(9) + 2, 372)
-    o.Height = 38: o.WordWrap = True: o.Font.Size = 8: o.ForeColor = RGB(30, 56, 100)      ' v26.5.5: up to three lines (the night hint); the buttons sit 12 lower
+    o.Height = 40: o.WordWrap = True: o.Font.Size = 10: o.ForeColor = RGB(30, 56, 100)     ' v26.5.5: up to three lines (the night hint); the buttons sit 12 lower; v27: 10 pt
 
     Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(10) + 14, 200, 30)
     mSave.Caption = "SAVE + START CALL-OUT"
@@ -112,7 +112,7 @@ Private Sub UserForm_Initialize()
     mSave.BackColor = RGB(230, 81, 0): mSave.ForeColor = vbWhite
     Dim h As Variant
     For Each h In Array("hDate", "hShift", "hHrs")
-        C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
+        C(CStr(h)).Font.Size = 9: C(CStr(h)).ForeColor = RGB(120, 120, 120)   ' v27 (item 20): the field hints at 9 (a 10 would overlap the box below)
     Next h
     ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
     mDate.Text = DateText(DefaultShiftDate(Now)) ' last: its Change handler needs every control above; v26.5.5 (B1): before 7 AM = yesterday's night

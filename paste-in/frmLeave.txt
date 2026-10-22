@@ -104,7 +104,7 @@ Private Sub UserForm_Initialize()
     AddCtl "Forms.TextBox.1", "txtNote", BOX_L, RowT(5) + 5, 310, 20, "G"
     Set o = AddLabel("infoG", "Shows as 'Leave' on the calendar and to members. Off call lists from the first day off. " & _
                      "The Home Unit on the roster is locked in now for the return top-up.", LBL_L, RowT(6) + 8, 430, "G")
-    o.Height = 30: o.WordWrap = True: o.Font.Size = 8.5: o.ForeColor = RGB(30, 56, 100)
+    o.Height = 30: o.WordWrap = True: o.Font.Size = 10: o.ForeColor = RGB(30, 56, 100)   ' v27 (item 20, B14)
 
     ' ---- returning ----
     AddLabel "lLeave", "Who's back", LBL_L, RowT(1) + 3, 110, "B"
@@ -116,7 +116,7 @@ Private Sub UserForm_Initialize()
     Set mCalcBtn = AddCtl("Forms.CommandButton.1", "cmdCalc", BOX_L, RowT(3), 150, 24, "B")
     mCalcBtn.Caption = "Work out the top-up"
     Set o = AddLabel("result", "Pick the person and the return date, then click Work out the top-up.", LBL_L, RowT(4) + 2, 430, "B")
-    o.Height = 110: o.WordWrap = True: o.Font.Size = 9
+    o.Height = 110: o.WordWrap = True: o.Font.Size = 10   ' v27 (item 20, B14)
     AddLabel "lOver", "Override hours", LBL_L, RowT(8) + 20, 110, "B"
     Set mOverride = AddCtl("Forms.TextBox.1", "txtOver", BOX_L, RowT(8) + 17, 70, 20, "B")
     AddLabel "hOver", "only if the average is wrong - a reason is required", BOX_L + 78, RowT(8) + 20, 260, "B"
@@ -130,14 +130,14 @@ Private Sub UserForm_Initialize()
     mClose.Caption = "Close"
     mClose.Cancel = True
     AddLabel "status", "", LBL_L, RowT(12) + 20, 430
-    C("status").Font.Size = 8
+    C("status").Font.Size = 10                  ' v27 (item 20, B14)
 
     ApplyFormTheme Me
     mSave.BackColor = RGB(106, 27, 154): mSave.ForeColor = vbWhite
     mOptGo.BackStyle = 0: mOptBack.BackStyle = 0
     Dim h As Variant
     For Each h In Array("hEmp", "hRet", "hDate", "hOver")
-        C(CStr(h)).Font.Size = 8: C(CStr(h)).ForeColor = RGB(120, 120, 120)
+        C(CStr(h)).Font.Size = 9: C(CStr(h)).ForeColor = RGB(120, 120, 120)   ' v27 (item 20): the field hints at 9
     Next h
     LoadLeaves
     If mStartId <> "" Then

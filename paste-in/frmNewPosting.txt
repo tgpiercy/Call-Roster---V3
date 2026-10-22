@@ -129,7 +129,7 @@ Private Sub UserForm_Initialize()
 
     Set o = AddLabel("lblExistInfo", "", LBL_L, 82, 372, False)
     o.Height = 30: o.WordWrap = True
-    o.Font.Size = 8: o.ForeColor = RGB(110, 110, 110)
+    o.Font.Size = 10: o.ForeColor = RGB(110, 110, 110)   ' v27 (item 20, B14): floors at 10
 
     ' ---------- new posting ----------
     AddCtl "Forms.Label.1", "lblRule", LBL_L, 114, 372, 1
@@ -178,7 +178,7 @@ Private Sub UserForm_Initialize()
     AddLabel "hintCloses", "@ " & POSTING_CLOSE_TIME, HINT_L, RowTop(8) + 3, 120
 
     Set o = AddLabel("lblEligible", "Pick a unit and crew to see the list size.", LBL_L, RowTop(9) + 2, 372)
-    o.Height = 26: o.WordWrap = True: o.Font.Size = 9
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 10   ' v27 (item 20, B14)
 
     AddCheck "chkPrint", "Print it", LBL_L, RowTop(10) + 2, 90
     AddCheck "chkPdf", "Save PDF", LBL_L + 100, RowTop(10) + 2, 100
@@ -205,10 +205,10 @@ Private Sub UserForm_Initialize()
     End With
     Dim h As Variant
     For Each h In Array("hintDate", "hintReason", "hintPos", "hintCloses", "hintCrew")
-        C(CStr(h)).Font.Size = 8
+        C(CStr(h)).Font.Size = 9                     ' v27 (item 20): the field hints at 9
         C(CStr(h)).ForeColor = RGB(120, 120, 120)
     Next h
-    C("hintHours").Font.Size = 8
+    C("hintHours").Font.Size = 9
     C("hintHours").Font.Bold = True
     mCreate.Default = True
     ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)

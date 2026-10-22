@@ -18,6 +18,7 @@ Option Explicit
 ' ====================================================================
 
 Private Const STATUS_CELL As String = "D3"      ' status (3 lines, plain text) - in the frozen names column
+Public Const UI_LARGER_SCALE As Double = 1.2    ' v27 (item 20, B14): the Desk's "Larger type" scale for a login (UiScale below)
 Public Const UI_VERSION As String = "Roster UI v26.5.5 (Oct 21)"
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
@@ -114,9 +115,10 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
     Dim icTxt As String: icTxt = IntegrityStatusText()   ' v23: "" until IntegrityCheck has run this session
     Dim roTxt As String: roTxt = RolloverNote(True)      ' v23: "rolled over Dec 27", for a month after the year-end rollover
     ' one text-format cell: keep it well under 255 characters or Excel shows ####
+    ' v27 (item 20, B15): line 3 starts with who is signed in and what that login may do (the gating levels)
     txt = "Pay period: " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d") & IIf(roTxt <> "", "  |  " & roTxt, "") & vbLf & _
           kTxt & IIf(dt > 0 And KronosAwaitFrom() = 0, "  |  data through " & Format$(dt, "mmm d"), "") & vbLf & _
-          "Log: " & Format$(n, "#,##0") & IIf(icTxt <> "", "  |  " & icTxt, "") & "  |  View: " & Left$(viewTxt, 60)
+          SignedInText() & "  |  Log: " & Format$(n, "#,##0") & IIf(icTxt <> "", "  |  " & icTxt, "") & "  |  View: " & Left$(viewTxt, 50)
     If txt = Replace(cur, vbCr, "") Then Exit Sub
 
     Dim wasLocked As Boolean: wasLocked = ws.ProtectContents
@@ -128,7 +130,7 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
     With ws.Range(STATUS_CELL)
         .NumberFormat = "@"
         .WrapText = True
-        .Value = txt
+        .Value = Left$(txt, 250)                      ' one text cell: past 255 Excel shows ####
         .Font.Color = NAVY
         If KronosIsStale() Then .Characters(InStr(txt, kTxt), Len(kTxt)).Font.Color = RGB(190, 30, 30)
         If icTxt <> "" And IntegrityHasProblems() Then .Characters(InStr(txt, icTxt), Len(icTxt)).Font.Color = RGB(190, 30, 30)
@@ -351,6 +353,7 @@ Private Sub BuildCommandBar(ByVal ws As Worksheet)
     GroupLabel ws, "ui_sup_lbl_find", "FIND", x, y0, wP
     Btn ws, "ui_sup_Find", "Find a person", "modReports.FindPerson", x, y(1), wP, vbWhite, NAVY, False
     Btn ws, "ui_sup_History", "Employee history", "modReports.EmployeeHistory", x, y(2), wP, vbWhite, NAVY, False   ' v26: the report (admin: full or member-safe; supervisor: member-safe)
+    Btn ws, "ui_btn_Help", "How do I ...", "modDesk.ShowHelp", x, y(3), wP, vbWhite, NAVY, False   ' v27 (item 20, B15): the Help sheet, for everyone (ui_btn_ = always shown)
 End Sub
 
 Private Sub GroupLabel(ByVal ws As Worksheet, ByVal nm As String, ByVal txt As String, _
@@ -366,7 +369,7 @@ Private Sub GroupLabel(ByVal ws As Worksheet, ByVal nm As String, ByVal txt As S
         .WordWrap = msoFalse
         With .TextRange
             .Text = txt
-            .Font.Size = 7.5
+            .Font.Size = 9                                ' v27 (item 20, B14): the group names (was 7.5)
             .Font.Bold = msoTrue
             .Font.Name = "Segoe UI"
             .Font.Fill.ForeColor.RGB = RGB(110, 120, 135)
@@ -403,7 +406,7 @@ Private Function Btn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As Str
             .Text = cap
             .ParagraphFormat.Alignment = msoAlignCenter
             .Font.Name = "Segoe UI"
-            .Font.Size = 8.5
+            .Font.Size = 10                               ' v27 (item 20, B14): every label floors at 10 pt (was 8.5)
             .Font.Bold = IIf(isBold, msoTrue, msoFalse)
             .Font.Fill.ForeColor.RGB = textCol
         End With
@@ -802,20 +805,46 @@ End Sub
 ' each control's position, size and point size (the designer controls too), a list's column widths, and the
 ' form itself. A size a form writes later (Load Posting's short layout, Add a Need's height) goes through UiPx.
 ' The call-out pop-up scales itself (Px in its paste-in) and does not call this.
+' v27 (item 20, B14): the scale is PER LOGIN - a hidden name UiScale_<login> (the Desk's "Larger type" button writes
+' it; 1 or UI_LARGER_SCALE); UI_SCALE, the constant, is the default for a login with none. Every ScaleForm / UiPx /
+' Px reads it here, once per pop-up. (UI_LARGER_SCALE sits in the declarations block at the top.)
+Public Function UiScale() As Double
+    UiScale = UI_SCALE
+    On Error Resume Next
+    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(LoginNameKey("UiScale"))
+    If nmObj Is Nothing Then Exit Function
+    Dim v As Double: v = Val(Replace(Replace(nmObj.RefersTo, "=", ""), ",", "."))
+    If v >= 0.8 And v <= 2 Then UiScale = v
+End Function
+
+' The Desk's "Larger type": this login's pop-ups open at UI_LARGER_SCALE (or back to the default); the next one shows it
+Public Sub SetUiScaleForMe(ByVal larger As Boolean)
+    On Error Resume Next
+    Dim nmKey As String: nmKey = LoginNameKey("UiScale")
+    Dim v As Double: v = IIf(larger, UI_LARGER_SCALE, UI_SCALE)
+    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(nmKey)
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=nmKey, RefersTo:="=" & Replace(CStr(v), ",", "."), Visible:=False
+    Else
+        nmObj.RefersTo = "=" & Replace(CStr(v), ",", ".")
+    End If
+End Sub
+
 Public Sub ScaleForm(ByVal frm As Object)
-    If UI_SCALE = 1 Then Exit Sub
+    Dim k As Double: k = UiScale()
+    If k = 1 Then Exit Sub
     Dim ctl As Object
     On Error Resume Next
     For Each ctl In frm.Controls
-        ctl.Left = ctl.Left * UI_SCALE
-        ctl.Top = ctl.Top * UI_SCALE
-        ctl.Width = ctl.Width * UI_SCALE
-        ctl.Height = ctl.Height * UI_SCALE
-        ctl.Font.Size = ctl.Font.Size * UI_SCALE
+        ctl.Left = ctl.Left * k
+        ctl.Top = ctl.Top * k
+        ctl.Width = ctl.Width * k
+        ctl.Height = ctl.Height * k
+        ctl.Font.Size = ctl.Font.Size * k
         If TypeName(ctl) = "ListBox" Or TypeName(ctl) = "ComboBox" Then ctl.ColumnWidths = ScaleWidths(CStr(ctl.ColumnWidths))
     Next ctl
-    frm.Width = frm.Width * UI_SCALE
-    frm.Height = frm.Height * UI_SCALE
+    frm.Width = frm.Width * k
+    frm.Height = frm.Height * k
     On Error GoTo 0
 End Sub
 
@@ -826,14 +855,14 @@ Public Function ScaleWidths(ByVal widths As String) As String
     parts = Split(widths, ";")
     For i = LBound(parts) To UBound(parts)
         v = Val(Replace(Trim$(CStr(parts(i))), ",", "."))      ' a comma-decimal locale reads back "22,5 pt" (review)
-        If v > 0 Then parts(i) = CStr(CLng(v * UI_SCALE)) & " pt" Else parts(i) = Trim$(CStr(parts(i)))   ' whole points: no decimal separator, whatever the locale (re-review)
+        If v > 0 Then parts(i) = CStr(CLng(v * UiScale())) & " pt" Else parts(i) = Trim$(CStr(parts(i)))   ' whole points: no decimal separator, whatever the locale (re-review)
     Next i
     ScaleWidths = Join(parts, ";")
 End Function
 
 ' a size written AFTER ScaleForm ran goes through this
 Public Function UiPx(ByVal v As Double) As Double
-    UiPx = v * UI_SCALE
+    UiPx = v * UiScale()
 End Function
 
 ' --------------------------------------------------------------------

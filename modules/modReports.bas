@@ -529,6 +529,20 @@ Oops:
     ReportError "FindPerson"
 End Sub
 
+' v27 (item 20, B15): "Signed in as <login>: admin" / "supervisor" / "call-outs and the calendar (ask <admin> to be
+' added as a supervisor)" - the three gating levels of convention 10, in the status cell
+Public Function SignedInText() As String
+    Dim role As String
+    If IsAdmin() Then
+        role = "admin"
+    ElseIf IsSupervisor() Then
+        role = "supervisor"
+    Else
+        role = "call-outs and the calendar (ask " & PRIMARY_ADMIN_NAME & " to be added as a supervisor)"
+    End If
+    SignedInText = "Signed in as " & CurrentUser() & ": " & role
+End Function
+
 ' Gives Excel's status bar back if it holds our text. Called when the workbook
 ' loses focus or closes, and by macros that switch tabs with events off.
 Public Sub ReleaseStatusBar(Optional ByVal fromCode As Boolean = True)     ' the argument keeps it out of the Alt+F8 list

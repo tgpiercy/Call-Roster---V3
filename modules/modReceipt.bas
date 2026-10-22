@@ -494,7 +494,35 @@ Public Function RowsText(ByRef data As Variant, ByVal nRows As Long) As String
             "  " & SafeStr(data(i, L_EMP)) & "  " & HoursText(NumOr0(data(i, L_BASEHRS))) & " h" & _
             IIf(NumOr0(data(i, L_CHARGED)) <> 0, "  charged " & HoursText(NumOr0(data(i, L_CHARGED))), "") & vbNewLine
     Next i
-    RowsText = s
+    RowsText = s & PaperLines(data, nRows)          ' v27 (item 6): the rules paper never had, each named once
+End Function
+
+' v27 (item 6, 5.3): one "On paper this would have been different" line per rule the paper roster never had that
+' these rows used - read from the rows themselves: a partial acceptance that closed the shift (CH-2), an offer the
+' 16 h rule capped (EL-4), a charge on a DST night at its actual hours (TH-3). Each rule named once.
+Public Function PaperLines(ByRef data As Variant, ByVal nRows As Long) As String
+    On Error GoTo Quit
+    Dim i As Long, note As String, ids As String, d As Variant
+    For i = 1 To nRows
+        note = SafeStr(data(i, L_REASON))
+        If Left$(note, 5) = "Took " Or InStr(1, note, "a partial acceptance closed the shift", vbTextCompare) > 0 Then
+            If InStr(ids, "|CH-2|") = 0 Then ids = ids & "|CH-2|"
+        End If
+        If InStr(1, note, "16 h rule", vbTextCompare) > 0 Then
+            If InStr(ids, "|EL-4|") = 0 Then ids = ids & "|EL-4|"
+        End If
+        d = data(i, L_DATE)
+        If IsDate(d) And NumOr0(data(i, L_CHARGED)) > 0 And IsNightShift(SafeStr(data(i, L_SHIFTLBL))) Then
+            If DstNightHours(CDate(d)) <> 12 Then
+                If InStr(ids, "|TH-3|") = 0 Then ids = ids & "|TH-3|"
+            End If
+        End If
+    Next i
+    Dim k As Variant
+    For Each k In Split(Replace(ids, "||", "|"), "|")
+        If CStr(k) <> "" Then PaperLines = PaperLines & PaperRuleLine(CStr(k))
+    Next k
+Quit:
 End Function
 
 ' "Print receipt": the text onto the Receipt sheet, a PDF beside the roster, the sheet hidden again

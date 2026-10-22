@@ -395,6 +395,8 @@ Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolea
     Dim rcp As Long: rcp = InStr(gReceiptLog, "Session " & st.SessionId & " submitted")
     If rcp = 0 Then why = "no receipt was logged for " & st.SessionId: Exit Function
     If InStr(Mid$(gReceiptLog, rcp), " -> ") = 0 Then why = "the receipt's WHO IT CHANGED names nobody's before -> after (the acceptance moved a total)": Exit Function
+    ' v27 (item 6): the partial acceptance closed the shift - a rule paper never had - so the receipt names it
+    If InStr(Mid$(gReceiptLog, rcp), "On paper this would have been different - CH-2") = 0 Then why = "the receipt does not name CH-2 (a partial acceptance closes the shift) as a rule paper never had": Exit Function
     ' v27 (item 8): the acceptor's Total Hours cell carries the before / after mark (+8 provisional, from this session)
     Dim mk As String: mk = TotalMarkText(recs(2).EmpName)
     If InStr(mk, "+" & HoursText(8)) = 0 Or InStr(mk, st.SessionId) = 0 Then why = "no before / after mark on " & recs(2).EmpName & "'s Total Hours naming +8 and " & st.SessionId & " (note: " & mk & ")": Exit Function

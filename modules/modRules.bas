@@ -358,3 +358,37 @@ Public Sub ShowSettings()
 Oops:
     ReportError "ShowSettings"
 End Sub
+
+' v27 (item 6, 5.3): what the Rules sheet records as a rule's basis (the Basis an admin typed: the CBA article, or
+' "agreed <date> by <who>"); "" when none is typed or the sheet is not made yet. Never raises.
+Public Function RuleBasis(ByVal id As String) As String
+    On Error Resume Next
+    Dim lo As ListObject: Set lo = RulesTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, 1))), Trim$(id), vbTextCompare) = 0 Then RuleBasis = Trim$(SafeStr(v(i, 3))): Exit Function
+    Next i
+End Function
+
+' The release a rule came in with ("" = unknown id)
+Public Function RuleSince(ByVal id As String) As String
+    Dim v As Variant, k As Variant, p As Variant
+    v = RuleList()
+    For Each k In v
+        p = Split(CStr(k), "|")
+        If StrComp(CStr(p(0)), Trim$(id), vbTextCompare) = 0 Then
+            If UBound(p) >= 3 Then RuleSince = CStr(p(3))
+            Exit Function
+        End If
+    Next k
+End Function
+
+' v27 (item 6): the receipt's "On paper this would have been different" line for one rule the paper roster never had
+Public Function PaperRuleLine(ByVal id As String) As String
+    Dim b As String: b = RuleBasis(id)
+    PaperRuleLine = "  On paper this would have been different - " & id & ": " & RuleText(id) & "  (" & _
+                    IIf(b <> "", b, "in the roster since " & RuleSince(id) & "; no basis typed on the Rules sheet yet") & ")" & vbNewLine
+End Function

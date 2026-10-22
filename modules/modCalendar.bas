@@ -2708,6 +2708,13 @@ End Function
 ' v25.5 (A8, the Desk's cover tile): the first open line over the next n days as "Tue Oct 21 Nights, Phosphine"
 ' ("" when none). The same walk as OpenAhead, every unit, stopped at the first open or NO TAKERS slot.
 Public Function NextOpenLine(ByVal nDays As Long) As String
+    Dim d As Date, sh As String, unit As String
+    If NextOpenSlot(nDays, d, sh, unit) Then NextOpenLine = Format$(d, "ddd mmm d") & " " & sh & IIf(unit <> "", ", " & unit, "")
+End Function
+
+' v27 (item 15): the next uncovered shift (open, or NO TAKERS) within nDays as a date, shift and unit - the Desk's
+' cover tile opens the Calendar ON it (CalShowDate). The one search NextOpenLine words.
+Public Function NextOpenSlot(ByVal nDays As Long, ByRef d As Date, ByRef shiftLbl As String, ByRef unit As String) As Boolean
     LoadCache
     LoadPostCache
     Dim i As Long, sh As Variant, slots() As CalSlot, m As Long, k As Long
@@ -2716,7 +2723,8 @@ Public Function NextOpenLine(ByVal nDays As Long) As String
             m = SlotsFor(Date + i, CStr(sh), "", slots, True)
             For k = 1 To m
                 If slots(k).IsOpen Or UCase$(slots(k).RightText) Like "NO TAKERS*" Then
-                    NextOpenLine = Format$(Date + i, "ddd mmm d") & " " & CStr(sh) & IIf(SlotUnit(slots(k).Key) <> "", ", " & SlotUnit(slots(k).Key), "")
+                    d = Date + i: shiftLbl = CStr(sh): unit = SlotUnit(slots(k).Key)
+                    NextOpenSlot = True
                     Exit Function
                 End If
             Next k
@@ -3099,7 +3107,7 @@ Oops:
 End Sub
 
 Private Sub CalPostKey(ByVal keyTxt As String)
-    If Not RequireAdmin() Then Exit Sub
+    If Not RequireSupervisor() Then Exit Sub            ' v27 (item 15): posting a shift is a supervisor's job (v25.5); was RequireAdmin
     If Not RequireWritable() Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
@@ -5237,17 +5245,35 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
     LoadPostCache
     Dim kind As String: kind = Left$(keyTxt, 2)
 
-    ' everyone else just sees the details
-    If Not gAdminUnlocked Then
-        If kind = "E:" Or kind = "D:" Then CalMenuDayDetails Else CalMenuDetails
-        Exit Sub
-    End If
-
     Dim title As String, lt As String, rt As String, postId As String, d As Date, sh As String
     Dim caps() As String, macs() As String, grpBreak() As Boolean, n As Long
     ReDim caps(1 To 16): ReDim macs(1 To 16): ReDim grpBreak(1 To 16)
     d = KeyDate(keyTxt)
     sh = KeyShift(keyTxt)
+
+    ' v27 (item 15, B2): a supervisor on an OPEN line (nobody on it yet) gets the jobs that are theirs since v25.5 -
+    ' fill it now (a call-out), post it, award the posting on it; anything else, and everyone else, sees the details
+    If Not gAdminUnlocked Then
+        If IsSupervisor() And (kind = "A:" Or kind = "C:") Then
+            If SlotTexts(keyTxt, lt, rt) Then
+                If rt = "" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) Like "NO TAKERS*" Then
+                    title = Format$(d, "ddd mmm d") & " " & sh & "  -  " & Clip(lt, 34)
+                    postId = PostIdOfLine(keyTxt)
+                    AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
+                    AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True
+                    If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", False
+                    If postId <> "" Then
+                        If PostRow(postId) > 0 Then
+                            If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", False
+                        End If
+                    End If
+                    GoTo ShowIt
+                End If
+            End If
+        End If
+        If kind = "E:" Or kind = "D:" Then CalMenuDayDetails Else CalMenuDetails
+        Exit Sub
+    End If
 
     Select Case kind
         Case "A:", "C:"
@@ -5259,7 +5285,8 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
             title = Format$(d, "ddd mmm d") & " " & sh & "  -  " & Clip(lt, 34)
             postId = PostIdOfLine(keyTxt)
             AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-            If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", True
+            AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True   ' v27 (item 15): the call-out from the line, pre-filled
+            If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", False
             AddChoice caps, macs, grpBreak, n, "Set coverage...", "CalMenuSetCoverage", (UCase$(rt) Like "POSTED*")
             If kind = "C:" Then AddChoice caps, macs, grpBreak, n, "Change the text of this line...", "CalMenuEditText", False
             If postId <> "" Then
@@ -5326,6 +5353,7 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
             Exit Sub
     End Select
 
+ShowIt:
     ' pop-up menu at the mouse
     Dim cb As Object, ctl As Object, i As Long
     On Error Resume Next
@@ -5456,6 +5484,39 @@ Public Sub CalMenuPost()
     Exit Sub
 Oops:
     ReportError "CalMenuPost"
+End Sub
+
+' v27 (item 15, B2): "Fill this shift now" from a calendar line - the call-out pop-up pre-filled with the line's unit,
+' date, shift and hours (a partial absence's hours; else the shift's usual, the DST night's 13 / 11), and the line's
+' key so the acceptance covers THIS line without a question (item 10). Everyone who may log a call-out may use it.
+Public Sub CalMenuCallout()
+    On Error GoTo Oops
+    If mMenuKey = "" Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If LogTable() Is Nothing Then Exit Sub
+    Dim kind As String: kind = Left$(mMenuKey, 2)
+    If kind <> "A:" And kind <> "C:" Then Exit Sub
+    LoadCache
+    Dim d As Date: d = KeyDate(mMenuKey)
+    Dim sh As String: sh = KeyShift(mMenuKey)
+    Dim unit As String: unit = SlotUnit(mMenuKey)
+    If d = 0 Or sh = "" Then MsgBox "That line has changed - redrawing.", vbInformation, "Calendar": RefreshCalendar: Exit Sub
+    If unit = "" Then unit = SingleUnitOf(CalGroup())
+    Dim hrs As Double: hrs = DefaultShiftHours(d, IsNightShift(sh), USUAL_SHIFT_HOURS)
+    Dim slotKey As String: slotKey = Split(mMenuKey, "|")(0)
+    If kind = "A:" Then
+        Dim r As Long: r = RowOf(mAbs, Mid$(slotKey, 3))
+        If r > 0 Then
+            If NumOr0(mAbs(r, AB_HOURS)) > 0 And NumOr0(mAbs(r, AB_HOURS)) < hrs Then hrs = NumOr0(mAbs(r, AB_HOURS))   ' a partial-day absence: its hours
+        End If
+    End If
+    Load frmOvertimeEntry
+    frmOvertimeEntry.Prefill unit, d, sh, "Calendar line", hrs, slotKey
+    frmOvertimeEntry.Show
+    RefreshCalendar
+    Exit Sub
+Oops:
+    ReportError "CalMenuCallout"
 End Sub
 
 Public Sub CalMenuSetCoverage()
@@ -5597,7 +5658,7 @@ Public Sub CalMenuAward()
     On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
     Dim id As String: id = MenuPostId()
     If id = "" Then Exit Sub
-    If Not RequireAdmin() Then Exit Sub
+    If Not RequireSupervisor() Then Exit Sub            ' v27 (item 15): awarding to the list is a supervisor's job (v25.5; the pop-up greys the admin buttons); was RequireAdmin
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub

@@ -593,6 +593,10 @@ End Sub
 
 Public Sub DeskCalendar()
     On Error GoTo Oops
+    ' v27 (item 15, B2): the cover tile lands on the next uncovered shift's month and group (modCalendar.NextOpenSlot);
+    ' with nothing to cover, the Calendar as it was
+    Dim d As Date, sh As String, unit As String
+    If NextOpenSlot(DESK_AHEAD_DAYS, d, sh, unit) Then CalShowDate d, unit: Exit Sub
     ShowCalendar
     Exit Sub
 Oops:

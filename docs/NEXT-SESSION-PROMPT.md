@@ -160,8 +160,8 @@ last here" moves on with a SAVE (a look-only visit leaves it where it was).
 RELEASE PREP DONE except the end (Oct 22, after 1fa6e06): 3fce5ec took review (a)'s findings (1 HIGH: check 14's Entry-ID
 "ceiling" - removed, IdMark_ENTRY is a floor), 505e548 the stamps (v27 everywhere, frmConvert stays v26.5.5), c3cee8c the
 four end-user docs (tests/docscheck.py: 0 findings), c66599f the CHANGELOG, plus docs/INSTALL-v27.md and
-briefs/steps-v27.txt. Review (b) (items 27, 31, M4) was RUNNING at the end: if no fix commit for it follows 39ea318,
-re-run it and fix. NEXT: Graeme's six answers (each a small change), the Kronos re-import, then four read-only
+briefs/steps-v27.txt. Review (b) (items 27, 31, M4) came back and was fixed in 37a4992 (2 HIGH: a blank seniority stopped the
+outage print; an old members' button covered a tile). EVERY v27 commit is now reviewed and fixed. NEXT: Graeme's six answers (each a small change), the Kronos re-import, then four read-only
 reviewers on main, `git tag -a v27`, `py -3.14 tests/build_zip.py v27 v26.5.5`, the push from his Terminal panel.
 
 v26.5.5 leftovers still open for v27: ChargedText / TotalText not in the call-out summary / status bar; the

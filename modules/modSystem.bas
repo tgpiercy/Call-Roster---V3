@@ -37,6 +37,7 @@ Private Const FORM_RELEASES As String = "frmOvertimeEntry|v26.5.5,frmNewPosting|
                                         "frmTimeOff|v26.5.5,frmLeave|v26.5.5,frmSickCall|v26.5.5,frmConvert|v26.5.5,frmEmployee|v26.5,frmReceipt|v26.5.5"   ' v26.5.5: every form but frmEmployee re-pasted (a title on every box; the call-out, sick-call, posting and award pop-ups changed), ThisWorkbook too (save guard, stale copy, practice banner); v27: + frmReceipt (new, the receipt card) - the release-prep commit bumps every form the receipts touched
 
 Private mBackupWarned As Boolean
+Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time
 
 
 ' ---------------- SystemCheck ----------------
@@ -915,8 +916,6 @@ End Function
 
 ' v27 (item 12): called by Workbook_BeforeSave - when the newest backup (daily or hourly) is older than BACKUP_SAVE_HOURS,
 ' a copy of the file AS IT IS NOW goes beside the daily backups before the save overwrites it. Quiet: a backup never stops a save.
-Private mNewestBackupAt As Date                     ' (review) the newest backup's time, so a save does not list the folder every time
-
 Public Sub BackupBeforeSave()
     On Error Resume Next
     If BackupOff() Then Exit Sub

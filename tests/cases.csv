@@ -865,3 +865,14 @@ ordertie,same-grade-other-hours,1,120,1,121,,N
 ordertie,other-grade-same-hours,1,120,1.5,120,,N
 ordertie,fraction-of-an-hour,2,88.5,2,88.5,,Y
 ordertie,tiny-difference,2,88.5,2,88.51,,N
+notfreeword,scheduled,scheduled,,,,,scheduled
+notfreeword,rest,rest,,,,,rest rule
+notfreeword,switch-works,S/S,,,,,switch
+notfreeword,switch-off,S/S off,,,,,switch
+notfreeword,fatigue,16 h rule,,,,,16 h rule
+notfreeword,on-ot,on OT,,,,,on OT that shift
+notfreeword,sick-is-off,Sick,,,,,off
+notfreeword,leave-is-off,Leave,,,,,off
+notfreeword,restricted-is-off,restricted,,,,,off
+notfreeword,vacation-is-off,Vac,,,,,off
+notfreeword,free,,,,,,free

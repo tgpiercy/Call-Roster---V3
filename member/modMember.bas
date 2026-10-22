@@ -345,7 +345,7 @@ Public Sub BuildMemberTemplate()
     Application.ScreenUpdating = False
     Dim nm As Variant, ws As Worksheet
     ' data sheets (very hidden)
-    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", "dAttend", "dWorked", SH_LISTS)   ' M3.1: + dWorked
+    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", "dAttend", "dWorked", "dNotFree", SH_LISTS)   ' M3.1: + dWorked; M4: + dNotFree
         Set ws = WsOf(CStr(nm), True)
         UnprotectWs ws
         ws.Visible = xlSheetVeryHidden
@@ -1208,6 +1208,28 @@ Public Sub MemberShowNext()
     Else
         ws.Cells(6, 2).Value = "No one is free for that shift (or the date is outside the published " & Txt(Meta("Who's next days")) & " days)."
         ws.Cells(6, 2).Font.Italic = True
+    End If
+    ' M4 (item 37): the people with a code in the unit who are not listed for that shift, and the reason word
+    Dim fv As Variant: fv = Data("dNotFree")
+    Dim rr As Long: rr = 7 + IIf(n > 0, n, 1)
+    Dim nNot As Long, meNot As String: meNot = WhoAmI()
+    If IsArray(fv) And unit <> "" And dTxt <> "" And sh <> "" Then
+        For i = 2 To UBound(fv, 1)
+            If StrComp(Txt(fv(i, 1)), unit, vbTextCompare) = 0 And StrComp(Txt(fv(i, 3)), sh, vbTextCompare) = 0 And _
+               (Format$(Dt(fv(i, 2)), "ddd mmm d") = dTxt Or (dPick > 0 And Int(Dt(fv(i, 2))) = dPick)) Then
+                If nNot = 0 Then
+                    ws.Cells(rr, 2).Value = "Not listed for this shift"
+                    ws.Cells(rr, 2).Font.Bold = True: ws.Cells(rr, 2).Font.Color = NAVY
+                    rr = rr + 1
+                End If
+                nNot = nNot + 1
+                ws.Cells(rr, 2).Value = Txt(fv(i, 4)) & IIf(StrComp(Txt(fv(i, 4)), meNot, vbTextCompare) = 0, "  (you)", "")
+                ws.Cells(rr, 4).Value = Txt(fv(i, 5))
+                ws.Range(ws.Cells(rr, 2), ws.Cells(rr, 4)).Font.Color = RGB(110, 110, 110)
+                If StrComp(Txt(fv(i, 4)), meNot, vbTextCompare) = 0 Then ws.Range(ws.Cells(rr, 1), ws.Cells(rr, 5)).Interior.Color = RGB(255, 242, 204)
+                rr = rr + 1
+            End If
+        Next i
     End If
     Err.Clear                                    ' (a normal arrival carries no error)
 Fail:                                            ' reached normally, or from an error anywhere above
@@ -2189,6 +2211,27 @@ Private Sub DrawHomeCard()
     ws.Cells(r, 3).Value = IIf(nextTxt = "", "Not in the first three for " & IIf(homeU = "", "any unit", homeU) & " in the published days.", _
                                homeU & ":  " & nextTxt & IIf(nNext > 8, "  ... and " & (nNext - 8) & " more", ""))
     r = r + 1
+    r = r + 1
+    ' M4 (item 37): the days I am NOT listed in my home unit, and why (reason words only)
+    Dim fv As Variant: fv = Data("dNotFree")
+    Dim notTxt As String, nNot As Long
+    If IsArray(fv) And homeU <> "" Then
+        For i = 2 To UBound(fv, 1)
+            If StrComp(Txt(fv(i, 4)), who, vbTextCompare) = 0 And StrComp(Txt(fv(i, 1)), homeU, vbTextCompare) = 0 Then
+                If Txt(fv(i, 5)) <> "scheduled" Then        ' your own shifts are no news
+                    nNot = nNot + 1
+                    If nNot <= 6 Then notTxt = notTxt & IIf(notTxt = "", "", "     ") & Format$(Dt(fv(i, 2)), "ddd mmm d") & " " & Txt(fv(i, 3)) & ": " & Txt(fv(i, 5))
+                End If
+            End If
+        Next i
+    End If
+    If notTxt <> "" Then
+        ws.Cells(r, 2).Value = "Not listed (besides your own shifts)"
+        ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Color = NAVY
+        r = r + 1
+        ws.Cells(r, 3).Value = homeU & ":  " & notTxt & IIf(nNot > 6, "  ... and " & (nNot - 6) & " more", "")
+        r = r + 1
+    End If
     ws.Cells(r, 3).Value = "Who is free changes with time off and switches: this is as of the last publish. Sick time counts since Jan 1, or since your counters restarted."
     ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
 Finish:

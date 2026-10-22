@@ -418,6 +418,8 @@ def evaluate(row: dict) -> str:
         return rules.data_shape_problem(i1, i2) or "ok"
     if suite == "ordertie":                     # v27 (item 27): grade above, hours above, grade, hours -> Y / N
         return "Y" if rules.order_tie(float(i1), float(i2), float(i3), float(i4)) else "N"
+    if suite == "notfreeword":                  # v27 (M4 item 37): the not-free reason -> the members' word ("free" = none)
+        return rules.public_not_free_word(i1) or "free"
     raise ValueError(f"unknown suite {suite}")
 
 

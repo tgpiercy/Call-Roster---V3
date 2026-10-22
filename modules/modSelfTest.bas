@@ -201,6 +201,9 @@ Private Function RunCase(f() As String) As String
         Case "backupdate"                          ' v25: file name -> the date a daily backup carries / none
             Dim bdD As Date: bdD = BackupFileDate(i1)
             RunCase = IIf(bdD = 0, "none", FmtD(bdD))
+        Case "notfreeword"                         ' v27 (M4 item 37): the not-free reason -> the members' word ("free" = none)
+            RunCase = PublicNotFreeWord(i1)
+            If RunCase = "" Then RunCase = "free"
         Case "ordertie"                            ' v27 (item 27): grade above, hours above, grade, hours -> Y / N
             RunCase = IIf(OrderTie(Val(i1), Val(i2), Val(i3), Val(i4)), "Y", "N")
         Case "datashape"                           ' v27 (item 25): kind, value -> what looks wrong / ok
@@ -1856,5 +1859,16 @@ Private Sub LoadCases5()
     AddCase "ordertie,other-grade-same-hours,1,120,1.5,120,,N"
     AddCase "ordertie,fraction-of-an-hour,2,88.5,2,88.5,,Y"
     AddCase "ordertie,tiny-difference,2,88.5,2,88.51,,N"
+    AddCase "notfreeword,scheduled,scheduled,,,,,scheduled"
+    AddCase "notfreeword,rest,rest,,,,,rest rule"
+    AddCase "notfreeword,switch-works,S/S,,,,,switch"
+    AddCase "notfreeword,switch-off,S/S off,,,,,switch"
+    AddCase "notfreeword,fatigue,16 h rule,,,,,16 h rule"
+    AddCase "notfreeword,on-ot,on OT,,,,,on OT that shift"
+    AddCase "notfreeword,sick-is-off,Sick,,,,,off"
+    AddCase "notfreeword,leave-is-off,Leave,,,,,off"
+    AddCase "notfreeword,restricted-is-off,restricted,,,,,off"
+    AddCase "notfreeword,vacation-is-off,Vac,,,,,off"
+    AddCase "notfreeword,free,,,,,,free"
 ' <<< CASES
 End Sub

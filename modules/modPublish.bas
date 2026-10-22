@@ -29,6 +29,8 @@ Public Const DS_POST As String = "dPost"
 Public Const DS_PLIST As String = "dPostList"
 Public Const DS_LOG As String = "dLog"
 Public Const DS_ATT As String = "dAttend"     ' v24.1 / M2: sick time COUNTS only (no dates)
+Public Const DS_NOTFREE As String = "dNotFree"  ' v27 (M4 item 37): who is not listed and why (reason words only) for the Who's next days
+Private Const NF_CAP As Long = 30000             ' v27 (M4): dNotFree's row cap
 Public Const DS_WORKED As String = "dWorked"  ' v26.5 / M3.1: premium hours worked per pay period, from the Kronos export (Employee, Period Start, Hours)
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
 Private Const MEMBER_NEEDS As String = "Members M4"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends)
@@ -238,7 +240,8 @@ Public Sub PublishMembers()
     On Error GoTo Failed
     meta = BuildMeta()
     roster = BuildRoster(nR)
-    nxt = BuildNext(nN)
+    Dim nf As Variant, nNf As Long                 ' v27 (M4 item 37)
+    nxt = BuildNext(nN, nf, nNf)
     cal = BuildCal(nC)
     BuildPostings post, nP, plist, nPL
     lg = BuildLog(nL)
@@ -260,6 +263,7 @@ Public Sub PublishMembers()
     If why = "" Then why = PrivateDataIn(att, DS_ATT)
     If why = "" Then why = AttendPrivacy(att)
     If why = "" Then why = PrivateDataIn(wkd, DS_WORKED)
+    If why = "" Then why = PrivateDataIn(nf, DS_NOTFREE)       ' v27 (M4): reason words only, but screened as every table
     If why <> "" Then
         Application.StatusBar = False
         Application.ScreenUpdating = True
@@ -321,6 +325,7 @@ Public Sub PublishMembers()
     WriteTable wb, DS_LOG, lg
     WriteTable wb, DS_ATT, att
     WriteTable wb, DS_WORKED, wkd
+    WriteTable wb, DS_NOTFREE, nf                  ' v27 (M4 item 37)
 
     ' the members' own code draws Home and the Roster (so the file reads right even with macros off);
     ' it is saved on the Roster, A-Z, so a macros-off open lands on something useful
@@ -557,7 +562,9 @@ Private Function BuildRoster(ByRef nR As Long) As Variant
 End Function
 
 ' Unit, Date, Shift, Rank, Name, Total, Provisional, Code - everyone free, in call order
-Private Function BuildNext(ByRef nN As Long) As Variant
+' v27 (M4 item 37): nf = Unit, Date, Shift, Name, Reason for everyone with a code in the unit who is NOT listed - the
+' reason as a public word (PublicNotFreeWord: never a leave, sick or restriction word)
+Private Function BuildNext(ByRef nN As Long, ByRef nf As Variant, ByRef nNf As Long) As Variant
     Dim depts As Variant: depts = DeptList()
     Dim cap As Long: cap = CAP_ROWS
     Dim out() As Variant: ReDim out(1 To cap, 1 To 9)
@@ -565,6 +572,10 @@ Private Function BuildNext(ByRef nN As Long) As Variant
     out(1, 5) = "Name": out(1, 6) = "Total": out(1, 7) = "Provisional": out(1, 8) = "Code"
     out(1, 9) = "EstHrs"                                ' v26 (M3): "Yes" = a planned mover's estimated hours (shown with ~)
     Dim k As Long: k = 1
+    Dim nfOut() As Variant: ReDim nfOut(1 To NF_CAP, 1 To 5)
+    nfOut(1, 1) = "Unit": nfOut(1, 2) = "Date": nfOut(1, 3) = "Shift": nfOut(1, 4) = "Name": nfOut(1, 5) = "Reason"
+    Dim kf As Long: kf = 1
+    Dim why As Object, nmK As Variant
     RefreshCalCache
     BeginSwitchBatch
     On Error GoTo Done
@@ -583,7 +594,13 @@ Private Function BuildNext(ByRef nN As Long) As Variant
                 If n > 0 Then
                     For Each sh In Array("Days", "Nights")
                         recs = base
-                        m = FilterNotFree(recs, n, d, CStr(sh), removed, True)
+                        Set why = CreateObject("Scripting.Dictionary")
+                        m = FilterNotFree(recs, n, d, CStr(sh), removed, True, "", why)
+                        For Each nmK In why.Keys
+                            kf = kf + 1: If kf > NF_CAP Then Err.Raise vbObjectError + 603, , "more than " & NF_CAP & " not-listed rows for the members' file - raise NF_CAP in modPublish"
+                            nfOut(kf, 1) = depts(u): nfOut(kf, 2) = d: nfOut(kf, 3) = CStr(sh): nfOut(kf, 4) = CStr(nmK)
+                            nfOut(kf, 5) = PublicNotFreeWord(CStr(why(nmK)))
+                        Next nmK
                         For i = 1 To m
                             k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"
                             out(k, 1) = depts(u): out(k, 2) = d: out(k, 3) = CStr(sh): out(k, 4) = i
@@ -600,7 +617,23 @@ Done:
     EndSwitchBatch
     If Err.Number <> 0 Then Err.Raise Err.Number, , Err.Description
     nN = k - 1
+    nNf = kf - 1
+    nf = Trimmed(nfOut, kf, 5)
     BuildNext = Trimmed(out, k, 9)
+End Function
+
+' v27 (M4 item 37): a not-free reason as the members may read it. PURE (suite "notfreeword"; tests/rules.py
+' public_not_free_word). Every booking (vacation, sick, leave, personal ...) and an OT restriction are just "off".
+Public Function PublicNotFreeWord(ByVal why As String) As String
+    Select Case LCase$(Trim$(why))
+        Case "": PublicNotFreeWord = ""
+        Case "scheduled": PublicNotFreeWord = "scheduled"
+        Case "rest": PublicNotFreeWord = "rest rule"
+        Case "s/s", "s/s off": PublicNotFreeWord = "switch"
+        Case "16 h rule": PublicNotFreeWord = "16 h rule"
+        Case "on ot": PublicNotFreeWord = "on OT that shift"
+        Case Else: PublicNotFreeWord = "off"
+    End Select
 End Function
 
 ' Date, Shift, Unit, Left text, Right text, Type, Open - per unit; plus one holiday row per date (unit "*")
@@ -1114,7 +1147,7 @@ End Function
 ' ====================================================================
 Private Function HasDataSheets(ByVal wb As Workbook) As Boolean
     Dim nm As Variant, sh As Object
-    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG, DS_ATT, DS_WORKED)
+    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG, DS_ATT, DS_WORKED, DS_NOTFREE)
         Set sh = Nothing
         On Error Resume Next
         Set sh = wb.Worksheets(CStr(nm))

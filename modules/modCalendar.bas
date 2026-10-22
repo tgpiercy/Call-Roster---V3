@@ -1108,7 +1108,7 @@ End Function
 ' shift: ..." / "16 h rule: ...") - the "Not listed (N)..." box on the call-out pop-up. Reads only.
 Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d As Date, ByVal shiftLbl As String, _
                               ByRef removed As String, Optional ByVal useCache As Boolean = False, _
-                              Optional ByRef detail As String = "") As Long
+                              Optional ByRef detail As String = "", Optional ByVal reasons As Object = Nothing) As Long     ' v27 (M4 item 37): reasons(name) = why
     If Not useCache Then LoadCache
     removed = "": detail = ""
     Dim i As Long, k As Long, why As String, mx As Double
@@ -1126,6 +1126,7 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
         Else
             why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, d, shiftLbl, 0, mx)
         End If
+        If why <> "" And Not reasons Is Nothing Then reasons(recs(i).EmpName) = why     ' (before the list closes up)
         Select Case why
             Case ""
                 k = k + 1

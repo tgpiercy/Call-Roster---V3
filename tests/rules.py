@@ -1864,3 +1864,12 @@ def order_tie(grade_above: float, hours_above: float, grade: float, hours: float
     """modOvertimeEntry.OrderTie (v27 item 27): tied with the row above on grade and Total Hours."""
     return abs(grade_above - grade) < 0.0001 and abs(hours_above - hours) < 0.001
 
+
+def public_not_free_word(why: str) -> str:
+    """modPublish.PublicNotFreeWord (v27 Members M4 item 37): a not-free reason as members may read it."""
+    w = why.strip().lower()
+    if w == "":
+        return ""
+    return {"scheduled": "scheduled", "rest": "rest rule", "s/s": "switch", "s/s off": "switch",
+            "16 h rule": "16 h rule", "on ot": "on OT that shift"}.get(w, "off")
+

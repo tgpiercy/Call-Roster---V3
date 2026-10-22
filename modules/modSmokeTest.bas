@@ -38,7 +38,7 @@ Public Const SMK_VERSION As String = "Smoke test v26.5.5 (Oct 21)"
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
 Private Const SMK_WHY As String = "SmokeTest"
-Private Const SMK_STEPS As Long = 20          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words; v25.3: + the Desk; v25.5: the two v25.2 draw compares out with the legacy writers; v26.5: + the Employee pop-up's Edit
+Private Const SMK_STEPS As Long = 22          ' v25: + no takers / out of dept / reopen, leave return, Kronos headings, planted leave words; v25.3: + the Desk; v25.5: the two v25.2 draw compares out with the legacy writers; v26.5: + the Employee pop-up's Edit
 
 Private Type SmkState
     Emp As String           ' the test person's current name
@@ -108,6 +108,7 @@ Public Sub SmokeTest()
     Application.Calculate
     Set before = RosterTotalsMap()
     logBefore = LogChargedTotal()
+    Dim entryMax0 As Double: entryMax0 = SmkMaxEntryId()      ' v27 (item 29): the rows this run adds sit above it
     RunIntegrity nErr0, nWarn0
     st.Emp = SMK_EMP
 
@@ -141,6 +142,8 @@ Public Sub SmokeTest()
         If Abs(LogChargedTotal() - logBefore) > 0.0001 Then
             diff = diff & "  OT Log total Hours Charged was " & logBefore & ", now " & LogChargedTotal() & vbNewLine
         End If
+        Dim liveLeft As String: liveLeft = SmkLiveRowsSince(entryMax0)      ' v27 (item 29): step 17 voided everything
+        If liveLeft <> "" Then diff = diff & "  The run left live OT Log rows: " & liveLeft & vbNewLine
     End If
     On Error Resume Next
     LogError "SmokeTest", 0, IIf(failedAt = 0 And diff = "", "all steps OK, totals unchanged", _
@@ -202,6 +205,8 @@ Private Function SmkName(ByVal k As Long) As String
         Case 18: SmkName = "remove the test employee"
         Case 19: SmkName = "integrity check"
         Case 20: SmkName = "the Desk's figures follow the data"
+        Case 21: SmkName = "bring the test employee back, then remove again"
+        Case 22: SmkName = "the output pages draw (history, handover, since, data check)"
     End Select
 End Function
 
@@ -229,6 +234,8 @@ Private Function SmkStep(ByVal k As Long, ByRef st As SmkState, ByVal nErr0 As L
         Case 18: SmkStep = SmkRemove(st, why)
         Case 19: SmkStep = SmkIntegrity(st, nErr0, why)
         Case 20: SmkStep = SmkDesk(st, why)
+        Case 21: SmkStep = SmkBringBack(st, why)
+        Case 22: SmkStep = SmkPages(st, why)
     End Select
     If Not SmkStep And why = "" Then why = "the function returned False (a message above says why)"
     Exit Function
@@ -1102,6 +1109,30 @@ Private Function SmkRemove(ByRef st As SmkState, ByRef why As String) As Boolean
     SmkRemove = True
 End Function
 
+' v27 (item 29): the highest Entry ID in the log now (0 = none)
+Private Function SmkMaxEntryId() As Double
+    On Error Resume Next
+    Dim lo As ListObject: Set lo = LogTable()
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    SmkMaxEntryId = Application.WorksheetFunction.Max(lo.ListColumns(L_ENTRY).DataBodyRange)
+End Function
+
+' v27 (item 29): the rows above that Entry ID that are not VOID ("" = none), the first five named
+Private Function SmkLiveRowsSince(ByVal entryMax0 As Double) As String
+    Dim lg As Variant: lg = LogRowsNow()
+    If Not IsArray(lg) Then Exit Function
+    Dim i As Long, n As Long, s As String
+    For i = 1 To UBound(lg, 1)
+        If NumOr0(lg(i, L_ENTRY)) > entryMax0 And UCase$(Trim$(SafeStr(lg(i, L_STATUS)))) <> "VOID" Then
+            n = n + 1
+            If n <= 5 Then s = s & IIf(s = "", "", ", ") & SafeStr(lg(i, L_REF)) & " " & SafeStr(lg(i, L_EMP))
+        End If
+    Next i
+    If n > 5 Then s = s & " and " & (n - 5) & " more"
+    SmkLiveRowsSince = s
+End Function
+
 ' ---- 19. integrity ----
 Private Function SmkIntegrity(ByRef st As SmkState, ByVal nErr0 As Long, ByRef why As String) As Boolean
     Dim nErr As Long, nWarn As Long
@@ -1208,4 +1239,32 @@ Undo:
     If p.ID <> "" Then n = LoadPosting(p.ID, p, lst): SubmitCancel p, lst, n
     VoidAbsence absId, SMK_WHY
     MarkCalDirty
+End Function
+
+' ---- 21. v27 (item 29): Bring back, then Remove again - the Former round trip ----
+Private Function SmkBringBack(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim report As String
+    If Not IsFormer(st.Emp) Then why = st.Emp & " isn't on the Former sheet (step 18 removed them)": Exit Function
+    If Not BringBack(st.Emp, report) Then why = "BringBack returned False: " & Left$(report, 150): Exit Function
+    If RosterRowOf(st.Emp) = 0 Then why = st.Emp & " is not back on the roster": Exit Function
+    If Not RemoveEmployee(st.Emp, Date, report) Then why = "the second RemoveEmployee returned False: " & Left$(report, 150): Exit Function
+    If RosterRowOf(st.Emp) > 0 Then why = st.Emp & " is still on the roster after the second remove": Exit Function
+    If Not IsFormer(st.Emp) Then why = st.Emp & " isn't on the Former sheet after the second remove": Exit Function
+    SmkBringBack = True
+End Function
+
+' ---- 22. v27 (item 29): the output pages draw from the data (nothing printed, no PDF) - the employee history
+'          (member-safe), the shift handover (it must list this run's rows), the "since" count, the data check ----
+Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
+    Dim ws As Worksheet
+    RunHistoryReport st.Peer, RosterYearFrom(), RosterYearTo(), False, False
+    Set ws = ThisWorkbook.Worksheets(HISTORY_SHEET)
+    If Left$(SafeStr(ws.Range("A1").Value), 16) <> "EMPLOYEE HISTORY" Then why = "the employee history did not draw for " & st.Peer & " (A1: " & Left$(SafeStr(ws.Range("A1").Value), 60) & ")": Exit Function
+    ShiftHandover                                   ' Ask "Print it now?" answers No under SmokeTest
+    Set ws = ThisWorkbook.Worksheets(HANDOVER_SHEET)
+    If Left$(SafeStr(ws.Range("A1").Value), 14) <> "SHIFT HANDOVER" Then why = "the shift handover did not draw": Exit Function
+    If ActivitySinceCount(Now - 1 / 24, False) = 0 Then why = "the last hour's activity counts nothing, but this run logged rows": Exit Function
+    Dim dc As Variant: dc = DataCheckLines()         ' it must run; what it finds on a copy is the copy's own business
+    st.Note = IIf(IsArray(dc), (UBound(dc) - LBound(dc) + 1) & " data-check line(s) on this copy", "no data-check lines")
+    SmkPages = True
 End Function

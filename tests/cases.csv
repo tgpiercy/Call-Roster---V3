@@ -860,3 +860,8 @@ datashape,code-letter-only,code,D,,,,code D has no grade number
 datashape,code-blank,code,,,,,ok
 datashape,crew-blank,crew,,,,,crew blank
 datashape,crew-set,crew,A,,,,ok
+ordertie,same-grade-same-hours,1,120,1,120,,Y
+ordertie,same-grade-other-hours,1,120,1,121,,N
+ordertie,other-grade-same-hours,1,120,1.5,120,,N
+ordertie,fraction-of-an-hour,2,88.5,2,88.5,,Y
+ordertie,tiny-difference,2,88.5,2,88.51,,N

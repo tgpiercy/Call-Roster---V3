@@ -51,6 +51,7 @@ Private Const TILE_H As Double = 76                 ' v27: three lines - the cou
 Private Const GAP As Double = 8
 Private Const COLGAP As Double = 12                 ' v27: between the three band columns
 Private Const PILL_H As Double = 20                 ' v27: the header's three pills
+Private mGuideCounted As Boolean                 ' v27 (item 27): the first days strip counted this session
 
 ' ---- colours (the mock-up's) ----
 Private Function dkNavy() As Long
@@ -344,6 +345,23 @@ Public Sub DrawDesk()
     yy = yy + 26
     DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yy
     ws.Shapes("dk_lbl_keys").Width = 440
+    ' v27 (item 27, 5.5): the one legend, the calendar's words and the log's marks
+    yy = yy + 18
+    DeskLabel ws, "dk_lbl_legend1", "Calendar:  " & CalLegendText(), x0, yy
+    yy = yy + 16
+    DeskLabel ws, "dk_lbl_legend2", "Log:  " & OutcomeLegendText(), x0, yy
+    On Error Resume Next
+    ws.Shapes("dk_lbl_legend1").Width = bandW: ws.Shapes("dk_lbl_legend2").Width = bandW
+    On Error GoTo Failed
+    If GuideShows() Then                            ' v27 (item 27): the first days strip
+        yy = yy + 22
+        DeskLabel ws, "dk_lbl_guide", GuideLine(), x0, yy
+        On Error Resume Next
+        ws.Shapes("dk_lbl_guide").Width = 640
+        ws.Shapes("dk_lbl_guide").TextFrame2.TextRange.Font.Fill.ForeColor.RGB = dkNavy()
+        On Error GoTo Failed
+        DeskLink ws, "dk_lnk_guidehide", "Hide this", "modDesk.DeskGuideHide", x0 + 650, yy - 4, 90
+    End If
     With ws.Cells(1, 9)
         .Value = DESK_VERSION
         .Font.Size = 7: .Font.Color = RGB(176, 190, 197)
@@ -680,6 +698,7 @@ End Sub
 
 Public Sub DeskCallout()
     On Error GoTo Oops
+    GuideTick 2                                     ' v27 (item 27): the first days strip
     ShowOvertimeForm
     DeskRefreshIfShown
     Exit Sub
@@ -691,6 +710,7 @@ Public Sub DeskCalendar()
     On Error GoTo Oops
     ' v27 (item 15, B2): the cover tile lands on the next uncovered shift's month and group (modCalendar.NextOpenSlot);
     ' with nothing to cover, the Calendar as it was
+    GuideTick 3                                     ' v27 (item 27): the first days strip
     Dim d As Date, sh As String, unit As String
     If NextOpenSlot(DESK_AHEAD_DAYS, d, sh, unit) Then CalShowDate d, unit: Exit Sub
     ShowCalendar
@@ -772,6 +792,7 @@ End Sub
 ' v26.5.5 (5.4): the Practice button - a throw-away copy with a red banner (modSystem.MakePracticeCopy)
 Public Sub DeskPractice()
     On Error GoTo Oops
+    GuideTick 1                                     ' v27 (item 27): the first days strip
     MakePracticeCopy
     Exit Sub
 Oops:
@@ -900,6 +921,7 @@ End Sub
 ' "How do I ...": the Help sheet (the name stays: the Desk button calls it)
 Public Sub DeskGuide()
     On Error GoTo Oops
+    GuideTick 4                                     ' v27 (item 27): the first days strip
     ShowHelp
     Exit Sub
 Oops:
@@ -1176,6 +1198,15 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "every change first; code changes go in the Grade Log, a crew change is dated and goes in the crew history, and nobody's hours " & _
         "move. Worked hours come from the Kronos import. A full move to another unit is Move to unit (it tops up the hours); a new " & _
         "person is Add; someone leaving is Remove."
+    HelpAdd h, n, "Words on the roster (glossary)", _
+        "Call-out: phoning down the list for a shift today or tomorrow (Fill a shift now). Session S-nnnn: one call-out's rows. " & _
+        "Posting P-nnnn: a shift put up for sign-ups (the old paper posting sheet); Award: picking who works it; No takers: nobody signed; " & _
+        "Out of department: awarded to someone with a code in another unit. Total Hours: Kronos worked hours + Refused + provisional " & _
+        "OT; the lowest is called first within a grade. Refused: the hours charged for a refusal or a message left, x 1.75, grade 2 and " & _
+        "below only. Provisional (*): OT accepted but not in Kronos yet. ~: the hours a planned unit move will give. Exempt: never charged " & _
+        "on that posting (moved, left, restricted). NCN: no coverage needed. S/S: a shift switch; a payback is the shift owed back. " & _
+        "PHA: hazard-analysis coverage. The 16 h rule: no more than 16 h in a row with 11 h rest before the next work. " & _
+        "Calendar: " & CalLegendText() & ".  Log: " & OutcomeLegendText() & "."
     HelpAdd h, n, "Find a person", _
         "Supervisors and admins: click Find a person on the roster's bar and type part of the name: the roster jumps to the row (a unit filter that " & _
         "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _
@@ -1303,4 +1334,69 @@ Public Sub DeskReport()
     Exit Sub
 Oops:
     ReportError "DeskReport"
+End Sub
+
+' ====================================================================
+'  v27 (item 27, 5.5): THE FIRST DAYS STRIP
+' ====================================================================
+' For a login's first three Desk sessions, a line under the links: the four things to try, each ticked once done
+' (practice copy, a call-out, the Calendar, How do I ...), and "Hide this". Kept per login in hidden names
+' (GuideOpens_<login> counted once a session, GuideDone_<login> = the steps done or "hidden"); a saved workbook
+' stays marked saved. Never raises.
+Private Function GuideGet(ByVal prefix As String) As String
+    On Error Resume Next                            ' never raises
+    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(LoginNameKey(prefix))
+    If nmObj Is Nothing Then Exit Function
+    GuideGet = Replace(Replace(Mid$(nmObj.RefersTo, 2), """", ""), "'", "")
+End Function
+
+Private Sub GuideSet(ByVal prefix As String, ByVal v As String)
+    On Error Resume Next                            ' never raises
+    Dim wasSaved As Boolean: wasSaved = ThisWorkbook.Saved
+    Dim key As String: key = LoginNameKey(prefix)
+    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(key)
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=key, RefersTo:="=""" & v & """", Visible:=False
+    Else
+        nmObj.RefersTo = "=""" & v & """"
+    End If
+    If wasSaved Then ThisWorkbook.Saved = True
+End Sub
+
+' a step done (1 practice copy, 2 a call-out, 3 the Calendar, 4 How do I ...)
+Private Sub GuideTick(ByVal k As Long)
+    Dim s As String: s = GuideGet("GuideDone")
+    If InStr(s, "hidden") > 0 Or InStr(s, "|" & k & "|") > 0 Then Exit Sub
+    GuideSet "GuideDone", IIf(s = "", "|", s) & k & "|"
+End Sub
+
+' True while the strip shows: the first three sessions, not hidden. The session is counted on its first Desk draw.
+Private Function GuideShows() As Boolean
+    On Error Resume Next                            ' never raises
+    If InStr(GuideGet("GuideDone"), "hidden") > 0 Then Exit Function
+    If Not mGuideCounted Then
+        mGuideCounted = True
+        GuideSet "GuideOpens", CStr(Val(GuideGet("GuideOpens")) + 1)
+    End If
+    GuideShows = (Val(GuideGet("GuideOpens")) <= 3)
+End Function
+
+Private Function GuideLine() As String
+    Dim s As String: s = GuideGet("GuideDone")
+    Dim names As Variant: names = Array("Practice on a copy", "Fill a shift now (a call-out)", "The Calendar", "How do I ...")
+    Dim k As Long, t As String
+    For k = 1 To 4
+        t = t & IIf(InStr(s, "|" & k & "|") > 0, "[x] ", "[  ] ") & k & " " & names(k - 1) & "     "
+    Next k
+    GuideLine = "Your first days:     " & t
+End Function
+
+' the strip's "Hide this"
+Public Sub DeskGuideHide()
+    On Error GoTo Oops
+    GuideSet "GuideDone", "hidden"
+    DrawDesk
+    Exit Sub
+Oops:
+    ReportError "DeskGuideHide"
 End Sub

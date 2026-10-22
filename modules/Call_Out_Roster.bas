@@ -245,13 +245,16 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
 
     Dim v() As Variant: ReDim v(1 To n, 1 To CO_LAST_COL)   ' v27 (item 16): the tick and time cells stay empty - they are written by hand
     For i = 1 To n
-        v(i, 1) = i
+        v(i, 1) = CStr(i)
+        If i > 1 Then                                ' v27 (item 27): "=" tied with the row above on grade and hours
+            If OrderTie(recs(i - 1).Grade, recs(i - 1).TotalHrs, recs(i).Grade, recs(i).TotalHrs) Then v(i, 1) = CStr(i) & "="
+        End If
         If recs(i).ProvHrs > 0 Or recs(i).EstHrs Then          ' v24.3: ~ = hours after a planned unit move's top-up
             v(i, 2) = Format$(recs(i).TotalHrs, "#,##0") & IIf(recs(i).ProvHrs > 0, "*", "") & IIf(recs(i).EstHrs, "~", "")
         Else
             v(i, 2) = recs(i).TotalHrs
         End If
-        v(i, 3) = IIf(recs(i).Grade > CHARGE_MAX_GRADE, ">> ", "") & recs(i).EmpName & "  [" & recs(i).DeptCode & "]"
+        v(i, 3) = IIf(recs(i).Grade > CHARGE_MAX_GRADE, ">> ", "") & recs(i).EmpName & "  [" & recs(i).DeptCode & "]" & SeniorityText(recs(i).Seniority)    ' v27 (item 27): the third key on the line
         v(i, 4) = recs(i).EmpShift
         v(i, 5) = IIf(recs(i).Phone = "", "-", recs(i).Phone)
     Next i
@@ -286,5 +289,19 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
             End With
         End If
     Next i
-    WriteSection = last + 2
+    ' v27 (item 27, 5.5): how the order is made, under every unit
+    ws.Rows(last + 1).RowHeight = 14
+    With ws.Range(ws.Cells(last + 1, 1), ws.Cells(last + 1, CO_LAST_COL))
+        .Merge
+        .Value = OrderFooterText()
+        .Font.Size = 7.5: .Font.Italic = True: .Font.Color = greyTxt
+        .HorizontalAlignment = xlLeft
+    End With
+    WriteSection = last + 3
+End Function
+
+' v27 (item 27): "  sen 1998-04-06" for a seniority date, "  sen <n>" for a plain number, "" for none
+Private Function SeniorityText(ByVal s As Double) As String
+    If s <= 0 Then Exit Function
+    If s > 10000 Then SeniorityText = "  sen " & Format$(CDate(s), "yyyy-mm-dd") Else SeniorityText = "  sen " & CStr(s)
 End Function

@@ -979,6 +979,9 @@ Private Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef 
         Dim v() As Variant: ReDim v(1 To n, 1 To 4)
         For i = 1 To n
             v(i, 1) = lst(i).Rank
+            If i > 1 Then                            ' v27 (item 27): "=" tied with the row above on grade and the frozen hours
+                If OrderTie(lst(i - 1).Grade, lst(i - 1).TotalHrs, lst(i).Grade, lst(i).TotalHrs) Then v(i, 1) = CStr(lst(i).Rank) & "="
+            End If
             v(i, 2) = lst(i).TotalHrs
             v(i, 3) = lst(i).EmpName
             v(i, 4) = lst(i).EmpShift
@@ -1082,7 +1085,8 @@ Private Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef 
         .LeftHeader = "": .CenterHeader = "": .RightHeader = ""
         .LeftFooter = "": .CenterFooter = "": .RightFooter = ""
         ' v27 (item 5, 5.3): the old sheet's layout, with where it came from
-        If Not blank Then .CenterFooter = "&8Produced by the Call Out Roster from " & p.ID & " (the list frozen at posting, hours as they were then)  -  printed " & Format$(Now, "mmm d, yyyy h:mm AM/PM")
+        If Not blank Then .CenterFooter = "&8Produced by the Call Out Roster from " & p.ID & " (the list frozen at posting, hours as they were then)  -  printed " & Format$(Now, "mmm d, yyyy h:mm AM/PM") & _
+                                          vbLf & "&7Order: grade, then the lowest Total Hours at posting, then the earliest seniority.  = : tied with the row above on grade and hours."     ' v27 (item 27)
     End With
     Application.PrintCommunication = True
     ws.DisplayPageBreaks = False

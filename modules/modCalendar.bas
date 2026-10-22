@@ -2741,6 +2741,7 @@ Public Sub DrawCalendar()
         .BottomMargin = Application.InchesToPoints(0.3)
         .PrintGridlines = False
         .PrintComments = xlPrintNoComments
+        .CenterFooter = "&7" & CalLegendText()         ' v27 (item 27): the legend on the printed page
     End With
     Application.PrintCommunication = True
     If Err.Number = 0 Then mp.Range("Z17").Value = "'" & CAL_VERSION     ' stamped only when every property set took (re-review)
@@ -6322,4 +6323,17 @@ Public Function CalDrawSeconds() As Variant
     Dim s As String: s = SafeStr(MapSheet().Range("Z14").Value)
     Dim k As Long: k = InStr(1, s, "drawn in ", vbTextCompare)
     If k > 0 Then CalDrawSeconds = Val(Mid$(s, k + 9))
+End Function
+
+' v27 (item 27, 5.5): ONE legend - the words, colours and marks the calendar and the log use - for the calendar's
+' printed page, the Desk and (with Members M4) the members' file
+Public Function CalLegendText() As String
+    CalLegendText = "OPEN (red) = nobody on it yet   POSTED (orange) = posted, waiting for sign-ups   NO TAKERS = posted, nobody signed up   " & _
+                    "NCN = no coverage needed   a name = covered   S/S = shift switch   N short = below minimum staffing"
+End Function
+
+Public Function OutcomeLegendText() As String
+    OutcomeLegendText = "A accepted   R refused (charged x" & Replace(CStr(CHARGE_MULTIPLIER), ",", ".") & ")   L left message (charged)   " & _
+                        "U unavailable (not charged)   E plant upset (exception, not charged)   Not offered = a partial acceptance closed the shift   " & _
+                        "~ = hours after a planned move   * = provisional OT   >> = called, never charged"
 End Function

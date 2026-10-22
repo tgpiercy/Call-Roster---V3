@@ -2431,3 +2431,20 @@ Public Function FolderExists(ByVal p As String) As Boolean
     FolderExists = (Len(Dir(p, vbDirectory)) > 0)
     On Error GoTo 0
 End Function
+
+' ====================================================================
+'  v27 (item 27, 5.5): THE ORDER, SAID ON EVERY LIST
+' ====================================================================
+' PURE (suite "ordertie"; tests/rules.py order_tie): a row ties with the row above when the grade AND the Total Hours
+' are the same - then the seniority (and after it the name) decided. Lists mark such a row "=".
+Public Function OrderTie(ByVal gradeAbove As Double, ByVal hoursAbove As Double, ByVal grade As Double, ByVal hours As Double) As Boolean
+    OrderTie = (Abs(gradeAbove - grade) < 0.0001 And Abs(hoursAbove - hours) < 0.001)
+End Function
+
+' The line under a list: how its order is made and how old the hours are
+Public Function OrderFooterText() As String
+    Dim dt As Date: dt = KronosDataThrough()
+    OrderFooterText = "Order: grade, then the lowest Total Hours, then the earliest plant seniority, then the name.  " & _
+                      "= : tied with the row above on grade and hours (seniority decided).  Hours: Kronos " & _
+                      IIf(dt > 0, "through " & Format$(dt, "mmm d"), "not imported yet") & " + * provisional accepted OT."
+End Function

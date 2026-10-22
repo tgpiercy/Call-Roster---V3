@@ -201,6 +201,8 @@ Private Function RunCase(f() As String) As String
         Case "backupdate"                          ' v25: file name -> the date a daily backup carries / none
             Dim bdD As Date: bdD = BackupFileDate(i1)
             RunCase = IIf(bdD = 0, "none", FmtD(bdD))
+        Case "ordertie"                            ' v27 (item 27): grade above, hours above, grade, hours -> Y / N
+            RunCase = IIf(OrderTie(Val(i1), Val(i2), Val(i3), Val(i4)), "Y", "N")
         Case "datashape"                           ' v27 (item 25): kind, value -> what looks wrong / ok
             RunCase = DataShapeProblem(i1, i2)
             If RunCase = "" Then RunCase = "ok"
@@ -1849,5 +1851,10 @@ Private Sub LoadCases5()
     AddCase "datashape,code-blank,code,,,,,ok"
     AddCase "datashape,crew-blank,crew,,,,,crew blank"
     AddCase "datashape,crew-set,crew,A,,,,ok"
+    AddCase "ordertie,same-grade-same-hours,1,120,1,120,,Y"
+    AddCase "ordertie,same-grade-other-hours,1,120,1,121,,N"
+    AddCase "ordertie,other-grade-same-hours,1,120,1.5,120,,N"
+    AddCase "ordertie,fraction-of-an-hour,2,88.5,2,88.5,,Y"
+    AddCase "ordertie,tiny-difference,2,88.5,2,88.51,,N"
 ' <<< CASES
 End Sub

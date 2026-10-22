@@ -31,8 +31,9 @@ Private WithEvents mCallBack As MSForms.CommandButton    ' v25.5: the call-back 
 Private mEntries() As EmpRec
 Private mSS() As String          ' SS ID if that person is working a shift switch that shift
 Private mSlotKey As String       ' v27 (item 10): the calendar line this call-out was started from (a sick call's absence); "" = none
-Private mSlotDate As Date        ' ... and the date / shift it was good for (a changed date drops it)
+Private mSlotDate As Date        ' ... and the unit / date / shift it was good for (a change to any of them drops it)
 Private mSlotShift As String
+Private mSlotUnit As String
 Private mTaken() As Double       ' v24.1: hours an Accepted person took (0 = everything on offer)
 Private mCount As Long
 Private mCurrent As Long
@@ -262,7 +263,7 @@ End Sub
 Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, Optional ByVal statusTxt As String = "", _
                    Optional ByVal hrs As Double = 0, Optional ByVal slotKey As String = "")
     On Error Resume Next
-    mSlotKey = slotKey: mSlotDate = d: mSlotShift = shiftLbl      ' v27 (item 10): the acceptance covers this line, no question
+    mSlotKey = slotKey: mSlotDate = d: mSlotShift = shiftLbl: mSlotUnit = unit      ' v27 (item 10): the acceptance covers this line, no question
     C("cmbDept").Value = unit
     C("txtDate").Value = DateText(d)
     C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
@@ -781,7 +782,8 @@ Private Sub btnSubmit_Click()
     ' v25.5: the box shows the four-line summary; the full detail goes to the status bar (until the next click) and is in the OT Log
     Dim sessionID As String, summary As String, shortSummary As String
     Dim slotKey As String                           ' v27 (item 10): the line the call-out was started from, if the date and shift still match
-    If mSlotKey <> "" And Int(mDate) = Int(mSlotDate) And StrComp(mShiftLbl, mSlotShift, vbTextCompare) = 0 Then slotKey = mSlotKey
+    If mSlotKey <> "" And Int(mDate) = Int(mSlotDate) And StrComp(mShiftLbl, mSlotShift, vbTextCompare) = 0 _
+       And StrComp(mDept, mSlotUnit, vbTextCompare) = 0 Then slotKey = mSlotKey     ' (review M6) a changed unit drops it too
     If Not SubmitCalloutSession(mDept, mShiftLbl, mShift, mDate, mHours, mEntries, mTaken, mCount, sessionID, summary, shortSummary, slotKey) Then Exit Sub   ' form keeps its entries so nothing is lost
     ShowBarText Replace(summary, vbNewLine, "  |  ")
     If gSaveFailedAt > 0 Or NoSave() Then
@@ -814,7 +816,7 @@ End Function
 
 Private Sub ResetForm()
     mCount = 0: mCurrent = 0
-    mSlotKey = "": mSlotShift = ""                   ' v27 (item 10)
+    mSlotKey = "": mSlotShift = "": mSlotUnit = ""   ' v27 (item 10)
     mStarted = 0
     lstEmployees.Clear
     C("cmbDept").Value = "": C("cmbShift").Value = CREW_ALL: C("cmbDN").Value = ""

@@ -1838,9 +1838,10 @@ Private Function CalendarOutcome(ByRef p As PostRec, ByVal byText As String, _
     Else
         CalendarOutcome = CalendarPlace(p.ShiftDate, p.ShiftLbl, p.Unit, _
                                         p.ID & " wasn't on the calendar - which line does it cover?", _
-                                        byText, lineHrs, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason), "", True)   ' v27 (item 10): the one open line, no question
+                                        byText, lineHrs, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason), "", _
+                                        Not IsSupportReason(p.Reason))   ' v27 (item 10): a coverage posting takes the unit's one open line, no question; a support posting (its own line) still asks
         If CalendarOutcome = "" Then
-            CalendarOutcome = "not on the calendar (left off)"
+            CalendarOutcome = "NOT ON THE CALENDAR (left off) - Needs Attention > the posting > Put on the calendar"   ' v27 (item 10): the receipt shows it in red
         Else
             ' a line that already had its own Hours would draw them after the per-name hours
             If perNameHours Then UpdateCoverageBySource p.ID, byText, lineHrs, True

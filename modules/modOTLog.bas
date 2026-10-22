@@ -503,6 +503,9 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
     ' v27 (item 10, A5 d): a release that fails is REPORTED (logged, named in a box), not swallowed - the rows are VOID
     ' either way, so the calendar is what needs the hand fix
     Dim calErr As String
+    Dim cws As Worksheet                             ' (review L9) the Coverage sheet, re-protected if a release died between its Unlock and Protect
+    On Error Resume Next
+    Set cws = CovTable().Parent
     On Error GoTo CalFailed
     For i = 1 To UBound(v, 1)
         If hit(i) Then
@@ -526,6 +529,7 @@ CalFailed:
     Dim cen As Long: cen = Err.Number
     Dim cem As String: cem = Err.Description
     LogError "VoidRef (calendar release " & SafeStr(v(i, L_REF)) & ")", cen, cem
+    If Not cws Is Nothing Then ProtectSheet cws
     calErr = calErr & IIf(calErr = "", "", vbNewLine) & "  " & SafeStr(v(i, L_REF)) & " " & SafeStr(v(i, L_EMP)) & ": " & cem
     Resume NextRelease
 Failed:

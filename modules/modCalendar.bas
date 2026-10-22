@@ -1490,6 +1490,9 @@ Public Function CalendarPlace(ByVal d As Date, ByVal shiftLbl As String, ByVal u
     ' v27 (item 10, A5): a call-out acceptance or an award outcome covers the ONE open line of that group, date and
     ' shift without asking; the question (a typed number) stays for several open lines or none. A new posting
     ' never auto-picks: a support posting is usually its own line.
+    If k <> "" And k <> "NEW" And autoPick Then
+        If Not SlotKeyOpen(d, shiftLbl, unit, k) Then k = ""      ' (review L7) a key for a voided, covered or POSTED line: back to the pick
+    End If
     If k = "" And autoPick Then k = OnlyOpenSlot(d, shiftLbl, unit)
     If k = "" Then k = PickSlot(d, shiftLbl, unit, what, preferNew)
     If k = "" Then Exit Function
@@ -1522,15 +1525,28 @@ Public Sub VoidCoverageBySource(ByVal source As String)
     If hit Then ProtectSheet lo.Parent
 End Sub
 
-' v27 (item 10): the key of the only OPEN line (nobody on it yet) for that group, date and shift; "" when there
-' are none or several. Reads the cache SlotsFor loads; writes nothing.
+' v27 (item 10): the key of the only OPEN line (nobody on it yet) of that UNIT (review M4: the group holds two units
+' in one case, and a Phosphine acceptance must never land on Derivatives' line unasked) for the date and shift; ""
+' when there are none or several. Reads the cache SlotsFor loads; writes nothing.
 Public Function OnlyOpenSlot(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String) As String
     Dim slots() As CalSlot, n As Long, i As Long, nOpen As Long, k As String
     n = SlotsFor(d, shiftLbl, GroupOfUnit(unit), slots)
     For i = 1 To n
-        If slots(i).IsOpen Then nOpen = nOpen + 1: k = slots(i).Key
+        If slots(i).IsOpen Then
+            If StrComp(SlotUnit(slots(i).Key), unit, vbTextCompare) = 0 Then nOpen = nOpen + 1: k = slots(i).Key
+        End If
     Next i
     If nOpen = 1 Then OnlyOpenSlot = k
+End Function
+
+' v27 (item 10, review L7): True when the key names a LIVE line of that date and shift that is still OPEN (SlotsFor
+' lists only live rows; IsOpen = nobody on it). A voided absence, a covered line or a POSTED line says False.
+Public Function SlotKeyOpen(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String, ByVal key As String) As Boolean
+    Dim slots() As CalSlot, n As Long, i As Long
+    n = SlotsFor(d, shiftLbl, GroupOfUnit(unit), slots)
+    For i = 1 To n
+        If StrComp(slots(i).Key, key, vbTextCompare) = 0 Then SlotKeyOpen = slots(i).IsOpen: Exit Function
+    Next i
 End Function
 
 ' Pick which calendar line something covers. Returns the slot key,

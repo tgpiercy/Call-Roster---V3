@@ -790,9 +790,12 @@ End Sub
 
 ' ---- 12. the calendar agrees with the log (v27, item 10, A5 b) ----
 ' Every non-void Accepted / Awarded row dated in the year needs a live coverage line whose Source is its ref and
-' whose Covered By names the person (PROBLEM: the call order and the staffing count read the calendar). The other
-' way, a live line with an S- source, or a P- source and someone named on it, needs a live log row with that ref
-' (Check: a POSTED line waits for its award; a cancelled posting keeps its line with NCN).
+' whose Covered By names the person: a PROBLEM for a shift from today on (the call order and the staffing count
+' read the calendar), a Check for a past shift (review M3: history from before the auto-pick - a Cancel at the old
+' question, a line voided with its absence - must not block the rollover or the drill). The other way, a live line
+' with someone NAMED on it from an S- or P- source needs a live log row with that ref (Check; review M2: a POSTED
+' line waits for its award, NCN and NO TAKERS are outcomes with no person, and a released line keeps its source
+' with nobody on it).
 Private Sub CheckCoverageVsLog()
     Dim cv As Variant: cv = TableValues(CV_TABLE)
     Dim i As Long, src As String, by As String, nm As String, ref As String, sd As Date
@@ -813,7 +816,7 @@ Private Sub CheckCoverageVsLog()
     ' the live Accepted / Awarded rows by ref
     Dim rows As Object: Set rows = CreateObject("Scripting.Dictionary")
     rows.CompareMode = 1
-    Dim nBad As Long
+    Dim nBad As Long, sev As String, named As String
     If IsArray(mLog) Then
         For i = 1 To UBound(mLog, 1)
             If UCase$(Trim$(SafeStr(mLog(i, L_STATUS)))) <> "VOID" And IsDate(mLog(i, L_DATE)) Then
@@ -825,17 +828,19 @@ Private Sub CheckCoverageVsLog()
                         Case "ACCEPTED", "AWARDED"
                             nm = Trim$(SafeStr(mLog(i, L_EMP)))
                             If nm <> "" And (Left$(ref, 2) = "S-" Or Left$(ref, 2) = "P-") Then
+                                sev = IIf(Int(sd) >= Int(Date), SEV_ERR, SEV_WARN)
                                 If Not lines.Exists(ref) Then
                                     nBad = nBad + 1
-                                    AddIssue SEV_ERR, "Coverage = log", ref & " " & Format$(sd, "mmm d") & " " & SafeStr(mLog(i, L_SHIFTLBL)) & ": " & nm & " is " & _
+                                    AddIssue sev, "Coverage = log", ref & " " & Format$(sd, "mmm d") & " " & SafeStr(mLog(i, L_SHIFTLBL)) & ": " & nm & " is " & _
                                              LCase$(SafeStr(mLog(i, L_OUTCOME))) & " in the log but no live calendar line carries " & ref, _
-                                             "Calendar > that shift's line > Set coverage (or void the row if it is wrong)"
+                                             IIf(sev = SEV_ERR, "Calendar > that shift's line > Set coverage (or void the row if it is wrong)", "A past shift: the calendar's history is short by this line; nothing counts from it now")
                                 ElseIf InStr(1, lines(ref), CalName(nm), vbTextCompare) = 0 And InStr(1, lines(ref), nm, vbTextCompare) = 0 Then
                                     nBad = nBad + 1
-                                    AddIssue SEV_ERR, "Coverage = log", ref & " " & Format$(sd, "mmm d") & " " & SafeStr(mLog(i, L_SHIFTLBL)) & ": " & nm & " is " & _
-                                             LCase$(SafeStr(mLog(i, L_OUTCOME))) & " in the log but the calendar line for " & ref & " names " & _
-                                             IIf(Trim$(Replace(lines(ref), "|", "")) = "", "nobody", Trim$(Replace(Mid$(lines(ref), 2), "|", " / "))), _
-                                             "Calendar > that line > Set coverage"
+                                    named = Trim$(Replace(Mid$(lines(ref), 2, Len(lines(ref)) - 2), "|", " / "))
+                                    If Replace(named, "/", "") = "" Or Trim$(named) = "" Then named = "nobody"
+                                    AddIssue sev, "Coverage = log", ref & " " & Format$(sd, "mmm d") & " " & SafeStr(mLog(i, L_SHIFTLBL)) & ": " & nm & " is " & _
+                                             LCase$(SafeStr(mLog(i, L_OUTCOME))) & " in the log but the calendar line for " & ref & " names " & named, _
+                                             IIf(sev = SEV_ERR, "Calendar > that line > Set coverage", "A past shift: nothing counts from it now")
                                 End If
                             End If
                     End Select
@@ -850,7 +855,10 @@ Private Sub CheckCoverageVsLog()
                 If CDate(cv(i, CV_DATE)) >= mYearFrom Then
                     src = UCase$(Trim$(SafeStr(cv(i, CV_SOURCE))))
                     by = Trim$(SafeStr(cv(i, CV_BY)))
-                    If (Left$(src, 2) = "S-") Or (Left$(src, 2) = "P-" And by <> "" And Not (UCase$(by) Like "POSTED*")) Then
+                    ' (review M2) only a line with a PERSON named on it: a POSTED line waits for its award, NCN / NO TAKERS are
+                    ' outcomes without a person, and a voided session's released line keeps its source with nobody on it
+                    If (Left$(src, 2) = "S-" Or Left$(src, 2) = "P-") And by <> "" And Not (UCase$(by) Like "POSTED*") _
+                       And Not (UCase$(by) Like "NCN*") And Not (UCase$(by) Like "NO TAKERS*") Then
                         If Not rows.Exists(src) Then
                             AddIssue SEV_WARN, "Coverage = log", "Line " & SafeStr(cv(i, CV_ID)) & " on " & Format$(CDate(cv(i, CV_DATE)), "mmm d") & " (" & by & ") came from " & src & _
                                      ", which has no live OT Log row", "Open the line on the calendar: clear it, or log the session again"
@@ -861,6 +869,7 @@ Private Sub CheckCoverageVsLog()
         Next i
     End If
     If nBad = 0 Then AddIssue SEV_INFO, "Coverage = log", "Every accepted call-out and award this year has its calendar line", ""
+    ' (review) the variable sev is reused per row above; nothing else to restore
 End Sub
 
 ' ---- 7. paybacks owed for a long time ----

@@ -59,6 +59,7 @@ Public Const CALLOUT_INCLUDE_DAYS As Boolean = True        ' DAYS employees appe
 ' actual 13 h (fall back) or 11 h (spring forward); False = keep 12 and only warn
 Public Const DST_USE_ACTUAL_HOURS As Boolean = True
 Public Const USUAL_SHIFT_HOURS As Double = 12
+Public Const RECENT_SESSION_HOURS As Double = 12  ' v27 (item 10): a second call-out session for the same unit, date and shift inside this asks first
 ' v26.5.5 (item 9, Graeme Oct 19-21): the plant's fatigue rule. At most FATIGUE_MAX_HOURS of consecutive
 ' work (the shift already worked that touches the OT, plus the OT), and at least FATIGUE_MIN_REST before the
 ' next shift. Accepted call-outs, awards and switches are WORKED shifts for it (modCalendar.FatigueMaxFor).
@@ -1249,7 +1250,9 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     ' (at 3 AM two supervisors can call the same shift; a No keeps the entries on screen)
     Dim recent As String: recent = RecentSessionsText(dept, entryDate, shiftLbl, Now)
     If recent <> "" Then
-        If Ask(recent & vbNewLine & vbNewLine & "Start another session for this shift?", vbYesNo + vbExclamation + vbDefaultButton2, "Call-out", vbYes) = vbNo Then Exit Function
+        ' (review) the calls are already made when this asks, so the question is whether to LOG them too; Yes is the
+        ' default (Enter at 3 AM must not throw the session away)
+        If Ask(recent & vbNewLine & vbNewLine & "Log this session too?" & vbNewLine & "(No = keep the entries on screen and look at that session first.)", vbYesNo + vbExclamation, "Call-out", vbYes) = vbNo Then Exit Function
     End If
 
     sessionID = NextRefID("S")
@@ -1387,7 +1390,8 @@ End Function
 ' v27 (item 10, A5 c): the non-void call-out sessions logged for the same unit, date and shift in the last
 ' RECENT_SESSION_HOURS, one line each ("S-0011 at 2:40 AM by sheltond: 0 accepted, 3 refused"); "" when none.
 ' Reads the log's top rows (newest first) and stops at the first one older than the window. Never raises.
-Public Const RECENT_SESSION_HOURS As Double = 12
+' (The constant RECENT_SESSION_HOURS sits in the declarations block at the top: a Const after the first procedure
+' does not compile, and no checker sees it - review H1.)
 Public Function RecentSessionsText(ByVal dept As String, ByVal d As Date, ByVal shiftLbl As String, ByVal asOf As Date) As String
     On Error GoTo Quiet
     Dim lo As ListObject: Set lo = LogTable()
@@ -1410,13 +1414,14 @@ Public Function RecentSessionsText(ByVal dept As String, ByVal d As Date, ByVal 
         ref = Trim$(SafeStr(v(i, L_REF)))
         If ref = "" Then GoTo NextRow
         If Not refs.Exists(ref) Then
-            refs.Add ref, Array(st, Trim$(SafeStr(v(i, L_USER))), 0, 0)
+            refs.Add ref, Array(st, Trim$(SafeStr(v(i, L_USER))), 0, 0, 0)
             order = order & "|" & ref
         End If
         a = refs(ref)
         If CDate(v(i, L_STAMP)) < a(0) Then a(0) = CDate(v(i, L_STAMP))
         If UCase$(Trim$(SafeStr(v(i, L_OUTCOME)))) = "ACCEPTED" Then a(2) = a(2) + 1
         If UCase$(Trim$(SafeStr(v(i, L_OUTCOME)))) = "REFUSED" Then a(3) = a(3) + 1
+        If UCase$(Trim$(SafeStr(v(i, L_OUTCOME)))) = "LEFT MESSAGE" Then a(4) = a(4) + 1
         refs(ref) = a
 NextRow:
     Next i
@@ -1426,7 +1431,7 @@ NextRow:
     For k = 0 To UBound(parts)
         a = refs(parts(k))
         s = s & IIf(s = "", "", vbNewLine) & parts(k) & " at " & Format$(a(0), "h:mm AM/PM") & IIf(Int(a(0)) <> Int(asOf), " " & Format$(a(0), "ddd"), "") & " by " & a(1) & " already called " & _
-            dept & " " & shiftLbl & " " & Format$(d, "ddd mmm d") & ": " & a(2) & " accepted, " & a(3) & " refused."
+            dept & " " & shiftLbl & " " & Format$(d, "ddd mmm d") & ": " & a(2) & " accepted, " & a(3) & " refused, " & a(4) & " left message."
     Next k
     RecentSessionsText = s
     Exit Function

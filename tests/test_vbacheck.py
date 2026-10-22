@@ -39,7 +39,8 @@ End Sub
 
 
 def run(tmp_path: Path, text: str) -> str:
-    (tmp_path / "modFixture.bas").write_bytes(text.replace("\n", "\r\n").encode("ascii"))
+    (tmp_path / "modules").mkdir(exist_ok=True)          # vbacheck scans modules/ and paste-in/ under the root
+    (tmp_path / "modules" / "modFixture.bas").write_bytes(text.replace("\n", "\r\n").encode("ascii"))
     out = subprocess.run([sys.executable, str(HERE / "vbacheck.py"), str(tmp_path)], capture_output=True, text=True)
     return out.stdout
 

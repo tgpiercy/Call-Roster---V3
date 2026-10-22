@@ -80,6 +80,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
         Exit Sub
     End If
     On Error Resume Next
+    BackupBeforeSave                               ' v27 (item 12): an hourly backup when the newest is older than BACKUP_SAVE_HOURS (quiet)
     mRestoreAdmin = gAdminUnlocked
     mRestoreDesk = gDeskMode                       ' v25.3
     If mRestoreAdmin Then

@@ -258,6 +258,11 @@ def evaluate(row: dict) -> str:
         return rules.time_of_day_band(int(i1))
     if suite == "sspread":                       # v27 (Stats): "h;h;h" -> min|max|mean|sd|gap
         return rules.spread(i1)
+    if suite == "bkeep":                         # v27 (backups): kind, file date, today, period start Y/N -> keep / drop
+        return "keep" if rules.backup_keep(i1, d(i2), d(i3), i4 == "Y") else "drop"
+    if suite == "bhourly":                       # v27 (backups): file name -> yyyy-mm-dd hh / none
+        bh = rules.hourly_backup_date(i1)
+        return bh.strftime("%Y-%m-%d %H") if bh else "none"
     if suite == "dryname":                       # file name -> yes / no
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "backupname":                    # v24.3.1: file name -> yes / no (a backup, FINAL or pre-change copy)

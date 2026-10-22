@@ -112,6 +112,12 @@ Public Const REFUSED_NAME As String = "RefusedThrough"  ' v26.5 hidden name: the
 Public Const BACKUP_FOLDER As String = "."
 Public Const BACKUP_KEEP_DAYS As Long = 30
 Public Const BACKUP_BASENAME As String = "Call Out Roster"
+' v27 (item 12, Graeme Oct 21): a save takes an hourly backup ("<basename> backup yyyy-mm-dd hh.xlsm") when the newest backup is
+' older than BACKUP_SAVE_HOURS; hourly backups are pruned at BACKUP_HOURLY_KEEP_DAYS; the first daily backup of each pay
+' period is kept BACKUP_PERIOD_KEEP_DAYS. The daily backup is taken on ANY writable open (Oct 19-20), not only an admin's.
+Public Const BACKUP_SAVE_HOURS As Double = 4
+Public Const BACKUP_HOURLY_KEEP_DAYS As Long = 7
+Public Const BACKUP_PERIOD_KEEP_DAYS As Long = 400
 
 ' Year end (v23). The frozen copy "Call Out Roster 2026 FINAL.xlsm" goes here at the rollover.
 ' "." = the folder the roster is in; ".\Archive" = a subfolder of it (must exist).

@@ -66,6 +66,13 @@ def test_charging_constants_match_vba():
     assert vba_const("modOvertimeEntry.bas", "BACKUP_BASENAME").strip('"') == rules.BACKUP_BASENAME
 
 
+def test_backup_retention_matches_vba():
+    """v27 item 12: the three retention constants are one table in two places."""
+    assert int(vba_const("modOvertimeEntry.bas", "BACKUP_KEEP_DAYS")) == rules.BACKUP_KEEP_DAYS
+    assert int(vba_const("modOvertimeEntry.bas", "BACKUP_HOURLY_KEEP_DAYS")) == rules.BACKUP_HOURLY_KEEP_DAYS
+    assert int(vba_const("modOvertimeEntry.bas", "BACKUP_PERIOD_KEEP_DAYS")) == rules.BACKUP_PERIOD_KEEP_DAYS
+
+
 def test_kronos_code_table_matches_vba():
     """v27: the premium codes and their multipliers are one table in two places."""
     assert vba_const("modOvertimeEntry.bas", "PREMIUM_CODES").strip('"') == rules.PREMIUM_CODES

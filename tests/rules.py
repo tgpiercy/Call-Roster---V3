@@ -951,6 +951,40 @@ def pre_change_copy_date(file_name: str, roster_name: str) -> date | None:
     return date_serial(int(ds[0:4]), int(ds[5:7]), int(ds[8:10]))
 
 
+BACKUP_KEEP_DAYS = 30            # modOvertimeEntry (v27 item 12 adds the two below)
+BACKUP_HOURLY_KEEP_DAYS = 7
+BACKUP_PERIOD_KEEP_DAYS = 400
+
+
+def backup_keep(kind: str, file_date: date, today: date, period_start: bool) -> bool:
+    """modSystem.BackupKeepCore: a daily backup kept BACKUP_KEEP_DAYS (BACKUP_PERIOD_KEEP_DAYS when it is a pay
+    period's first day); an hourly backup BACKUP_HOURLY_KEEP_DAYS."""
+    age = (today - file_date).days
+    if kind.lower() == "hourly":
+        return age <= BACKUP_HOURLY_KEEP_DAYS
+    if period_start:
+        return age <= BACKUP_PERIOD_KEEP_DAYS
+    return age <= BACKUP_KEEP_DAYS
+
+
+def hourly_backup_date(file_name: str) -> datetime | None:
+    """modSystem.HourlyBackupDate: '<basename> backup yyyy-mm-dd hh.xlsm' -> that day and hour, else None."""
+    head = BACKUP_BASENAME + " backup "
+    if len(file_name) != len(head) + 13 + 5 or not file_name.startswith(head) or not file_name.endswith(".xlsm"):
+        return None
+    s = file_name[len(head):len(head) + 13]
+    digits = "0123456789"
+    if not (all(c in digits for c in s[0:4] + s[5:7] + s[8:10] + s[11:13]) and s[4] == "-" and s[7] == "-" and s[10] == " "):
+        return None
+    y, mo, dy, hh = int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13])
+    if not (1 <= mo <= 12 and 1 <= dy <= 31 and hh <= 23):
+        return None
+    try:
+        return datetime(y, mo, dy, hh)
+    except ValueError:
+        return None
+
+
 def is_backup_copy_name(file_name: str) -> bool:
     """modSystem.IsBackupCopyName (v24.3.1): a daily backup, the FINAL, a 'Backup before ...' copy."""
     if backup_file_date(file_name) is not None:

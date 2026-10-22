@@ -340,6 +340,11 @@ Private Function RunCase(f() As String) As String
             RunCase = TimeOfDayBand(CLng(Val(i1)))
         Case "sspread"                             ' v27 (Stats): "h;h;h" -> min|max|mean|sd|gap
             RunCase = SpreadCore(i1)
+        Case "bkeep"                               ' v27 (backups): daily|hourly, the file's date, today, period start Y/N -> keep / drop
+            RunCase = IIf(BackupKeepCore(i1, ParseD(i2), ParseD(i3), (i4 = "Y")), "keep", "drop")
+        Case "bhourly"                             ' v27 (backups): a file name -> the hourly backup's day and hour / none
+            Dim bh As Date: bh = HourlyBackupDate(i1)
+            RunCase = IIf(bh = 0, "none", Format$(bh, "yyyy-mm-dd hh"))
         Case Else
             RunCase = "UNKNOWN SUITE"
     End Select
@@ -1712,5 +1717,18 @@ Private Sub LoadCases4()
     AddCase "squarter,dec-28-is-q1,2025-12-28,2026-01-01,,,,Q1"
     AddCase "squarter,dec-31-is-q1,2025-12-31,2026-01-01,,,,Q1"
     AddCase "sspread,quarter-hours,22.25;19.25,,,,,19.3|22.3|20.8|1.5|3.0"
+    AddCase "bkeep,daily-fresh,daily,2026-10-01,2026-10-21,N,,keep"
+    AddCase "bkeep,daily-30-days,daily,2026-09-21,2026-10-21,N,,keep"
+    AddCase "bkeep,daily-31-days,daily,2026-09-20,2026-10-21,N,,drop"
+    AddCase "bkeep,period-start-old,daily,2026-01-11,2026-10-21,Y,,keep"
+    AddCase "bkeep,period-start-400-plus,daily,2025-09-01,2026-10-21,Y,,drop"
+    AddCase "bkeep,hourly-fresh,hourly,2026-10-20,2026-10-21,N,,keep"
+    AddCase "bkeep,hourly-7-days,hourly,2026-10-14,2026-10-21,N,,keep"
+    AddCase "bkeep,hourly-8-days,hourly,2026-10-13,2026-10-21,N,,drop"
+    AddCase "bhourly,hourly-name,Call Out Roster backup 2026-10-21 14.xlsm,,,,,2026-10-21 14"
+    AddCase "bhourly,daily-is-not-hourly,Call Out Roster 2026-10-21.xlsm,,,,,none"
+    AddCase "bhourly,bad-hour,Call Out Roster backup 2026-10-21 24.xlsm,,,,,none"
+    AddCase "bhourly,pre-change-copy,Backup before kronos 2026-10-21 141500 - V2 - Call Out Roster.xlsm,,,,,none"
+    AddCase "backupname,hourly-backup,Call Out Roster backup 2026-10-21 14.xlsm,,,,,yes"
 ' <<< CASES
 End Sub

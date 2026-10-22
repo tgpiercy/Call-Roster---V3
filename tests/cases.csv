@@ -776,3 +776,16 @@ kweight,blank-hours,CA OVERTIME=,,,,,0
 squarter,dec-28-is-q1,2025-12-28,2026-01-01,,,,Q1
 squarter,dec-31-is-q1,2025-12-31,2026-01-01,,,,Q1
 sspread,quarter-hours,22.25;19.25,,,,,19.3|22.3|20.8|1.5|3.0
+bkeep,daily-fresh,daily,2026-10-01,2026-10-21,N,,keep
+bkeep,daily-30-days,daily,2026-09-21,2026-10-21,N,,keep
+bkeep,daily-31-days,daily,2026-09-20,2026-10-21,N,,drop
+bkeep,period-start-old,daily,2026-01-11,2026-10-21,Y,,keep
+bkeep,period-start-400-plus,daily,2025-09-01,2026-10-21,Y,,drop
+bkeep,hourly-fresh,hourly,2026-10-20,2026-10-21,N,,keep
+bkeep,hourly-7-days,hourly,2026-10-14,2026-10-21,N,,keep
+bkeep,hourly-8-days,hourly,2026-10-13,2026-10-21,N,,drop
+bhourly,hourly-name,Call Out Roster backup 2026-10-21 14.xlsm,,,,,2026-10-21 14
+bhourly,daily-is-not-hourly,Call Out Roster 2026-10-21.xlsm,,,,,none
+bhourly,bad-hour,Call Out Roster backup 2026-10-21 24.xlsm,,,,,none
+bhourly,pre-change-copy,Backup before kronos 2026-10-21 141500 - V2 - Call Out Roster.xlsm,,,,,none
+backupname,hourly-backup,Call Out Roster backup 2026-10-21 14.xlsm,,,,,yes

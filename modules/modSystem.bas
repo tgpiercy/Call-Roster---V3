@@ -708,8 +708,9 @@ End Sub
 ' True when the backup should be skipped without a word
 Private Function BackupOff() As Boolean
     ' a practice copy (COPY / DRY RUN in its name) never takes the day's backup slot from the real roster;
-    ' nor does a backup, FINAL or pre-change copy opened to look at (v24.3.1, review I1)
-    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or Not IsLiveRoster())
+    ' nor does a backup, FINAL or pre-change copy opened to look at (v24.3.1, review I1).
+    ' v27 (item 12, Graeme Oct 19-20): ANY writable open of the live file backs up, not only an admin's
+    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name))
 End Function
 
 ' BACKUP_FOLDER with "." / ".\sub" resolved against the roster's own folder
@@ -833,19 +834,195 @@ Public Function PruneBackups(ByVal folder As String) As Long
         names(n) = f
         f = Dir$()
     Loop
+    f = Dir$(folder & BACKUP_BASENAME & " backup ????-??-?? ??.xlsm")      ' v27: the hourly backups
+    Do While f <> ""
+        n = n + 1
+        ReDim Preserve names(1 To n)
+        names(n) = f
+        f = Dir$()
+    Loop
+    Dim keep As Boolean
     For i = 1 To n
         d = BackupFileDate(names(i))
         If d > 0 Then
-            If d < Date - BACKUP_KEEP_DAYS Then
-                Err.Clear
-                Kill folder & names(i)
-                If Err.Number = 0 Then removed = removed + 1
-                Err.Clear
-            End If
+            ' v27 (item 12): a daily backup is kept BACKUP_KEEP_DAYS; the first of each pay period BACKUP_PERIOD_KEEP_DAYS
+            keep = BackupKeepCore("daily", d, Date, (PeriodStartFor(d) = d))
+        Else
+            d = HourlyBackupDate(names(i))
+            If d > 0 Then keep = BackupKeepCore("hourly", d, Date, False) Else keep = True
+        End If
+        If Not keep Then
+            Err.Clear
+            Kill folder & names(i)
+            If Err.Number = 0 Then removed = removed + 1
+            Err.Clear
         End If
     Next i
     PruneBackups = removed
 End Function
+
+' v27 (item 12). PURE (SelfTest "bkeep"; mirrored): is a backup kept today? A daily backup for BACKUP_KEEP_DAYS, or
+' BACKUP_PERIOD_KEEP_DAYS when it is the first day of a pay period; an hourly backup for BACKUP_HOURLY_KEEP_DAYS.
+Public Function BackupKeepCore(ByVal kind As String, ByVal fileDate As Date, ByVal today As Date, ByVal periodStart As Boolean) As Boolean
+    Dim age As Long: age = CLng(Int(CDbl(today)) - Int(CDbl(fileDate)))
+    If LCase$(kind) = "hourly" Then
+        BackupKeepCore = (age <= BACKUP_HOURLY_KEEP_DAYS)
+    ElseIf periodStart Then
+        BackupKeepCore = (age <= BACKUP_PERIOD_KEEP_DAYS)
+    Else
+        BackupKeepCore = (age <= BACKUP_KEEP_DAYS)
+    End If
+End Function
+
+' v27: the hourly backup's name, "<basename> backup yyyy-mm-dd hh.xlsm" (one per hour at most)
+Public Function HourlyBackupName(ByVal t As Date) As String
+    HourlyBackupName = BACKUP_BASENAME & " backup " & Format$(t, "yyyy-mm-dd hh") & ".xlsm"
+End Function
+
+' PURE (SelfTest "bhourly"; mirrored): the day and hour in an hourly backup's name, or 0
+Public Function HourlyBackupDate(ByVal fileName As String) As Date
+    Dim pat As String: pat = BACKUP_BASENAME & " backup ####-##-## ##.xlsm"
+    If Len(fileName) <> Len(pat) Then Exit Function
+    If Not fileName Like pat Then Exit Function
+    Dim s As String: s = Mid$(fileName, Len(BACKUP_BASENAME) + 9, 13)
+    Dim y As Long, mo As Long, dy As Long, hh As Long
+    y = CLng(Left$(s, 4)): mo = CLng(Mid$(s, 6, 2)): dy = CLng(Mid$(s, 9, 2)): hh = CLng(Mid$(s, 12, 2))
+    If mo < 1 Or mo > 12 Or dy < 1 Or dy > 31 Or hh > 23 Then Exit Function
+    If Day(DateSerial(y, mo, dy)) <> dy Then Exit Function
+    HourlyBackupDate = DateSerial(y, mo, dy) + TimeSerial(hh, 0, 0)
+End Function
+
+' v27 (item 12): called by Workbook_BeforeSave - when the newest backup (daily or hourly) is older than BACKUP_SAVE_HOURS,
+' a copy of the file AS IT IS NOW goes beside the daily backups before the save overwrites it. Quiet: a backup never stops a save.
+Public Sub BackupBeforeSave()
+    On Error Resume Next
+    If BackupOff() Then Exit Sub
+    Dim folder As String: folder = BackupFolderPath()
+    If Not FolderExists(folder) Then Exit Sub
+    Dim newest As Date, f As String, at As Date
+    f = Dir$(folder & BACKUP_BASENAME & " ????-??-??.xlsm")
+    Do While f <> ""
+        at = 0: at = FileDateTime(folder & f)
+        If at > newest Then newest = at
+        f = "": f = Dir$()
+    Loop
+    f = Dir$(folder & BACKUP_BASENAME & " backup ????-??-?? ??.xlsm")
+    Do While f <> ""
+        at = 0: at = FileDateTime(folder & f)
+        If at > newest Then newest = at
+        f = "": f = Dir$()
+    Loop
+    If newest > 0 Then
+        If (Now - newest) * 24 < BACKUP_SAVE_HOURS Then Exit Sub
+    End If
+    Dim target As String: target = folder & HourlyBackupName(Now)
+    If Dir$(target) <> "" Then Exit Sub
+    Err.Clear
+    ThisWorkbook.SaveCopyAs target
+    If Err.Number <> 0 Then LogError "BackupBeforeSave", Err.Number, Err.Description
+    Err.Clear
+    PruneBackups folder
+End Sub
+
+' v27 (item 12): the restore drill (admin; every release's group 4 from v27; the December dry run). The newest daily
+' backup is copied to the Practice folder as a COPY, opened, and asked: SystemCheckOK, IntegrityOnOpen (ran at its open)
+' -> IntegrityHasProblems, SelfTestOK; its OT Log row count and everyone's Total Hours are compared with the live file's,
+' so the box says what a restore from that backup would lose. One Install Log row (kind drill). The copy is closed.
+Public Sub RestoreDrill()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then
+        MsgBox "Run the restore drill from the live roster, not from a copy.", vbExclamation, "Restore drill": Exit Sub
+    End If
+    Dim folder As String: folder = BackupFolderPath()
+    If Not FolderExists(folder) Then MsgBox "The backup folder can't be reached:" & vbNewLine & folder, vbExclamation, "Restore drill": Exit Sub
+    Dim f As String, best As String, bestD As Date, d As Date
+    f = Dir$(folder & BACKUP_BASENAME & " ????-??-??.xlsm")
+    Do While f <> ""
+        d = BackupFileDate(f)
+        If d > bestD Then bestD = d: best = f
+        f = Dir$()
+    Loop
+    If best = "" Then MsgBox "No daily backup was found in " & folder, vbExclamation, "Restore drill": Exit Sub
+    Dim prac As String: prac = EnsureSlash(ThisWorkbook.Path) & "Practice\"
+    If Not FolderExists(prac) Then MkDir prac
+    Dim baseName As String: baseName = ThisWorkbook.Name
+    If InStrRev(baseName, ".") > 1 Then baseName = Left$(baseName, InStrRev(baseName, ".") - 1)
+    Dim target As String: target = prac & baseName & " DRILL COPY " & Format$(Now, "yyyy-mm-dd hhmm") & ".xlsm"
+    If MsgBox("Restore drill: copy the newest daily backup (" & best & ") to" & vbNewLine & target & vbNewLine & vbNewLine & _
+              "open it as a practice copy, run SystemCheck, IntegrityCheck and SelfTest in it, and compare it with this file? " & _
+              "Nothing here changes; the copy is closed at the end (and deleted with tomorrow's backup).", vbOKCancel + vbQuestion, "Restore drill") <> vbOK Then Exit Sub
+    FileCopy folder & best, target
+    ' this file's figures first
+    Dim liveRows As Long: liveRows = 0
+    If Not LogTable() Is Nothing Then liveRows = LogTable().ListRows.Count
+    Dim liveTot As Object: Set liveTot = RosterTotalsMap()
+    Dim wb As Workbook
+    Set wb = Workbooks.Open(Filename:=target)                ' its own Workbook_Open runs: the banner, IntegrityOnOpen (admin)
+    Dim nm As String: nm = "'" & wb.Name & "'!"
+    Dim sysOk As Boolean, icBad As Boolean, stOk As Boolean, em As String
+    On Error Resume Next
+    sysOk = Application.Run(nm & "SystemCheckOK")
+    If Err.Number <> 0 Then em = em & "SystemCheck could not run (" & Err.Description & "). ": Err.Clear
+    icBad = Application.Run(nm & "IntegrityHasProblems")
+    If Err.Number <> 0 Then em = em & "IntegrityCheck could not run (" & Err.Description & "). ": Err.Clear
+    stOk = Application.Run(nm & "SelfTestOK")
+    If Err.Number <> 0 Then em = em & "SelfTest could not run (" & Err.Description & "). ": Err.Clear
+    ' the copy's log rows and totals
+    Dim copyRows As Long, lost As String, nLost As Long
+    copyRows = wb.Worksheets(LOG_SHEET).ListObjects(LOG_TABLE).ListRows.Count
+    Dim ws As Worksheet: Set ws = wb.Worksheets(ROSTER_SHEET)
+    Dim r As Long, k As String, tLive As String, tCopy As String
+    Dim copyTot As Object: Set copyTot = CreateObject("Scripting.Dictionary"): copyTot.CompareMode = 1
+    For r = R_FIRST To ws.Cells(ws.Rows.Count, C_NAME).End(xlUp).Row
+        k = Trim$(SafeStr(ws.Cells(r, C_NAME).Value))
+        If k <> "" Then copyTot(k) = Format$(NumOr0(ws.Cells(r, C_TOTAL).Value), "0.0000")
+    Next r
+    Dim kk As Variant
+    For Each kk In liveTot.Keys
+        tLive = Split(CStr(liveTot(kk)), "|")(0)
+        If copyTot.Exists(kk) Then tCopy = CStr(copyTot(kk)) Else tCopy = ""
+        If tCopy = "" Then
+            nLost = nLost + 1: If nLost <= 10 Then lost = lost & "  " & kk & ": not in the backup" & vbNewLine
+        ElseIf Abs(Val(tLive) - Val(tCopy)) > 0.0001 Then
+            nLost = nLost + 1: If nLost <= 10 Then lost = lost & "  " & kk & ": " & HoursText(Val(tCopy)) & " in the backup, " & HoursText(Val(tLive)) & " now" & vbNewLine
+        End If
+    Next kk
+    wb.Close SaveChanges:=False
+    On Error GoTo Oops
+    Dim verdict As String
+    verdict = "Backup " & best & " (" & Format$(bestD, "ddd mmm d") & ")" & vbNewLine & _
+              "  SystemCheck: " & IIf(sysOk, "OK", "NOT clean") & "   IntegrityCheck: " & IIf(icBad, "PROBLEMS", "no PROBLEM") & "   SelfTest: " & IIf(stOk, "passed", "FAILED") & vbNewLine & _
+              "  A restore from it would lose " & (liveRows - copyRows) & " OT Log row(s) logged since, and these people's totals would move:" & vbNewLine & _
+              IIf(lost = "", "  (nobody's)" & vbNewLine, lost & IIf(nLost > 10, "  ... and " & (nLost - 10) & " more" & vbNewLine, "")) & _
+              IIf(em <> "", vbNewLine & em, "")
+    LogInstallRow "drill", "Restore drill: " & best, IIf(sysOk And Not icBad And stOk And em = "", "PASS", "CHECK"), Replace(verdict, vbNewLine, " | ")
+    MsgBox "Restore drill done." & vbNewLine & vbNewLine & verdict & vbNewLine & "One Install Log row was written.", _
+           IIf(sysOk And Not icBad And stOk And em = "", vbInformation, vbExclamation), "Restore drill"
+    Exit Sub
+Oops:
+    ReportError "RestoreDrill"
+End Sub
+
+' v27: one row into the Install Log from inside the roster (the updater writes the install's rows; the drill its own).
+' The sheet is never protected by design.
+Public Sub LogInstallRow(ByVal kind As String, ByVal stepTxt As String, ByVal status As String, ByVal note As String)
+    On Error Resume Next
+    EnsureInstallLog
+    Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(IL_SHEET)
+    Dim lo As ListObject: Set lo = ws.ListObjects("tblInstallLog")
+    If lo Is Nothing Then Exit Sub
+    Dim r As Long: r = lo.HeaderRowRange.Row + lo.ListRows.Count + 1
+    If lo.ListRows.Count = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then r = lo.HeaderRowRange.Row + 1
+    ws.Cells(r, 1).Value = EXPECTED_RELEASE
+    ws.Cells(r, 2).Value = stepTxt
+    ws.Cells(r, 3).Value = kind
+    ws.Cells(r, 4).Value = status
+    ws.Cells(r, 5).Value = Now
+    ws.Cells(r, 6).Value = CurrentUser()
+    ws.Cells(r, 7).Value = "'" & Left$(note, 250)
+    lo.Resize ws.Range(lo.HeaderRowRange, ws.Cells(r, 7))
+End Sub
 
 ' SystemCheck lines for the backup
 Private Sub BackupStatus(ByRef warn As String, ByRef info As String)

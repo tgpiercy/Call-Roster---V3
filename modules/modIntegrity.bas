@@ -132,7 +132,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 13
+        For k = 1 To 15                            ' v27 (item 28): + Log rows, Records
             RunCheck k
         Next k
     End If
@@ -157,6 +157,8 @@ Private Function CheckName(ByVal k As Long) As String
         Case 11: CheckName = "Planned moves"
         Case 12: CheckName = "Coverage = log"
         Case 13: CheckName = "Settings"
+        Case 14: CheckName = "Log rows"
+        Case 15: CheckName = "Records"
     End Select
 End Function
 
@@ -177,6 +179,8 @@ Private Sub RunCheck(ByVal k As Long)
         Case 11: CheckPlannedMoves
         Case 12: CheckCoverageVsLog
         Case 13: CheckSettings
+        Case 14: CheckLogRows
+        Case 15: CheckRecords
     End Select
     Exit Sub
 Oops:
@@ -1186,4 +1190,175 @@ Failed:
     Application.ScreenUpdating = True
     Application.EnableEvents = evWas
     MsgBox "The Integrity sheet couldn't be drawn: " & em, vbExclamation, "Call Out Roster"
+End Sub
+
+' ---- 14. the log rows themselves (v27 item 28, C1) ----
+' Every non-void call-out (S-) and posting (P-) row: its Hours Charged must be what the rule gives from the row's
+' own Outcome / Hours / Dept Code (a call-out: CalloutCharge; a posting refusal: 0 or its Hours x the multiplier,
+' grade <= the cap; an Accepted / Awarded / Signed Up row never charged) and its Period Start the pay period of its
+' Shift Date - PROBLEMs (Total Hours read these rows). A VOID row with no Void Note, Entry IDs above the high-water
+' mark (PROBLEM: an ID could be reused) or with gaps, and one person charged twice for one unit / date / shift are
+' Checks.
+Private Sub CheckLogRows()
+    Dim i As Long, ref As String, typ As String, oc As String, chg As Double, hrs As Double, gr As Double, want As Double
+    Dim nBad As Long, nPer As Long, nVoid As Long, sd As Variant, eid As Double, mx As Double, mn As Double, nIds As Long
+    Dim twice As Object: Set twice = CreateObject("Scripting.Dictionary")
+    twice.CompareMode = 1
+    Dim key As String, kk As Variant, nTwice As Long
+    mn = -1
+    For i = 1 To LogRows()
+        ref = UCase$(Trim$(SafeStr(mLog(i, L_REF))))
+        eid = NumOr0(mLog(i, L_ENTRY))
+        If eid > 0 Then
+            nIds = nIds + 1
+            If eid > mx Then mx = eid
+            If mn < 0 Or eid < mn Then mn = eid
+        End If
+        If IsVoidRow(i) Then
+            If Trim$(SafeStr(mLog(i, L_VOIDNOTE))) = "" Or Trim$(SafeStr(mLog(i, L_USER))) = "" Then
+                nVoid = nVoid + 1
+                If nVoid <= 5 Then AddIssue SEV_WARN, "Log rows", "Row " & (i + 1) & " (" & ref & ", " & SafeStr(mLog(i, L_EMP)) & ") is VOID with no " & IIf(Trim$(SafeStr(mLog(i, L_VOIDNOTE))) = "", "Void Note", "Logged By"), "Why it was voided, or who logged it, is not recorded"
+            End If
+        ElseIf Left$(ref, 2) = "S-" Or Left$(ref, 2) = "P-" Then
+            typ = LCase$(Trim$(SafeStr(mLog(i, L_TYPE))))
+            oc = Trim$(SafeStr(mLog(i, L_OUTCOME)))
+            chg = NumOr0(mLog(i, L_CHARGED))
+            hrs = NumOr0(mLog(i, L_BASEHRS))
+            gr = DeptCodeValue(SafeStr(mLog(i, L_CODE)))
+            If typ = "callout" Then
+                want = CalloutCharge(oc, gr, hrs)
+                If Abs(chg - want) > TOL Then
+                    nBad = nBad + 1
+                    If nBad <= 10 Then AddIssue SEV_ERR, "Log rows", "Row " & (i + 1) & " (" & ref & " " & SafeStr(mLog(i, L_EMP)) & ", " & oc & ", " & HoursText(hrs) & " h, " & SafeStr(mLog(i, L_CODE)) & ") is charged " & HoursText(chg) & "; the rule gives " & HoursText(want), "Void it and log it again, or an Adjustment with the reason"
+                End If
+            ElseIf typ = "posting" Then
+                If chg > TOL And (LCase$(oc) <> "refused" Or gr > CHARGE_MAX_GRADE Or Abs(chg - hrs * CHARGE_MULTIPLIER) > TOL) Then
+                    nBad = nBad + 1
+                    If nBad <= 10 Then AddIssue SEV_ERR, "Log rows", "Row " & (i + 1) & " (" & ref & " " & SafeStr(mLog(i, L_EMP)) & ", " & oc & ", " & HoursText(hrs) & " h, " & SafeStr(mLog(i, L_CODE)) & ") is charged " & HoursText(chg) & ": a posting charges only a refusal, grade " & CHARGE_MAX_GRADE & " or below, its hours x " & CHARGE_MULTIPLIER, "Void Entry > " & ref & " and Reopen, or an Adjustment with the reason"
+                End If
+            End If
+            sd = mLog(i, L_DATE)
+            If IsDate(sd) And RowPeriod(i) > 0 Then
+                If RowPeriod(i) <> CLng(Int(CDbl(PeriodStartFor(CDate(sd))))) Then
+                    nPer = nPer + 1
+                    If nPer <= 10 Then AddIssue SEV_ERR, "Log rows", "Row " & (i + 1) & " (" & ref & " " & SafeStr(mLog(i, L_EMP)) & ") has Period Start " & Format$(CDate(RowPeriod(i)), "mmm d") & " but its shift (" & Format$(CDate(sd), "mmm d") & ") is in the period starting " & Format$(PeriodStartFor(CDate(sd)), "mmm d"), "Its hours count in the wrong pay period: void it and log it again"
+                End If
+            End If
+            If chg > TOL And IsDate(sd) Then
+                key = Trim$(SafeStr(mLog(i, L_EMP))) & "|" & Trim$(SafeStr(mLog(i, L_DEPT))) & "|" & Format$(CDate(sd), "yyyy-mm-dd") & "|" & IIf(IsNightShift(SafeStr(mLog(i, L_SHIFTLBL))), "N", "D")
+                twice(key) = twice(key) & IIf(twice(key) = "", "", ", ") & ref
+            End If
+        End If
+    Next i
+    If nBad > 10 Then AddIssue SEV_ERR, "Log rows", (nBad - 10) & " more row(s) charged other than the rule gives", "Run IntegrityCheck again after fixing the ones above"
+    If nPer > 10 Then AddIssue SEV_ERR, "Log rows", (nPer - 10) & " more row(s) in the wrong pay period", "Run IntegrityCheck again after fixing the ones above"
+    If nVoid > 5 Then AddIssue SEV_WARN, "Log rows", (nVoid - 5) & " more VOID row(s) with no Void Note or Logged By", ""
+    ' Entry IDs: none above the high-water mark (a later NextEntryID could reuse it); a gap is a row removed by hand
+    Dim mark As Long: mark = IdMark("ENTRY")
+    If mark > 0 And mx > mark Then
+        AddIssue SEV_ERR, "Log rows", "The highest Entry ID in the log (" & CLng(mx) & ") is above the ENTRY high-water mark (" & mark & ")", "Alt+F8 > RepairIdMarks raises the mark"
+    End If
+    If nIds > 1 And mx - mn + 1 > nIds Then
+        AddIssue SEV_WARN, "Log rows", "Entry IDs run from " & CLng(mn) & " to " & CLng(mx) & " but only " & nIds & " rows carry one: " & CLng(mx - mn + 1 - nIds) & " missing", "A row removed by hand? Compare with the newest backup"
+    End If
+    For Each kk In twice.Keys
+        If InStr(twice(kk), ",") > 0 Then
+            nTwice = nTwice + 1
+            If nTwice <= 5 Then AddIssue SEV_WARN, "Log rows", Split(CStr(kk), "|")(0) & " is charged more than once for " & Split(CStr(kk), "|")(1) & " " & Split(CStr(kk), "|")(2) & " " & IIf(Split(CStr(kk), "|")(3) = "N", "Nights", "Days") & " (" & twice(kk) & ")", "Two call-outs (or a posting and a call-out) for one shift: check both were meant"
+        End If
+    Next kk
+End Sub
+
+' ---- 15. the other tables' records (v27 item 28, C1) - Checks and Notes only ----
+' Two live bookings for one person that overlap (a sick call over a booking is the rule's own case and is skipped;
+' bookings for different shifts of a day are skipped); a payback dated before the switch it pays back; a crew row
+' dated in the future with no planned move behind it (a Note: a future crew change is allowed on its own); a person
+' who has left (the Former sheet) still on an open posting's list and not marked exempt.
+Private Sub CheckRecords()
+    Dim i As Long, j As Long, n As Long
+    ' bookings that overlap
+    Dim av As Variant: av = TableValues(AB_TABLE)
+    If IsArray(av) Then
+        Dim aFrom As Date, aTo As Date, bFrom As Date, bTo As Date, shA As String, shB As String
+        For i = 1 To UBound(av, 1)
+            If UCase$(SafeStr(av(i, AB_STATUS))) <> "VOID" And IsDate(av(i, AB_START)) And UCase$(SafeStr(av(i, AB_TYPE))) <> "SIC" Then
+                aFrom = Int(CDate(av(i, AB_START)))
+                If IsDate(av(i, AB_END)) Then aTo = Int(CDate(av(i, AB_END))) Else aTo = DateSerial(9999, 1, 1)
+                shA = UCase$(Left$(Trim$(SafeStr(av(i, AB_SHIFT))), 1))
+                For j = i + 1 To UBound(av, 1)
+                    If UCase$(SafeStr(av(j, AB_STATUS))) <> "VOID" And IsDate(av(j, AB_START)) And UCase$(SafeStr(av(j, AB_TYPE))) <> "SIC" Then
+                        If StrComp(Trim$(SafeStr(av(i, AB_EMP))), Trim$(SafeStr(av(j, AB_EMP))), vbTextCompare) = 0 Then
+                            bFrom = Int(CDate(av(j, AB_START)))
+                            If IsDate(av(j, AB_END)) Then bTo = Int(CDate(av(j, AB_END))) Else bTo = DateSerial(9999, 1, 1)
+                            shB = UCase$(Left$(Trim$(SafeStr(av(j, AB_SHIFT))), 1))
+                            If aFrom <= bTo And bFrom <= aTo And Not ((shA = "D" And shB = "N") Or (shA = "N" And shB = "D")) Then
+                                n = n + 1
+                                If n <= 5 Then AddIssue SEV_WARN, "Records", SafeStr(av(i, AB_EMP)) & ": " & SafeStr(av(i, AB_ID)) & " and " & SafeStr(av(j, AB_ID)) & " overlap (" & Format$(IIf(aFrom > bFrom, aFrom, bFrom), "mmm d") & ")", "Book the time off again, or void the one that is wrong"
+                            End If
+                        End If
+                    End If
+                Next j
+            End If
+        Next i
+    End If
+    If n > 5 Then AddIssue SEV_WARN, "Records", (n - 5) & " more overlapping booking(s)", ""
+    ' a payback dated before its switch
+    Dim sv As Variant: sv = TableValues(SS_TABLE)
+    If IsArray(sv) Then
+        Dim dates As Object: Set dates = CreateObject("Scripting.Dictionary")
+        dates.CompareMode = 1
+        For i = 1 To UBound(sv, 1)
+            If IsDate(sv(i, SW_DATE)) Then dates(Trim$(SafeStr(sv(i, SW_ID)))) = CDate(sv(i, SW_DATE))
+        Next i
+        Dim orig As String
+        For i = 1 To UBound(sv, 1)
+            orig = Trim$(SafeStr(sv(i, SW_PAYFOR)))
+            If orig <> "" And UCase$(SafeStr(sv(i, SW_STATUS))) <> "VOID" And IsDate(sv(i, SW_DATE)) Then
+                If dates.Exists(orig) Then
+                    If Int(CDate(sv(i, SW_DATE))) < Int(dates(orig)) Then
+                        AddIssue SEV_WARN, "Records", SafeStr(sv(i, SW_ID)) & " pays back " & orig & " but is dated " & Format$(CDate(sv(i, SW_DATE)), "mmm d") & ", before the switch (" & Format$(dates(orig), "mmm d") & ")", "Check the dates of both switches"
+                    End If
+                End If
+            End If
+        Next i
+    End If
+    ' a future crew row with no planned move
+    Dim cv As Variant: cv = TableValues(CH_TABLE)
+    Dim pv As Variant: pv = PlannedRows()
+    If IsArray(cv) Then
+        Dim planned As Object: Set planned = CreateObject("Scripting.Dictionary")
+        planned.CompareMode = 1
+        If IsArray(pv) Then
+            For i = 1 To UBound(pv, 1)
+                If SafeStr(pv(i, PM_STATUS)) = "Planned" And IsDate(pv(i, PM_FROM)) Then planned(Trim$(SafeStr(pv(i, PM_EMP))) & "|" & CLng(Int(CDate(pv(i, PM_FROM))))) = True
+            Next i
+        End If
+        For i = 1 To UBound(cv, 1)
+            If IsDate(cv(i, CH_FROM)) Then
+                If Int(CDate(cv(i, CH_FROM))) > Date And Not planned.Exists(Trim$(SafeStr(cv(i, CH_EMP))) & "|" & CLng(Int(CDate(cv(i, CH_FROM))))) Then
+                    AddIssue SEV_INFO, "Records", SafeStr(cv(i, CH_EMP)) & " moves to crew " & SafeStr(cv(i, CH_CREW)) & " on " & Format$(CDate(cv(i, CH_FROM)), "mmm d, yyyy") & " (a crew change entered ahead, no planned unit move)", ""
+                End If
+            End If
+        Next i
+    End If
+    ' someone who has left, on an open posting's list
+    Dim gone As Object: Set gone = FormerNameSet()
+    Dim ptv As Variant: ptv = TableValues(PT_TABLE)
+    Dim plv As Variant: plv = TableValues(PL_TABLE)
+    If gone.Count > 0 And IsArray(ptv) And IsArray(plv) Then
+        Dim openIds As Object: Set openIds = CreateObject("Scripting.Dictionary")
+        openIds.CompareMode = 1
+        For i = 1 To UBound(ptv, 1)
+            If SafeStr(ptv(i, PS_STATUS)) = "Open" Then openIds(Trim$(SafeStr(ptv(i, PS_ID)))) = True
+        Next i
+        Dim nm As String
+        For i = 1 To UBound(plv, 1)
+            nm = Trim$(SafeStr(plv(i, PL_EMP)))
+            If openIds.Exists(Trim$(SafeStr(plv(i, PL_ID)))) And gone.Exists(nm) And Not mOnRoster.Exists(nm) Then
+                If InStr(1, SafeStr(plv(i, PL_RESULT)), EXEMPT_TAG, vbTextCompare) = 0 Then
+                    AddIssue SEV_WARN, "Records", nm & " has left (the Former sheet) but is on open posting " & SafeStr(plv(i, PL_ID)) & "'s list, not marked exempt", "Award around them: they are never charged once marked; Remove marks the lists"
+                End If
+            End If
+        Next i
+    End If
 End Sub

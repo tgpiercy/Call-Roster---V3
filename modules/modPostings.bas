@@ -682,7 +682,7 @@ Public Sub EditPosting()
                    "  " & id & "  " & HoursText(p.Hours) & " h  " & Format$(p.ShiftDate, "ddd mmm d") & "  " & p.Positions & " position(s)  (the Postings row; no OT Log row)" & vbNewLine, _
                    "  Nobody's Total Hours changed. The list's frozen hours and sign-ups are as they were." & vbNewLine, _
                    "  Calendar: " & IIf(calTxt = "", "unchanged", calTxt) & vbNewLine & "  " & rpt & vbNewLine & "  " & supTxt & vbNewLine, _
-                   "  Edit it again, or Cancel Request on the award pop-up." & vbNewLine)
+                   "  Edit it again, or Cancel Request on the award pop-up." & vbNewLine     ' (Oct 22: a stray ) here was a syntax error)
     Exit Sub
 Oops:
     ReportError "EditPosting"

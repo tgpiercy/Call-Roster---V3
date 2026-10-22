@@ -74,6 +74,15 @@ for f in files:
         if not s:
             continue
         low = s.lower()
+        # v27 (Oct 22, found at install): every ( has its ) in one statement - a stray ) at the end of a Sub call
+        # written without brackets is "Syntax error" (two receipts had one; reading and every checker had missed it)
+        depth = 0
+        for ch in s:
+            depth += (ch == "(") - (ch == ")")
+            if depth < 0:
+                break
+        if depth != 0:
+            problems.append(f"{f.name}:{n}: brackets don't balance ({'a stray )' if depth < 0 else 'an unclosed ('}) - Syntax error")
         # v27 (review of item 21): an Exit Sub inside a Function (or the reverse) does not compile
         procs_open = [k for k, _ in stack if k in ("sub", "function", "property")]
         if procs_open:

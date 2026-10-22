@@ -86,3 +86,25 @@ def test_exit_sub_inside_a_function_is_a_problem(tmp_path):
 def test_matching_exits_are_clean(tmp_path):
     out = run(tmp_path, EXIT_GOOD)
     assert "inside a" not in out and "OK" in out, out
+
+
+PAREN_BAD = """Attribute VB_Name = "modFixture"
+Option Explicit
+
+Private Sub Show(ByVal a As String, ByVal b As String)
+End Sub
+
+Private Sub Caller()
+    Show "one (in a string)", _
+         "two" & Format$(Now, "yyyy")
+    Show "a", _
+         "b")
+End Sub
+"""
+
+
+def test_a_stray_bracket_is_a_problem_and_brackets_in_strings_are_not(tmp_path):
+    out = run(tmp_path, PAREN_BAD)
+    hits = [ln for ln in out.splitlines() if "brackets don't balance" in ln]
+    assert len(hits) == 1 and "stray" in hits[0], out
+

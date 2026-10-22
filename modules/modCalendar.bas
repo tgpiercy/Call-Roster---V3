@@ -716,7 +716,7 @@ Public Sub RestrictOTFor(ByVal emp As String)
                    "  " & id & "  " & emp & "  from " & Format$(dFrom, "ddd mmm d") & IIf(IsDate(dTo), " to " & Format$(CDate(dTo), "ddd mmm d"), " (open-ended)") & "  (a Restrictions row; no OT Log row)" & vbNewLine, _
                    "  Nobody's Total Hours changed. " & emp & " is off every call-out and posting list while restricted and is never charged." & vbNewLine, _
                    "  Needs Attention lists it; the call-out pop-up's Not listed names it; the members' file shows nothing of it." & vbNewLine, _
-                   "  Alt+F8 > EndRestriction ends it early (the row is voided with a note)." & vbNewLine)
+                   "  Alt+F8 > EndRestriction ends it early (the row is voided with a note)." & vbNewLine     ' (Oct 22: a stray ) here was a syntax error)
     Exit Sub
 Oops:
     ReportError "RestrictOTFor"

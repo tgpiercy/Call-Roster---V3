@@ -500,7 +500,10 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
     ResetOtWorked                                   ' v26.5.5: a voided acceptance / award no longer counts for the 16 h rule
 
     ' take voided call-outs / awards back off the calendar
-    On Error Resume Next
+    ' v27 (item 10, A5 d): a release that fails is REPORTED (logged, named in a box), not swallowed - the rows are VOID
+    ' either way, so the calendar is what needs the hand fix
+    Dim calErr As String
+    On Error GoTo CalFailed
     For i = 1 To UBound(v, 1)
         If hit(i) Then
             Select Case SafeStr(v(i, L_OUTCOME))
@@ -508,13 +511,23 @@ Public Function VoidRef(ByVal k As String, ByVal why As String, ByRef calN As Lo
                     calN = calN + ReleaseCoverage(SafeStr(v(i, L_REF)), SafeStr(v(i, L_EMP)))
             End Select
         End If
+NextRelease:
     Next i
+    On Error Resume Next
     RefreshCalendar
-    On Error GoTo 0
-
     SaveIfWritable
     VoidRef = cnt
+    If calErr <> "" Then
+        Tell "The rows of " & k & " are VOID, but the calendar could not be put right:" & vbNewLine & calErr & vbNewLine & vbNewLine & _
+             "Open the Calendar, find that shift's line and use Set coverage (or Clear) by hand. The Error Log has the detail.", vbExclamation, "Void entry"
+    End If
     Exit Function
+CalFailed:
+    Dim cen As Long: cen = Err.Number
+    Dim cem As String: cem = Err.Description
+    LogError "VoidRef (calendar release " & SafeStr(v(i, L_REF)) & ")", cen, cem
+    calErr = calErr & IIf(calErr = "", "", vbNewLine) & "  " & SafeStr(v(i, L_REF)) & " " & SafeStr(v(i, L_EMP)) & ": " & cem
+    Resume NextRelease
 Failed:
     Dim en As Long: en = Err.Number
     Dim em As String: em = Err.Description

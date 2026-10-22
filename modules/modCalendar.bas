@@ -1483,9 +1483,14 @@ End Function
 Public Function CalendarPlace(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String, _
                               ByVal what As String, ByVal coveredBy As String, ByVal hrs As Variant, _
                               ByVal source As String, ByVal typ As String, ByVal needText As String, _
-                              Optional ByVal preferNew As Boolean = False, Optional ByVal slotKey As String = "") As String
+                              Optional ByVal preferNew As Boolean = False, Optional ByVal slotKey As String = "", _
+                              Optional ByVal autoPick As Boolean = False) As String
     Dim k As String: k = slotKey
     If k = "" And gSmokeRun Then k = "NEW"          ' v24.2: SmokeTest takes a new line without asking
+    ' v27 (item 10, A5): a call-out acceptance or an award outcome covers the ONE open line of that group, date and
+    ' shift without asking; the question (a typed number) stays for several open lines or none. A new posting
+    ' never auto-picks: a support posting is usually its own line.
+    If k = "" And autoPick Then k = OnlyOpenSlot(d, shiftLbl, unit)
     If k = "" Then k = PickSlot(d, shiftLbl, unit, what, preferNew)
     If k = "" Then Exit Function
     Dim lt As String, rt As String, lbl As String
@@ -1517,6 +1522,17 @@ Public Sub VoidCoverageBySource(ByVal source As String)
     If hit Then ProtectSheet lo.Parent
 End Sub
 
+' v27 (item 10): the key of the only OPEN line (nobody on it yet) for that group, date and shift; "" when there
+' are none or several. Reads the cache SlotsFor loads; writes nothing.
+Public Function OnlyOpenSlot(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String) As String
+    Dim slots() As CalSlot, n As Long, i As Long, nOpen As Long, k As String
+    n = SlotsFor(d, shiftLbl, GroupOfUnit(unit), slots)
+    For i = 1 To n
+        If slots(i).IsOpen Then nOpen = nOpen + 1: k = slots(i).Key
+    Next i
+    If nOpen = 1 Then OnlyOpenSlot = k
+End Function
+
 ' Pick which calendar line something covers. Returns the slot key,
 ' "NEW" for a new line, or "" to leave the calendar alone.
 Public Function PickSlot(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String, _
@@ -1537,14 +1553,18 @@ Public Function PickSlot(ByVal d As Date, ByVal shiftLbl As String, ByVal unit A
 End Function
 
 ' Call-out: one accepted person onto the calendar
+' v27 (item 10): slotKey = the line this call-out was started from (the sick call's absence, "A:SC-n"), so no question;
+' with none, the one open line is taken; the question only when several or none. A Cancel is said in words a
+' receipt can colour ("NOT ON THE CALENDAR").
 Public Function CalendarAddAccepted(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, _
-                                    ByVal empName As String, ByVal hrs As Double, ByVal source As String) As String
+                                    ByVal empName As String, ByVal hrs As Double, ByVal source As String, _
+                                    Optional ByVal slotKey As String = "") As String
     On Error GoTo Failed
     Dim t As String
     t = CalendarPlace(d, shiftLbl, unit, "Call-out " & source & ": which calendar line does " & empName & " cover?", _
-                      CalName(empName), hrs, source, "SUP", "Call-out " & source)
+                      CalName(empName), hrs, source, "SUP", "Call-out " & source, False, slotKey, True)
     If t = "" Then
-        CalendarAddAccepted = empName & ": not put on the calendar"
+        CalendarAddAccepted = empName & ": NOT ON THE CALENDAR - open the Calendar, that shift's line > Set coverage"
     Else
         CalendarAddAccepted = empName & ": " & t
         SaveIfWritable
@@ -1552,7 +1572,7 @@ Public Function CalendarAddAccepted(ByVal unit As String, ByVal d As Date, ByVal
     RefreshCalendar
     Exit Function
 Failed:
-    CalendarAddAccepted = empName & ": calendar NOT updated (" & Err.Description & ")"
+    CalendarAddAccepted = empName & ": NOT ON THE CALENDAR (" & Err.Description & ") - open the Calendar, that shift's line > Set coverage"
 End Function
 
 ' ====================================================================

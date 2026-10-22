@@ -1233,8 +1233,10 @@ End Function
 Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As String, ByVal crewSel As String, _
                                      ByVal entryDate As Date, ByVal hours As Double, ByRef entries() As EmpRec, _
                                      ByRef taken() As Double, ByVal n As Long, ByRef sessionID As String, _
-                                     ByRef summary As String, Optional ByRef shortSummary As String = "") As Boolean
+                                     ByRef summary As String, Optional ByRef shortSummary As String = "", _
+                                     Optional ByVal slotKey As String = "") As Boolean
     ' v25.5: shortSummary = the four-line box the call-out pop-up shows; summary = the full detail (status bar, SmokeTest)
+    ' v27 (item 10): slotKey = the calendar line this call-out was started from (a sick call's absence), for the acceptance
     Dim i As Long, k As Long, logged As Long
     For i = 1 To n
         If entries(i).Outcome <> "" Then logged = logged + 1
@@ -1243,6 +1245,12 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
 
     Dim ps As Date: ps = PeriodStartFor(entryDate)
     If Not ConfirmPeriod(ps) Then Exit Function
+    ' v27 (item 10, A5 c): a second session for the same unit, date and shift inside RECENT_SESSION_HOURS asks first
+    ' (at 3 AM two supervisors can call the same shift; a No keeps the entries on screen)
+    Dim recent As String: recent = RecentSessionsText(dept, entryDate, shiftLbl, Now)
+    If recent <> "" Then
+        If Ask(recent & vbNewLine & vbNewLine & "Start another session for this shift?", vbYesNo + vbExclamation + vbDefaultButton2, "Call-out", vbYes) = vbNo Then Exit Function
+    End If
 
     sessionID = NextRefID("S")
     Dim user As String: user = CurrentUser()
@@ -1324,7 +1332,8 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
             worked = AcceptedHours(offers(i), taken(i))
             accTxt = accTxt & vbNewLine & "      " & entries(i).EmpName & ": " & HoursText(worked) & " h"
             accShort = accShort & IIf(accShort = "", "", ", ") & entries(i).EmpName & " " & HoursText(worked) & " h"
-            calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, shiftLbl, entries(i).EmpName, worked, sessionID)
+            calTxt = calTxt & vbNewLine & "  " & CalendarAddAccepted(dept, entryDate, shiftLbl, entries(i).EmpName, worked, sessionID, slotKey)   ' v27 (item 10): the sick call's line, or the one open line
+            slotKey = ""                                   ' one acceptance fills the line; a second takes the one open line or asks
         End If
     Next i
 
@@ -1373,6 +1382,56 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     gReceipt.WrongTxt = WrongText()
     If gSmokeRun Then ShowReceipt
     SubmitCalloutSession = True
+End Function
+
+' v27 (item 10, A5 c): the non-void call-out sessions logged for the same unit, date and shift in the last
+' RECENT_SESSION_HOURS, one line each ("S-0011 at 2:40 AM by sheltond: 0 accepted, 3 refused"); "" when none.
+' Reads the log's top rows (newest first) and stops at the first one older than the window. Never raises.
+Public Const RECENT_SESSION_HOURS As Double = 12
+Public Function RecentSessionsText(ByVal dept As String, ByVal d As Date, ByVal shiftLbl As String, ByVal asOf As Date) As String
+    On Error GoTo Quiet
+    Dim lo As ListObject: Set lo = LogTable()
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim refs As Object: Set refs = CreateObject("Scripting.Dictionary")
+    refs.CompareMode = 1
+    Dim order As String, i As Long, ref As String, st As Date, a As Variant
+    For i = 1 To UBound(v, 1)                                      ' newest first
+        If Not IsDate(v(i, L_STAMP)) Then GoTo NextRow
+        st = CDate(v(i, L_STAMP))
+        If (asOf - st) * 24 > RECENT_SESSION_HOURS Then Exit For       ' append-only, newest first: nothing older is newer
+        If UCase$(Trim$(SafeStr(v(i, L_STATUS)))) = "VOID" Then GoTo NextRow
+        If UCase$(Trim$(SafeStr(v(i, L_TYPE)))) <> "CALLOUT" Then GoTo NextRow
+        If StrComp(Trim$(SafeStr(v(i, L_DEPT))), Trim$(dept), vbTextCompare) <> 0 Then GoTo NextRow
+        If StrComp(Trim$(SafeStr(v(i, L_SHIFTLBL))), Trim$(shiftLbl), vbTextCompare) <> 0 Then GoTo NextRow
+        If Not IsDate(v(i, L_DATE)) Then GoTo NextRow
+        If Int(CDate(v(i, L_DATE))) <> Int(d) Then GoTo NextRow
+        ref = Trim$(SafeStr(v(i, L_REF)))
+        If ref = "" Then GoTo NextRow
+        If Not refs.Exists(ref) Then
+            refs.Add ref, Array(st, Trim$(SafeStr(v(i, L_USER))), 0, 0)
+            order = order & "|" & ref
+        End If
+        a = refs(ref)
+        If CDate(v(i, L_STAMP)) < a(0) Then a(0) = CDate(v(i, L_STAMP))
+        If UCase$(Trim$(SafeStr(v(i, L_OUTCOME)))) = "ACCEPTED" Then a(2) = a(2) + 1
+        If UCase$(Trim$(SafeStr(v(i, L_OUTCOME)))) = "REFUSED" Then a(3) = a(3) + 1
+        refs(ref) = a
+NextRow:
+    Next i
+    If refs.Count = 0 Then Exit Function
+    Dim parts() As String, k As Long, s As String
+    parts = Split(Mid$(order, 2), "|")
+    For k = 0 To UBound(parts)
+        a = refs(parts(k))
+        s = s & IIf(s = "", "", vbNewLine) & parts(k) & " at " & Format$(a(0), "h:mm AM/PM") & IIf(Int(a(0)) <> Int(asOf), " " & Format$(a(0), "ddd"), "") & " by " & a(1) & " already called " & _
+            dept & " " & shiftLbl & " " & Format$(d, "ddd mmm d") & ": " & a(2) & " accepted, " & a(3) & " refused."
+    Next k
+    RecentSessionsText = s
+    Exit Function
+Quiet:
+    RecentSessionsText = ""
 End Function
 
 ' v26.5.5 (B13): the last line of a submitted session - what happens to the line and what to do next.

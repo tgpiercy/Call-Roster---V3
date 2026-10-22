@@ -233,7 +233,7 @@ Private Sub mSave_Click()
     If Not RequireWritable() Then Exit Sub
     If LogTable() Is Nothing Then Exit Sub
     Load frmOvertimeEntry
-    frmOvertimeEntry.Prefill unit, d, sh, "", hv
+    frmOvertimeEntry.Prefill unit, d, sh, "", hv, "A:" & id     ' v27 (item 10): the acceptance covers this sick call's line, no question
     frmOvertimeEntry.Show
 End Sub
 

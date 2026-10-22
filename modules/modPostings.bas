@@ -1838,7 +1838,7 @@ Private Function CalendarOutcome(ByRef p As PostRec, ByVal byText As String, _
     Else
         CalendarOutcome = CalendarPlace(p.ShiftDate, p.ShiftLbl, p.Unit, _
                                         p.ID & " wasn't on the calendar - which line does it cover?", _
-                                        byText, lineHrs, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason))
+                                        byText, lineHrs, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason), "", True)   ' v27 (item 10): the one open line, no question
         If CalendarOutcome = "" Then
             CalendarOutcome = "not on the calendar (left off)"
         Else

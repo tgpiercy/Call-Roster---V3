@@ -45,6 +45,7 @@ Private Function AddSection(ByVal nm As String, ByVal head As String, ByVal txt 
     Set o = AddCtl("Forms.TextBox.1", "t" & nm, LBL_L, T + 16, BOX_W, H)
     o.MultiLine = True: o.WordWrap = True: o.Locked = True: o.ScrollBars = 2    ' fmScrollBarsVertical
     o.BackColor = RGB(250, 250, 252): o.Font.Size = 9.5
+    If InStr(1, txt, "NOT ON THE CALENDAR", vbBinaryCompare) > 0 Then o.ForeColor = RGB(176, 0, 32)   ' v27 (item 10): an acceptance left off the calendar
     o.Text = Replace(txt, vbNewLine, vbCrLf)
     AddSection = T + 16 + H + 8
 End Function

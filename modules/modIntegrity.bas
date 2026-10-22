@@ -132,7 +132,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 11
+        For k = 1 To 12
             RunCheck k
         Next k
     End If
@@ -155,6 +155,7 @@ Private Function CheckName(ByVal k As Long) As String
         Case 9: CheckName = "Log types"
         Case 10: CheckName = "Sign-ups"
         Case 11: CheckName = "Planned moves"
+        Case 12: CheckName = "Coverage = log"
     End Select
 End Function
 
@@ -173,6 +174,7 @@ Private Sub RunCheck(ByVal k As Long)
         Case 9: CheckLogTypes
         Case 10: CheckSignups
         Case 11: CheckPlannedMoves
+        Case 12: CheckCoverageVsLog
     End Select
     Exit Sub
 Oops:
@@ -784,6 +786,81 @@ Private Sub CheckCalendarLinks()
             End If
         End If
     Next i
+End Sub
+
+' ---- 12. the calendar agrees with the log (v27, item 10, A5 b) ----
+' Every non-void Accepted / Awarded row dated in the year needs a live coverage line whose Source is its ref and
+' whose Covered By names the person (PROBLEM: the call order and the staffing count read the calendar). The other
+' way, a live line with an S- source, or a P- source and someone named on it, needs a live log row with that ref
+' (Check: a POSTED line waits for its award; a cancelled posting keeps its line with NCN).
+Private Sub CheckCoverageVsLog()
+    Dim cv As Variant: cv = TableValues(CV_TABLE)
+    Dim i As Long, src As String, by As String, nm As String, ref As String, sd As Date
+    ' the live lines by source: "|name|name|" of everyone named on them
+    Dim lines As Object: Set lines = CreateObject("Scripting.Dictionary")
+    lines.CompareMode = 1
+    If IsArray(cv) Then
+        For i = 1 To UBound(cv, 1)
+            If UCase$(SafeStr(cv(i, CV_STATUS))) <> "VOID" Then
+                src = UCase$(Trim$(SafeStr(cv(i, CV_SOURCE))))
+                If src <> "" Then
+                    by = SafeStr(cv(i, CV_BY))
+                    If lines.Exists(src) Then lines(src) = lines(src) & by & "|" Else lines.Add src, "|" & by & "|"
+                End If
+            End If
+        Next i
+    End If
+    ' the live Accepted / Awarded rows by ref
+    Dim rows As Object: Set rows = CreateObject("Scripting.Dictionary")
+    rows.CompareMode = 1
+    Dim nBad As Long
+    If IsArray(mLog) Then
+        For i = 1 To UBound(mLog, 1)
+            If UCase$(Trim$(SafeStr(mLog(i, L_STATUS)))) <> "VOID" And IsDate(mLog(i, L_DATE)) Then
+                ref = UCase$(Trim$(SafeStr(mLog(i, L_REF))))
+                If ref <> "" Then rows(ref) = True
+                sd = CDate(mLog(i, L_DATE))
+                If sd >= mYearFrom And sd <= mYearTo Then
+                    Select Case UCase$(Trim$(SafeStr(mLog(i, L_OUTCOME))))
+                        Case "ACCEPTED", "AWARDED"
+                            nm = Trim$(SafeStr(mLog(i, L_EMP)))
+                            If nm <> "" And (Left$(ref, 2) = "S-" Or Left$(ref, 2) = "P-") Then
+                                If Not lines.Exists(ref) Then
+                                    nBad = nBad + 1
+                                    AddIssue SEV_ERR, "Coverage = log", ref & " " & Format$(sd, "mmm d") & " " & SafeStr(mLog(i, L_SHIFTLBL)) & ": " & nm & " is " & _
+                                             LCase$(SafeStr(mLog(i, L_OUTCOME))) & " in the log but no live calendar line carries " & ref, _
+                                             "Calendar > that shift's line > Set coverage (or void the row if it is wrong)"
+                                ElseIf InStr(1, lines(ref), CalName(nm), vbTextCompare) = 0 And InStr(1, lines(ref), nm, vbTextCompare) = 0 Then
+                                    nBad = nBad + 1
+                                    AddIssue SEV_ERR, "Coverage = log", ref & " " & Format$(sd, "mmm d") & " " & SafeStr(mLog(i, L_SHIFTLBL)) & ": " & nm & " is " & _
+                                             LCase$(SafeStr(mLog(i, L_OUTCOME))) & " in the log but the calendar line for " & ref & " names " & _
+                                             IIf(Trim$(Replace(lines(ref), "|", "")) = "", "nobody", Trim$(Replace(Mid$(lines(ref), 2), "|", " / "))), _
+                                             "Calendar > that line > Set coverage"
+                                End If
+                            End If
+                    End Select
+                End If
+            End If
+        Next i
+    End If
+    ' the other way: a line that says it came from a session or an award nobody logged
+    If IsArray(cv) Then
+        For i = 1 To UBound(cv, 1)
+            If UCase$(SafeStr(cv(i, CV_STATUS))) <> "VOID" And IsDate(cv(i, CV_DATE)) Then
+                If CDate(cv(i, CV_DATE)) >= mYearFrom Then
+                    src = UCase$(Trim$(SafeStr(cv(i, CV_SOURCE))))
+                    by = Trim$(SafeStr(cv(i, CV_BY)))
+                    If (Left$(src, 2) = "S-") Or (Left$(src, 2) = "P-" And by <> "" And Not (UCase$(by) Like "POSTED*")) Then
+                        If Not rows.Exists(src) Then
+                            AddIssue SEV_WARN, "Coverage = log", "Line " & SafeStr(cv(i, CV_ID)) & " on " & Format$(CDate(cv(i, CV_DATE)), "mmm d") & " (" & by & ") came from " & src & _
+                                     ", which has no live OT Log row", "Open the line on the calendar: clear it, or log the session again"
+                        End If
+                    End If
+                End If
+            End If
+        Next i
+    End If
+    If nBad = 0 Then AddIssue SEV_INFO, "Coverage = log", "Every accepted call-out and award this year has its calendar line", ""
 End Sub
 
 ' ---- 7. paybacks owed for a long time ----

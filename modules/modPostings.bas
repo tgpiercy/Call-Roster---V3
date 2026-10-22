@@ -1085,8 +1085,9 @@ Private Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef 
         .LeftHeader = "": .CenterHeader = "": .RightHeader = ""
         .LeftFooter = "": .CenterFooter = "": .RightFooter = ""
         ' v27 (item 5, 5.3): the old sheet's layout, with where it came from
-        If Not blank Then .CenterFooter = "&8Produced by the Call Out Roster from " & p.ID & " (the list frozen at posting, hours as they were then)  -  printed " & Format$(Now, "mmm d, yyyy h:mm AM/PM") & _
-                                          vbLf & "&7Order: grade, then the lowest Total Hours at posting, then the earliest seniority.  = : tied with the row above on grade and hours."     ' v27 (item 27)
+        ' (review M1) a footer holds 255 characters in all: kept short
+        If Not blank Then .CenterFooter = "&8From " & p.ID & " (list frozen at posting) - printed " & Format$(Now, "mmm d h:mm AM/PM") & _
+                                          vbLf & "&7Order: grade, lowest Total Hours at posting, earliest seniority. = tied on grade and hours."     ' v27 (item 27)
     End With
     Application.PrintCommunication = True
     ws.DisplayPageBreaks = False

@@ -302,6 +302,6 @@ End Function
 
 ' v27 (item 27): "  sen 1998-04-06" for a seniority date, "  sen <n>" for a plain number, "" for none
 Private Function SeniorityText(ByVal s As Double) As String
-    If s <= 0 Then Exit Function
+    If s <= 0 Or s > 2958465 Then Exit Function      ' (review H1) blank / text = SeniorityKey's 1E+15; past Dec 31, 9999 is no date
     If s > 10000 Then SeniorityText = "  sen " & Format$(CDate(s), "yyyy-mm-dd") Else SeniorityText = "  sen " & CStr(s)
 End Function

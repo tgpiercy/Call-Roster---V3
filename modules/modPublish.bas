@@ -298,7 +298,7 @@ Public Sub PublishMembers()
     Application.AutomationSecurity = secWas
     On Error GoTo WriteFailed
     If Not HasDataSheets(wb) Then
-        Err.Raise vbObjectError + 601, , "the template is older than this roster (it has no " & DS_ATT & _
+        Err.Raise vbObjectError + 601, , "the template is older than this roster (it lacks one of the data sheets, " & DS_NOTFREE & " since v27" & _
                                          " sheet): update the members' template (INSTALL note, members' part)"
     End If
     ' v24.2: the template's code and the version that laid its sheets out must both be what this roster fills
@@ -597,9 +597,11 @@ Private Function BuildNext(ByRef nN As Long, ByRef nf As Variant, ByRef nNf As L
                         Set why = CreateObject("Scripting.Dictionary")
                         m = FilterNotFree(recs, n, d, CStr(sh), removed, True, "", why)
                         For Each nmK In why.Keys
+                            If CStr(why(nmK)) = "restricted" Then GoTo NextNf      ' (review M3) an OT restriction is never published, not even as "off"
                             kf = kf + 1: If kf > NF_CAP Then Err.Raise vbObjectError + 603, , "more than " & NF_CAP & " not-listed rows for the members' file - raise NF_CAP in modPublish"
                             nfOut(kf, 1) = depts(u): nfOut(kf, 2) = d: nfOut(kf, 3) = CStr(sh): nfOut(kf, 4) = CStr(nmK)
                             nfOut(kf, 5) = PublicNotFreeWord(CStr(why(nmK)))
+NextNf:
                         Next nmK
                         For i = 1 To m
                             k = k + 1: If k > cap Then Err.Raise vbObjectError + 602, , "more than " & CAP_ROWS & " rows for the members' file - raise CAP_ROWS in modPublish"

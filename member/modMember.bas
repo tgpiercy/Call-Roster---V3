@@ -78,8 +78,7 @@ Private Const RS As String = "~#~"
 Private mDrawing As Boolean
 Private mViewErr As String                         ' M2.1: a view that failed to draw says so here (its own handler ends quietly)
 Private mLoadNote As String                        ' M2.1: the note MemberRefreshAll left on Home ("" = none)
-Private mSeenWho As String                         ' M4: "since you last looked" is worked out once a session per name
-Private mSeenTxt As String
+Private mSeen As Object                            ' M4: "since you last looked", worked out once a session per name (name -> line)
 
 
 ' ====================================================================
@@ -255,7 +254,7 @@ Private Sub ClearBelow(ByVal ws As Worksheet, ByVal fromRow As Long)
 End Sub
 
 Private Sub Title(ByVal ws As Worksheet, ByVal cap As String, ByVal sub_ As String)
-    ws.Rows(1).RowHeight = 28
+    ws.Rows(1).RowHeight = 40                        ' M4 (review M2): the header band's height, before any row-2 button is placed
     With ws.Range("A1")
         .Value = cap
         .Font.Size = 16: .Font.Bold = True: .Font.Color = NAVY
@@ -405,6 +404,10 @@ End Sub
 Private Sub LayoutHome()
     Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
     UnprotectWs ws
+    Dim sk As Long                                   ' (review H2) a rebuild in place: every old button goes (M3.1's mb_zoom sat over a tile)
+    For sk = ws.Shapes.Count To 1 Step -1
+        If Left$(ws.Shapes(sk).Name, 3) = "mb_" Then ws.Shapes(sk).Delete
+    Next sk
     ws.Cells.Clear
     ws.Cells.Font.Name = "Segoe UI": ws.Cells.Font.Size = 10: ws.Cells.Font.Color = INK
     ws.Columns("A").ColumnWidth = 3
@@ -886,7 +889,7 @@ Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
     DrawHistory nm
     MemberShowPostings
     DrawHomeCard
-    If nm <> "" Then RememberMe nm                ' M4: the next open starts on this name
+    If nm <> "" And stayOn = SH_HOME Then RememberMe nm     ' M4: the next open starts on this name (review: Home's Find me only, not a colleague looked up on the Roster)
 Done:
     en = Err.Number: em = Err.Description          ' reached normally (0) or from an error anywhere above
     On Error Resume Next
@@ -2047,12 +2050,13 @@ Private Sub DrawHomeCard()
     Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
     Dim who As String: who = WhoAmI()
     UnprotectWs ws
+    Dim meRow As Long                                ' (review) known at Finish whichever way it is reached
     ClearTiles ws
     ClearBelow ws, CARD_ROW
     Dim r As Long: r = CARD_ROW
     If who = "" Or Not HasData() Then GoTo Finish
     Dim rv As Variant: rv = Data("dRoster")
-    Dim meRow As Long: meRow = RosterRowOf(rv, who)
+    meRow = RosterRowOf(rv, who)
     If meRow = 0 Then
         ws.Range("B7").Value = who & " isn't in the published roster. Ask your supervisor."
         GoTo Finish
@@ -2235,7 +2239,7 @@ Private Sub DrawHomeCard()
     ws.Cells(r, 3).Value = "Who is free changes with time off and switches: this is as of the last publish. Sick time counts since Jan 1, or since your counters restarted."
     ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
 Finish:
-    If who = "" Or Not HasData() Then
+    If who = "" Or Not HasData() Or meRow = 0 Then  ' (review) a name not on the roster leaves no buttons behind
         On Error Resume Next
         ws.Shapes("mb_homesign").Delete
         ws.Shapes("mb_hometotal").Delete
@@ -2302,7 +2306,8 @@ End Function
 ' that closed (awarded, no takers or cancelled), my place in my home unit. Read once a session per name, then the
 ' new state is kept (Excel's per-user setting store, never the shared file).
 Private Function SinceText(ByVal who As String, ByVal myIds As String, ByVal homeU As String, ByVal mainPos As Long) As String
-    If StrComp(mSeenWho, who, vbTextCompare) = 0 Then SinceText = mSeenTxt: Exit Function
+    If mSeen Is Nothing Then Set mSeen = CreateObject("Scripting.Dictionary"): mSeen.CompareMode = 1
+    If mSeen.Exists(who) Then SinceText = mSeen(who): Exit Function      ' (review) once a session PER name
     On Error Resume Next
     Dim key As String: key = "Seen " & Left$(SafeName(Replace(who, " ", "_")), 60)
     Dim stored As String: stored = GetSetting(APP_KEY, APP_SEC, key, "")
@@ -2329,7 +2334,7 @@ Private Function SinceText(ByVal who As String, ByVal myIds As String, ByVal hom
         s = "Since you last looked (" & atTxt & "):" & IIf(bits = "", "  nothing new for you.", bits & ".")
     End If
     SaveSetting APP_KEY, APP_SEC, key, Format$(Now, "ddd mmm d, h:mm AM/PM") & "|" & myIds & "|" & homeU & "|" & mainPos
-    mSeenWho = who: mSeenTxt = s
+    mSeen(who) = s
     SinceText = s
 End Function
 
@@ -2711,7 +2716,7 @@ Private Sub DrawHelp()
     HelpPara ws, r, "Who is free", "Not free: scheduled on that shift, coming off nights that morning or starting days the next morning (the rest rule), booked off, on a shift switch, inside the 24 h after a sick shift, or when the 16 h rule leaves nothing (no more than 16 h of work in a row, and 11 h rest before the next work)."
     HelpPara ws, r, "The calendar", Txt(Meta("Legend calendar"))
     HelpPara ws, r, "The log and the lists", Txt(Meta("Legend log"))
-    ws.Cells(r + 1, 1).Value = "As published " & Format$(Dt(Meta("Published at")), "ddd mmm d, h:mm AM/PM") & ".  " & Txt(Meta("Trust strip"))
+    ws.Cells(r + 1, 1).Value = IIf(HasData(), "As published " & Format$(Dt(Meta("Published at")), "ddd mmm d, h:mm AM/PM") & ".  " & Txt(Meta("Trust strip")), "Not published yet.")     ' (review) the template has no date
     ws.Cells(r + 1, 1).Font.Size = 8: ws.Cells(r + 1, 1).Font.Italic = True: ws.Cells(r + 1, 1).Font.Color = RGB(100, 100, 100)
     ws.Cells(r + 1, 1).WrapText = True
     ProtectWs ws

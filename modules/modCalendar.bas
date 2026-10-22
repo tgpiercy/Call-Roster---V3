@@ -2710,7 +2710,7 @@ Public Sub DrawCalendar()
         .BottomMargin = Application.InchesToPoints(0.3)
         .PrintGridlines = False
         .PrintComments = xlPrintNoComments
-        .CenterFooter = "&7" & CalLegendText()         ' v27 (item 27): the legend on the printed page
+        .CenterFooter = "&7OPEN = nobody yet   POSTED = waiting for sign-ups   NO TAKERS   NCN = no cover needed   S/S = switch   N short = below minimum"     ' v27 (item 27; review M1: short - a footer holds 255 characters in all)
     End With
     Application.PrintCommunication = True
     If Err.Number = 0 Then mp.Range("Z17").Value = "'" & CAL_VERSION     ' stamped only when every property set took (re-review)
@@ -3489,6 +3489,8 @@ Public Sub CalPrintPdf()
     UnlockSheet ws
     ws.Rows("3:" & hideTo).Hidden = True
     Dim ftWas As String: ftWas = ws.PageSetup.LeftFooter        ' v26.5.5 (5.2): the trust strip in the PDF's / print's footer
+    Dim ctWas As String: ctWas = ws.PageSetup.CenterFooter      ' (review M1) the legend steps aside: the two together pass 255 characters
+    ws.PageSetup.CenterFooter = ""
     ws.PageSetup.LeftFooter = "&8" & TrustStrip()
     Err.Clear
     ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=folder & fName, Quality:=xlQualityStandard, _
@@ -3500,6 +3502,7 @@ Public Sub CalPrintPdf()
         If Err.Number <> 0 Then msg = msg & vbNewLine & "NOT printed: " & Err.Description Else msg = msg & vbNewLine & "Sent to printer."
     End If
     ws.PageSetup.LeftFooter = ftWas
+    ws.PageSetup.CenterFooter = ctWas
     ws.Rows("3:" & hideTo).Hidden = False
     ProtectSheet ws
     On Error GoTo Oops

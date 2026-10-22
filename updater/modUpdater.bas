@@ -398,12 +398,12 @@ Private Function UpdVerifyCopy(ByVal bk As String, ByRef why As String) As Boole
     Application.AutomationSecurity = 3              ' msoAutomationSecurityForceDisable: the copy's code does not run
     Set w = Workbooks.Open(Filename:=bk, ReadOnly:=True, UpdateLinks:=0)
     Application.AutomationSecurity = secWas
-    Application.EnableEvents = evWas
-    If w Is Nothing Or Err.Number <> 0 Then why = "the backup copy would not open: " & Err.Description: On Error GoTo 0: Exit Function
+    If w Is Nothing Or Err.Number <> 0 Then why = "the backup copy would not open: " & Err.Description: Application.EnableEvents = evWas: On Error GoTo 0: Exit Function
     For Each ws In w.Worksheets
         If ws.Name = "OT Log" Then found = True
     Next ws
     w.Close SaveChanges:=False
+    Application.EnableEvents = evWas                 ' (review) after the copy is closed
     On Error GoTo 0
     If Not found Then why = "the backup copy opened but has no OT Log sheet: " & bk: Exit Function
     UpdVerifyCopy = True
@@ -1926,7 +1926,10 @@ Private Function UpdCompile(ByVal wb As Workbook, ByRef why As String) As Long
     End If
     Set ctl = vbe.CommandBars.FindControl(, 578)        ' 578 = Debug > Compile VBAProject
     If ctl Is Nothing Then why = "the Compile command wasn't found in the VBA editor": UpdCompile = -1: Exit Function
-    If Not ctl.Enabled Then why = "the Compile command was already greyed out: the project (checked above to be the roster's) was compiled and nothing changed since": UpdCompile = 2: Exit Function     ' v4.2 (item 31)
+    DoEvents                                         ' (review M4) the command bar's state follows the active project lazily
+    Set ctl = vbe.CommandBars.FindControl(, 578)
+    If ctl Is Nothing Then why = "the Compile command wasn't found in the VBA editor": UpdCompile = -1: Exit Function
+    If Not ctl.Enabled Then why = "the Compile command is greyed out (already compiled, or the editor still shows another project) - compile by hand to be sure": UpdCompile = -1: Exit Function     ' (review M4) never taken as clean
     Err.Clear
     ctl.Execute
     If Err.Number <> 0 Then why = "the Compile command didn't run: " & Err.Description: UpdCompile = -1: Exit Function

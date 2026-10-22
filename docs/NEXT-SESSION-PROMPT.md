@@ -140,7 +140,7 @@ REVIEW STATE at the end of the session: two read-only Opus reviews were RUNNING 
 the 6e4e61d fixes, (b) items 27, 31 and the four M4 commits. If no "review fixes" commit for them follows 1fa6e06 on
 main, re-run both (same scopes) and fix before release prep. Every earlier commit is reviewed and fixed.
 
-SIX QUESTIONS FOR GRAEME (all in briefs/v27.md at their items; ask them as multiple choice, the built default first):
+SEVEN QUESTIONS FOR GRAEME (the 7th answered by default) (all in briefs/v27.md at their items; ask them as multiple choice, the built default first):
 1. Weekly cap (item 21): built as OVERTIME hours in the trailing 7 days. Keep / a calendar week / all hours?
 2. The FULL history PDF (logins, void notes) lands beside the roster: keep / REPORT_FOLDER?
 3. The daily CSV export (item 25) writes only supervisor-visible tables beside the roster: name an admin-only folder
@@ -150,6 +150,10 @@ SIX QUESTIONS FOR GRAEME (all in briefs/v27.md at their items; ask them as multi
 5. dStats (the members' unit-level Stats cut): per-unit sick-day counts can point at one person in a small unit -
    publish call-outs and postings only, or nothing for now?
 6. Item 39, the publish digest by email: his signed wording and recipient list (not built until then).
+7. (review of M4) A person under an OT restriction is now LEFT OUT of the members' "not listed" table (built); the other
+   choices were "off" every day (it pointed at the restriction) or their underlying reason word.
+Known LOWs left: the first days strip shows for existing logins too and ticks only through the Desk's buttons;
+the members' trust strip names the previous publish; the template's "Backup before" copies are not pruned.
 Also for him: the admin Desk lists the Kronos folder on every draw (a slow share slows the Desk); "Since you were
 last here" moves on with a SAVE (a look-only visit leaves it where it was).
 

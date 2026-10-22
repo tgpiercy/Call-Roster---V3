@@ -1862,7 +1862,7 @@ POSTING_CLOSE_DAYS = 14               # modPostings.POSTING_CLOSE_DAYS
 
 def order_tie(grade_above: float, hours_above: float, grade: float, hours: float) -> bool:
     """modOvertimeEntry.OrderTie (v27 item 27): tied with the row above on grade and Total Hours."""
-    return abs(grade_above - grade) < 0.0001 and abs(hours_above - hours) < 0.001
+    return abs(grade_above - grade) < 0.0001 and round(hours_above, 2) == round(hours, 2)
 
 
 def public_not_free_word(why: str) -> str:

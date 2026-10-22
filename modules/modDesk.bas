@@ -351,7 +351,13 @@ Public Sub DrawDesk()
     yy = yy + 16
     DeskLabel ws, "dk_lbl_legend2", "Log:  " & OutcomeLegendText(), x0, yy
     On Error Resume Next
-    ws.Shapes("dk_lbl_legend1").Width = bandW: ws.Shapes("dk_lbl_legend2").Width = bandW
+    With ws.Shapes("dk_lbl_legend1")                ' (review) wrapped inside the band, two lines each
+        .TextFrame2.WordWrap = msoTrue: .Width = bandW: .Height = 26
+    End With
+    With ws.Shapes("dk_lbl_legend2")
+        .TextFrame2.WordWrap = msoTrue: .Width = bandW: .Height = 26: .Top = .Top + 12
+    End With
+    yy = yy + 24
     On Error GoTo Failed
     If GuideShows() Then                            ' v27 (item 27): the first days strip
         yy = yy + 22

@@ -2438,7 +2438,7 @@ End Function
 ' PURE (suite "ordertie"; tests/rules.py order_tie): a row ties with the row above when the grade AND the Total Hours
 ' are the same - then the seniority (and after it the name) decided. Lists mark such a row "=".
 Public Function OrderTie(ByVal gradeAbove As Double, ByVal hoursAbove As Double, ByVal grade As Double, ByVal hours As Double) As Boolean
-    OrderTie = (Abs(gradeAbove - grade) < 0.0001 And Abs(hoursAbove - hours) < 0.001)
+    OrderTie = (Abs(gradeAbove - grade) < 0.0001 And Round(hoursAbove, 2) = Round(hours, 2))     ' (review) RecBefore's own comparison
 End Function
 
 ' The line under a list: how its order is made and how old the hours are

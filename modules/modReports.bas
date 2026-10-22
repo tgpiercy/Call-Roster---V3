@@ -1199,52 +1199,125 @@ Public Sub ReportPdf(ByVal ws As Worksheet, ByVal fileBase As String, Optional B
 End Sub
 
 ' ====================================================================
-'  THE SHIFT HANDOVER (v27 item 25, 1.4)
+'  THE SHIFT HANDOVER (v27 item 25, 1.4) AND "SINCE YOU WERE LAST HERE" (item 3)
 ' ====================================================================
-' Everything logged in the last HANDOVER_HOURS hours on one printable page: the OT Log rows (call-outs, postings,
-' adjustments; a void shows in Status), the time off / sick calls / leave booked, the shift switches entered.
-' Supervisors and admins (both Desks' FINISH band). No logins, no notes, leave shown as "Leave" (TypeLong);
+' One scan, two pages on the Handover sheet: everything logged in the last HANDOVER_HOURS hours (the handover), or
+' everything OTHER logins logged since this login's previous open (the Desk's tile, item 3). Three parts: the OT
+' Log rows (call-outs, postings, adjustments; a void shows in Status), the time off / sick calls / leave booked,
+' the shift switches entered. Supervisors and admins. No logins, no notes, leave shown as "Leave" (TypeLong);
 ' never published. Changes no data.
 Public Sub ShiftHandover()
-    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating     ' captured before the handler (convention 6)
-    Dim evWas As Boolean: evWas = Application.EnableEvents
     On Error GoTo Oops
     If Not IsSupervisor() Then MsgBox "The shift handover is for supervisors and admins.", vbInformation, "Shift handover": Exit Sub
+    Dim since As Date: since = Now - HANDOVER_HOURS / 24#
+    DrawActivity since, False, "SHIFT HANDOVER  -  logged since " & Format$(since, "ddd mmm d h:mm AM/PM") & " (the last " & HANDOVER_HOURS & " h)", "Shift handover"
+    Exit Sub
+Oops:
+    ReportError "ShiftHandover"
+End Sub
+
+' v27 (item 3): the Desk's "Since you were last here" tile - what OTHER logins logged since this login's previous open
+Public Sub SinceLastHere()
+    On Error GoTo Oops
+    If Not IsSupervisor() Then MsgBox "This list is for supervisors and admins.", vbInformation, "Since you were last here": Exit Sub
+    Dim since As Date: since = PrevOpenAt()
+    If since = 0 Then
+        Tell "This is the first open on record for your login: nothing to compare with yet. From the next open on, the tile counts what others logged in between.", vbInformation, "Since you were last here"
+        Exit Sub
+    End If
+    DrawActivity since, True, "SINCE YOU WERE LAST HERE  -  logged by others since " & Format$(since, "ddd mmm d h:mm AM/PM"), "Since you were last here"
+    Exit Sub
+Oops:
+    ReportError "SinceLastHere"
+End Sub
+
+' v27 (item 3): the tile's figure - the OT Log entries (one per Ref ID: a call-out session is one), the bookings
+' and the switches logged since `since` (by other logins when othersOnly). 0 when since is 0. Never raises.
+Public Function ActivitySinceCount(ByVal since As Date, ByVal othersOnly As Boolean) As Long
+    On Error GoTo Quit
+    If since = 0 Then Exit Function
+    Dim r As Long
+    ActivitySinceCount = ActivityScan(Nothing, r, since, othersOnly)
+Quit:
+End Function
+
+' the page: drawn, protected, shown, a print offered
+Private Sub DrawActivity(ByVal since As Date, ByVal othersOnly As Boolean, ByVal title As String, ByVal boxTitle As String)
+    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating     ' captured before the handler (convention 6)
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    On Error GoTo Failed
     Application.ScreenUpdating = False
     Application.EnableEvents = False
-    Dim since As Date: since = Now - HANDOVER_HOURS / 24#
     Dim ws As Worksheet: Set ws = ReportSheetNamed(HANDOVER_SHEET)
     SetSheetVisible ws, xlSheetVisible
     UnlockSheet ws
     ws.Cells.Clear
-    ws.Range("A1").Value = "SHIFT HANDOVER  -  logged since " & Format$(since, "ddd mmm d h:mm AM/PM") & " (the last " & HANDOVER_HOURS & " h)"
+    ws.Range("A1").Value = title
     ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 14
     ws.Range("A2").Value = "'Drawn " & Format$(Now, "ddd mmm d h:mm AM/PM") & ".  " & Replace(TrustStrip(), vbLf, "   ")
     Dim r As Long: r = 4
-    Dim i As Long, n As Long, st As Variant
+    Dim n As Long: n = ActivityScan(ws, r, since, othersOnly)
+    ws.Columns(1).ColumnWidth = 16
+    ws.Columns(2).ColumnWidth = 10
+    Dim i As Long
+    For i = 3 To 10
+        ws.Columns(i).ColumnWidth = 13
+    Next i
+    ws.Columns(7).ColumnWidth = 22
+    With ws.PageSetup
+        .Orientation = xlLandscape
+        .Zoom = False: .FitToPagesWide = 1: .FitToPagesTall = False
+        .CenterFooter = boxTitle & " - " & Format$(Now, "ddd mmm d h:mm AM/PM") & " - page &P of &N"
+    End With
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+    ws.Activate
+    If Ask(IIf(n = 0, "Nothing was logged in that time.", n & " entr" & IIf(n = 1, "y", "ies") & " on the Handover tab.") & vbNewLine & vbNewLine & _
+           "Print it now?", vbYesNo + vbQuestion, boxTitle, vbNo) = vbYes Then ws.PrintOut
+    Exit Sub
+Failed:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = scrWas
+    Err.Raise en, "DrawActivity", em
+End Sub
+
+' The three parts, drawn from row r on ws (ws Nothing = count only). Returns the entries counted: one per OT Log
+' Ref ID, one per booking, one per switch.
+Private Function ActivityScan(ByVal ws As Worksheet, ByRef r As Long, ByVal since As Date, ByVal othersOnly As Boolean) As Long
+    Dim draw As Boolean: draw = Not ws Is Nothing
+    Dim me_ As String: me_ = CurrentUser()
+    Dim i As Long, n As Long, st As Variant, mine As Boolean
+    Dim refs As Object: Set refs = CreateObject("Scripting.Dictionary")
+    refs.CompareMode = 1
 
     ' 1. the OT Log
-    HandoverHead ws, r, "OT LOG", Array("Logged at", "Ref", "Type", "Shift date", "Unit", "Shift", "Employee", "Outcome", "Charged", "Status")
+    If draw Then HandoverHead ws, r, "OT LOG", Array("Logged at", "Ref", "Type", "Shift date", "Unit", "Shift", "Employee", "Outcome", "Charged", "Status")
     Dim lg As Variant: lg = LogRowsNow()
     n = 0
     If IsArray(lg) Then
         For i = 1 To UBound(lg, 1)                  ' newest first, as the log
             st = lg(i, L_STAMP)
             If IsDate(st) Then
-                If CDate(st) >= since Then
-                    HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(lg(i, L_REF)), SafeStr(lg(i, L_TYPE)), _
+                mine = (StrComp(Trim$(SafeStr(lg(i, L_USER))), me_, vbTextCompare) = 0)
+                If CDate(st) >= since And Not (othersOnly And mine) Then
+                    If draw Then HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(lg(i, L_REF)), SafeStr(lg(i, L_TYPE)), _
                         DayText(lg(i, L_DATE)), SafeStr(lg(i, L_DEPT)), SafeStr(lg(i, L_SHIFTLBL)), SafeStr(lg(i, L_EMP)), _
                         SafeStr(lg(i, L_OUTCOME)), HoursText(NumOr0(lg(i, L_CHARGED))), SafeStr(lg(i, L_STATUS)))
                     n = n + 1
+                    refs(SafeStr(lg(i, L_REF)) & "|" & IIf(SafeStr(lg(i, L_REF)) = "", CStr(i), "")) = True
                 End If
             End If
         Next i
     End If
-    If n = 0 Then HandoverRow ws, r, Array("Nothing logged.")
-    r = r + 1
+    If draw And n = 0 Then HandoverRow ws, r, Array("Nothing logged.")
+    If draw Then r = r + 1
+    ActivityScan = refs.Count
 
     ' 2. time off, sick calls, leave
-    HandoverHead ws, r, "TIME OFF, SICK CALLS AND LEAVE BOOKED", Array("Entered at", "ID", "Employee", "Unit", "Type", "From", "To", "Status")
+    If draw Then HandoverHead ws, r, "TIME OFF, SICK CALLS AND LEAVE BOOKED", Array("Entered at", "ID", "Employee", "Unit", "Type", "From", "To", "Status")
     n = 0
     Dim alo As ListObject: Set alo = AbsTable(False)
     Dim av As Variant
@@ -1254,8 +1327,9 @@ Public Sub ShiftHandover()
             For i = UBound(av, 1) To 1 Step -1      ' newest last in the table: shown newest first
                 st = av(i, AB_STAMP)
                 If IsDate(st) Then
-                    If CDate(st) >= since Then
-                        HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(av(i, AB_ID)), SafeStr(av(i, AB_EMP)), _
+                    mine = (StrComp(Trim$(SafeStr(av(i, AB_USER))), me_, vbTextCompare) = 0)
+                    If CDate(st) >= since And Not (othersOnly And mine) Then
+                        If draw Then HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(av(i, AB_ID)), SafeStr(av(i, AB_EMP)), _
                             SafeStr(av(i, AB_UNIT)), TypeLong(SafeStr(av(i, AB_TYPE))), DayText(av(i, AB_START)), _
                             IIf(IsDate(av(i, AB_END)), DayText(av(i, AB_END)), "open-ended"), SafeStr(av(i, AB_STATUS)))
                         n = n + 1
@@ -1264,11 +1338,12 @@ Public Sub ShiftHandover()
             Next i
         End If
     End If
-    If n = 0 Then HandoverRow ws, r, Array("Nothing booked.")
-    r = r + 1
+    If draw And n = 0 Then HandoverRow ws, r, Array("Nothing booked.")
+    If draw Then r = r + 1
+    ActivityScan = ActivityScan + n
 
     ' 3. shift switches
-    HandoverHead ws, r, "SHIFT SWITCHES ENTERED", Array("Entered at", "ID", "Date", "Shift", "Unit", "Gives up", "Works", "Status")
+    If draw Then HandoverHead ws, r, "SHIFT SWITCHES ENTERED", Array("Entered at", "ID", "Date", "Shift", "Unit", "Gives up", "Works", "Status")
     n = 0
     Dim slo As ListObject: Set slo = SwitchTable(False)
     Dim sv As Variant
@@ -1278,8 +1353,9 @@ Public Sub ShiftHandover()
             For i = UBound(sv, 1) To 1 Step -1
                 st = sv(i, SW_STAMP)
                 If IsDate(st) Then
-                    If CDate(st) >= since Then
-                        HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(sv(i, SW_ID)), DayText(sv(i, SW_DATE)), _
+                    mine = (StrComp(Trim$(SafeStr(sv(i, SW_USER))), me_, vbTextCompare) = 0)
+                    If CDate(st) >= since And Not (othersOnly And mine) Then
+                        If draw Then HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(sv(i, SW_ID)), DayText(sv(i, SW_DATE)), _
                             SafeStr(sv(i, SW_SHIFT)), SafeStr(sv(i, SW_UNIT)), SafeStr(sv(i, SW_OFF)), SafeStr(sv(i, SW_WORKS)), _
                             SafeStr(sv(i, SW_STATUS)))
                         n = n + 1
@@ -1288,30 +1364,9 @@ Public Sub ShiftHandover()
             Next i
         End If
     End If
-    If n = 0 Then HandoverRow ws, r, Array("No switches entered.")
-
-    ws.Columns(1).ColumnWidth = 16
-    ws.Columns(2).ColumnWidth = 10
-    For i = 3 To 10
-        ws.Columns(i).ColumnWidth = 13
-    Next i
-    ws.Columns(7).ColumnWidth = 22
-    With ws.PageSetup
-        .Orientation = xlLandscape
-        .Zoom = False: .FitToPagesWide = 1: .FitToPagesTall = False
-        .CenterFooter = "Shift handover - " & Format$(Now, "ddd mmm d h:mm AM/PM") & " - page &P of &N"
-    End With
-    ProtectSheet ws
-    Application.EnableEvents = evWas
-    Application.ScreenUpdating = scrWas
-    ws.Activate
-    If Ask("The handover page is drawn (the Handover tab)." & vbNewLine & vbNewLine & "Print it now?", vbYesNo + vbQuestion, "Shift handover", vbNo) = vbYes Then ws.PrintOut
-    Exit Sub
-Oops:
-    Application.EnableEvents = evWas
-    Application.ScreenUpdating = scrWas
-    ReportError "ShiftHandover"
-End Sub
+    If draw And n = 0 Then HandoverRow ws, r, Array("No switches entered.")
+    ActivityScan = ActivityScan + n
+End Function
 
 Private Sub HandoverHead(ByVal ws As Worksheet, ByRef r As Long, ByVal title As String, ByVal heads As Variant)
     ws.Cells(r, 1).Value = title

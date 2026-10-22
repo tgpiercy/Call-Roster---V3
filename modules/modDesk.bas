@@ -211,7 +211,7 @@ Public Sub DrawDesk()
     '      under the three band columns (cover, award, owed / members' file, this morning); a supervisor's in one row ----
     DeskLabel ws, "dk_lbl_today", "TODAY", x0, y0
     yy = y0 + 16
-    Dim nTiles As Long: nTiles = IIf(sup, 3, 5)
+    Dim nTiles As Long: nTiles = IIf(sup, 4, 6)         ' v27 (item 3): + Since you were last here
     Dim k As Long, tw As Double, tileX As Double, tileY As Double
     Dim nextTxt As String                          ' v25.5 (A8): the next uncovered shift under the count
     If nCover > 0 Then nextTxt = NextOpenLine(DESK_AHEAD_DAYS)
@@ -249,6 +249,13 @@ Public Sub DrawDesk()
         MorningCheck mTxt, mCol, mVerb
         DeskTileText ws, "dk_tile_morning", "This morning", mTxt, "modDesk.DeskMorning", tileX, tileY, tw, mCol, mVerb
     End If
+    ' v27 (item 3): what other logins logged since this login's previous open
+    k = k + 1: TilePos k, sup, nTiles, x0, yy, bandW, tileX, tileY, tw
+    Dim prevAt As Date: prevAt = PrevOpenAt()
+    Dim nSince As Long: nSince = ActivitySinceCount(prevAt, True)
+    DeskTile ws, "dk_tile_since", nSince, IIf(prevAt = 0, "first open on record for you", _
+             IIf(nSince = 1, "entry", "entries") & " by others since you were last here (" & Format$(prevAt, "ddd h:mm AM/PM") & ")"), _
+             "modDesk.DeskSince", tileX, tileY, tw, IIf(nSince > 0, dkNavy(), 0), IIf(nSince = 0, "", "See what changed")
 
     ' ---- the three bands side by side: NOW (orange) | PLAN (green) | FINISH (navy) - colour says WHEN, not which pop-up ----
     yy = yy + TileRows(sup, nTiles) * (TILE_H + GAP) - GAP + 18
@@ -796,6 +803,15 @@ Oops:
 End Sub
 
 ' v27 (item 26): the quarterly Stats report (admin)
+' v27 (item 3): the Since-you-were-last-here list
+Public Sub DeskSince()
+    On Error GoTo Oops
+    SinceLastHere
+    Exit Sub
+Oops:
+    ReportError "DeskSince"
+End Sub
+
 ' v27 (item 25): the shift handover page and the payback ledger (supervisors and admins)
 Public Sub DeskHandover()
     On Error GoTo Oops
@@ -1153,6 +1169,10 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "per unit group, one row per date with the crews on and the Days and Nights lines as the calendar shows them, OPEN lines " & _
         "in red; a PDF goes beside the month calendars, then it asks whether to print. Nothing is changed: it is a picture of the " & _
         "calendar for the board in the control room."
+    HelpAdd h, n, "Since you were last here", _
+        "The last TODAY tile counts what OTHER logins logged since you last opened the roster - call-out sessions, awards and " & _
+        "adjustments (one per Ref ID), time off and sick calls, switches. Click it for the list on the Handover tab (no logins, " & _
+        "leave shown as Leave); your own entries are left out. The time is kept per login in the roster file."
     HelpAdd h, n, "Shift handover", _
         "Shift handover (last 12 h) in the Desk's FINISH band draws one page of everything logged in the last 12 hours - the OT Log rows " & _
         "(call-outs, awards, adjustments, with a void shown in Status), the time off, sick calls and leave booked (leave shows as Leave), " & _

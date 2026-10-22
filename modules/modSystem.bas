@@ -38,6 +38,8 @@ Private Const FORM_RELEASES As String = "frmOvertimeEntry|v26.5.5,frmNewPosting|
 
 Private mBackupWarned As Boolean
 Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time
+Private mPrevOpenAt As Date                     ' v27 (item 3): this login's previous open, read once a session
+Private mPrevOpenRead As Boolean
 
 
 ' ---------------- SystemCheck ----------------
@@ -601,6 +603,29 @@ Public Sub OpenChecks()
 End Sub
 
 ' v27 (item 20): a hidden-name key for this login - <prefix>_<login>, the login's odd characters made safe
+' v27 (item 3): this login's previous open (0 = none on record), from the hidden name LastOpen_<login>; the first
+' call of a session reads it and moves the name on to now (kept with the next real save - a workbook that was
+' saved stays marked saved). Never raises.
+Public Function PrevOpenAt() As Date
+    If mPrevOpenRead Then PrevOpenAt = mPrevOpenAt: Exit Function
+    mPrevOpenRead = True
+    On Error Resume Next
+    Dim key As String: key = LoginNameKey("LastOpen")
+    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(key)
+    Dim v As Double
+    If Not nmObj Is Nothing Then v = Val(Replace(nmObj.RefersTo, "=", ""))
+    If v > 40000 And v < CDbl(Now) Then mPrevOpenAt = CDate(v)       ' a real date before now, else nothing on record
+    Dim wasSaved As Boolean: wasSaved = ThisWorkbook.Saved
+    Dim nowTxt As String: nowTxt = "=" & Trim$(Str$(CDbl(Now)))      ' Str$ writes a point whatever the locale
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=key, RefersTo:=nowTxt, Visible:=False
+    Else
+        nmObj.RefersTo = nowTxt
+    End If
+    If wasSaved Then ThisWorkbook.Saved = True
+    PrevOpenAt = mPrevOpenAt
+End Function
+
 Public Function LoginNameKey(ByVal prefix As String) As String
     Dim u As String, i As Long, ch As String, s As String
     u = LCase$(CurrentUser())

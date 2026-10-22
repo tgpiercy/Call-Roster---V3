@@ -1389,14 +1389,14 @@ Public Function ReleaseCoverage(ByVal source As String, Optional ByVal empName A
             If empName = "" Then newBy = "" Else newBy = DropName(by, CalName(empName))
             If newBy <> by Or empName = "" Then
                 If Not hit Then UnlockSheet lo.Parent: hit = True
-                If newBy <> "" Then
-                    lo.DataBodyRange.Cells(i, CV_BY).Value = newBy
-                ElseIf StrComp(SafeStr(v(i, CV_NEED)), "Call-out " & source, vbTextCompare) = 0 Then
+                If StrComp(SafeStr(v(i, CV_NEED)), "Call-out " & source, vbTextCompare) = 0 And newBy = "" Then
                     lo.DataBodyRange.Cells(i, CV_STATUS).Value = "VOID"     ' the call-out made this line - remove it
                 Else
-                    ' keep the line and its source (ReopenPosting can set it back to POSTED)
-                    lo.DataBodyRange.Cells(i, CV_BY).ClearContents
-                    lo.DataBodyRange.Cells(i, CV_HOURS).ClearContents
+                    ' v27 (item 13, A11): never edited in place - the old line is VOID and a new line carries what is left
+                    ' (newBy, or nothing: the line shows OPEN again, its source kept so ReopenPosting can set it back to POSTED)
+                    lo.DataBodyRange.Cells(i, CV_STATUS).Value = "VOID"
+                    lo.DataBodyRange.Cells(i, CV_NOTE).Value = Trim$(SafeStr(v(i, CV_NOTE)) & " released " & IIf(empName = "", "all", CalName(empName)) & " (" & source & " voided)")
+                    ReplaceCovLine lo, v, i, newBy
                 End If
                 ReleaseCoverage = ReleaseCoverage + 1
             End If
@@ -1405,6 +1405,25 @@ Public Function ReleaseCoverage(ByVal source As String, Optional ByVal empName A
     If hit Then ProtectSheet lo.Parent
     If hit Then MarkCalDirty
 End Function
+
+' v27 (item 13): the live copy of a released line - every column as it was, Covered By = what is left (hours only when
+' someone is still on it), a new id, Active, this user and time, a Note naming the line it replaces
+Private Sub ReplaceCovLine(ByVal lo As ListObject, ByRef v As Variant, ByVal i As Long, ByVal newBy As String)
+    Dim rec() As Variant: ReDim rec(1 To 1, 1 To CV_N)
+    Dim c As Long
+    For c = 1 To CV_N
+        rec(1, c) = v(i, c)
+    Next c
+    rec(1, CV_ID) = NextId(lo, "CV")
+    rec(1, CV_BY) = newBy
+    If newBy = "" Then rec(1, CV_HOURS) = Empty
+    rec(1, CV_STATUS) = "Active"
+    rec(1, CV_USER) = CurrentUser()
+    rec(1, CV_STAMP) = Now
+    rec(1, CV_NOTE) = "replaces " & SafeStr(v(i, CV_ID))
+    AppendTo lo, rec, CV_N
+    FormatCovDates lo
+End Sub
 
 ' "Joe D / Fred C 8h" minus "Fred C" -> "Joe D"
 Private Function DropName(ByVal by As String, ByVal nm As String) As String
@@ -1551,6 +1570,9 @@ Public Function SetAbsenceEnd(ByVal id As String) As Boolean
         If dEnd < CDate(v(r, AB_START)) Then MsgBox "The end is before the start.", vbExclamation, "Call Out Roster": Exit Function
     End If
     UnlockSheet lo.Parent
+    ' v27 (item 13, A11): the previous end stays in the Note (the Absences sheet is admin-only, never published)
+    lo.DataBodyRange.Cells(r, AB_NOTE).Value = Trim$(SafeStr(v(r, AB_NOTE)) & IIf(Trim$(SafeStr(v(r, AB_NOTE))) = "", "", " | ") & _
+                                               "End was " & IIf(cur = "", "open-ended", cur) & " (" & CurrentUser() & ", " & Format$(Now, "mmm d") & ")")
     If s = "" Then
         lo.DataBodyRange.Cells(r, AB_END).ClearContents
     Else

@@ -20,6 +20,7 @@ Public Const GL_SHEET As String = "Grade Log"
 Public Const GL_TABLE As String = "tblGradeChange"
 Public Const GS_SHEET As String = "GradeSnap"
 Private Const GL_N As Long = 6
+Private Const GL_NF As Long = 7             ' v27 (item 13, review A11): + Field - a person's detail changed in place (seniority, home unit, crew, phone, email)
 
 Public gSuppressGradeLog As Boolean     ' set by macros that write unit codes on purpose
 Private mBusy As Boolean                ' re-entry guard (our own writes fire change events)
@@ -260,8 +261,8 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
             On Error GoTo 0
         End If
         UnlockSheet ws
-        ws.Range("A1").Resize(1, GL_N).Value = Array("Timestamp", "Employee", "Unit", "Old Code", "New Code", "Windows Login")
-        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, GL_N), , xlYes)
+        ws.Range("A1").Resize(1, GL_NF).Value = Array("Timestamp", "Employee", "Unit", "Old Code", "New Code", "Windows Login", "Field")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, GL_NF), , xlYes)
         lo.Name = GL_TABLE
         lo.TableStyle = "TableStyleLight9"
         ws.Columns("A").ColumnWidth = 19
@@ -273,8 +274,37 @@ Public Function GradeLogTable(Optional ByVal create As Boolean = False) As ListO
         ProtectSheet ws
         SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
+    If Not lo Is Nothing Then EnsureGradeLogField lo
     Set GradeLogTable = lo
 End Function
+
+' v27: a table made before v27 has 6 columns; the Field column goes on the end once (as Hours History's Data Through did)
+Private Sub EnsureGradeLogField(ByVal lo As ListObject)
+    If lo.ListColumns.Count >= GL_NF Then Exit Sub
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    On Error Resume Next
+    UnlockSheet ws
+    lo.ListColumns.Add.Name = "Field"
+    ws.Columns(GL_NF).ColumnWidth = 12
+    ProtectSheet ws
+    On Error GoTo 0
+End Sub
+
+' v27 (item 13): a detail changed in place through Employee > Edit - one row: Unit "(details)", Old / New = the values,
+' Field = which detail (seniority, home unit, crew, phone, email). A code change keeps its own rows (RecordGradeRows).
+Public Sub LogFieldChange(ByVal emp As String, ByVal fld As String, ByVal oldV As String, ByVal newV As String)
+    On Error Resume Next
+    Dim outA() As Variant: ReDim outA(1 To 1, 1 To GL_NF)
+    outA(1, 1) = Now
+    outA(1, 2) = emp
+    outA(1, 3) = "(details)"
+    outA(1, 4) = oldV
+    outA(1, 5) = newV
+    outA(1, 6) = CurrentUser()
+    outA(1, 7) = fld
+    AppendGradeRows outA, 1
+End Sub
 
 ' True when the rows are in the table
 Private Function AppendGradeRows(ByRef outA() As Variant, ByVal n As Long) As Boolean
@@ -291,7 +321,7 @@ Private Function AppendGradeRows(ByRef outA() As Variant, ByVal n As Long) As Bo
     Application.EnableEvents = False
     UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
-    With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, GL_N)
+    With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, UBound(outA, 2))      ' v27: 6 or 7 columns, as the caller built them
         .Value = outA
         .Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
     End With

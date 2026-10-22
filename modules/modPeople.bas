@@ -3326,17 +3326,31 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     mBusy = True
+    ' v27 (item 13, A11): every detail changed in place leaves a Grade Log row (Field / Old / New) - the old values first
+    Dim oldHome As String, oldPhone As String, oldEmail As String, oldSen As String, nFld As Long
+    Dim fldName(1 To 5) As String, fldOld(1 To 5) As String, fldNew(1 To 5) As String
+    oldHome = Trim$(SafeStr(ws.Cells(r, C_HOME).Value)): oldPhone = Trim$(SafeStr(ws.Cells(r, C_PHONE).Value))
+    oldEmail = Trim$(SafeStr(ws.Cells(r, C_EMAIL).Value))
+    oldSen = IIf(IsDate(ws.Cells(r, C_SENIORITY).Value), Format$(CDate(ws.Cells(r, C_SENIORITY).Value), "mmm d, yyyy"), "")
     UnlockSheet ws
     If homeUnit <> "" Then
-        If StrComp(Trim$(SafeStr(ws.Cells(r, C_HOME).Value)), homeUnit, vbTextCompare) <> 0 Then
+        If StrComp(oldHome, homeUnit, vbTextCompare) <> 0 Then
             ws.Cells(r, C_HOME).Value = homeUnit: changed = changed & "home unit " & homeUnit & "; "
+            nFld = nFld + 1: fldName(nFld) = "home unit": fldOld(nFld) = oldHome: fldNew(nFld) = homeUnit
         End If
     End If
-    If Trim$(SafeStr(ws.Cells(r, C_PHONE).Value)) <> Trim$(phone) Then ws.Cells(r, C_PHONE).Value = Trim$(phone): changed = changed & "phone; "
-    If Trim$(SafeStr(ws.Cells(r, C_EMAIL).Value)) <> Trim$(email) Then ws.Cells(r, C_EMAIL).Value = Trim$(email): changed = changed & "email; "
+    If oldPhone <> Trim$(phone) Then
+        ws.Cells(r, C_PHONE).Value = Trim$(phone): changed = changed & "phone; "
+        nFld = nFld + 1: fldName(nFld) = "phone": fldOld(nFld) = oldPhone: fldNew(nFld) = Trim$(phone)
+    End If
+    If oldEmail <> Trim$(email) Then
+        ws.Cells(r, C_EMAIL).Value = Trim$(email): changed = changed & "email; "
+        nFld = nFld + 1: fldName(nFld) = "email": fldOld(nFld) = oldEmail: fldNew(nFld) = Trim$(email)
+    End If
     If IsDate(seniority) Then
         If Not IsDate(ws.Cells(r, C_SENIORITY).Value) Or Int(CDate(seniority)) <> Int(NumOr0(ws.Cells(r, C_SENIORITY).Value2)) Then
             ws.Cells(r, C_SENIORITY).Value = Int(CDate(seniority)): changed = changed & "seniority " & Format$(CDate(seniority), "mmm d, yyyy") & "; "
+            nFld = nFld + 1: fldName(nFld) = "seniority": fldOld(nFld) = oldSen: fldNew(nFld) = Format$(CDate(seniority), "mmm d, yyyy")
         End If
     End If
     For c = UnitColFirst() To UnitColLast()
@@ -3350,9 +3364,14 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
         If Not AddCrewRow(emp, crewTxt, crewFrom) Then Err.Raise vbObjectError + 716, , "the crew history row couldn't be written"
         ws.Cells(r, C_SHIFT).Value = crewTxt                 ' the history row first: a failed row leaves column E as it was
         changed = changed & "crew " & crewTxt & " from " & Format$(crewFrom, "mmm d, yyyy") & "; "
+        nFld = nFld + 1: fldName(nFld) = "crew": fldOld(nFld) = crewNow: fldNew(nFld) = crewTxt & " from " & Format$(crewFrom, "mmm d, yyyy")
     End If
     ProtectSheet ws
     RecordGradeRows r, r, CurrentUser()                 ' the Grade Log sees the code changes as a typed change did
+    Dim fi As Long
+    For fi = 1 To nFld
+        LogFieldChange emp, fldName(fi), fldOld(fi), fldNew(fi)   ' v27 (item 13): the details' audit rows
+    Next fi
     Application.Calculate
     diff = TotalsDifference(before, RosterTotalsMap())
     If Abs(LogChargedTotal() - logBefore) > 0.0001 Then diff = diff & "  OT Log total Hours Charged changed" & vbNewLine

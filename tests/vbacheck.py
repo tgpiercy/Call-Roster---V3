@@ -68,11 +68,17 @@ for f in files:
         buf = ""
 
     stack = []
+    seen_proc = False          # v27: a module-level Const / Dim / Type / Enum / Declare after the first procedure does not compile
     for n, code in joined:
         s = code.strip()
         if not s:
             continue
         low = s.lower()
+        if seen_proc and not stack:
+            dm = re.match(r"(public |private |friend |global )?(const|dim|type|enum|declare|withevents)\b", low)
+            if dm:
+                problems.append(f"{f.name}:{n}: module-level declaration '{s[:50]}' after the first procedure "
+                                "(compile error: 'Only comments may appear after End Sub' - move it above the first Sub / Function)")
         # single-line If ... Then <stmt>  (no block)
         if low.startswith("if ") and " then" in low and not low.endswith(" then") and not re.search(r"\bthen\s*$", low):
             # could be "If x Then stmt : Else stmt" one-liner
@@ -95,6 +101,7 @@ for f in files:
             if tok in ("sub", "function", "property") and not low.startswith("exit ") and not low.startswith("end "):
                 if "declare " not in low:
                     stack.append((tok, n))
+                    seen_proc = True
                     nm = re.search(r"(sub|function|property\s+(get|let|set))\s+(\w+)", low)
                     if nm:
                         name = nm.group(3)

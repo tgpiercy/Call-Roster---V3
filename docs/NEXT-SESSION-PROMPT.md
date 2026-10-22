@@ -47,8 +47,20 @@ WHAT v27 HOLDS SO FAR (main, one commit per item, all four checkers + pytest gre
   groups to the signed rules (fairness over Total Hours first, premium hours second); StatsUnitRows ready for
   M4's dStats. Not built: occurrences vs days, "how covered". + 8fac4a1 / 7ba246a / the LOW commit = the
   review fixes for Stats, Desk v2 and Reconcile (the record below).
-Checkers and pytest after the last commit: four checkers clean (the three vbacheck false positives), 793
-passed, 776 cases / 93 suites.
+- OCT 22 (session 2): 7cc658c item 7 the RECEIPTS (modReceipt, NEW MODULE, N_MODULES 28; frmReceipt, a NEW
+  code-built form in FORM_RELEASES; one card after every save: call-out, the four posting finishers, sick call
+  save-only, switch, time off, leave going / returning, Adjustment, Void, the Employee pop-up; Print = PDF via the
+  Receipt output sheet, Email = a mail draft; SmokeTest logs the text and step 4 asserts it) + fixes 5a379f3 /
+  207d292; b619023 item 12 BACKUPS (daily backup on any writable open, hourly backup before a save when the newest
+  is older than 4 h kept 7 days, the first daily backup of each pay period kept 400 days, RestoreDrill with an
+  Install Log row, LogInstallRow) + fixes 207d292 / fe96720 (a HIGH: PruneBackups could have deleted every
+  backup on a bad header); 72ff653 item 13 the AUDIT OF IN-PLACE EDITS (Grade Log Field column + LogFieldChange,
+  SetAbsenceEnd / SetAbsenceEndTo keep the old end in the Note, ReleaseCoverage voids and re-writes) + its fix
+  round. All reviewed read-only (one Opus reviewer, every round re-read until clean or LOW-only).
+Checkers and pytest after the last commit: four checkers clean (the three vbacheck false positives), 809
+passed, 791 cases / 95 suites. The re-pasted forms (frmOvertimeEntry, frmSickCall, frmShiftSwitch, frmTimeOff,
+frmLeave, frmEmployee) and ThisWorkbook changed: release prep bumps FORM_RELEASES / THISWB_RELEASE and the
+INSTALL note lists THREE new modules (modReconcile, modStats, modReceipt) and ONE new form (frmReceipt).
 Stamps are still v26.5.5 everywhere (test_drift ties every stamp to EXPECTED_RELEASE): the release-prep
 commit bumps all 27 + the two new modules' stamps, FORM_RELEASES / THISWB_RELEASE as touched.
 
@@ -63,9 +75,8 @@ every morning + the cumulative at each period end; Excel export; Welland Hourly 
 first snapshot ("not available before <date>"); no union-folder PDF (the members' pay-period block shows the
 premium hours); the live re-import OWED.
 
-NEXT in order (briefs/v27.md): item 7 the receipts (one card after every save; every save path outside
-modPeople must gain a RosterTotalsMap before/after - the Oct 21 code check found none has it), items 8-9,
-the 3 AM pass (10, 12-20; 11 is done), the process items (21-25; 21 as tblRestrictions), the Desk tiles (2:
+NEXT in order (briefs/v27.md): items 8-9 (before / after on the roster; "Was this right?" feedback),
+the 3 AM pass (10, 14-20; 11, 12, 13 are done), the process items (21-25; 21 as tblRestrictions), the Desk tiles (2:
 "Import now" = KronosFilesToImport has unread files), 3, 33, the testing items (28, 29, 30 b-e, 31, 32), 27
 language, Members M4 (34-39, + dStats from StatsUnitRows, + the MsgBox titles), then 40 release prep
 (stamps, INSTALL-v27.md: TWO NEW MODULES to import - modReconcile, modStats - the updater's swap step must

@@ -1,0 +1,127 @@
+Option Explicit
+' @version v26.5.5 (Oct 21)
+
+' ================================================================
+' EMPLOYEE HISTORY (v27, item 20, B16): one pop-up for the report that
+'  used to take three input boxes - whose history (pick a roster name or
+'  type part of one), From / To (the roster year by default), Full or
+'  Member-safe (an admin in the admin view; everyone else gets the
+'  member-safe report), and whether to save a PDF beside the roster.
+'  Runs modReports.RunHistoryReport. Every control is built in code below
+'  (new form: Insert > UserForm, name it frmHistory, paste this).
+' ================================================================
+
+Private WithEvents mRun As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+Private mName As Object
+Private mFrom As Object
+Private mTo As Object
+Private mOptFull As Object
+Private mOptSafe As Object
+Private mPdf As Object
+Private mHint As Object
+
+Private Const LBL_L As Long = 14
+Private Const BOX_L As Long = 110
+Private Const BOX_W As Long = 300
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single) As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "hs_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 16)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Me.Caption = "Employee history"
+    Me.Width = 440
+
+    Dim o As Object, y As Single
+    y = 12
+    AddLabel "lName", "Whose history:", LBL_L, y + 3, 90
+    Set mName = AddCtl("Forms.ComboBox.1", "cboName", BOX_L, y, BOX_W, 20)
+    mName.Style = 0                              ' pick a roster name, or type part of one
+    mName.MatchEntry = 1
+    mName.ListRows = 14
+    Dim names As Variant, i As Long
+    On Error Resume Next
+    names = RosterNames()
+    On Error GoTo 0
+    If IsArray(names) Then
+        For i = LBound(names) To UBound(names)
+            If Trim$(CStr(names(i))) <> "" Then mName.AddItem Trim$(CStr(names(i)))
+        Next i
+    End If
+    y = y + 28
+    AddLabel "lFrom", "From:", LBL_L, y + 3, 90
+    Set mFrom = AddCtl("Forms.TextBox.1", "txtFrom", BOX_L, y, 110, 20)
+    AddLabel "lTo", "To:", BOX_L + 120, y + 3, 30
+    Set mTo = AddCtl("Forms.TextBox.1", "txtTo", BOX_L + 150, y, 110, 20)
+    mFrom.Text = DateText(RosterYearFrom())
+    mTo.Text = DateText(RosterYearTo())
+    y = y + 24
+    Set o = AddLabel("hDates", "Dates as  Jan 5  or  2026-01-05.  The member-safe report counts by the pay period a row counts in; the full one by shift date.", LBL_L, y, 410)
+    o.Height = 28: o.WordWrap = True: o.Font.Size = 10: o.ForeColor = RGB(120, 120, 120)
+    y = y + 34
+
+    ' Full / Member-safe: an admin in the admin VIEW (the FULL sheet is admin-only); everyone else: member-safe
+    Set mOptSafe = AddCtl("Forms.OptionButton.1", "optSafe", LBL_L, y, 200, 18)
+    mOptSafe.Caption = "Member-safe (as the members' file)"
+    Set mOptFull = AddCtl("Forms.OptionButton.1", "optFull", LBL_L + 210, y, 200, 18)
+    mOptFull.Caption = "FULL (admin): who logged, when, void rows"
+    mOptSafe.Value = True
+    If Not (IsAdmin() And gAdminUnlocked) Then mOptFull.Enabled = False
+    y = y + 24
+    Set mPdf = AddCtl("Forms.CheckBox.1", "chkPdf", LBL_L, y, 300, 18)
+    mPdf.Caption = "Save a PDF beside the roster as well"
+    y = y + 26
+    Set mHint = AddLabel("hint", "", LBL_L, y, 410)
+    mHint.Height = 28: mHint.WordWrap = True: mHint.Font.Size = 10: mHint.ForeColor = RGB(176, 0, 32)
+    y = y + 32
+
+    Set mRun = AddCtl("Forms.CommandButton.1", "cmdRun", LBL_L, y, 150, 28)
+    mRun.Caption = "Draw the report"
+    mRun.Default = True
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + BOX_W + 96 - 90, y, 90, 28)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+    Me.Height = y + 28 + 36
+
+    ApplyFormTheme Me
+    mRun.BackColor = RGB(30, 56, 100): mRun.ForeColor = vbWhite
+    ScaleForm Me                                 ' x the login's scale (modUI), the last line
+End Sub
+
+Private Sub mRun_Click()
+    On Error GoTo Oops
+    mHint.Caption = ""
+    Dim nm As String: nm = ResolvePersonName(Trim$(mName.Text), "Employee history")
+    If nm = "" Then mHint.Caption = "Pick a name from the list, or type part of one (the last name is enough).": Exit Sub
+    Dim dFrom As Date, dTo As Date
+    If Not ParseTypedDate(mFrom.Text, dFrom) Then mHint.Caption = "From is not a date I can read: " & mFrom.Text & ".  Type it as  Jan 5  or  2026-01-05.": Exit Sub
+    If Not ParseTypedDate(mTo.Text, dTo) Then mHint.Caption = "To is not a date I can read: " & mTo.Text & ".  Type it as  Jan 5  or  2026-01-05.": Exit Sub
+    If dTo < dFrom Then mHint.Caption = "To is before From.": Exit Sub
+    Dim full As Boolean: full = (mOptFull.Enabled And mOptFull.Value = True)
+    Me.Hide
+    RunHistoryReport nm, dFrom, dTo, full, (mPdf.Value = True)
+    Unload Me
+    Exit Sub
+Oops:
+    ReportError "frmHistory.Run"
+End Sub
+
+Private Sub mClose_Click()
+    Unload Me
+End Sub

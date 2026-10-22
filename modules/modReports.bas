@@ -828,30 +828,25 @@ End Function
 ' struck through) and MEMBER-SAFE (exactly the columns dLog carries, so it
 ' matches the members' file row for row). Supervisors get member-safe only.
 ' Reads the log; writes the output sheet. No rule.
+' v27 (item 20, B16): one code-built form (frmHistory) replaces the three input boxes: the name picker, From / To
+' defaulted to the roster year, Full / Member-safe for an admin in the admin view, a Save-a-PDF tick. The form
+' calls RunHistoryReport; ResolvePersonName is the name match both paths share.
 Public Sub EmployeeHistory()
     On Error GoTo Oops
     If Not IsSupervisor() Then Exit Sub                 ' the button is theirs (admins included)
     If LogTable() Is Nothing Then Exit Sub
-    Const TTL As String = "Employee history"
-    Dim nm As String: nm = AskPersonName(TTL)
-    If nm = "" Then Exit Sub
-    Dim full As Boolean, ans As VbMsgBoxResult
-    If IsAdmin() And gAdminUnlocked Then                  ' the admin VIEW too (review: after a VBA reset a save could leave the FULL sheet visible)
-        ' v26.5.5 (B10): a question with a Yes / No answer (No = the member-safe report, as the members' file shows it)
-        ans = MsgBox("Show the FULL (admin) report for " & nm & ": every entry by shift date, who logged it and when, void rows struck through?" & _
-                     vbNewLine & vbNewLine & "No shows the member-safe report instead: the rows and columns the members' file shows (it matches My history there).", _
-                     vbYesNoCancel + vbQuestion, TTL)
-        If ans = vbCancel Then Exit Sub
-        full = (ans = vbYes)
-    End If
-    ' the member-safe report takes the rows dLog takes - by the pay period they count in, the whole roster year by
-    ' default (review: "row for row with My history" needs the same filter); the full one by shift date, to today
-    Dim dFrom As Date, dTo As Date
-    If Not AskDateRange(dFrom, dTo, TTL, Not full) Then Exit Sub
-    DrawHistoryReport nm, dFrom, dTo, full
+    frmHistory.Show
     Exit Sub
 Oops:
     ReportError "EmployeeHistory"
+End Sub
+
+' The report for the form: draws it (FULL only for an admin in the admin view - the sheet is admin-only) and,
+' asked, saves it as a PDF beside the roster. Raises to its caller (the form's handler).
+Public Sub RunHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo As Date, ByVal full As Boolean, ByVal pdf As Boolean)
+    If full And Not (IsAdmin() And gAdminUnlocked) Then full = False
+    DrawHistoryReport nm, dFrom, dTo, full
+    If pdf Then ReportPdf ThisWorkbook.Worksheets(IIf(full, HISTORY_ADMIN_SHEET, HISTORY_SHEET)), "History " & CalName(nm), "Employee history - " & nm, True
 End Sub
 
 ' v26: part of a name -> the roster name (the first match, as Find a person), or someone no longer on
@@ -860,7 +855,13 @@ Private Function AskPersonName(ByVal ttl As String) As String
     Dim q As Variant
     q = Application.InputBox(Prompt:="Whose history? Part of the name (the last name is enough):", Title:=ttl, Type:=2)
     If VarType(q) = vbBoolean Then Exit Function
-    Dim t As String: t = Trim$(CStr(q))
+    AskPersonName = ResolvePersonName(Trim$(CStr(q)), ttl)
+End Function
+
+' v27 (item 20): part of a name -> the roster name (the first match), or someone no longer on the roster who has
+' log rows; several matches ask "Did you mean"; "" = nobody, or cancelled. The one match the form and the box share.
+Public Function ResolvePersonName(ByVal t As String, ByVal ttl As String) As String
+    t = Trim$(t)
     If t = "" Then Exit Function
     Dim rs As Worksheet: Set rs = RosterSheet()
     Dim r As Long, nm As String, hit As String, nHits As Long
@@ -898,7 +899,7 @@ Private Function AskPersonName(ByVal ttl As String) As String
         If MsgBox(nHits & " names match """ & t & """. Did you mean " & hit & "?" & vbNewLine & vbNewLine & _
                   "(No: type more of the name.)", vbYesNo + vbQuestion, ttl) <> vbYes Then Exit Function
     End If
-    AskPersonName = hit
+    ResolvePersonName = hit
 End Function
 
 ' v26: From and To dates typed through the one parser (ParseTypedDate); the boxes open on the

@@ -34,7 +34,7 @@ Private Const N_MODULES As Long = 28           ' v24.4: + modSmoke; v25.3: + mod
 Private Const THISWB_RELEASE As String = "v26.5.5"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v26.5.5,frmNewPosting|v26.5.5,frmPostingEntry|v26.5.5,frmShiftSwitch|v26.5.5," & _
-                                        "frmTimeOff|v26.5.5,frmLeave|v26.5.5,frmSickCall|v26.5.5,frmConvert|v26.5.5,frmEmployee|v26.5,frmReceipt|v26.5.5"   ' v26.5.5: every form but frmEmployee re-pasted (a title on every box; the call-out, sick-call, posting and award pop-ups changed), ThisWorkbook too (save guard, stale copy, practice banner); v27: + frmReceipt (new, the receipt card) - the release-prep commit bumps every form the receipts touched
+                                        "frmTimeOff|v26.5.5,frmLeave|v26.5.5,frmSickCall|v26.5.5,frmConvert|v26.5.5,frmEmployee|v26.5,frmReceipt|v26.5.5,frmHistory|v26.5.5"   ' v26.5.5: every form but frmEmployee re-pasted (a title on every box; the call-out, sick-call, posting and award pop-ups changed), ThisWorkbook too (save guard, stale copy, practice banner); v27: + frmReceipt (new, the receipt card) - the release-prep commit bumps every form the receipts touched
 
 Private mBackupWarned As Boolean
 Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time

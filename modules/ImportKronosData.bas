@@ -694,7 +694,8 @@ End Function
 ' ====================================================================
 ' The files to import: KRONOS_PATH a folder (or wildcard) = every report file saved after the last import, oldest
 ' first (none newer = the newest one, so a re-run re-reads it); a file = that file. Empty (not an array) = nothing.
-Public Function KronosFilesToImport() As Variant
+Public Function KronosFilesToImport(Optional ByRef nNew As Long = 0) As Variant     ' v27 (item 2): nNew = how many the roster has not read
+    nNew = 0
     Dim p As String: p = Trim$(KRONOS_PATH)
     If p = "" Then Exit Function
     On Error Resume Next                                     ' an unreachable drive: nothing (the caller says no file was found)
@@ -705,7 +706,13 @@ Public Function KronosFilesToImport() As Variant
         folder = Left$(p, InStrRev(p, "\")): pattern = Mid$(p, InStrRev(p, "\") + 1)
     Else
         hit = Dir$(p)
-        If hit <> "" Then KronosFilesToImport = Array(p)
+        If hit <> "" Then
+            KronosFilesToImport = Array(p)
+            Dim fAt As Date: fAt = FileDateTime(p)       ' read first: under Resume Next an error in an If test runs its Then
+            Dim isKnown As Boolean: isKnown = True
+            isKnown = KnownSources().Exists(hit)
+            If fAt > KronosImportedAt() Or Not isKnown Then nNew = 1
+        End If
         Exit Function
     End If
     Dim since As Date: since = KronosImportedAt()
@@ -726,6 +733,7 @@ Public Function KronosFilesToImport() As Variant
         f = ""                                           ' cleared first: under Resume Next a share dropping mid-listing must end the loop
         f = Dir$()
     Loop
+    nNew = n
     If n = 0 Then
         If best <> "" Then KronosFilesToImport = Array(folder & best)
         Exit Function
@@ -745,6 +753,14 @@ Public Function KronosFilesToImport() As Variant
         out(i - 1) = folder & names(i)
     Next i
     KronosFilesToImport = out
+End Function
+
+' v27 (item 2): how many report files in KRONOS_PATH the roster has not read yet (the admin Desk's Kronos pill)
+Public Function KronosNewFileCount() As Long
+    On Error Resume Next                                     ' never raises (the Desk draws on it)
+    Dim n As Long, v As Variant
+    v = KronosFilesToImport(n)
+    KronosNewFileCount = n
 End Function
 
 ' The report file names the tables already hold (the Source columns of Worked Days and Worked Changes)

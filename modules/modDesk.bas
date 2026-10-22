@@ -171,6 +171,14 @@ Public Sub DrawDesk()
     End If
     ' the remedy belongs to whoever may run it: an admin imports, a supervisor asks (B5)
     If kOld Then kTxt = kTxt & IIf(gAdminUnlocked, " - import it", " - ask " & PRIMARY_ADMIN_NAME & " to import it")
+    Dim kMac As String                             ' v27 (item 2): a report in KRONOS_PATH the roster has not read = one click imports it (admin)
+    If gAdminUnlocked Then
+        Dim nNewK As Long: nNewK = KronosNewFileCount()
+        If nNewK > 0 Then
+            kTxt = nNewK & " new Kronos report" & IIf(nNewK = 1, "", "s") & " - click to import"
+            kOld = True: kMac = "SyncKronosData"
+        End If
+    End If
     Dim nsTxt As String                            ' v26.5.5 (A1): a failed save stays on the header until a save goes through
     If NoSave() Then
         nsTxt = "SAVING IS BLOCKED - close WITHOUT saving, reopen, log again"
@@ -194,35 +202,36 @@ Public Sub DrawDesk()
     If nsTxt <> "" Then xx = DeskPill(ws, "dk_pill_save", nsTxt, xx, yy, True)          ' first: it must never run off the right edge (review)
     xx = DeskPill(ws, "dk_pill_today", Format$(Date, "ddd mmm d") & " - " & DaysCrew(Date) & " on days, " & NightsCrew(Date) & " on nights", xx, yy, False)
     xx = DeskPill(ws, "dk_pill_period", "Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d"), xx, yy, False)
-    xx = DeskPill(ws, "dk_pill_kronos", kTxt, xx, yy, kOld)
+    xx = DeskPill(ws, "dk_pill_kronos", kTxt, xx, yy, kOld, kMac)
 
     ' ---- the layout: the admin Desk (every job) or the supervisor Desk (a supervisor's jobs) ----
     Dim sup As Boolean: sup = Not gAdminUnlocked
 
-    ' ---- TODAY: the tiles (four for an admin, three for a supervisor), each the count, the next thing, the verb ----
+    ' ---- TODAY: the tiles, each the count, the next thing, the verb. v27 (item 2): an admin's sit in rows of three
+    '      under the three band columns (cover, award, owed / members' file, this morning); a supervisor's in one row ----
     DeskLabel ws, "dk_lbl_today", "TODAY", x0, y0
     yy = y0 + 16
-    Dim nTiles As Long: nTiles = IIf(sup, 3, 4)
-    Dim tw As Double: tw = (bandW - (nTiles - 1) * GAP) / nTiles
-    Dim tileX As Double: tileX = x0
+    Dim nTiles As Long: nTiles = IIf(sup, 3, 5)
+    Dim k As Long, tw As Double, tileX As Double, tileY As Double
     Dim nextTxt As String                          ' v25.5 (A8): the next uncovered shift under the count
     If nCover > 0 Then nextTxt = NextOpenLine(DESK_AHEAD_DAYS)
+    TilePos k, sup, nTiles, x0, yy, bandW, tileX, tileY, tw
     DeskTile ws, "dk_tile_cover", nCover, IIf(nCover = 1, "shift needs cover", "shifts need cover") & IIf(nextTxt <> "", ", next " & nextTxt, ""), _
-             IIf(sup, "modDesk.DeskCalendar", "modDesk.DeskNeeds"), tileX, yy, tw, IIf(nCover > 0, dkOrange(), 0), _
+             IIf(sup, "modDesk.DeskCalendar", "modDesk.DeskNeeds"), tileX, tileY, tw, IIf(nCover > 0, dkOrange(), 0), _
              IIf(nCover = 0, "", IIf(sup, "Open the Calendar", "Open Needs Attention"))   ' Needs Attention is admin: a supervisor's tile opens the Calendar; no verb on a grey tile
-    tileX = tileX + tw + GAP
+    k = k + 1: TilePos k, sup, nTiles, x0, yy, bandW, tileX, tileY, tw
     Dim oldest As Date: If nReady > 0 Then oldest = ReadyToAwardOldest()      ' v27: the posting that has waited longest
     DeskTile ws, "dk_tile_award", nReady, IIf(nReady = 1, "posting ready to award", "postings ready to award") & _
              IIf(oldest > 0, ", closed " & Format$(oldest, "ddd mmm d") & " " & POSTING_CLOSE_TIME, ""), "modDesk.DeskAward", _
-             tileX, yy, tw, IIf(nReady > 0, dkOrange(), 0), IIf(nReady = 0, "", IIf(nReady = 1, "Award it", "Award them"))
-    tileX = tileX + tw + GAP
+             tileX, tileY, tw, IIf(nReady > 0, dkOrange(), 0), IIf(nReady = 0, "", IIf(nReady = 1, "Award it", "Award them"))
     If Not sup Then
+        k = k + 1: TilePos k, sup, nTiles, x0, yy, bandW, tileX, tileY, tw
         Dim nOver As Long: nOver = OwedOverdueCount()      ' v26 (payback aging): owed longer than PAYBACK_WARN_DAYS
         DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed") & _
                  IIf(nOver > 0, ", " & nOver & " over " & PaybackWarnDays() & " days", ""), "modDesk.DeskSwitch", _
-                 tileX, yy, tw, IIf(nOwed > 0, dkGreen(), 0), IIf(nOwed = 0, "", "See the OWED list")
-        tileX = tileX + tw + GAP
+                 tileX, tileY, tw, IIf(nOwed > 0, dkGreen(), 0), IIf(nOwed = 0, "", "See the OWED list")
     End If
+    k = k + 1: TilePos k, sup, nTiles, x0, yy, bandW, tileX, tileY, tw
     Dim pubTxt As String, pubCol As Long
     If pubAt = 0 Then
         pubTxt = "never published": pubCol = dkNavy()
@@ -232,11 +241,17 @@ Public Sub DrawDesk()
         pubTxt = "updated today " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
     End If
     ' v25.5 (bundle item 8): the tile is live for a supervisor too - they publish (coloured = work to do)
-    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, "modDesk.DeskPublish", tileX, yy, tw, pubCol, _
+    DeskTileText ws, "dk_tile_pub", "Members' file", pubTxt, "modDesk.DeskPublish", tileX, tileY, tw, pubCol, _
                  IIf(pubCol <> 0, "Update it", "Click to update again")
+    If Not sup Then                                  ' v27 (item 2): the admin's morning check - what the open already knows
+        k = k + 1: TilePos k, sup, nTiles, x0, yy, bandW, tileX, tileY, tw
+        Dim mTxt As String, mCol As Long, mVerb As String
+        MorningCheck mTxt, mCol, mVerb
+        DeskTileText ws, "dk_tile_morning", "This morning", mTxt, "modDesk.DeskMorning", tileX, tileY, tw, mCol, mVerb
+    End If
 
     ' ---- the three bands side by side: NOW (orange) | PLAN (green) | FINISH (navy) - colour says WHEN, not which pop-up ----
-    yy = yy + TILE_H + 18
+    yy = yy + TileRows(sup, nTiles) * (TILE_H + GAP) - GAP + 18
     Dim yN As Double, yP As Double, yF As Double
     Dim xN As Double, xP As Double, xF As Double
     xN = x0: xP = x0 + BTN_W + COLGAP: xF = x0 + 2 * (BTN_W + COLGAP)
@@ -412,9 +427,9 @@ End Sub
 
 ' v27 (Desk v2): a header pill - one fact, grey; red with white text when it is a warning. Returns the next x.
 Private Function DeskPill(ByVal ws As Worksheet, ByVal nm As String, ByVal txt As String, ByVal l As Double, ByVal t As Double, _
-                          ByVal warn As Boolean) As Double
+                          ByVal warn As Boolean, Optional ByVal mac As String = "") As Double     ' v27 (item 2): a pill may run a macro
     Dim w As Double: w = Len(txt) * 5.4 + 22                 ' Segoe UI Semibold 10 pt, about 5.4 pt a character
-    Dim s As Shape: Set s = DeskShape(ws, nm, "", l, t, w, PILL_H, IIf(warn, dkRed(), dkGrey()))
+    Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, PILL_H, IIf(warn, dkRed(), dkGrey()))
     On Error Resume Next
     s.Adjustments.Item(1) = 0.5
     With s.TextFrame2
@@ -431,6 +446,65 @@ Private Function DeskPill(ByVal ws As Worksheet, ByVal nm As String, ByVal txt A
     End With
     DeskPill = l + w + GAP
 End Function
+
+' v27 (item 2): where TODAY tile k (0-based) sits - an admin's in rows of three under the band columns, a
+' supervisor's all in one row across the bands' span
+Private Sub TilePos(ByVal k As Long, ByVal sup As Boolean, ByVal nTiles As Long, ByVal x0 As Double, ByVal y0 As Double, _
+                    ByVal bandW As Double, ByRef x As Double, ByRef y As Double, ByRef w As Double)
+    If sup Then
+        w = (bandW - (nTiles - 1) * GAP) / nTiles
+        x = x0 + k * (w + GAP)
+        y = y0
+    Else
+        w = BTN_W
+        x = x0 + (k Mod 3) * (BTN_W + COLGAP)
+        y = y0 + (k \ 3) * (TILE_H + GAP)
+    End If
+End Sub
+
+' how many rows of tiles TilePos laid out
+Private Function TileRows(ByVal sup As Boolean, ByVal nTiles As Long) As Long
+    If sup Then TileRows = 1 Else TileRows = (nTiles + 2) \ 3
+End Function
+
+' v27 (item 2): the admin's "This morning" tile - the integrity result of this open, today's backup, the Error Log
+' rows nobody has read; red for a PROBLEM or a missing backup, orange for unread errors, grey when all is well
+Private Sub MorningCheck(ByRef txt As String, ByRef col As Long, ByRef verb As String)
+    Dim iTxt As String: iTxt = IntegrityStatusText()
+    If iTxt = "" Then iTxt = "Integrity: not run"
+    iTxt = Replace(iTxt, "Integrity: ", "Integrity ")
+    Dim bk As Long: bk = BackupTodayState()
+    Dim nErr As Long: nErr = UnseenErrorCount()
+    txt = iTxt & "; " & Choose(bk + 2, "no backups in this copy", "NO backup today", "backup taken") & "; " & _
+          IIf(nErr = 0, "no new errors", nErr & " new error" & IIf(nErr = 1, "", "s"))
+    If IntegrityHasProblems() Then
+        col = dkRed(): verb = "Open the Integrity sheet"
+    ElseIf bk = 0 Then
+        col = dkRed(): verb = "Why no backup?"
+    ElseIf nErr > 0 Then
+        col = dkOrange(): verb = "Open the Error Log"
+    Else
+        col = 0: verb = ""
+    End If
+End Sub
+
+' v27 (item 2): the morning tile's click - the first thing that needs looking at
+Public Sub DeskMorning()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If IntegrityHasProblems() Then IntegrityCheck: Exit Sub
+    If BackupTodayState() = 0 Then
+        Tell "Today's backup copy is not in:" & vbNewLine & BackupFolderPath() & vbNewLine & vbNewLine & _
+             "It is taken on the first writable open of the day; the folder may have been unreachable (the open said so). " & _
+             "Close and reopen the roster once the folder is back.", vbExclamation, "Backup"
+        Exit Sub
+    End If
+    If UnseenErrorCount() > 0 Then ShowErrorLog: Exit Sub
+    IntegrityCheck
+    Exit Sub
+Oops:
+    ReportError "DeskMorning"
+End Sub
 
 ' a TODAY tile: the figure big, the next thing under it, then the verb a click takes (v27); grey when there is nothing to do
 Private Sub DeskTile(ByVal ws As Worksheet, ByVal nm As String, ByVal n As Long, ByVal cap As String, ByVal mac As String, _

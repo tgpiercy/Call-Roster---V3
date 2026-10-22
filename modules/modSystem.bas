@@ -746,6 +746,17 @@ Private Function BackupOff() As Boolean
     BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name))
 End Function
 
+' v27 (item 2): today's daily backup - 1 taken, 0 not in the folder, -1 this copy takes none (a practice, backup or
+' read-only copy). Never raises.
+Public Function BackupTodayState() As Long
+    On Error Resume Next
+    If BackupOff() Then BackupTodayState = -1: Exit Function
+    Dim folder As String: folder = EnsureSlash(BackupFolderPath())
+    If FolderExists(folder) Then
+        If Dir$(folder & BackupFileName(Date)) <> "" Then BackupTodayState = 1
+    End If
+End Function
+
 ' BACKUP_FOLDER with "." / ".\sub" resolved against the roster's own folder
 Public Function BackupFolderPath() As String
     BackupFolderPath = ResolveFolder(BACKUP_FOLDER)

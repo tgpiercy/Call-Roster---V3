@@ -27,6 +27,8 @@ Private WithEvents mDateBox As MSForms.TextBox
 Private WithEvents mPartAcc As MSForms.CommandButton     ' v24.1: accepted PART of the hours
 Private WithEvents mReason As MSForms.ComboBox           ' v25.5: Enter in the reason list records Unavailable
 Private WithEvents mCallBack As MSForms.CommandButton    ' v25.5: the call-back pile
+Private WithEvents mNotListed As MSForms.CommandButton   ' v27 (item 18): "Not listed (N)..." - who is off this list and why
+Private mNotListedTxt As String                          ' v27 (item 18): the grouped names and reasons from FilterNotFree
 
 Private mEntries() As EmpRec
 Private mSS() As String          ' SS ID if that person is working a shift switch that shift
@@ -122,6 +124,15 @@ Private Sub UserForm_Initialize()
         .Caption = "LOAD LIST"
         .Left = Px(358): .Top = Px(36): .Width = Px(124): .Height = Px(26)
         .Font.Bold = True: .Font.Size = Px(10)
+    End With
+    ' v27 (item 18, B6): who is NOT on the list, and why - live once a list is loaded
+    Set mNotListed = Me.Controls.Add("Forms.CommandButton.1", "cmdNotListed", True)
+    With mNotListed
+        .Caption = "Not listed..."
+        .Left = Px(250): .Top = Px(36): .Width = Px(100): .Height = Px(26)
+        .Font.Size = Px(9)
+        .Enabled = False
+        .TakeFocusOnClick = False
     End With
 
     MakeLabel "lblLegend", _
@@ -364,8 +375,13 @@ Private Function LoadListNow() As Boolean
     mCount = LoadEligible(C("cmbDept").Value, CrewFilter(C("cmbShift").Value), mEntries, 999, CALLOUT_INCLUDE_DAYS, _
                           dL)
     ' only people free that shift: not scheduled, rest rule, not booked off, not on a switch
-    Dim offList As String
-    If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, dL, C("cmbDN").Text, offList)
+    Dim offList As String, notTxt As String
+    Dim nAll As Long: nAll = mCount                     ' v27 (item 18): everyone with a code, before the free test
+    If mCount > 0 Then mCount = FilterNotFree(mEntries, mCount, dL, C("cmbDN").Text, offList, False, notTxt)
+    mNotListedTxt = notTxt
+    mNotListed.Caption = "Not listed (" & (nAll - mCount) & ")..."
+    mNotListed.Enabled = (nAll - mCount > 0)
+    If notTxt <> "" Then ShowBarText "Not listed: " & Replace(notTxt, vbNewLine, "  |  ")   ' the same list on the status bar
     If mCount = 0 Then
         lstEmployees.Clear
         mCurrent = 0
@@ -375,7 +391,7 @@ Private Function LoadListNow() As Boolean
         btnSubmit.Enabled = False
         mCallBack.Enabled = False
         MsgBox "No employees found for " & C("cmbDept").Value & _
-               " / " & C("cmbShift").Value & "." & IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbExclamation, "Call Out Roster"
+               " / " & C("cmbShift").Value & "." & IIf(notTxt <> "", vbNewLine & vbNewLine & "Not listed:" & vbNewLine & notTxt, ""), vbExclamation, "Call Out Roster"
         Exit Function
     End If
 
@@ -612,6 +628,17 @@ End Sub
 
 ' Call back: the next person who was left a message (after the card, wrapping round), so a second
 ' round walks the whole pile (v25.5 review: the first one alone would come back every time)
+' v27 (item 18, B6): the names left off this list, grouped by reason (FilterNotFree's detail)
+Private Sub mNotListed_Click()
+    If mNotListedTxt = "" Then
+        MsgBox "Everyone with a code in " & mDept & " is on the list.", vbInformation, "Not listed"
+    Else
+        MsgBox "Not on the " & mDept & " " & mShiftLbl & " list for " & Format$(mDate, "ddd mmm d") & ":" & vbNewLine & vbNewLine & mNotListedTxt & vbNewLine & vbNewLine & _
+               "The rotation's rules first (scheduled, coming off nights, starting days), then bookings, switches, OT already held and the 16 h rule.", vbInformation, "Not listed"
+    End If
+    FocusList
+End Sub
+
 Private Sub mCallBack_Click()
     Dim i As Long, k As Long, base As Long
     base = mCurrent
@@ -910,6 +937,7 @@ End Function
 
 Private Sub ResetForm()
     mCount = 0: mCurrent = 0
+    mNotListedTxt = "": mNotListed.Caption = "Not listed...": mNotListed.Enabled = False   ' v27 (item 18)
     mSlotKey = "": mSlotShift = "": mSlotUnit = ""   ' v27 (item 10)
     mStarted = 0
     lstEmployees.Clear

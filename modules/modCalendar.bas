@@ -877,12 +877,17 @@ End Function
 ' Keeps only people free to take overtime on d / shiftLbl (see NotFreeReason).
 ' removed gets a short summary, e.g. "14 scheduled that day, 4 rest rule;
 ' booked off: Fred C (Vac); shift switch: Paul M". Returns the new count.
+' v27 (item 18, B6): detail = every person left off, by reason, one group per line ("Scheduled that day (3): Ann B,
+' Bob C, Cal D" / "Rest rule ..." / "Booked off: Dee E (Vac), ..." / "Shift switch: ..." / "Already on OT that
+' shift: ..." / "16 h rule: ...") - the "Not listed (N)..." box on the call-out pop-up. Reads only.
 Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d As Date, ByVal shiftLbl As String, _
-                              ByRef removed As String, Optional ByVal useCache As Boolean = False) As Long
+                              ByRef removed As String, Optional ByVal useCache As Boolean = False, _
+                              Optional ByRef detail As String = "") As Long
     If Not useCache Then LoadCache
-    removed = ""
+    removed = "": detail = ""
     Dim i As Long, k As Long, why As String, mx As Double
     Dim nSched As Long, nRest As Long, offTxt As String, ssTxt As String, fatTxt As String, otTxt As String
+    Dim schedTxt As String, restTxt As String
     ' v26.5.5 (review): the 16 h readers look at four shifts per person - one read of the switch table for the list;
     ' the batch is ended on every path (a batch left on would feed stale switch rows to the rest of the session)
     Dim batched As Boolean
@@ -895,8 +900,8 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
                 k = k + 1
                 If k <> i Then recs(k) = recs(i)
                 recs(k).MaxHours = mx                      ' v26.5.5 (item 9): the pop-ups mark anyone whose max is under the offer
-            Case "scheduled": nSched = nSched + 1
-            Case "rest": nRest = nRest + 1
+            Case "scheduled": nSched = nSched + 1: schedTxt = schedTxt & IIf(schedTxt = "", "", ", ") & CalName(recs(i).EmpName)
+            Case "rest": nRest = nRest + 1: restTxt = restTxt & IIf(restTxt = "", "", ", ") & CalName(recs(i).EmpName)
             Case "S/S", "S/S off": ssTxt = ssTxt & IIf(ssTxt = "", "", ", ") & CalName(recs(i).EmpName)
             Case "16 h rule": fatTxt = fatTxt & IIf(fatTxt = "", "", ", ") & CalName(recs(i).EmpName)
             Case "on OT": otTxt = otTxt & IIf(otTxt = "", "", ", ") & CalName(recs(i).EmpName)
@@ -910,6 +915,13 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     If ssTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "shift switch: " & ssTxt
     If otTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "already on OT that shift: " & otTxt
     If fatTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "16 h rule (OT accepted / awarded or a switch touching the shift): " & fatTxt
+    ' v27 (item 18): the same people, every name, one line per reason
+    If nSched > 0 Then detail = "Scheduled that day (" & nSched & "): " & schedTxt
+    If nRest > 0 Then detail = detail & IIf(detail = "", "", vbNewLine) & "Rest rule - off nights that morning / on days next morning (" & nRest & "): " & restTxt
+    If offTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "Booked off, sick, or inside the 24 h after a sick shift: " & offTxt
+    If ssTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "Shift switch that day (working one, or gave the shift up): " & ssTxt
+    If otTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "Already on OT that shift: " & otTxt
+    If fatTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "16 h rule (OT accepted / awarded or a switch touching the shift; nothing fits): " & fatTxt
     FilterNotFree = k
     Exit Function
 Failed:

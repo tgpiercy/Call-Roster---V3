@@ -822,3 +822,7 @@ sgmix,two-names-two-logins,Ann:S:0:2027-01-10-09:jdoe;Bob:S:0:2027-01-10-09:psmi
 sgmix,blank-login-ignored,Ann:S:0:2027-01-10-09:;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann
 sgmix,newest-is-withdraw,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:psmith,,,,,none
 sgmix,case-of-login-ignored,Ann:S:0:2027-01-10-09:JDoe;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann
+sgsuspect,clock-change-an-hour-later,2027-03-13-22-00,2027-03-13-23-00,Y,,,ok
+sgsuspect,clock-change-65-min-later,2027-03-13-22-00,2027-03-13-23-05,Y,,,ok
+sgsuspect,clock-change-but-two-hours,2027-03-13-22-00,2027-03-14-00-00,Y,,,suspect
+sgsuspect,no-clock-change-an-hour-later,2027-01-10-09-00,2027-01-10-10-00,N,,,suspect

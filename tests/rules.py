@@ -1278,11 +1278,15 @@ def accepted_hours(offer: float, taken: float) -> float:
 SIGNUP_STAMP_SLACK_MIN = 10          # modSignups.SIGNUP_STAMP_SLACK_MIN (v27, item 14)
 
 
-def signup_suspect(stamp: datetime | None, file_time: datetime | None) -> bool:
-    """modSignups.SignupSuspect: the file was written more than the slack after the stamp it claims."""
+def signup_suspect(stamp: datetime | None, file_time: datetime | None, clock_change_between: bool = False) -> bool:
+    """modSignups.SignupSuspect: the file was written more than the slack after the stamp it claims, in whole
+    seconds; a clock change between the two makes a difference within the slack of an hour not suspect."""
     if stamp is None or file_time is None:
         return False
-    return (file_time - stamp).total_seconds() / 60 > SIGNUP_STAMP_SLACK_MIN
+    secs = round((file_time - stamp).total_seconds())
+    if clock_change_between and abs(secs - 3600) <= SIGNUP_STAMP_SLACK_MIN * 60:
+        return False
+    return secs > SIGNUP_STAMP_SLACK_MIN * 60
 
 
 def reduce_signups(rows: list[tuple], closes_at: datetime | None):

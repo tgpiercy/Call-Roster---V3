@@ -1303,9 +1303,10 @@ Public Function AddCoverage(ByVal d As Date, ByVal shiftLbl As String, ByVal uni
         If r > 0 Then
             Dim cur As String: cur = UCase$(SafeStr(v(r, CV_BY)))
             Dim curSrc As String: curSrc = SafeStr(v(r, CV_SOURCE))
-            ' fill in place if empty, or if it's this same posting's POSTED line;
+            ' fill in place if empty, or if it's this same posting's POSTED line, or (v27, item 15) a NO TAKERS line -
+            ' the posting closed with nobody, so the call-out that fills the shift takes the line over;
             ' a POSTED line from another source keeps its posting (new line below)
-            If cur = "" Or (cur Like "POSTED*" And StrComp(curSrc, source, vbTextCompare) = 0) Then
+            If cur = "" Or (cur Like "POSTED*" And StrComp(curSrc, source, vbTextCompare) = 0) Or (cur Like "NO TAKERS*") Then
                 UnlockSheet lo.Parent
                 lo.DataBodyRange.Cells(r, CV_BY).Value = coveredBy
                 If IsNumeric(hrs) And Not IsEmpty(hrs) Then
@@ -1539,13 +1540,17 @@ Public Function OnlyOpenSlot(ByVal d As Date, ByVal shiftLbl As String, ByVal un
     If nOpen = 1 Then OnlyOpenSlot = k
 End Function
 
-' v27 (item 10, review L7): True when the key names a LIVE line of that date and shift that is still OPEN (SlotsFor
-' lists only live rows; IsOpen = nobody on it). A voided absence, a covered line or a POSTED line says False.
+' v27 (item 10, review L7): True when the key names a LIVE line of that date and shift that can take the person:
+' OPEN (nobody on it) or NO TAKERS (the posting closed empty: the call-out fills it in place). A voided absence,
+' a covered line or a POSTED line (its posting is still open: award it instead) says False.
 Public Function SlotKeyOpen(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String, ByVal key As String) As Boolean
     Dim slots() As CalSlot, n As Long, i As Long
     n = SlotsFor(d, shiftLbl, GroupOfUnit(unit), slots)
     For i = 1 To n
-        If StrComp(slots(i).Key, key, vbTextCompare) = 0 Then SlotKeyOpen = slots(i).IsOpen: Exit Function
+        If StrComp(slots(i).Key, key, vbTextCompare) = 0 Then
+            SlotKeyOpen = slots(i).IsOpen Or (UCase$(slots(i).RightText) Like "NO TAKERS*")
+            Exit Function
+        End If
     Next i
 End Function
 
@@ -5276,7 +5281,8 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
                     title = Format$(d, "ddd mmm d") & " " & sh & "  -  " & Clip(lt, 34)
                     postId = PostIdOfLine(keyTxt)
                     AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-                    AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True
+                    ' (review) a POSTED line's posting is still open: the award fills it, not a call-out beside it
+                    If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True
                     If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", False
                     If postId <> "" Then
                         If PostRow(postId) > 0 Then
@@ -5301,7 +5307,7 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
             title = Format$(d, "ddd mmm d") & " " & sh & "  -  " & Clip(lt, 34)
             postId = PostIdOfLine(keyTxt)
             AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-            AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True   ' v27 (item 15): the call-out from the line, pre-filled
+            If rt = "" Or UCase$(rt) Like "NO TAKERS*" Then AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True   ' v27 (item 15): the call-out from an open or NO TAKERS line, pre-filled (a covered or POSTED line: no)
             If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", False
             AddChoice caps, macs, grpBreak, n, "Set coverage...", "CalMenuSetCoverage", (UCase$(rt) Like "POSTED*")
             If kind = "C:" Then AddChoice caps, macs, grpBreak, n, "Change the text of this line...", "CalMenuEditText", False
@@ -5520,10 +5526,16 @@ Public Sub CalMenuCallout()
     If unit = "" Then unit = SingleUnitOf(CalGroup())
     Dim hrs As Double: hrs = DefaultShiftHours(d, IsNightShift(sh), USUAL_SHIFT_HOURS)
     Dim slotKey As String: slotKey = Split(mMenuKey, "|")(0)
+    Dim r As Long
     If kind = "A:" Then
-        Dim r As Long: r = RowOf(mAbs, Mid$(slotKey, 3))
+        r = RowOf(mAbs, Mid$(slotKey, 3))
         If r > 0 Then
             If NumOr0(mAbs(r, AB_HOURS)) > 0 And NumOr0(mAbs(r, AB_HOURS)) < hrs Then hrs = NumOr0(mAbs(r, AB_HOURS))   ' a partial-day absence: its hours
+        End If
+    Else
+        r = RowOf(mCov, Mid$(slotKey, 3))                 ' (review L7) a need line's own hours, as CalPostKey reads them
+        If r > 0 Then
+            If NumOr0(mCov(r, CV_HOURS)) > 0 And NumOr0(mCov(r, CV_HOURS)) < hrs Then hrs = NumOr0(mCov(r, CV_HOURS))
         End If
     End If
     Load frmOvertimeEntry

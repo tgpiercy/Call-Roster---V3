@@ -141,7 +141,7 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
         .Font.Size = 8: .Font.Italic = True: .Font.Color = greyTxt
         .HorizontalAlignment = xlLeft: .VerticalAlignment = xlTop
     End With
-    ws.Rows(3).RowHeight = 24
+    ws.Rows(3).RowHeight = 42                     ' (review) three to four wrapped lines at 8 pt across the ten columns; a merged range never auto-fits
     With ws.Range(ws.Cells(4, 1), ws.Cells(4, CO_LAST_COL))
         .Borders(xlEdgeBottom).LineStyle = xlContinuous
         .Borders(xlEdgeBottom).Weight = xlThick
@@ -180,9 +180,10 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
         .PrintGridlines = False
         .LeftHeader = "": .CenterHeader = "": .RightHeader = ""
         ' v27 (item 16): the legend in the footer (item 27's legend, the paper's copy)
-        .LeftFooter = "&8A accepted   R refused (charged x" & CHARGE_MULTIPLIER & ")   L left message (charged x" & CHARGE_MULTIPLIER & ")   U unavailable (not charged)   grade " & CHARGE_MAX_GRADE & " and below are charged; >> = called, never charged"
-        .RightFooter = ""
-        .CenterFooter = "&8Page &P of &N"
+        .LeftFooter = "&8A accepted   R refused (charged x" & Replace(CStr(CHARGE_MULTIPLIER), ",", ".") & ")   L left message (charged x" & Replace(CStr(CHARGE_MULTIPLIER), ",", ".") & ")" & vbLf & _
+                      "&8U unavailable (not charged)   grade " & CHARGE_MAX_GRADE & " and below are charged; >> = called, never charged"   ' (review) two lines: a footer never wraps
+        .CenterFooter = ""
+        .RightFooter = "&8Page &P of &N"
     End With
     Application.PrintCommunication = True
     ws.DisplayPageBreaks = False

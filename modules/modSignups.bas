@@ -102,7 +102,7 @@ Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByR
             If UBound(rows, 2) >= SG_MTIME Then
                 If IsDate(rows(r, SG_MTIME)) Then mt = CDate(rows(r, SG_MTIME))
             End If
-            out(m, SR_SUSPECT) = SignupSuspect(CDate(rows(r, SG_STAMP)), mt)
+            out(m, SR_SUSPECT) = SignupSuspect(CDate(rows(r, SG_STAMP)), mt, ClockChangeBetween(CDate(rows(r, SG_STAMP)), Now))
             lg = Trim$(SafeStr(rows(r, SG_LOGIN)))
             out(m, SR_LOGINMIX) = False
             If lg <> "" Then
@@ -122,9 +122,29 @@ End Function
 ' v27 (item 14, A12): a sign-up file whose own stamp is more than SIGNUP_STAMP_SLACK_MIN older than the time the
 ' file was written is suspect (a stamp typed or reset by hand; the members' file writes the two within a second).
 ' PURE (SelfTest "sgsuspect"; mirrored in tests/rules.py). An unknown time on either side = not suspect.
-Public Function SignupSuspect(ByVal stamp As Date, ByVal fileTime As Date) As Boolean
+' Compared in WHOLE SECONDS (review H1: a date difference x 1440 is 10.000000001 for an exact ten minutes, so
+' the Excel SelfTest failed where the Python mirror passed). acrossClockChange (review M2): a clock change
+' between the stamp and now shifts FileDateTime's reading by an hour, so a difference within the slack of 60 min
+' is then not suspect. A PC clock more than 10 min off the file server's flags every sign-up: a known limit.
+Public Function SignupSuspect(ByVal stamp As Date, ByVal fileTime As Date, Optional ByVal acrossClockChange As Boolean = False) As Boolean
     If stamp = 0 Or fileTime = 0 Then Exit Function
-    SignupSuspect = ((fileTime - stamp) * 1440 > SIGNUP_STAMP_SLACK_MIN)
+    Dim secs As Double: secs = Round((fileTime - stamp) * 86400#)
+    If acrossClockChange Then
+        If Abs(secs - 3600) <= SIGNUP_STAMP_SLACK_MIN * 60 Then Exit Function
+    End If
+    SignupSuspect = (secs > SIGNUP_STAMP_SLACK_MIN * 60)
+End Function
+
+' True when a clock-change night (modShiftCycle) lies between the two dates (at most a year is looked at)
+Public Function ClockChangeBetween(ByVal d1 As Date, ByVal d2 As Date) As Boolean
+    If d1 = 0 Or d2 = 0 Then Exit Function
+    Dim a As Date, b As Date, k As Date
+    a = Int(d1): b = Int(d2)
+    If a > b Then k = a: a = b: b = k
+    If b - a > 366 Then b = a + 366
+    For k = a To b
+        If DstNightHours(k) <> 12 Then ClockChangeBetween = True: Exit Function
+    Next k
 End Function
 
 ' v26 (M3; D-M4, Oct 13: every withdrawal listed with login and time at LOAD). PURE (SelfTest
@@ -271,7 +291,9 @@ Public Function ReadSignups(ByVal postingId As String, Optional ByRef skipped As
 End Function
 
 ' v27 (item 14, A12): the rows in (stamp, file name) order, so a tie on the stamp is broken the same way on every
-' PC (Dir$ returns files in no promised order; ReduceSignups keeps the LATER row on a tie)
+' PC (Dir$ returns files in no promised order; ReduceSignups keeps the LATER row on a tie). The members' file
+' names a file POST__login__pc__yyyymmdd-hhnnss[-n].txt, so a same-second tie falls to the LOGIN (a word sort,
+' vbTextCompare: the "-n" suffix barely weighs, which matters only past ten clicks in one second)
 Private Sub SortSignupRows(ByRef rows() As Variant, ByVal n As Long)
     Dim i As Long, j As Long, c As Long, tmp(1 To SG_N) As Variant
     For i = 2 To n
@@ -437,9 +459,9 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
     summary = nTick & " electronic sign-up" & IIf(nTick = 1, "", "s") & " ticked" & IIf(nPart > 0, " (" & nPart & " partial)", "") & "." & _
               IIf(lateTxt <> "", "  AFTER CLOSING, not ticked: " & lateTxt & ".", "") & _
               IIf(outTxt <> "", "  Not on the list (out of department box): " & outTxt & ".", "") & _
-              IIf(wdTxt <> "", "  Withdrawn (newest file is a withdrawal), not ticked: " & wdTxt & ".", "") & _
-              IIf(suspTxt <> "", "  SUSPECT stamp (the file was written more than " & SIGNUP_STAMP_SLACK_MIN & " min after the time it claims): " & suspTxt & ".", "") & _
+              IIf(suspTxt <> "", "  CHECK the stamp (the file was written more than " & SIGNUP_STAMP_SLACK_MIN & " min after the time it claims - a PC clock, or a back-dated sign-up): " & suspTxt & ".", "") & _
               IIf(mixTxt <> "", "  More than one login for the same name: " & mixTxt & ".", "") & _
+              IIf(wdTxt <> "", "  Withdrawn (newest file is a withdrawal), not ticked: " & wdTxt & ".", "") & _
               IIf(nUnknown > 0, "  " & nUnknown & " file(s) name someone who isn't on the roster: ignored.", "") & _
               IIf(skipped > 0, "  " & skipped & " file(s) couldn't be read: LOAD again in a minute.", "") & _
               "  Check them against the paper sheet."

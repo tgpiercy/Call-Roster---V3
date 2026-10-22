@@ -529,7 +529,7 @@ CalFailed:
     Dim cen As Long: cen = Err.Number
     Dim cem As String: cem = Err.Description
     LogError "VoidRef (calendar release " & SafeStr(v(i, L_REF)) & ")", cen, cem
-    If Not cws Is Nothing Then ProtectSheet cws
+    ProtectSheetQuiet cws                            ' (re-review L2) inside a handler: must not raise
     calErr = calErr & IIf(calErr = "", "", vbNewLine) & "  " & SafeStr(v(i, L_REF)) & " " & SafeStr(v(i, L_EMP)) & ": " & cem
     Resume NextRelease
 Failed:

@@ -1928,6 +1928,12 @@ Public Function IsYearEndSheet(ByVal nm As String) As Boolean
     IsYearEndSheet = (nm Like LOG_SHEET & " ####" Or nm = YE_SHEET)
 End Function
 
+' v27 (item 10, re-review L2): ProtectSheet for an error HANDLER, which may not raise
+Public Sub ProtectSheetQuiet(ByVal ws As Worksheet)
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+End Sub
+
 Public Sub ProtectAll()
     Dim ws As Worksheet
     On Error Resume Next                            ' v25 re-review: one sheet that won't protect doesn't stop the rest (ReportError calls this)
@@ -2046,7 +2052,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     rs.Shapes("ui_sup_History").Left = fx              ' v26: the group's second button moves with it
     On Error GoTo 0
     If SheetExists(CALLOUT_SHEET) Then
-        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not (adminView Or IsSupervisor())   ' v27 (item 16): a supervisor's printed roster carries the phones
+        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView   ' v27 (item 16, review): the renderer shows it to a supervisor for the print; every SAVED view (BeforeSave, SaveRestrictedCopy) hides it again
     End If
     If SheetExists(CAL_SHEET) Then
         For Each shp In ThisWorkbook.Worksheets(CAL_SHEET).Shapes

@@ -268,7 +268,7 @@ Private Function RunCase(f() As String) As String
         Case "withdrawn"                           ' v26 (M3): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> name=login[!];... / none
             RunCase = CaseWithdrawn(i1)
         Case "sgsuspect"                           ' v27 (item 14): the file's stamp, its time on disk (yyyy-mm-dd-hh-nn; 0 = unknown) -> suspect / ok
-            RunCase = IIf(SignupSuspect(ParseStampMin(i1), ParseStampMin(i2)), "suspect", "ok")
+            RunCase = IIf(SignupSuspect(ParseStampMin(i1), ParseStampMin(i2), (UCase$(i3) = "Y")), "suspect", "ok")   ' in3 Y = a clock change lies between
         Case "sgmix"                               ' v27 (item 14): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> the reduced sign-ups, name[!] (! = another login for that name) / none
             RunCase = CaseSignupMix(i1)
         Case "calloffer"
@@ -1804,5 +1804,9 @@ Private Sub LoadCases5()
     AddCase "sgmix,blank-login-ignored,Ann:S:0:2027-01-10-09:;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann"
     AddCase "sgmix,newest-is-withdraw,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:psmith,,,,,none"
     AddCase "sgmix,case-of-login-ignored,Ann:S:0:2027-01-10-09:JDoe;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann"
+    AddCase "sgsuspect,clock-change-an-hour-later,2027-03-13-22-00,2027-03-13-23-00,Y,,,ok"
+    AddCase "sgsuspect,clock-change-65-min-later,2027-03-13-22-00,2027-03-13-23-05,Y,,,ok"
+    AddCase "sgsuspect,clock-change-but-two-hours,2027-03-13-22-00,2027-03-14-00-00,Y,,,suspect"
+    AddCase "sgsuspect,no-clock-change-an-hour-later,2027-01-10-09-00,2027-01-10-10-00,N,,,suspect"
 ' <<< CASES
 End Sub

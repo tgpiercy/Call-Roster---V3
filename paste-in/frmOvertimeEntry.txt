@@ -34,6 +34,8 @@ Private mSlotKey As String       ' v27 (item 10): the calendar line this call-ou
 Private mSlotDate As Date        ' ... and the unit / date / shift it was good for (a change to any of them drops it)
 Private mSlotShift As String
 Private mSlotUnit As String
+Private mActivated As Boolean    ' v27 (item 17): the resume offer runs once, when the form first shows
+Private mResuming As Boolean     ' v27 (item 17): True while a draft is being replayed (no draft write per outcome)
 Private mTaken() As Double       ' v24.1: hours an Accepted person took (0 = everything on offer)
 Private mCount As Long
 Private mCurrent As Long
@@ -348,7 +350,15 @@ Private Sub btnLoad_Click()
         If MsgBox("Reloading clears the " & LoggedCount() & " outcome(s) already recorded." & vbNewLine & _
                   "Reload anyway?", vbYesNo + vbExclamation, "Reload list") = vbNo Then Exit Sub
     End If
+    LoadListNow
+End Sub
 
+' v27 (item 17): the load itself (the validations above are the button's); False when nobody is listed
+Private Function LoadListNow() As Boolean
+    Dim dL As Date
+    If Not ParseTypedDate(C("txtDate").Text, dL) Then Exit Function
+    Dim hoursStr As String: hoursStr = Trim$(C("txtHours").Value)
+    If hoursStr = "" Or Not IsNumeric(hoursStr) Then Exit Function
     Application.Calculate
     ' v24: each person's crew is the one they are on that date (crew history)
     mCount = LoadEligible(C("cmbDept").Value, CrewFilter(C("cmbShift").Value), mEntries, 999, CALLOUT_INCLUDE_DAYS, _
@@ -366,7 +376,7 @@ Private Sub btnLoad_Click()
         mCallBack.Enabled = False
         MsgBox "No employees found for " & C("cmbDept").Value & _
                " / " & C("cmbShift").Value & "." & IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbExclamation, "Call Out Roster"
-        Exit Sub
+        Exit Function
     End If
 
     mDept = C("cmbDept").Value: mShift = C("cmbShift").Value: mShiftLbl = C("cmbDN").Text
@@ -396,7 +406,8 @@ Private Sub btnLoad_Click()
                              IIf(nSS > 0, "   |   " & nSS & " working a shift switch (S/S)", "") & _
                              IIf(offList <> "", "   |   Not listed (booked off): " & offList, "")
     FocusList
-End Sub
+    LoadListNow = True
+End Function
 
 
 ' ================================================================
@@ -752,6 +763,89 @@ Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String, Optio
     UpdateProgress
     btnSubmit.Enabled = (logged > 0)
     FocusList
+    If Not mResuming Then DraftSave                      ' v27 (item 17): the session so far, for a resume after a crash
+End Sub
+
+' v27 (item 17, B4): this session's entries to the Draft sheet (quiet; a draft that cannot be written is simply not there)
+Private Sub DraftSave()
+    If mCount = 0 Then Exit Sub
+    Dim i As Long, s As String
+    For i = 1 To mCount
+        If mEntries(i).Outcome <> "" Then
+            s = s & IIf(s = "", "", ";") & Replace(Replace(mEntries(i).EmpName, "|", " "), ";", " ") & "|" & mEntries(i).Outcome & "|" & _
+                Replace(Replace(mEntries(i).Reason, "|", " "), ";", " ") & "|" & HoursText(mTaken(i))
+        End If
+    Next i
+    Dim slotKey As String
+    If mSlotKey <> "" And Int(mDate) = Int(mSlotDate) And StrComp(mShiftLbl, mSlotShift, vbTextCompare) = 0 _
+       And StrComp(mDept, mSlotUnit, vbTextCompare) = 0 Then slotKey = mSlotKey
+    DraftWrite CurrentUser(), mDept, mShiftLbl, mShift, mDate, mHours, mStarted, slotKey, s
+End Sub
+
+' v27 (item 17): shown fresh (no Prefill, nothing loaded) by a login with a draft: offer to pick it up
+Private Sub UserForm_Activate()
+    If mActivated Then Exit Sub
+    mActivated = True
+    If mCount > 0 Then Exit Sub
+    If C("cmbDept").Value <> "" Or mSlotKey <> "" Then Exit Sub     ' a sick call's or a calendar line's call-out is a new session
+    On Error GoTo Quiet
+    Dim dept As String, sh As String, crewSel As String, d As Date, hrs As Double, startedAt As Date, slotKey As String, outcomes As String
+    If Not DraftRead(CurrentUser(), dept, sh, crewSel, d, hrs, startedAt, slotKey, outcomes) Then Exit Sub
+    Dim nOut As Long: nOut = UBound(Split(outcomes, ";")) + 1
+    If outcomes = "" Then nOut = 0
+    Dim ans As Long
+    ans = MsgBox("Resume the " & dept & " " & sh & " " & Format$(d, "ddd mmm d") & " session (" & nOut & " logged, started " & _
+                 Format$(startedAt, "h:mm AM/PM") & IIf(Int(startedAt) <> Int(Now), " " & Format$(startedAt, "ddd"), "") & ")?" & vbNewLine & vbNewLine & _
+                 "Yes = load that list again and put the outcomes back.  No = discard it.  Cancel = leave it for later.", _
+                 vbYesNoCancel + vbQuestion, "Call-out session")
+    If ans = vbNo Then DraftClear CurrentUser(): Exit Sub
+    If ans <> vbYes Then Exit Sub
+    ' the inputs as the draft had them, then the list, then the outcomes by name
+    C("cmbDept").Value = dept
+    C("cmbDN").Value = IIf(IsNightShift(sh), "Nights", "Days")
+    C("txtDate").Value = DateText(d)
+    C("txtHours").Value = HoursText(hrs): mAutoHours = ""
+    If crewSel <> "" Then C("cmbShift").Value = crewSel
+    mSlotKey = slotKey: mSlotDate = d: mSlotShift = sh: mSlotUnit = dept
+    mResuming = True
+    If Not LoadListNow() Then mResuming = False: Exit Sub
+    If startedAt > 0 Then mStarted = startedAt
+    Dim parts As Variant, p As Variant, i As Long, k As Long, placed As Long, missing As String
+    parts = Split(outcomes, ";")
+    For k = 0 To UBound(parts)
+        p = Split(parts(k), "|")
+        If UBound(p) >= 1 Then
+            For i = 1 To mCount
+                If StrComp(Trim$(mEntries(i).EmpName), Trim$(CStr(p(0))), vbTextCompare) = 0 Then Exit For
+            Next i
+            If i <= mCount Then
+                mEntries(i).Outcome = CStr(p(1))
+                If UBound(p) >= 2 Then mEntries(i).Reason = CStr(p(2))
+                If UBound(p) >= 3 Then mTaken(i) = Val(Replace(CStr(p(3)), ",", "."))
+                placed = placed + 1
+            Else
+                missing = missing & IIf(missing = "", "", ", ") & CStr(p(0))
+            End If
+        End If
+    Next k
+    mResuming = False
+    ' the card on the first person still without an outcome
+    mCurrent = mCount + 1
+    For i = 1 To mCount
+        If mEntries(i).Outcome = "" Then mCurrent = i: Exit For
+    Next i
+    RefreshList
+    UpdateCurrentLabel
+    UpdateProgress
+    btnSubmit.Enabled = (LoggedCount() > 0)
+    C("lblStatus").Caption = TrustStrip() & vbLf & "Resumed: " & placed & " of " & nOut & " outcome(s) put back" & _
+                             IIf(missing <> "", " - not on this list any more: " & missing, "") & ".  Carry on, then SUBMIT."
+    If missing <> "" Then C("lblStatus").ForeColor = RGB(190, 30, 30)
+    FocusList
+    Exit Sub
+Quiet:
+    mResuming = False
+    LogError "frmOvertimeEntry.Resume", Err.Number, Err.Description
 End Sub
 
 
@@ -842,9 +936,13 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     If mCount = 0 Then Exit Sub
     Dim logged As Long: logged = LoggedCount()
     If logged > 0 Then
-        If MsgBox(logged & " unsaved entries will be lost." & vbNewLine & _
-                  "Close anyway?", vbYesNo + vbExclamation, "Unsaved Data") = vbNo Then
-            Cancel = 1
-        End If
+        ' v27 (item 17): the entries are in the draft - keep it for a resume, discard it, or stay
+        Select Case MsgBox(logged & " entries are not submitted. They are kept as a draft and offered the next time you open Fill a shift now." & vbNewLine & vbNewLine & _
+                           "Yes = close and keep the draft.   No = close and DISCARD the entries.   Cancel = stay here.", _
+                           vbYesNoCancel + vbExclamation, "Unsaved entries")
+            Case vbYes: DraftSave
+            Case vbNo: DraftClear CurrentUser()
+            Case Else: Cancel = 1
+        End Select
     End If
 End Sub

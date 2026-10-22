@@ -15,6 +15,9 @@ Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also 
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
 Public Const CALLOUT_SHEET As String = "Blank Call Out Roster"
+Public Const DRAFT_SHEET As String = "Draft"          ' v27 (item 17): the call-out pop-up's session in progress, one row per login (very hidden, never shown)
+Public Const DRAFT_TABLE As String = "tblDraft"
+Private Const DR_N As Long = 10                    ' the Draft table's columns: Login, Unit, Shift, Crew, Date, Hours, Started, Slot Key, Outcomes, Saved At
 Public Const CALLOUT_PHONE_COL As Long = 5          ' phone column on the printed call out roster (hidden for non-admins) - v21
 Public Const POSTING_SHEET As String = "Overtime Posting"
 Public Const REFUSAL_SHEET As String = "Refusal Report"
@@ -1326,6 +1329,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
 
     Dim before As Object: Set before = ReceiptBefore()     ' v27 (receipts): everyone's Total Hours before the rows land
     If Not AppendLogRows(data) Then Exit Function     ' the caller keeps its entries so nothing is lost
+    DraftClear user                                   ' v27 (item 17): the rows are in the log - the draft has done its job (saved or not)
     Dim savedOk As Boolean: savedOk = SaveIfWritable()     ' v26.5.5 (A1): a failed save is in the summary; the rows ARE in the log
 
     ' accepted -> onto the calendar
@@ -1438,6 +1442,152 @@ NextRow:
 Quiet:
     RecentSessionsText = ""
 End Function
+
+' ====================================================================
+'  v27 (item 17, B4): THE SESSION DRAFT
+'  The call-out pop-up writes its session (unit, shift, crew, date, hours,
+'  the line it was started from, when it started, every outcome so far) to
+'  the very-hidden Draft sheet after each outcome - one row per login,
+'  overwritten. Opened fresh by the same login, the pop-up offers to resume
+'  it: the list is loaded again and the outcomes replayed by name. Cleared
+'  when the rows reach the log (SubmitCalloutSession) and on an explicit
+'  Discard; an error leaves it (ReportError closes the form, the draft stays).
+'  Outcomes travel as "name|outcome|reason|taken;..." (no name holds | or ;).
+'  Nothing here raises; a draft that cannot be written is simply not there.
+' ====================================================================
+' (DR_N, the column count, sits in the declarations block at the top: a Const here would not compile - vbacheck says so now.)
+
+' The table, or Nothing. create:=True adds the very-hidden sheet and the table.
+Public Function DraftTable(Optional ByVal create As Boolean = False) As ListObject
+    Dim ws As Worksheet, lo As ListObject
+    If SheetExists(DRAFT_SHEET) Then
+        Set ws = ThisWorkbook.Worksheets(DRAFT_SHEET)
+        On Error Resume Next
+        Set lo = ws.ListObjects(DRAFT_TABLE)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            Dim was As Object: Set was = ThisWorkbook.ActiveSheet     ' adding a sheet activates it - put the user back
+            UnlockStructure
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = DRAFT_SHEET
+            RelockStructure
+            On Error Resume Next
+            If Not was Is Nothing Then was.Activate
+            On Error GoTo 0
+        End If
+        UnlockSheet ws
+        ws.Range("A1").Resize(1, DR_N).Value = Array("Login", "Unit", "Shift", "Crew", "Date", "Hours", "Started", "Slot Key", "Outcomes", "Saved At")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, DR_N), , xlYes)
+        lo.Name = DRAFT_TABLE
+        ws.Columns(5).NumberFormat = "ddd mmm d, yyyy"
+        ws.Columns(7).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+        ws.Columns(10).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+        ProtectSheet ws
+        SetSheetVisible ws, xlSheetVeryHidden
+    End If
+    Set DraftTable = lo
+End Function
+
+' The row of this login (0 = none). The data rows as a 2-D array in v (Empty when the table is empty).
+Private Function DraftRowOf(ByVal lo As ListObject, ByVal login As String, ByRef v As Variant) As Long
+    v = Empty
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Function
+    v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If StrComp(Trim$(SafeStr(v(i, 1))), Trim$(login), vbTextCompare) = 0 Then DraftRowOf = i: Exit Function
+    Next i
+End Function
+
+' Writes (or overwrites) this login's draft. True when it landed.
+Public Function DraftWrite(ByVal login As String, ByVal dept As String, ByVal shiftLbl As String, ByVal crewSel As String, _
+                           ByVal d As Date, ByVal hours As Double, ByVal startedAt As Date, ByVal slotKey As String, _
+                           ByVal outcomes As String) As Boolean
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim lo As ListObject, ws As Worksheet, v As Variant, r As Long, cnt As Long
+    On Error GoTo Quit
+    Application.EnableEvents = False
+    Set lo = DraftTable(True)
+    If lo Is Nothing Then GoTo Quit
+    Set ws = lo.Parent
+    r = DraftRowOf(lo, login, v)
+    Dim rec(1 To 1, 1 To DR_N) As Variant
+    rec(1, 1) = login: rec(1, 2) = dept: rec(1, 3) = shiftLbl: rec(1, 4) = crewSel
+    rec(1, 5) = Int(d): rec(1, 6) = hours: rec(1, 7) = startedAt: rec(1, 8) = slotKey
+    rec(1, 9) = "'" & outcomes                        ' text whatever it starts with
+    rec(1, 10) = Now
+    UnlockSheet ws
+    If r > 0 Then
+        lo.DataBodyRange.Rows(r).Resize(1, DR_N).Value = rec
+    Else
+        cnt = 0
+        If IsArray(v) Then cnt = UBound(v, 1)
+        lo.Resize lo.HeaderRowRange.Resize(cnt + 2)
+        lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, DR_N).Value = rec
+    End If
+    ProtectSheet ws
+    DraftWrite = True
+Quit:
+    If Not DraftWrite Then
+        Dim en As Long: en = Err.Number
+        Dim em As String: em = Err.Description
+        If en <> 0 Then LogError "DraftWrite", en, em
+    End If
+    On Error Resume Next
+    RelockStructure
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.EnableEvents = evWas
+End Function
+
+' Reads this login's draft into the arguments. False when there is none (or it cannot be read).
+Public Function DraftRead(ByVal login As String, ByRef dept As String, ByRef shiftLbl As String, ByRef crewSel As String, _
+                          ByRef d As Date, ByRef hours As Double, ByRef startedAt As Date, ByRef slotKey As String, _
+                          ByRef outcomes As String) As Boolean
+    On Error GoTo Quit
+    Dim lo As ListObject: Set lo = DraftTable(False)
+    Dim v As Variant, r As Long
+    r = DraftRowOf(lo, login, v)
+    If r = 0 Then Exit Function
+    dept = Trim$(SafeStr(v(r, 2))): shiftLbl = Trim$(SafeStr(v(r, 3))): crewSel = Trim$(SafeStr(v(r, 4)))
+    If Not IsDate(v(r, 5)) Then Exit Function
+    d = CDate(v(r, 5)): hours = NumOr0(v(r, 6))
+    If IsDate(v(r, 7)) Then startedAt = CDate(v(r, 7)) Else startedAt = 0
+    slotKey = Trim$(SafeStr(v(r, 8))): outcomes = SafeStr(v(r, 9))
+    DraftRead = (dept <> "" And shiftLbl <> "" And hours > 0)
+Quit:
+End Function
+
+Public Function DraftExists(ByVal login As String) As Boolean
+    Dim a As String, b As String, c As String, e As String, f As String, d As Date, h As Double, s As Date
+    DraftExists = DraftRead(login, a, b, c, d, h, s, e, f)
+End Function
+
+' Removes this login's draft row (quiet when there is none)
+Public Sub DraftClear(ByVal login As String)
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim lo As ListObject, ws As Worksheet, v As Variant, r As Long
+    On Error GoTo Quit
+    Set lo = DraftTable(False)
+    r = DraftRowOf(lo, login, v)
+    If r = 0 Then Exit Sub
+    Set ws = lo.Parent
+    Application.EnableEvents = False
+    UnlockSheet ws
+    If UBound(v, 1) = 1 Then
+        lo.DataBodyRange.Rows(1).ClearContents          ' the one row: the table keeps its empty body row
+    Else
+        lo.ListRows(r).Delete
+    End If
+    ProtectSheet ws
+Quit:
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.EnableEvents = evWas
+End Sub
 
 ' v26.5.5 (B13): the last line of a submitted session - what happens to the line and what to do next.
 ' PURE (SelfTest "nextstep"; mirrored in tests/rules.py). partialHours > 0 = someone took part of the hours

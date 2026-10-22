@@ -386,7 +386,11 @@ Private Function SmkCallout(ByRef st As SmkState, ByRef why As String) As Boolea
     recs(1).Outcome = "Refused"
     recs(2).Outcome = "Accepted": taken(2) = 8                  ' takes 8 of the 12 on offer: the shift closes (v25, D-E4)
     If n >= 3 Then recs(3).Outcome = "Left Message"             ' below the partial: offered nothing, never charged
+    ' v27 (item 17): a session draft is written mid-session (the pop-up does it per outcome) and cleared by the submit
+    If Not DraftWrite(CurrentUser(), st.Unit, "Days", CREW_ALL, d, USUAL_SHIFT_HOURS, Now, "", recs(1).EmpName & "|Refused||0") Then why = "the session draft could not be written (the Draft sheet)": Exit Function
+    If Not DraftExists(CurrentUser()) Then why = "the session draft was written but cannot be read back": Exit Function
     If Not SubmitCalloutSession(st.Unit, "Days", CREW_ALL, d, USUAL_SHIFT_HOURS, recs, taken, n, st.SessionId, summary) Then Exit Function
+    If DraftExists(CurrentUser()) Then why = "the session draft was not cleared when the rows reached the log": Exit Function
     ' v27 (item 7): the receipt was logged (not shown) and names the session and the test person's change
     Dim rcp As Long: rcp = InStr(gReceiptLog, "Session " & st.SessionId & " submitted")
     If rcp = 0 Then why = "no receipt was logged for " & st.SessionId: Exit Function

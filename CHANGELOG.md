@@ -1,6 +1,6 @@
 # Changelog
 
-## v27 - the pre-training bundle (built Oct 21-22, 2026; tagged v27 Oct 22)
+## v27 - the pre-training bundle (built Oct 21-22, 2026; tagged v27 Oct 22, the tag MOVED the same day to the fix of two Syntax errors found at install - a stray ) ending two receipt calls in EditPosting and RestrictOTFor; vbacheck now checks bracket balance)
 Install: `INSTALL-v27.md` in `dist/Callout_Roster_v27.zip` (full set + `install-steps.txt` + `manifest.txt`; `briefs/steps-v27.txt`). Needs v26.5.5 and the Kronos section-0 re-import. **The Roster Updater changes (v4.2: import `updater/modUpdater.bas` by hand first); three NEW forms (frmReceipt, frmHistory, frmTableEdit: Insert > UserForm by hand before the panel); five NEW modules (modReconcile, modStats, modReceipt, modRules, modEvidence: 30 of 30); ThisWorkbook and every form but frmConvert re-pasted; the members' template rebuilt (Members M4).** Brief: `briefs/v27.md` (the Oct 21 report-back decisions; every item's BUILT note and review record) and `briefs/v27-kronos.md`. One commit per item, each reviewed read-only and fixed:
 1. **Desk v2** - three pills, TODAY tiles with the next thing and the verb, NOW / PLAN / FINISH side by side; items 2-3 add the Kronos pill's one-click import, the admin's This morning tile and Since you were last here.
 2. **The Kronos import rebuilt** from the report's Totals block: the Worked Days ledger, the Kronos Totals snapshot, the Worked Changes log, hours x each code's weight (the LIEU OT / LIEU DT pair corrected), Data Through = the Time Period end.

@@ -153,14 +153,12 @@ SIX QUESTIONS FOR GRAEME (all in briefs/v27.md at their items; ask them as multi
 Also for him: the admin Desk lists the Kronos folder on every draw (a slow share slows the Desk); "Since you were
 last here" moves on with a SAVE (a look-only visit leaves it where it was).
 
-NEXT: take the two reviews' findings; then 40 RELEASE PREP - stamps (every module + ThisWorkbook + FORM_RELEASES /
-THISWB_RELEASE + EXPECTED_RELEASE v27 + the WHATS_NEW text; N_MODULES 30), the four end-user docs to v27 until
-tests/docscheck.py is clean (supervisor quick guide + the Help paragraphs, system manual, admin install guide,
-rollover one-pager), docs/INSTALL-v27.md (Roster Updater first: import updater/modUpdater.bas by hand; FIVE new
-modules, THREE new forms by Insert > UserForm; run ApplyRosterLayout once; the members' template rebuilt with
-BuildMemberTemplate; first-use sheets made on a fresh copy), briefs/steps-v27.txt (group 4 as the earlier list
-+ a period close, the Holidays pop-up, the Opens row, the members' Home on a supervisor PC), CHANGELOG, four
-read-only reviewers on main, the tag, tests/build_zip.py v27 v26.5.5, the push from his Terminal panel.
+RELEASE PREP DONE except the end (Oct 22, after 1fa6e06): 3fce5ec took review (a)'s findings (1 HIGH: check 14's Entry-ID
+"ceiling" - removed, IdMark_ENTRY is a floor), 505e548 the stamps (v27 everywhere, frmConvert stays v26.5.5), c3cee8c the
+four end-user docs (tests/docscheck.py: 0 findings), c66599f the CHANGELOG, plus docs/INSTALL-v27.md and
+briefs/steps-v27.txt. Review (b) (items 27, 31, M4) was RUNNING at the end: if no fix commit for it follows 39ea318,
+re-run it and fix. NEXT: Graeme's six answers (each a small change), the Kronos re-import, then four read-only
+reviewers on main, `git tag -a v27`, `py -3.14 tests/build_zip.py v27 v26.5.5`, the push from his Terminal panel.
 
 v26.5.5 leftovers still open for v27: ChargedText / TotalText not in the call-out summary / status bar; the
 practice banner deleted by the three full-shape-delete redraws (RenderCalloutRoster, ShowAttendance,

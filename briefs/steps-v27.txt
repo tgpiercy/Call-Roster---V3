@@ -7,7 +7,7 @@
 
 [3. Run once]
 macro   | The command bar rebuilt (the Help button, 10 pt buttons, 9 pt group names) | ApplyRosterLayout | confirm
-macro   | System check (expect {MODULES} of {MODULES} on v27, ThisWorkbook v27, every form v27, an "Errors this release" line) | SystemCheckOK
+macro   | System check (expect {MODULES} of {MODULES} on v27, ThisWorkbook v27, every form v27 but frmConvert v26.5.5, an "Errors this release" line) | SystemCheckOK
 macro   | Self test (expect {CASES} passed, {SUITES} suites)                 | SelfTestOK
 
 [4. Checks]

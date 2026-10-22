@@ -31,7 +31,7 @@ Option Explicit
 '  contains COPY or DRY RUN (the December practice on a copy).
 ' ====================================================================
 
-Public Const RO_VERSION As String = "Rollover v26.5.5 (Oct 21)"
+Public Const RO_VERSION As String = "Rollover v27 (Oct 22)"
 Public Const YE_SHEET As String = "Year End"
 Public Const YE_TABLE As String = "tblYearEnd"
 

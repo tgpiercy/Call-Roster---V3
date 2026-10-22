@@ -1,6 +1,6 @@
 Option Explicit
 Private mBefore As Object                     ' v27 (item 7): the roster's Total Hours before a save (the receipt's before -> after)
-' @version v26.5 (Oct 19)
+' @version v27 (Oct 22)
 
 ' ================================================================
 ' EMPLOYEE (v24, admin) - six jobs in one pop-up (v26.5: + Edit)

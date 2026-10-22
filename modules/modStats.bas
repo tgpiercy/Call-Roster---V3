@@ -50,6 +50,7 @@ Public Function StatsBucket(ByVal typ As String, ByVal outcome As String, ByVal 
                 Case "refused": StatsBucket = "refused"
                 Case "left message": StatsBucket = "message"
                 Case "unavailable": StatsBucket = "unavailable"
+                Case "exception": StatsBucket = "exception"      ' v27 (item 24, review L9): the plant-upset outcome
                 Case Else: StatsBucket = "other"
             End Select
         Case "posting"
@@ -467,6 +468,7 @@ Private Sub DrawStats(ByVal yearFrom As Date, ByVal yearTo As Date, ByVal fair A
         r = CountRow(ws, r, "Calls: refused", "A", units(u), "refused")
         r = CountRow(ws, r, "Calls: left message", "A", units(u), "message")
         r = CountRow(ws, r, "Calls: unavailable", "A", units(u), "unavailable")
+        r = CountRow(ws, r, "Calls: exception (plant upset)", "A", units(u), "exception")     ' v27 (item 24, review L9)
         r = CountRow(ws, r, "Hours offered (per session)", "A", units(u), "offered-h")
         r = CountRow(ws, r, "Hours accepted", "A", units(u), "accepted-h")
         r = CountRow(ws, r, "Hours charged (refusals x 1.75)", "A", units(u), "charged")

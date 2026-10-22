@@ -1741,6 +1741,7 @@ Private Sub LoadCases4()
     AddCase "sbucket,callout-message,Callout,Left Message,,,,message"
     AddCase "sbucket,callout-unavailable,Callout,Unavailable,,,,unavailable"
     AddCase "sbucket,callout-other,Callout,Not offered,,,,other"
+    AddCase "sbucket,callout-exception,Callout,Exception,,,,exception"
     AddCase "sbucket,posting-awarded,Posting,Awarded,,,,awarded"
     AddCase "sbucket,posting-refused,Posting,Refused,,,,p-refused"
     AddCase "sbucket,posting-signed,Posting,Signed Up,,,,signedup"
@@ -1785,10 +1786,10 @@ Private Sub LoadCases4()
     AddCase "firstref,renamed-test-name,ZZ Test-1 took the shift,,,,,-"
     AddCase "firstref,lieu-code,LIEU OT - DT Split 4 h,,,,,-"
     AddCase "firstref,glued-letter,aS-12 is not a ref,,,,,-"
-    AddCase "firstref,glued-digit,S-0012a is not a ref either,,,,,-"
 End Sub
 
 Private Sub LoadCases5()
+    AddCase "firstref,glued-digit,S-0012a is not a ref either,,,,,-"
     AddCase "firstref,five-letters,ABCDE-12 is too long a prefix,,,,,-"
     AddCase "firstref,lowercase,s-0012 lower case,,,,,-"
     AddCase "firstref,dash-only,nothing - here,,,,,-"

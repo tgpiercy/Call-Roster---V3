@@ -340,8 +340,11 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
     n = LoadEligible(p.Unit, CrewFilter(p.Crew), recs, DeptPostingMaxGrade(p.Unit), True, p.ShiftDate)
     Dim offList As String
     If n > 0 Then n = FilterNotFree(recs, n, p.ShiftDate, p.ShiftLbl, offList)
-    If n = 0 Then MsgBox "No one is free to sign up for " & p.Unit & " / " & p.Crew & "." & _
-                         IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbInformation, "Call Out Roster": Exit Function
+    If n = 0 Then
+        If Not quiet Then MsgBox "No one is free to sign up for " & p.Unit & " / " & p.Crew & "." & _
+                                 IIf(offList <> "", vbNewLine & "Left off: " & offList, ""), vbInformation, "Call Out Roster"
+        Exit Function                                ' (review L5) quiet: the caller's one summary counts it
+    End If
 
     p.ID = NextPostingID()
     Dim outTxt As String
@@ -408,6 +411,7 @@ Public Function CreatePostingFrom(ByRef p As PostRec, Optional ByVal doPrint As 
 
     Dim report As String
     OutputPosting p, lst, n, False, doPrint, doPdf, report
+    If quiet Then Exit Function                     ' (review L5) the caller says it once for all of them
     Tell "Posting " & p.ID & " created." & vbNewLine & vbNewLine & report & vbNewLine & vbNewLine & _
          "Calendar: " & calTxt, vbInformation, "Create Posting"
 End Function
@@ -511,8 +515,9 @@ Public Sub WithdrawAward()
     If lo.DataBodyRange Is Nothing Then Exit Sub
     Dim pv As Variant: pv = RangeTo2D(lo.DataBodyRange)
     Dim i As Long, listTxt As String, nAw As Long
+    Dim live As Object: Set live = PostingsWithAwardedRow()      ' (review L1) a withdrawn award is not offered again
     For i = UBound(pv, 1) To 1 Step -1
-        If SafeStr(pv(i, PS_STATUS)) = "Awarded" And nAw < 12 Then
+        If SafeStr(pv(i, PS_STATUS)) = "Awarded" And nAw < 12 And live.Exists(Trim$(SafeStr(pv(i, PS_ID)))) Then
             nAw = nAw + 1
             listTxt = listTxt & SafeStr(pv(i, PS_ID)) & "  " & SafeStr(pv(i, PS_UNIT)) & "  " & Format$(ToDate(pv(i, PS_DATE)), "ddd mmm d") & "  " & SafeStr(pv(i, PS_SHIFT)) & "  -> " & SafeStr(pv(i, PS_AWARDTO)) & vbNewLine
         End If
@@ -535,7 +540,7 @@ Public Sub WithdrawAward()
     Dim before As Object: Set before = ReceiptBefore()
     Dim calN As Long, cnt As Long
     cnt = VoidRef(id, why, calN, "Awarded")
-    If cnt = 0 Then MsgBox "No live Awarded row for " & id & " (voided already?).", vbExclamation, "Withdraw award": Exit Sub
+    If cnt = 0 Then MsgBox "Nothing was voided for " & id & ": no live Awarded row (withdrawn already?), or the void stopped on an error (see the box before this one).", vbExclamation, "Withdraw award": Exit Sub
     ' the list row says so (LoadPosting reads Awarded = Result "Awarded", so this takes the person off the awarded set)
     Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
     If Not lr Is Nothing Then
@@ -543,9 +548,10 @@ Public Sub WithdrawAward()
             Dim lv As Variant: lv = RangeTo2D(lr.DataBodyRange)
             Dim hit As Boolean
             For i = 1 To UBound(lv, 1)
-                If StrComp(Trim$(SafeStr(lv(i, PL_ID))), id, vbTextCompare) = 0 And SafeStr(lv(i, PL_RESULT)) = "Awarded" Then
+                If StrComp(Trim$(SafeStr(lv(i, PL_ID))), id, vbTextCompare) = 0 And Left$(SafeStr(lv(i, PL_RESULT)), 7) = "Awarded" _
+                   And InStr(1, SafeStr(lv(i, PL_RESULT)), "withdrawn", vbTextCompare) = 0 Then      ' (review L1) "Awarded | Exempt - ..." too
                     If Not hit Then UnlockSheet lr.Parent: hit = True
-                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = "Awarded - withdrawn"
+                    lr.DataBodyRange.Cells(i, PL_RESULT).Value = "Awarded - withdrawn" & Mid$(SafeStr(lv(i, PL_RESULT)), 8)
                 End If
             Next i
             If hit Then ProtectSheet lr.Parent
@@ -555,7 +561,7 @@ Public Sub WithdrawAward()
     ShowReceiptNow "Award of " & id & " withdrawn", _
                    "  " & id & "  " & cnt & " Awarded row(s) voided: " & why & vbNewLine & "  (the refusals stay charged: the people ahead still refused)" & vbNewLine, _
                    ReceiptChanges(before), _
-                   "  Calendar: " & p.Unit & " " & Format$(p.ShiftDate, "ddd mmm d") & " " & p.ShiftLbl & " - the line is OPEN again (" & calN & " line(s) released)." & vbNewLine & _
+                   "  Calendar: " & p.Unit & " " & Format$(p.ShiftDate, "ddd mmm d") & " " & p.ShiftLbl & IIf(calN > 0, " - the line is OPEN again (" & calN & " line(s) released).", " - no calendar line held the award (nothing to release).") & vbNewLine & _
                    "  Postings sheet: " & id & " stays Awarded with the list row marked withdrawn; Void Entry > " & id & " + Reopen is the way to award it again." & vbNewLine, _
                    WrongText()
     If Ask("Fill the shift now with a call-out?", vbYesNo + vbQuestion, "Withdraw award", vbNo) = vbYes Then
@@ -608,10 +614,29 @@ Public Sub EditPosting()
     p.Positions = CLng(a)
     If p.Hours = pOld.Hours And Int(p.ShiftDate) = Int(pOld.ShiftDate) And p.Positions = pOld.Positions Then MsgBox "Nothing changed.", vbInformation, "Edit posting": Exit Sub
     If Int(p.ShiftDate) <> Int(pOld.ShiftDate) Then
-        If p.ClosesOn >= p.ShiftDate Then p.ClosesOn = p.ShiftDate - PostingCloseDays()
+        ' (review H1) the list is frozen: a date that changes who is free (scheduled, rest rule, booked off, a switch,
+        ' restricted) would charge people who could not have worked and leave out people who could - a new posting
+        Dim notNow As String, newFree As String
+        If Not SameListOn(p, lst, n, notNow, newFree) Then
+            MsgBox "On " & Format$(p.ShiftDate, "ddd mmm d") & " " & p.ShiftLbl & " the list would not be the same people, and a posting's list is frozen." & vbNewLine & _
+                   IIf(notNow <> "", vbNewLine & "On the list, not free that day: " & notNow, "") & _
+                   IIf(newFree <> "", vbNewLine & "Free that day, not on the list: " & newFree, "") & vbNewLine & vbNewLine & _
+                   "Cancel Request on the award pop-up and post the shift again for the new date.", vbExclamation, "Edit posting"
+            Exit Sub
+        End If
+        p.ClosesOn = p.ShiftDate - PostingCloseDays()      ' (review M3) as a new posting's, on any date change
         If p.ClosesOn < Date Then p.ClosesOn = Date
     End If
-    If Ask(id & ": " & HoursText(pOld.Hours) & " h -> " & HoursText(p.Hours) & " h, " & DateText(pOld.ShiftDate) & " -> " & DateText(p.ShiftDate) & ", " & pOld.Positions & " -> " & p.Positions & " position(s)." & vbNewLine & vbNewLine & _
+    Dim nSign As Long, nPart As Long                 ' (review M1) the sign-ups an hours change re-means
+    For i = 1 To n
+        If lst(i).SignedUp Then
+            nSign = nSign + 1
+            If lst(i).SignupHrs > 0 Then nPart = nPart + 1
+        End If
+    Next i
+    If Ask(id & ": " & HoursText(pOld.Hours) & " h -> " & HoursText(p.Hours) & " h, " & DateText(pOld.ShiftDate) & " -> " & DateText(p.ShiftDate) & ", " & pOld.Positions & " -> " & p.Positions & " position(s)." & _
+           IIf(Int(p.ClosesOn) <> Int(pOld.ClosesOn), vbNewLine & "Closes " & DateText(pOld.ClosesOn) & " -> " & DateText(p.ClosesOn) & " " & POSTING_CLOSE_TIME & ".", "") & _
+           IIf(p.Hours <> pOld.Hours And nSign > 0, vbNewLine & nSign & " signed up (" & nPart & " for part of the shift): a whole-shift sign-up now means " & HoursText(p.Hours) & " h; a partial keeps its hours.", "") & vbNewLine & vbNewLine & _
            "The list and its sign-ups stay as they are; the sheet is redrawn and printed, the old PDF renamed superseded. Go ahead?", vbYesNo + vbQuestion, "Edit posting", vbYes) = vbNo Then Exit Sub
     ' the row
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
@@ -633,14 +658,22 @@ Public Sub EditPosting()
         VoidCoverageBySource id
         calTxt = CalendarPosted(p)
     ElseIf p.Hours <> pOld.Hours Then
-        UpdateCoverageBySource id, "POSTED " & id, p.Hours, False
+        UpdateCoverageBySource id, "POSTED " & id, p.Hours, (p.Hours >= 12 - 0.001)     ' (review M2) a full shift clears the line's part hours
         calTxt = "the line's hours updated"
     End If
     MarkCalDirty
-    ' the old PDF, if it is there, becomes "superseded"
+    MarkMembersDirty                                 ' (review M1) members see the new date / hours at the next publish
+    ' the old PDF, if it is there, becomes "superseded" (review L4: a second edit gets its own name; said only when done)
     Dim oldPdf As String: oldPdf = PostingPdfFolder() & PostingPdfName(pOld) & ".pdf"
+    Dim supTxt As String: supTxt = "No earlier PDF to rename."
+    Dim supPath As String: supPath = PostingPdfFolder() & PostingPdfName(pOld) & " superseded"
     On Error Resume Next
-    If Len(Dir$(oldPdf)) > 0 Then Name oldPdf As PostingPdfFolder() & PostingPdfName(pOld) & " superseded.pdf"
+    If Len(Dir$(oldPdf)) > 0 Then
+        If Len(Dir$(supPath & ".pdf")) > 0 Then supPath = supPath & " " & Format$(Now, "yyyy-mm-dd hhnn")
+        Err.Clear
+        Name oldPdf As supPath & ".pdf"
+        If Err.Number = 0 Then supTxt = "The old PDF is renamed: " & Mid$(supPath, InStrRev(supPath, "\") + 1) & ".pdf" Else supTxt = "The old PDF could not be renamed (open elsewhere?): the new one replaces it."
+    End If
     On Error GoTo Oops
     Dim rpt As String
     PostingOutput id, False, True, True, rpt
@@ -648,12 +681,79 @@ Public Sub EditPosting()
     ShowReceiptNow "Posting " & id & " edited", _
                    "  " & id & "  " & HoursText(p.Hours) & " h  " & Format$(p.ShiftDate, "ddd mmm d") & "  " & p.Positions & " position(s)  (the Postings row; no OT Log row)" & vbNewLine, _
                    "  Nobody's Total Hours changed. The list's frozen hours and sign-ups are as they were." & vbNewLine, _
-                   "  Calendar: " & IIf(calTxt = "", "unchanged", calTxt) & vbNewLine & "  " & rpt & vbNewLine & "  The old PDF is renamed superseded." & vbNewLine, _
+                   "  Calendar: " & IIf(calTxt = "", "unchanged", calTxt) & vbNewLine & "  " & rpt & vbNewLine & "  " & supTxt & vbNewLine, _
                    "  Edit it again, or Cancel Request on the award pop-up." & vbNewLine)
     Exit Sub
 Oops:
     ReportError "EditPosting"
 End Sub
+
+' v27 (item 24, review H1): would a list made for p's (new) date and shift hold the same people as the frozen list?
+' The list is frozen, so a date that changes who is free must be a new posting. notNow = on the list but not free
+' then (an exempt row is never charged, so it does not count); newFree = free then but not on the list.
+Private Function SameListOn(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, ByRef notNow As String, ByRef newFree As String) As Boolean
+    notNow = "": newFree = ""
+    Dim recs() As EmpRec, m As Long, offList As String, i As Long, k As Variant, nNot As Long, nNew As Long
+    m = LoadEligible(p.Unit, CrewFilter(p.Crew), recs, DeptPostingMaxGrade(p.Unit), True, p.ShiftDate)
+    If m > 0 Then m = FilterNotFree(recs, m, p.ShiftDate, p.ShiftLbl, offList)
+    Dim want As Object: Set want = CreateObject("Scripting.Dictionary")
+    want.CompareMode = 1
+    For i = 1 To m
+        want(Trim$(recs(i).EmpName)) = True
+    Next i
+    Dim have As Object: Set have = CreateObject("Scripting.Dictionary")
+    have.CompareMode = 1
+    For i = 1 To n
+        have(Trim$(lst(i).EmpName)) = (lst(i).ExemptNote <> "")      ' True = exempt
+    Next i
+    For Each k In have.Keys
+        If Not want.Exists(k) And Not have(k) Then
+            nNot = nNot + 1
+            If nNot <= 8 Then notNow = notNow & IIf(notNow = "", "", ", ") & k
+        End If
+    Next k
+    For Each k In want.Keys
+        If Not have.Exists(k) Then
+            nNew = nNew + 1
+            If nNew <= 8 Then newFree = newFree & IIf(newFree = "", "", ", ") & k
+        End If
+    Next k
+    If nNot > 8 Then notNow = notNow & " and " & (nNot - 8) & " more"
+    If nNew > 8 Then newFree = newFree & " and " & (nNew - 8) & " more"
+    SameListOn = (nNot = 0 And nNew = 0)
+End Function
+
+' v27 (item 24, review L7): an open posting already on this unit, date and shift ("" when none)
+Private Function OpenPostingOn(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String) As String
+    Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If SafeStr(v(i, PS_STATUS)) = "Open" And StrComp(SafeStr(v(i, PS_UNIT)), unit, vbTextCompare) = 0 Then
+            If IsDate(v(i, PS_DATE)) Then
+                If Int(CDate(v(i, PS_DATE))) = Int(d) And IsNightShift(SafeStr(v(i, PS_SHIFT))) = IsNightShift(shiftLbl) Then OpenPostingOn = SafeStr(v(i, PS_ID)): Exit Function
+            End If
+        End If
+    Next i
+End Function
+
+' v27 (item 24, review L1): the posting ids whose list still holds an Awarded row (a withdrawn award's do not)
+Private Function PostingsWithAwardedRow() As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1
+    Set PostingsWithAwardedRow = d
+    Dim lr As ListObject: Set lr = GetTable(PL_TABLE)
+    If lr Is Nothing Then Exit Function
+    If lr.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lr.DataBodyRange)
+    Dim i As Long, res As String
+    For i = 1 To UBound(v, 1)
+        res = SafeStr(v(i, PL_RESULT))
+        If Left$(res, 7) = "Awarded" And InStr(1, res, "withdrawn", vbTextCompare) = 0 Then d(Trim$(SafeStr(v(i, PL_ID)))) = True
+    Next i
+End Function
 
 ' Post all lines (supervisors; from Book Time Off): one posting per scheduled shift of the booking, each covering its own
 ' calendar line (gCalPostKey), no question per posting, no print (each posting makes its PDF). Returns the ids.
@@ -661,10 +761,15 @@ Public Function PostAllLines(ByVal emp As String, ByVal unit As String, ByVal ab
     If Not RequireSupervisor() Then Exit Function
     If Not RequireWritable() Then Exit Function
     If Not PostingTablesReady() Then Exit Function
-    Dim d As Date, sh As String, p As PostRec, ids As String, nMade As Long, nSkip As Long
-    If dTo - dFrom > 31 Then dTo = dFrom + 31
+    Dim d As Date, sh As String, p As PostRec, ids As String, nMade As Long, nSkip As Long, nPast As Long, dupTxt As String, cutTxt As String, dupId As String
+    If dTo - dFrom > 31 Then cutTxt = "Only the first 32 days were looked at (to " & DateText(dFrom + 31) & "): post the rest from the Calendar.": dTo = dFrom + 31
     For d = Int(dFrom) To Int(dTo)
         sh = EmpShiftOn(emp, d)
+        If sh <> "" And d < Date Then nPast = nPast + 1: sh = ""      ' (review L5) a shift already gone is not posted
+        If sh <> "" Then
+            dupId = OpenPostingOn(unit, d, sh)          ' (review L7) one open posting per unit, date and shift
+            If dupId <> "" Then dupTxt = dupTxt & IIf(dupTxt = "", "", ", ") & dupId & " (" & Format$(d, "ddd mmm d") & ")": sh = ""
+        End If
         If sh <> "" Then
             p.ID = "": p.Status = "": p.Unit = unit: p.ShiftDate = d: p.ShiftLbl = sh: p.Crew = CREW_ALL
             p.Hours = DefaultShiftHours(d, IsNightShift(sh), USUAL_SHIFT_HOURS): p.Positions = 1
@@ -681,8 +786,15 @@ Public Function PostAllLines(ByVal emp As String, ByVal unit As String, ByVal ab
             gCalPostKey = ""
         End If
     Next d
-    If nMade = 0 And nSkip = 0 Then Tell emp & " has no scheduled shift between " & DateText(dFrom) & " and " & DateText(dTo) & ": nothing to post.", vbInformation, "Post all lines"
-    If nSkip > 0 Then Tell nSkip & " shift(s) were not posted (nobody free, or refused) - post them one at a time from the Calendar.", vbExclamation, "Post all lines"
+    ' (review L5) ONE summary for the whole run
+    Dim sumTxt As String
+    If nMade > 0 Then sumTxt = nMade & " posting(s) made, each on its own calendar line with a PDF: " & ids & "."
+    If nSkip > 0 Then sumTxt = sumTxt & IIf(sumTxt = "", "", vbNewLine) & nSkip & " shift(s) not posted: nobody free to sign up - post them one at a time from the Calendar."
+    If dupTxt <> "" Then sumTxt = sumTxt & IIf(sumTxt = "", "", vbNewLine) & "Already posted (left as they are): " & dupTxt & "."
+    If nPast > 0 Then sumTxt = sumTxt & IIf(sumTxt = "", "", vbNewLine) & nPast & " shift(s) before today not posted."
+    If cutTxt <> "" Then sumTxt = sumTxt & IIf(sumTxt = "", "", vbNewLine) & cutTxt
+    If sumTxt = "" Then sumTxt = emp & " has no scheduled shift between " & DateText(dFrom) & " and " & DateText(dTo) & ": nothing to post."
+    Tell sumTxt, IIf(nSkip > 0, vbExclamation, vbInformation), "Post all lines"
     PostAllLines = ids
 End Function
 

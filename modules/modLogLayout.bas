@@ -254,6 +254,7 @@ Public Sub FormatOTLog()
     AddValueCF outRng, "Left Message", RGB(255, 235, 156), RGB(156, 101, 0)
     AddValueCF outRng, "Signed Up", RGB(255, 235, 156), RGB(156, 101, 0)
     AddValueCF outRng, "Unavailable", RGB(217, 225, 242), RGB(50, 65, 90)
+    AddValueCF outRng, "Exception", RGB(230, 224, 240), RGB(80, 50, 120)      ' v27 (item 24, review L9)
 
     Dim fc As FormatCondition
     ' CF formulas are relative to the top-left cell of the range (A2)

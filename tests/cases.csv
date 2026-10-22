@@ -755,6 +755,7 @@ sbucket,callout-refused,Callout,Refused,,,,refused
 sbucket,callout-message,Callout,Left Message,,,,message
 sbucket,callout-unavailable,Callout,Unavailable,,,,unavailable
 sbucket,callout-other,Callout,Not offered,,,,other
+sbucket,callout-exception,Callout,Exception,,,,exception
 sbucket,posting-awarded,Posting,Awarded,,,,awarded
 sbucket,posting-refused,Posting,Refused,,,,p-refused
 sbucket,posting-signed,Posting,Signed Up,,,,signedup

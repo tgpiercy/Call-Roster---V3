@@ -1754,7 +1754,8 @@ def stats_bucket(typ: str, outcome: str, status: str) -> str:
         return "void"
     t, o = typ.strip().lower(), outcome.strip().lower()
     if t == "callout":
-        return {"accepted": "accepted", "refused": "refused", "left message": "message", "unavailable": "unavailable"}.get(o, "other")
+        return {"accepted": "accepted", "refused": "refused", "left message": "message", "unavailable": "unavailable",
+                "exception": "exception"}.get(o, "other")
     if t == "posting":
         return {"awarded": "awarded", "refused": "p-refused", "signed up": "signedup"}.get(o, "other")
     if t == "adjustment":

@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (updated Oct 22, 2026, end of v27 build session 3 - items 2, 3, 8-25 and 33 BUILT and reviewed; first written Oct 21: v26.5.5 is ON THE REAL ROSTER; the Kronos import was found WRONG and rebuilt; the live re-import is still OWED by Graeme; main is NOT pushed)
+# Paste this into a fresh session to carry on (updated Oct 22, 2026, end of v27 build session 3: EVERY v27 item is BUILT except 39 (the email digest, needs Graeme's signed wording) and 40 (release prep); six questions for Graeme are open; main is NOT pushed; the Kronos section-0 re-import is still OWED)
 
 ```
 Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first (the numbering rule, the three gating levels,
@@ -7,9 +7,9 @@ rule" row of the not-free table, the Total Hours rule's v27 sentence). Then brie
 Oct 21" block holds every decision; items 1, 4, 11, 26 are marked BUILT), briefs/v27-kronos.md (sections 0, 1,
 1b, 2, 3 and the Status line), docs/NEXT-SESSION-PROMPT.md (this file: the review record below). Confirm the
 four checkers (py -3.14 tests/vbacheck.py . / shadowcheck / undeclcheck / callcheck) and py -3.14 -m pytest
-tests -q are green on main (882) and the tree is clean. vbacheck's only hits must be the three named false
-positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 860 in 98 suites, emitted as
-LoadCases1..5. Tags: `git ls-remote --tags origin` shows v26.5 and v26.5.5; main is AHEAD of v26.5.5 by the v27
+tests -q are green on main (913) and the tree is clean. vbacheck's only hits must be the three named false
+positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 876 in 101 suites, emitted as
+LoadCases1..5. tests/docscheck.py has 4 findings until release prep updates the docs. Tags: `git ls-remote --tags origin` shows v26.5 and v26.5.5; main is AHEAD of v26.5.5 by the v27
 commits (not pushed yet unless Graeme pushed from his Terminal panel: ask).
 
 THE ONE URGENT THING (ask about it first, once; asked again Oct 22: STILL NOT DONE, and main was still not pushed):
@@ -118,28 +118,49 @@ every morning + the cumulative at each period end; Excel export; Welland Hourly 
 first snapshot ("not available before <date>"); no union-folder PDF (the members' pay-period block shows the
 premium hours); the live re-import OWED.
 
-TWO QUESTIONS FOR GRAEME (in briefs/v27.md; ask them as multiple choice, the built default first):
-1. The weekly cap (item 21): built as OVERTIME hours in the trailing 7 days (counting the schedule too would fire on
-   about 70 % of off-day acceptances). Keep, or a calendar week (Sun-Sat), or all hours?
-2. The FULL employee history PDF (logins, void notes) lands beside the roster: keep, or REPORT_FOLDER?
-Also noted for him: ExportTablesOnOpen runs on ANY writable open (as the daily backup since Oct 19-20), not only an
-admin's; the admin Desk lists the Kronos folder on every draw (a slow share slows the Desk).
+AFTER d768a5c (same session, later): 0281a4b item 5 (the "Produced by the roster from P-nnnn" footers), 92b6c4e
+item 6 (the receipt's "On paper this would have been different" lines, PaperLines + RuleBasis), 6519f3f item 28
+(IntegrityCheck 14 "Log rows" + 15 "Records"), 2bd4524 item 29 (SmokeTest steps 21-22 + the run-left-nothing-live
+assert; SMK_STEPS 22), 80c16b0 + b2c9da7 item 30 (callcheck MACROSTR / ORNSWALLOW / PROCLEN / DEADPUB, 108 quiet
+helpers marked ' never raises; test_drift's new ties; tests/docscheck.py, run by build_zip; manifest.txt in the
+zip), 6e4e61d the fixes for 25 / 2 / 3 / 33 (HIGH: the CSV export now runs on an admin's open and writes only
+supervisor-visible tables; AdminOnlySheets() shared with ApplyViewCore; Min Staff's own "Call-out note" column),
+dcbdbc3 item 32 (the Opens table, open step 13), eaf920c item 27 in part (glossary, one legend, the first days strip,
+the order line and "=" ties - OrderTie), 9623dae item 31 (Updater v4.2: the backup copy checked, the template
+copied first, "already clean" compile, SystemCheck text in the Install Log - updater/modUpdater.bas must be
+imported into Roster Updater.xlsm by hand FIRST at install), Members M4: 4bf6125 (34-36: remember me, the
+me-first Home with four tiles + Sign me up + since you last looked, the header band on every sheet, highlight me
+on Who's next, How it works), e4011e1 (37: dNotFree + PublicNotFreeWord), 1356f7a (38: test_members_contract),
+1fa6e06 (the members' MsgBox titles). MEM_VERSION "Members M4 (Oct 22)", MEMBER_NEEDS "Members M4": the members'
+template MUST be rebuilt at install (BuildMemberTemplate) or the publish refuses it.
+NEW FORMS: THREE (frmReceipt, frmHistory, frmTableEdit). NEW MODULES: FIVE (modReconcile, modStats, modReceipt,
+modRules, modEvidence). N_MODULES 30.
 
-NEXT in order (briefs/v27.md): item 5 (the old sheets as prints: "Produced by the roster from S-nnnn / P-nnnn"),
-item 6 ("On paper this would have been ..." on the receipt, read from the Rules sheet), the testing items 28
-(IntegrityCheck "Log rows"), 29 (SmokeTest asserts + steps: the receipts, the draft, the 16 h reason, the new
-pages), 30 b-e (MACROSTR / ORNSWALLOW / PROCLEN / DEADPUB checker classes, the drift asserts, tests/test_docs.py,
-the manifest), 31 (the install record; updater/modUpdater.bas changes), 32 (the Opens table), then 27 language
-(glossary, one legend, the guided first session, the order columns + footer on every list, the paper-position
-column), then Members M4 (34-39 + dStats from StatsUnitRows + the MsgBox titles in modMember; 39 the digest needs
-Graeme's signed wording and recipient list FIRST), then 40 release prep: stamps (every module, ThisWorkbook,
-FORM_RELEASES / THISWB_RELEASE, EXPECTED_RELEASE v27, N_MODULES 30), docs/INSTALL-v27.md (FIVE new modules, THREE
-new forms, run ApplyRosterLayout once for the bar's Help button / 10 pt buttons, test the first-use sheets on a
-fresh copy), briefs/steps-v27.txt (group 4: Desk v2 on a supervisor login, a receipt, the Reconcile sheet with one
-typed order, the Stats PDF, the Kronos acceptance test - after the section-0 re-import, importing the real
-cumulative on a copy must change EXACTLY the people with LIEU OT / LIEU DT hours; the session draft; the supervisor
-menu; the outage print; RestoreDrill; a period close; the Holidays pop-up), CHANGELOG, four read-only reviewers on
-main, the tag, the zip, the push from Graeme's Terminal panel.
+REVIEW STATE at the end of the session: two read-only Opus reviews were RUNNING - (a) items 5, 6, 28, 29, 30, 32 +
+the 6e4e61d fixes, (b) items 27, 31 and the four M4 commits. If no "review fixes" commit for them follows 1fa6e06 on
+main, re-run both (same scopes) and fix before release prep. Every earlier commit is reviewed and fixed.
+
+SIX QUESTIONS FOR GRAEME (all in briefs/v27.md at their items; ask them as multiple choice, the built default first):
+1. Weekly cap (item 21): built as OVERTIME hours in the trailing 7 days. Keep / a calendar week / all hours?
+2. The FULL history PDF (logins, void notes) lands beside the roster: keep / REPORT_FOLDER?
+3. The daily CSV export (item 25) writes only supervisor-visible tables beside the roster: name an admin-only folder
+   for a FULL export, or keep it supervisor-level?
+4. The paper-position column on the printed roster (item 27): type the last paper positions per unit somewhere, or
+   drop the column (the Reconcile sheet's differences go in the Nov 15 pack)?
+5. dStats (the members' unit-level Stats cut): per-unit sick-day counts can point at one person in a small unit -
+   publish call-outs and postings only, or nothing for now?
+6. Item 39, the publish digest by email: his signed wording and recipient list (not built until then).
+Also for him: the admin Desk lists the Kronos folder on every draw (a slow share slows the Desk); "Since you were
+last here" moves on with a SAVE (a look-only visit leaves it where it was).
+
+NEXT: take the two reviews' findings; then 40 RELEASE PREP - stamps (every module + ThisWorkbook + FORM_RELEASES /
+THISWB_RELEASE + EXPECTED_RELEASE v27 + the WHATS_NEW text; N_MODULES 30), the four end-user docs to v27 until
+tests/docscheck.py is clean (supervisor quick guide + the Help paragraphs, system manual, admin install guide,
+rollover one-pager), docs/INSTALL-v27.md (Roster Updater first: import updater/modUpdater.bas by hand; FIVE new
+modules, THREE new forms by Insert > UserForm; run ApplyRosterLayout once; the members' template rebuilt with
+BuildMemberTemplate; first-use sheets made on a fresh copy), briefs/steps-v27.txt (group 4 as the earlier list
++ a period close, the Holidays pop-up, the Opens row, the members' Home on a supervisor PC), CHANGELOG, four
+read-only reviewers on main, the tag, tests/build_zip.py v27 v26.5.5, the push from his Terminal panel.
 
 v26.5.5 leftovers still open for v27: ChargedText / TotalText not in the call-out summary / status bar; the
 practice banner deleted by the three full-shape-delete redraws (RenderCalloutRoster, ShowAttendance,

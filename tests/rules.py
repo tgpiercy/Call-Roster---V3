@@ -957,8 +957,9 @@ BACKUP_PERIOD_KEEP_DAYS = 400
 
 
 def backup_keep(kind: str, file_date: date, today: date, period_start: bool) -> bool:
-    """modSystem.BackupKeepCore: a daily backup kept BACKUP_KEEP_DAYS (BACKUP_PERIOD_KEEP_DAYS when it is a pay
-    period's first day); an hourly backup BACKUP_HOURLY_KEEP_DAYS."""
+    """modSystem.BackupKeepCore: a daily backup kept BACKUP_KEEP_DAYS (BACKUP_PERIOD_KEEP_DAYS when it is the first daily
+    backup of its pay period - the caller decides); an hourly backup BACKUP_HOURLY_KEEP_DAYS. Plain dates on both sides
+    (VBA takes Int of both; pass a date, not a datetime)."""
     age = (today - file_date).days
     if kind.lower() == "hourly":
         return age <= BACKUP_HOURLY_KEEP_DAYS

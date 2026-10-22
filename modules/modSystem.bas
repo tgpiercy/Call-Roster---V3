@@ -841,16 +841,36 @@ Public Function PruneBackups(ByVal folder As String) As Long
         names(n) = f
         f = Dir$()
     Loop
-    Dim keep As Boolean
+    ' v27 (item 12; review): the FIRST daily backup of each pay period is the long-kept one - found per period before the
+    ' loop. The period anchor is read once; if the roster's header cannot be read, nothing is pruned (the backups are
+    ' exactly what a broken file needs).
+    Dim firstOf As Object: Set firstOf = CreateObject("Scripting.Dictionary")
+    Dim ps As Date, key As Long, anchorOk As Boolean
+    Err.Clear
+    ps = PeriodStartFor(Date)
+    anchorOk = (Err.Number = 0 And ps > 0)
+    Err.Clear
+    If Not anchorOk Then Exit Function
     For i = 1 To n
         d = BackupFileDate(names(i))
         If d > 0 Then
-            ' v27 (item 12): a daily backup is kept BACKUP_KEEP_DAYS; the first of each pay period BACKUP_PERIOD_KEEP_DAYS
-            keep = BackupKeepCore("daily", d, Date, (PeriodStartFor(d) = d))
+            key = CLng(Int(CDbl(PeriodStartFor(d))))
+            If Err.Number <> 0 Then Err.Clear: Exit Function
+            If Not firstOf.Exists(key) Then firstOf.Add key, d Else If d < firstOf(key) Then firstOf(key) = d
+        End If
+    Next i
+    Dim keep As Boolean
+    For i = 1 To n
+        keep = True                                    ' (review HIGH): a read that fails leaves the file alone
+        d = BackupFileDate(names(i))
+        If d > 0 Then
+            key = CLng(Int(CDbl(PeriodStartFor(d))))
+            keep = BackupKeepCore("daily", d, Date, (firstOf.Exists(key) And firstOf(key) = d))
         Else
             d = HourlyBackupDate(names(i))
-            If d > 0 Then keep = BackupKeepCore("hourly", d, Date, False) Else keep = True
+            If d > 0 Then keep = BackupKeepCore("hourly", d, Date, False)
         End If
+        If Err.Number <> 0 Then keep = True: Err.Clear
         If Not keep Then
             Err.Clear
             Kill folder & names(i)
@@ -862,7 +882,8 @@ Public Function PruneBackups(ByVal folder As String) As Long
 End Function
 
 ' v27 (item 12). PURE (SelfTest "bkeep"; mirrored): is a backup kept today? A daily backup for BACKUP_KEEP_DAYS, or
-' BACKUP_PERIOD_KEEP_DAYS when it is the first day of a pay period; an hourly backup for BACKUP_HOURLY_KEEP_DAYS.
+' BACKUP_PERIOD_KEEP_DAYS when it is the FIRST daily backup of its pay period (the caller works that out); an hourly
+' backup for BACKUP_HOURLY_KEEP_DAYS. Dates only (the hour is dropped).
 Public Function BackupKeepCore(ByVal kind As String, ByVal fileDate As Date, ByVal today As Date, ByVal periodStart As Boolean) As Boolean
     Dim age As Long: age = CLng(Int(CDbl(today)) - Int(CDbl(fileDate)))
     If LCase$(kind) = "hourly" Then
@@ -894,9 +915,14 @@ End Function
 
 ' v27 (item 12): called by Workbook_BeforeSave - when the newest backup (daily or hourly) is older than BACKUP_SAVE_HOURS,
 ' a copy of the file AS IT IS NOW goes beside the daily backups before the save overwrites it. Quiet: a backup never stops a save.
+Private mNewestBackupAt As Date                     ' (review) the newest backup's time, so a save does not list the folder every time
+
 Public Sub BackupBeforeSave()
     On Error Resume Next
     If BackupOff() Then Exit Sub
+    If mNewestBackupAt > 0 Then
+        If (Now - mNewestBackupAt) * 24 < BACKUP_SAVE_HOURS Then Exit Sub
+    End If
     Dim folder As String: folder = BackupFolderPath()
     If Not FolderExists(folder) Then Exit Sub
     Dim newest As Date, f As String, at As Date
@@ -913,13 +939,14 @@ Public Sub BackupBeforeSave()
         f = "": f = Dir$()
     Loop
     If newest > 0 Then
+        mNewestBackupAt = newest
         If (Now - newest) * 24 < BACKUP_SAVE_HOURS Then Exit Sub
     End If
     Dim target As String: target = folder & HourlyBackupName(Now)
-    If Dir$(target) <> "" Then Exit Sub
+    If Dir$(target) <> "" Then mNewestBackupAt = Now: Exit Sub
     Err.Clear
     ThisWorkbook.SaveCopyAs target
-    If Err.Number <> 0 Then LogError "BackupBeforeSave", Err.Number, Err.Description
+    If Err.Number <> 0 Then LogError "BackupBeforeSave", Err.Number, Err.Description Else mNewestBackupAt = Now
     Err.Clear
     PruneBackups folder
 End Sub
@@ -964,14 +991,16 @@ Public Sub RestoreDrill()
     On Error Resume Next
     sysOk = Application.Run(nm & "SystemCheckOK")
     If Err.Number <> 0 Then em = em & "SystemCheck could not run (" & Err.Description & "). ": Err.Clear
-    icBad = Application.Run(nm & "IntegrityHasProblems")
-    If Err.Number <> 0 Then em = em & "IntegrityCheck could not run (" & Err.Description & "). ": Err.Clear
+    icBad = (Application.Run(nm & "IntegrityRunCount") > 0)            ' (review) run for real in the copy, not the open's quiet result
+    If Err.Number <> 0 Then em = em & "IntegrityCheck could not run (" & Err.Description & "). ": icBad = True: Err.Clear
     stOk = Application.Run(nm & "SelfTestOK")
     If Err.Number <> 0 Then em = em & "SelfTest could not run (" & Err.Description & "). ": Err.Clear
     ' the copy's log rows and totals
     Dim copyRows As Long, lost As String, nLost As Long
     copyRows = wb.Worksheets(LOG_SHEET).ListObjects(LOG_TABLE).ListRows.Count
+    If Err.Number <> 0 Then em = em & "the copy's OT Log could not be read (" & Err.Description & "). ": Err.Clear
     Dim ws As Worksheet: Set ws = wb.Worksheets(ROSTER_SHEET)
+    If Err.Number <> 0 Then em = em & "the copy's roster could not be read (" & Err.Description & "). ": Err.Clear
     Dim r As Long, k As String, tLive As String, tCopy As String
     Dim copyTot As Object: Set copyTot = CreateObject("Scripting.Dictionary"): copyTot.CompareMode = 1
     For r = R_FIRST To ws.Cells(ws.Rows.Count, C_NAME).End(xlUp).Row
@@ -988,6 +1017,7 @@ Public Sub RestoreDrill()
             nLost = nLost + 1: If nLost <= 10 Then lost = lost & "  " & kk & ": " & HoursText(Val(tCopy)) & " in the backup, " & HoursText(Val(tLive)) & " now" & vbNewLine
         End If
     Next kk
+    If Err.Number <> 0 Then em = em & "the comparison stopped part-way (" & Err.Description & "). ": Err.Clear
     wb.Close SaveChanges:=False
     On Error GoTo Oops
     Dim verdict As String
@@ -996,8 +1026,8 @@ Public Sub RestoreDrill()
               "  A restore from it would lose " & (liveRows - copyRows) & " OT Log row(s) logged since, and these people's totals would move:" & vbNewLine & _
               IIf(lost = "", "  (nobody's)" & vbNewLine, lost & IIf(nLost > 10, "  ... and " & (nLost - 10) & " more" & vbNewLine, "")) & _
               IIf(em <> "", vbNewLine & em, "")
-    LogInstallRow "drill", "Restore drill: " & best, IIf(sysOk And Not icBad And stOk And em = "", "PASS", "CHECK"), Replace(verdict, vbNewLine, " | ")
-    MsgBox "Restore drill done." & vbNewLine & vbNewLine & verdict & vbNewLine & "One Install Log row was written.", _
+    Dim rowOk As Boolean: rowOk = LogInstallRow("drill", "Restore drill: " & best, IIf(sysOk And Not icBad And stOk And em = "", "PASS", "CHECK"), Replace(verdict, vbNewLine, " | "))
+    MsgBox "Restore drill done." & vbNewLine & vbNewLine & verdict & vbNewLine & IIf(rowOk, "One Install Log row was written (saved with the file).", "The Install Log row could NOT be written."), _
            IIf(sysOk And Not icBad And stOk And em = "", vbInformation, vbExclamation), "Restore drill"
     Exit Sub
 Oops:
@@ -1006,12 +1036,12 @@ End Sub
 
 ' v27: one row into the Install Log from inside the roster (the updater writes the install's rows; the drill its own).
 ' The sheet is never protected by design.
-Public Sub LogInstallRow(ByVal kind As String, ByVal stepTxt As String, ByVal status As String, ByVal note As String)
+Public Function LogInstallRow(ByVal kind As String, ByVal stepTxt As String, ByVal status As String, ByVal note As String) As Boolean
     On Error Resume Next
     EnsureInstallLog
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(IL_SHEET)
     Dim lo As ListObject: Set lo = ws.ListObjects("tblInstallLog")
-    If lo Is Nothing Then Exit Sub
+    If lo Is Nothing Then Exit Function
     Dim r As Long: r = lo.HeaderRowRange.Row + lo.ListRows.Count + 1
     If lo.ListRows.Count = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then r = lo.HeaderRowRange.Row + 1
     ws.Cells(r, 1).Value = EXPECTED_RELEASE
@@ -1022,7 +1052,8 @@ Public Sub LogInstallRow(ByVal kind As String, ByVal stepTxt As String, ByVal st
     ws.Cells(r, 6).Value = CurrentUser()
     ws.Cells(r, 7).Value = "'" & Left$(note, 250)
     lo.Resize ws.Range(lo.HeaderRowRange, ws.Cells(r, 7))
-End Sub
+    LogInstallRow = (Err.Number = 0 And Trim$(SafeStr(ws.Cells(r, 2).Value)) = stepTxt)
+End Function
 
 ' SystemCheck lines for the backup
 Private Sub BackupStatus(ByRef warn As String, ByRef info As String)

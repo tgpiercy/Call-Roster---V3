@@ -46,6 +46,8 @@ End Function
 ' said so; "Nobody's Total Hours changed." when nothing moved. Never raises (a receipt must not stop a save).
 Public Function ReceiptChanges(ByVal before As Object) As String
     On Error GoTo Quiet
+    If before Is Nothing Then ReceiptChanges = "  (the before figures could not be read)" & vbNewLine: Exit Function
+    If before.Count = 0 Then ReceiptChanges = "  (the before figures could not be read)" & vbNewLine: Exit Function   ' (review) never 'everyone is new'
     Application.Calculate
     Dim after As Object: Set after = RosterTotalsMap()
     Dim k As Variant, s As String, tb As Double, ta As Double, n As Long
@@ -186,9 +188,9 @@ Public Sub ReceiptPdf()
     SetSheetVisible ws, xlSheetVeryHidden
     Exit Sub
 Oops:
+    ReportError "ReceiptPdf"                     ' first: an On Error statement would clear the error it reports
     On Error Resume Next
     SetSheetVisible ThisWorkbook.Worksheets(RECEIPT_SHEET), xlSheetVeryHidden   ' (review M6) never left as a tab
-    ReportError "ReceiptPdf"
 End Sub
 
 ' "Email me this": a mail draft with the receipt's text (the address is typed in the mail app)

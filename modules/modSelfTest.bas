@@ -1730,5 +1730,7 @@ Private Sub LoadCases4()
     AddCase "bhourly,bad-hour,Call Out Roster backup 2026-10-21 24.xlsm,,,,,none"
     AddCase "bhourly,pre-change-copy,Backup before kronos 2026-10-21 141500 - V2 - Call Out Roster.xlsm,,,,,none"
     AddCase "backupname,hourly-backup,Call Out Roster backup 2026-10-21 14.xlsm,,,,,yes"
+    AddCase "bhourly,feb-29-leap,Call Out Roster backup 2028-02-29 06.xlsm,,,,,2028-02-29 06"
+    AddCase "bhourly,feb-30-rejected,Call Out Roster backup 2026-02-30 06.xlsm,,,,,none"
 ' <<< CASES
 End Sub

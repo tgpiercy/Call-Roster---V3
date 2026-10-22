@@ -976,6 +976,13 @@ Public Function IntegrityStatusText() As String
     End If
 End Function
 
+' v27 (item 12): the restore drill runs the check in the backup copy through Application.Run and reads the PROBLEM count
+Public Function IntegrityRunCount() As Long
+    Dim nErr As Long, nWarn As Long
+    RunIntegrity nErr, nWarn
+    IntegrityRunCount = nErr
+End Function
+
 Public Function IntegrityHasProblems() As Boolean
     IntegrityHasProblems = (mRanAt > 0 And mLastErr > 0)
 End Function

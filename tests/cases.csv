@@ -789,3 +789,5 @@ bhourly,daily-is-not-hourly,Call Out Roster 2026-10-21.xlsm,,,,,none
 bhourly,bad-hour,Call Out Roster backup 2026-10-21 24.xlsm,,,,,none
 bhourly,pre-change-copy,Backup before kronos 2026-10-21 141500 - V2 - Call Out Roster.xlsm,,,,,none
 backupname,hourly-backup,Call Out Roster backup 2026-10-21 14.xlsm,,,,,yes
+bhourly,feb-29-leap,Call Out Roster backup 2028-02-29 06.xlsm,,,,,2028-02-29 06
+bhourly,feb-30-rejected,Call Out Roster backup 2026-02-30 06.xlsm,,,,,none

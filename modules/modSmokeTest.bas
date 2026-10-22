@@ -1130,6 +1130,13 @@ Private Function SmkEdit(ByRef st As SmkState, ByRef why As String) As Boolean
         If Trim$(SafeStr(ws.Cells(r, DeptCol(st.Unit)).Value)) <> "Z9" Then why = "the " & st.Unit & " code wasn't written": Exit Function
         If Not GradeLogTable(False) Is Nothing Then
             If GradeLogTable(False).ListRows.Count <= glBefore Then why = "the Grade Log didn't get a row for the new code": Exit Function
+            ' v27 (item 13): a phone / email change writes a "(details)" row too, so the code's own row is looked for
+            Dim glv As Variant: glv = RangeTo2D(GradeLogTable(False).DataBodyRange)
+            Dim gi As Long, codeRow As Boolean
+            For gi = glBefore + 1 To UBound(glv, 1)
+                If SafeStr(glv(gi, 3)) <> "(details)" And SafeStr(glv(gi, 2)) = st.Emp Then codeRow = True
+            Next gi
+            If Not codeRow Then why = "the Grade Log's new rows are all details rows: no row for the new code": Exit Function
         End If
         codes(c1) = ""                               ' and back off again: the person holds no Unit code for the steps that follow
         If Not SaveEmployeeEdit(st.Emp, "", "", 0, "ext 0100", email, senDate, codes, report) Then why = "the second save (clearing the code) returned False": Exit Function

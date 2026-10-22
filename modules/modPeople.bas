@@ -3331,7 +3331,7 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
     Dim fldName(1 To 5) As String, fldOld(1 To 5) As String, fldNew(1 To 5) As String
     oldHome = Trim$(SafeStr(ws.Cells(r, C_HOME).Value)): oldPhone = Trim$(SafeStr(ws.Cells(r, C_PHONE).Value))
     oldEmail = Trim$(SafeStr(ws.Cells(r, C_EMAIL).Value))
-    oldSen = IIf(IsDate(ws.Cells(r, C_SENIORITY).Value), Format$(CDate(ws.Cells(r, C_SENIORITY).Value), "mmm d, yyyy"), "")
+    If IsDate(ws.Cells(r, C_SENIORITY).Value) Then oldSen = Format$(CDate(ws.Cells(r, C_SENIORITY).Value), "mmm d, yyyy") Else oldSen = Trim$(SafeStr(ws.Cells(r, C_SENIORITY).Value))   ' (review) a text seniority is kept as text, never CDate'd
     UnlockSheet ws
     If homeUnit <> "" Then
         If StrComp(oldHome, homeUnit, vbTextCompare) <> 0 Then

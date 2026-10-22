@@ -1042,7 +1042,12 @@ Public Function LogInstallRow(ByVal kind As String, ByVal stepTxt As String, ByV
     Dim lo As ListObject: Set lo = ws.ListObjects("tblInstallLog")
     If lo Is Nothing Then Exit Function
     Dim r As Long: r = lo.HeaderRowRange.Row + lo.ListRows.Count + 1
-    If lo.ListRows.Count = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then r = lo.HeaderRowRange.Row + 1
+    If lo.ListRows.Count = 1 Then
+        If Not lo.DataBodyRange Is Nothing Then
+            If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then r = lo.HeaderRowRange.Row + 1
+        End If
+    End If
+    Err.Clear
     ws.Cells(r, 1).Value = EXPECTED_RELEASE
     ws.Cells(r, 2).Value = stepTxt
     ws.Cells(r, 3).Value = kind

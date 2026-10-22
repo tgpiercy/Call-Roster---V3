@@ -1102,6 +1102,9 @@ Public Function SetAbsenceEndTo(ByVal id As String, ByVal dEnd As Date) As Boole
     Dim r As Long: r = RowOf(v, id)
     If r = 0 Then Exit Function
     UnlockSheet lo.Parent
+    ' v27 (item 13): the previous end stays in the Note here too
+    lo.DataBodyRange.Cells(r, AB_NOTE).Value = Trim$(SafeStr(v(r, AB_NOTE)) & IIf(Trim$(SafeStr(v(r, AB_NOTE))) = "", "", " | ") & _
+                                               "End was " & IIf(IsDate(v(r, AB_END)), Format$(CDate(v(r, AB_END)), "mmm d, yyyy"), "open-ended") & " (changed " & Format$(Now, "mmm d") & ")")
     lo.DataBodyRange.Cells(r, AB_END).Value = Int(dEnd)
     lo.DataBodyRange.Cells(r, AB_END).NumberFormat = "ddd mmm d, yyyy"
     ProtectSheet lo.Parent
@@ -1383,47 +1386,70 @@ Public Function ReleaseCoverage(ByVal source As String, Optional ByVal empName A
     Dim v As Variant: v = TableData(lo)
     If Not IsArray(v) Then Exit Function
     Dim i As Long, hit As Boolean, by As String, newBy As String
+    ' v27 (item 13, A11): a released line is never edited in place - it goes VOID and a live copy carries what is left;
+    ' the copies are gathered and appended ONCE after the loop (review: AppendTo re-protects the sheet)
+    Dim reps() As Variant, nRep As Long
     For i = 1 To UBound(v, 1)
         If StrComp(SafeStr(v(i, CV_SOURCE)), source, vbTextCompare) = 0 And UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" Then
             by = SafeStr(v(i, CV_BY))
             If empName = "" Then newBy = "" Else newBy = DropName(by, CalName(empName))
             If newBy <> by Or empName = "" Then
                 If Not hit Then UnlockSheet lo.Parent: hit = True
-                If StrComp(SafeStr(v(i, CV_NEED)), "Call-out " & source, vbTextCompare) = 0 And newBy = "" Then
-                    lo.DataBodyRange.Cells(i, CV_STATUS).Value = "VOID"     ' the call-out made this line - remove it
-                Else
-                    ' v27 (item 13, A11): never edited in place - the old line is VOID and a new line carries what is left
-                    ' (newBy, or nothing: the line shows OPEN again, its source kept so ReopenPosting can set it back to POSTED)
-                    lo.DataBodyRange.Cells(i, CV_STATUS).Value = "VOID"
+                lo.DataBodyRange.Cells(i, CV_STATUS).Value = "VOID"
+                If Not (StrComp(SafeStr(v(i, CV_NEED)), "Call-out " & source, vbTextCompare) = 0 And newBy = "") Then
+                    ' not a line the call-out itself made: a live copy keeps the need (OPEN again, or the one still on it),
+                    ' its source kept so ReopenPosting can set it back to POSTED
                     lo.DataBodyRange.Cells(i, CV_NOTE).Value = Trim$(SafeStr(v(i, CV_NOTE)) & " released " & IIf(empName = "", "all", CalName(empName)) & " (" & source & " voided)")
-                    ReplaceCovLine lo, v, i, newBy
+                    nRep = nRep + 1
+                    AddReplacement reps, nRep, v, i, newBy
                 End If
                 ReleaseCoverage = ReleaseCoverage + 1
             End If
         End If
     Next i
+    If nRep > 0 Then
+        Dim k As Long
+        For k = 1 To nRep
+            reps(k, CV_ID) = NextIdAfter(lo, "CV", k - 1)
+        Next k
+        AppendTo lo, reps, CV_N
+        FormatCovDates lo
+    End If
     If hit Then ProtectSheet lo.Parent
     If hit Then MarkCalDirty
 End Function
 
-' v27 (item 13): the live copy of a released line - every column as it was, Covered By = what is left (hours only when
-' someone is still on it), a new id, Active, this user and time, a Note naming the line it replaces
-Private Sub ReplaceCovLine(ByVal lo As ListObject, ByRef v As Variant, ByVal i As Long, ByVal newBy As String)
-    Dim rec() As Variant: ReDim rec(1 To 1, 1 To CV_N)
-    Dim c As Long
+' one replacement row into reps (every column as it was; Covered By = what is left; hours only when someone is still on it)
+Private Sub AddReplacement(ByRef reps() As Variant, ByVal n As Long, ByRef v As Variant, ByVal i As Long, ByVal newBy As String)
+    Dim tmp() As Variant, c As Long, k As Long
+    If n = 1 Then
+        ReDim reps(1 To 1, 1 To CV_N)
+    Else
+        ReDim tmp(1 To n, 1 To CV_N)
+        For k = 1 To n - 1
+            For c = 1 To CV_N
+                tmp(k, c) = reps(k, c)
+            Next c
+        Next k
+        reps = tmp
+    End If
     For c = 1 To CV_N
-        rec(1, c) = v(i, c)
+        reps(n, c) = v(i, c)
     Next c
-    rec(1, CV_ID) = NextId(lo, "CV")
-    rec(1, CV_BY) = newBy
-    If newBy = "" Then rec(1, CV_HOURS) = Empty
-    rec(1, CV_STATUS) = "Active"
-    rec(1, CV_USER) = CurrentUser()
-    rec(1, CV_STAMP) = Now
-    rec(1, CV_NOTE) = "replaces " & SafeStr(v(i, CV_ID))
-    AppendTo lo, rec, CV_N
-    FormatCovDates lo
+    reps(n, CV_BY) = newBy
+    If newBy = "" Then reps(n, CV_HOURS) = Empty
+    reps(n, CV_STATUS) = "Active"
+    reps(n, CV_USER) = CurrentUser()
+    reps(n, CV_STAMP) = Now
+    reps(n, CV_NOTE) = "replaces " & SafeStr(v(i, CV_ID))
 End Sub
+
+' the k-th id after the table's next one ("CV-0007", "CV-0008", ...), for several rows appended in one go
+Private Function NextIdAfter(ByVal lo As ListObject, ByVal prefix As String, ByVal offset As Long) As String
+    Dim base As String: base = NextId(lo, prefix)
+    Dim p As Long: p = InStrRev(base, "-")
+    NextIdAfter = Left$(base, p) & Format$(Val(Mid$(base, p + 1)) + offset, String$(Len(base) - p, "0"))
+End Function
 
 ' "Joe D / Fred C 8h" minus "Fred C" -> "Joe D"
 Private Function DropName(ByVal by As String, ByVal nm As String) As String
@@ -1570,9 +1596,9 @@ Public Function SetAbsenceEnd(ByVal id As String) As Boolean
         If dEnd < CDate(v(r, AB_START)) Then MsgBox "The end is before the start.", vbExclamation, "Call Out Roster": Exit Function
     End If
     UnlockSheet lo.Parent
-    ' v27 (item 13, A11): the previous end stays in the Note (the Absences sheet is admin-only, never published)
+    ' v27 (item 13, A11): the previous end stays in the Note (shown by the calendar's line details: no login in it)
     lo.DataBodyRange.Cells(r, AB_NOTE).Value = Trim$(SafeStr(v(r, AB_NOTE)) & IIf(Trim$(SafeStr(v(r, AB_NOTE))) = "", "", " | ") & _
-                                               "End was " & IIf(cur = "", "open-ended", cur) & " (" & CurrentUser() & ", " & Format$(Now, "mmm d") & ")")
+                                               "End was " & IIf(cur = "", "open-ended", cur) & " (changed " & Format$(Now, "mmm d") & ")")   ' no login: the calendar shows this Note to every user
     If s = "" Then
         lo.DataBodyRange.Cells(r, AB_END).ClearContents
     Else

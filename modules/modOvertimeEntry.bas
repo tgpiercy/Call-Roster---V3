@@ -1365,7 +1365,8 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     gReceipt.Recorded = RowsText(data, k)
     gReceipt.Changed = ReceiptChanges(before)
     gReceipt.WhereTxt = "  OT Log: the rows with Ref ID " & sessionID & " (newest first)." & vbNewLine & _
-                        "  Roster: " & dept & "'s Total Hours now carry the charges; the pay period starting " & Format$(ps, "mmm d") & "." & vbNewLine & _
+                        IIf(ps > RefusedThrough(), "  Roster: the charges go to the pay period starting " & Format$(ps, "mmm d") & " and count in Total Hours from that period (Refused counts to the current one)." & vbNewLine, _
+                            "  Roster: " & dept & "'s Total Hours now carry the charges (pay period starting " & Format$(ps, "mmm d") & ")." & vbNewLine) & _
                         IIf(calTxt <> "", "  Calendar:" & Replace(calTxt, vbNewLine & "  ", " ") & vbNewLine, "  Calendar: nothing placed (nobody accepted)." & vbNewLine) & _
                         "  The members' file shows it after the next Update the members' file." & vbNewLine & _
                         "  " & nextTxt & vbNewLine

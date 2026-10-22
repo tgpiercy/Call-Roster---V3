@@ -74,6 +74,7 @@ Private Sub UserForm_Initialize()
     mClose.Cancel = True: mClose.Default = True
     Me.Height = y + 28 + 36
 
+    mClose.TabIndex = 0                          ' Close has the focus, not the first text box (review)
     ApplyFormTheme Me
     mClose.BackColor = RGB(30, 56, 100): mClose.ForeColor = vbWhite
     ScaleForm Me                                 ' x UI_SCALE (modUI), the last line

@@ -632,6 +632,7 @@ Private Sub mSave_Click()
     If MsgBox(msg & vbNewLine & "Save?", vbOKCancel + IIf(warn <> "", vbExclamation, vbQuestion), "Confirm shift switch") <> vbOK Then Exit Sub
 
     Dim id As String, id2 As String
+    Dim offNm As String, worksNm As String: offNm = mOff.Text: worksNm = mWorks.Text   ' (review M1) the boxes are cleared below, the receipt reads these
     id = SaveSwitch(d, mShift.Text, C("cboUnit").Text, mOff.Text, mWorks.Text, payFor, Trim$(C("txtNote").Text))
     If id = "" Then Exit Sub
     If twoWay Then
@@ -656,11 +657,11 @@ Private Sub mSave_Click()
     End If
     ' v27 (item 7): the receipt card
     ShowReceiptNow C("status").Caption, _
-                   "  " & id & "  Shift switch  " & mWorks.Text & " works for " & mOff.Text & "  " & Format$(d, "ddd mmm d") & " " & mShift.Text & vbNewLine & _
-                   IIf(twoWay And id2 <> "", "  " & id2 & "  Payback  " & mOff.Text & " works for " & mWorks.Text & "  " & Format$(d2, "ddd mmm d") & " " & sh2 & vbNewLine, "") & _
+                   "  " & id & "  Shift switch  " & worksNm & " works for " & offNm & "  " & Format$(d, "ddd mmm d") & " " & mShift.Text & vbNewLine & _
+                   IIf(twoWay And id2 <> "", "  " & id2 & "  Payback  " & offNm & " works for " & worksNm & "  " & Format$(d2, "ddd mmm d") & " " & sh2 & vbNewLine, "") & _
                    "  (Shift Switches rows; no OT Log row - a switch moves no hours)" & vbNewLine, _
                    "  Nobody's Total Hours changed. Both are off call lists for the shift they do not work; the 16 h rule saw the switch." & vbNewLine, _
-                   "  Calendar: the line reads " & CalName(mOff.Text) & " S/S -> " & CalName(mWorks.Text) & " S/S." & vbNewLine & _
+                   "  Calendar: the line reads " & CalName(offNm) & " S/S -> " & CalName(worksNm) & " S/S." & vbNewLine & _
                    "  Shift Switches sheet; the OWED list on Needs Attention" & IIf(payFor <> "" Or (twoWay And id2 <> ""), " (paid back).", " until it is paid back.") & vbNewLine & _
                    "  The members' file shows it after the next update." & vbNewLine, _
                    "  Void it from the list on this pop-up (admin)." & vbNewLine

@@ -37,6 +37,8 @@ Public gReceiptLog As String                ' SmokeTest: every receipt's text, a
 
 ' The roster's Total Hours before a save, for ReceiptChanges (name -> "Total|Refused|periods")
 Public Function ReceiptBefore() As Object
+    On Error Resume Next                          ' (review M4) a receipt must never stop a save: an empty map when the roster cannot be read
+    Set ReceiptBefore = CreateObject("Scripting.Dictionary")
     Set ReceiptBefore = RosterTotalsMap()
 End Function
 
@@ -101,9 +103,12 @@ End Sub
 
 ' Shows gReceipt: the card, or (SmokeTest) the text into gReceiptLog; a card that cannot open falls back to a box
 Public Sub ShowReceipt()
-    On Error Resume Next
     gReceipt.Trust = TrustStrip()
-    On Error GoTo 0
+    ' (review M7) a save that failed, or saving blocked: the card says so first - it must never read as a saved entry
+    If Not gSmokeRun And (gSaveFailedAt > 0 Or NoSave()) Then
+        If Left$(gReceipt.Title, 9) <> "NOT SAVED" Then gReceipt.Title = "NOT SAVED - " & gReceipt.Title
+        gReceipt.WhereTxt = "  " & SaveBlockText() & vbNewLine & gReceipt.WhereTxt
+    End If
     If gSmokeRun Then
         gReceiptLog = gReceiptLog & vbNewLine & "---- " & ReceiptText(gReceipt)
         Exit Sub
@@ -181,6 +186,8 @@ Public Sub ReceiptPdf()
     SetSheetVisible ws, xlSheetVeryHidden
     Exit Sub
 Oops:
+    On Error Resume Next
+    SetSheetVisible ThisWorkbook.Worksheets(RECEIPT_SHEET), xlSheetVeryHidden   ' (review M6) never left as a tab
     ReportError "ReceiptPdf"
 End Sub
 

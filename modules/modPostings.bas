@@ -1628,11 +1628,12 @@ Public Function SubmitCancel(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
     MarkMembersDirty
     If Not gSmokeRun Then ArchiveSignups p.ID      ' as WriteOutcome: SmokeTest never touches the inbox
     SaveIfWritable
+    SubmitCancel = True
+    On Error Resume Next                           ' (review M5) the receipt is outside the Failed frame: the cancel is done and saved
     ' v27 (item 7): the receipt (no OT Log rows: nobody is awarded, nobody is charged)
     ShowReceiptNow p.ID & " cancelled", "  (no OT Log rows: nobody awarded, nobody charged)" & vbNewLine, "  Nobody's Total Hours changed." & vbNewLine, _
                    IIf(onCal, "  Calendar: the line keeps its text with NCN (no coverage needed) as the coverage." & vbNewLine, "  Calendar: it was not on the calendar, so nothing changed there." & vbNewLine) & _
                    "  Postings sheet: " & p.ID & " is Cancelled." & vbNewLine, "  Reopen Posting (admin) opens it again." & vbNewLine
-    SubmitCancel = True
     Exit Function
 Failed:
     ' v24.3.1: the same handler as WriteOutcome. A cancel that wrote Status "Cancelled" and then

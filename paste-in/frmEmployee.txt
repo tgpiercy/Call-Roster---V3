@@ -1,4 +1,5 @@
 Option Explicit
+Private mBefore As Object                     ' v27 (item 7): the roster's Total Hours before a save (the receipt's before -> after)
 ' @version v26.5 (Oct 19)
 
 ' ================================================================
@@ -518,6 +519,7 @@ End Sub
 ' v26.5: Edit - what differs from the boxes' starting values is listed, confirmed, then saved by
 ' modPeople.SaveEmployeeEdit (events off, the Grade Log, the crew history, the totals check)
 Private Sub SaveEdit()
+    Set mBefore = ReceiptBefore()                ' v27 (item 7): everyone's Total Hours before this save
     If mEditEmp.ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Edit employee": Exit Sub
     Dim emp As String: emp = mEditEmp.Text
     Dim homeUnit As String, crewTxt As String, crewFrom As Date, sen As Variant, senDate As Date, u As Long
@@ -579,12 +581,13 @@ Private Sub Finished(ByVal report As String, ByVal title As String)
     If keepMove <> "" Then SelectIn mMoveEmp, keepMove
     ' v27 (item 7): the receipt card (the report already names the before / after figures and the row written)
     ShowReceiptNow title & ": " & Split(report, vbNewLine)(0), "  " & Replace(report, vbNewLine, vbNewLine & "  ") & vbNewLine, _
-                   "  (see the report above: a top-up or an opening balance is an Adjustment row; a rename, a crew or code change moves no hours)" & vbNewLine, _
+                   IIf(mBefore Is Nothing, "", ReceiptChanges(mBefore)), _
                    "  Roster: the person's row. OT Log: any Adjustment row named above. Grade Log / Crew History / Planned Moves / Former: as the report says." & vbNewLine & _
                    "  The members' file shows it after the next update." & vbNewLine, WrongText()
 End Sub
 
 Private Sub SaveAdd()
+    Set mBefore = ReceiptBefore()                ' v27 (item 7): everyone's Total Hours before this save
     Dim problems As String, nm As String, sen As Variant, senDate As Date
     nm = Trim$(C("aName").Text)
     If nm = "" Then problems = problems & "- Name" & vbNewLine
@@ -631,6 +634,7 @@ Private Sub SaveAdd()
 End Sub
 
 Private Sub SaveMove()
+    Set mBefore = ReceiptBefore()                ' v27 (item 7): everyone's Total Hours before this save
     Dim pc As PeopleCalc
     If Trim$(C("mCode").Text) = "" Then MsgBox "Enter the grade code in the new unit (e.g. D2).", vbExclamation, "Move to unit": Exit Sub
     If Not CalcMove(pc) Then Exit Sub
@@ -690,6 +694,7 @@ Private Sub SavePlanned(ByRef pc As PeopleCalc, ByVal clearTxt As String, ByVal 
 End Sub
 
 Private Sub SaveRename()
+    Set mBefore = ReceiptBefore()                ' v27 (item 7): everyone's Total Hours before this save
     If C("rEmp").ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Rename": Exit Sub
     Dim txt As String, report As String
     If Not RenamePreview(C("rEmp").Text, C("rNew").Text, txt) Then MsgBox txt, vbExclamation, "Rename": Exit Sub
@@ -701,6 +706,7 @@ Private Sub SaveRename()
 End Sub
 
 Private Sub SaveRemove()
+    Set mBefore = ReceiptBefore()                ' v27 (item 7): everyone's Total Hours before this save
     If C("xEmp").ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Remove": Exit Sub
     Dim leftOn As Date, emp As String, posts As String, report As String
     emp = C("xEmp").Text
@@ -724,6 +730,7 @@ Private Sub SaveRemove()
 End Sub
 
 Private Sub SaveBack()
+    Set mBefore = ReceiptBefore()                ' v27 (item 7): everyone's Total Hours before this save
     If C("bEmp").ListIndex < 0 Then MsgBox "Pick the person.", vbExclamation, "Bring back": Exit Sub
     Dim emp As String, p As Long, report As String
     emp = C("bEmp").Text

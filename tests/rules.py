@@ -1289,6 +1289,21 @@ def signup_suspect(stamp: datetime | None, file_time: datetime | None, clock_cha
     return secs > SIGNUP_STAMP_SLACK_MIN * 60
 
 
+def clock_change_between(d1: datetime, d2: datetime) -> bool:
+    """modSignups.ClockChangeBetween: a clock change (2 AM the morning after a change night) lies between the two times."""
+    a, b = (d1, d2) if d1 <= d2 else (d2, d1)
+    if (b - a).days > 366:
+        b = a + timedelta(days=366)
+    k = a.date() - timedelta(days=1)
+    while k <= b.date():
+        if dst_night_hours(k) != 12:
+            m = datetime(k.year, k.month, k.day) + timedelta(days=1, hours=2)
+            if a < m <= b:
+                return True
+        k += timedelta(days=1)
+    return False
+
+
 def reduce_signups(rows: list[tuple], closes_at: datetime | None):
     """modSignups.ReduceSignups. rows = (employee, action, hours, stamp[, login[, file_time]]) in any
     order. Each person's action with the latest stamp wins (same stamp: the

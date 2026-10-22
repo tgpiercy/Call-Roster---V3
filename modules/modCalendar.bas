@@ -1137,7 +1137,10 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     If otTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "already on OT that shift: " & otTxt
     If fatTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "16 h rule (OT accepted / awarded or a switch touching the shift): " & fatTxt
     If rstTxt <> "" Then removed = removed & IIf(removed = "", "", "; ") & "OT restricted: " & rstTxt
-    ' v27 (item 18): the same people, every name, one line per reason
+    ' v27 (item 18): the same people, every name, one line per reason (each group capped so the box stays under
+    ' MsgBox's 1,024 characters - review LOW-13)
+    schedTxt = CapNames(schedTxt, 25): restTxt = CapNames(restTxt, 25): offTxt = CapNames(offTxt, 25)
+    ssTxt = CapNames(ssTxt, 25): otTxt = CapNames(otTxt, 25): fatTxt = CapNames(fatTxt, 25): rstTxt = CapNames(rstTxt, 25)
     If nSched > 0 Then detail = "Scheduled that day (" & nSched & "): " & schedTxt
     If nRest > 0 Then detail = detail & IIf(detail = "", "", vbNewLine) & "Rest rule - off nights that morning / on days next morning (" & nRest & "): " & restTxt
     If offTxt <> "" Then detail = detail & IIf(detail = "", "", vbNewLine) & "Booked off, sick, or inside the 24 h after a sick shift: " & offTxt
@@ -1153,6 +1156,18 @@ Failed:
     If batched Then EndSwitchBatch
     On Error GoTo 0
     Err.Raise en, "FilterNotFree", em
+End Function
+
+' A ", "-joined list cut to its first n names, "+N more" after
+Private Function CapNames(ByVal txt As String, ByVal n As Long) As String
+    If txt = "" Then Exit Function
+    Dim parts As Variant: parts = Split(txt, ", ")
+    If UBound(parts) + 1 <= n Then CapNames = txt: Exit Function
+    Dim i As Long, s As String
+    For i = 0 To n - 1
+        s = s & IIf(s = "", "", ", ") & parts(i)
+    Next i
+    CapNames = s & " +" & (UBound(parts) + 1 - n) & " more"
 End Function
 
 ' Drops anyone booked off on date d from a call / posting list.

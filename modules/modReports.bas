@@ -482,7 +482,7 @@ Public Sub FindPerson()
                 nHits = nHits + 1
                 If hitRow = 0 Then
                     hitRow = r: firstNm = nm
-                ElseIf nHits <= 6 Then
+                ElseIf nHits <= 7 Then
                     others = others & IIf(others = "", "", ", ") & CalName(nm)     ' v27 (item 20, B16): the other matches, named
                 End If
             End If
@@ -520,9 +520,13 @@ Public Sub FindPerson()
     End If
     If nHits > 1 Then txt = txt & "   (" & nHits & " names match - the first is selected; also: " & others & IIf(nHits > 7, ", ...", "") & ")"
     ShowBarText txt
-    ' v27 (item 20, B16): the status cell carries it too (its View line), so it stays on screen after the next click
+    ' v27 (item 20, B16): the status cell carries it too, after the view it already shows (review MED-5: a unit filter's
+    ' name stays), so it stays on screen after the next click; a sort or a view change rewrites the line
     On Error Resume Next
-    SetRosterStatus "found " & CalName(firstNm) & IIf(nHits > 1, " (+" & (nHits - 1) & ": " & others & ")", "")
+    Dim viewNow As String: viewNow = CurrentViewText()
+    Dim pf As Long: pf = InStr(1, viewNow, " - found ", vbTextCompare)
+    If pf > 0 Then viewNow = Left$(viewNow, pf - 1)
+    SetRosterStatus viewNow & " - found " & CalName(firstNm) & IIf(nHits > 1, " (+" & (nHits - 1) & ")", "")
     On Error GoTo Oops
     Exit Sub
 Oops:
@@ -538,9 +542,9 @@ Public Function SignedInText() As String
     ElseIf IsSupervisor() Then
         role = "supervisor"
     Else
-        role = "call-outs and the calendar (ask " & PRIMARY_ADMIN_NAME & " to be added as a supervisor)"
+        role = "call-outs + calendar"                     ' (review MED-6) short: the first-open box says how to be added
     End If
-    SignedInText = "Signed in as " & CurrentUser() & ": " & role
+    SignedInText = "Signed in: " & CurrentUser() & " (" & role & ")"
 End Function
 
 ' Gives Excel's status bar back if it holds our text. Called when the workbook

@@ -126,7 +126,7 @@ Public Sub SetRosterStatus(Optional ByVal viewTxt As String = "")
     ' leftovers from earlier versions of the status line
     If Left$(SafeStr(ws.Range("E3").Value), 10) = "Pay period" Then ws.Range("E3").ClearContents
     If Left$(SafeStr(ws.Range("L3").Value), 5) = "View:" Then ws.Range("L3").ClearContents
-    If ws.Rows(3).RowHeight < 34 Then ws.Rows(3).RowHeight = 34   ' room for 3 lines
+    If ws.Rows(3).RowHeight < 46 Then ws.Rows(3).RowHeight = 46   ' room for the lines (v27: the signed-in line made line 3 wrap)
     With ws.Range(STATUS_CELL)
         .NumberFormat = "@"
         .WrapText = True
@@ -807,14 +807,31 @@ End Sub
 ' The call-out pop-up scales itself (Px in its paste-in) and does not call this.
 ' v27 (item 20, B14): the scale is PER LOGIN - a hidden name UiScale_<login> (the Desk's "Larger type" button writes
 ' it; 1 or UI_LARGER_SCALE); UI_SCALE, the constant, is the default for a login with none. Every ScaleForm / UiPx /
-' Px reads it here, once per pop-up. (UI_LARGER_SCALE sits in the declarations block at the top.)
-Public Function UiScale() As Double
+' Px reads it here, once per pop-up. formHeight > 0 = the form's height at scale 1: the scale is CLAMPED so the
+' form stays on the screen (review MED-10: 615 pt x 1.2 is off a 1080p screen at 125 %). (UI_LARGER_SCALE sits in
+' the declarations block at the top.)
+Public Function UiScale(Optional ByVal formHeight As Double = 0) As Double
     UiScale = UI_SCALE
     On Error Resume Next
     Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(LoginNameKey("UiScale"))
-    If nmObj Is Nothing Then Exit Function
-    Dim v As Double: v = Val(Replace(Replace(nmObj.RefersTo, "=", ""), ",", "."))
-    If v >= 0.8 And v <= 2 Then UiScale = v
+    Dim v As Double: v = UI_SCALE
+    If Not nmObj Is Nothing Then v = Val(Replace(Replace(nmObj.RefersTo, "=", ""), ",", "."))
+    If v < 0.8 Or v > 2 Then v = UI_SCALE
+    If formHeight > 0 Then
+        Dim room As Double: room = Application.UsableHeight - 40
+        If room > 200 And formHeight * v > room Then v = room / formHeight
+        If v < 1 Then v = 1
+    End If
+    UiScale = v
+End Function
+
+' The status cell's current view text (the part after "View: "), "All" when none
+Public Function CurrentViewText() As String
+    CurrentViewText = "All"
+    On Error Resume Next
+    Dim cur As String: cur = SafeStr(RosterSheet().Range(STATUS_CELL).Value)
+    Dim p As Long: p = InStr(1, cur, "View: ")
+    If p > 0 Then CurrentViewText = Trim$(Mid$(cur, p + 6))
 End Function
 
 ' The Desk's "Larger type": this login's pop-ups open at UI_LARGER_SCALE (or back to the default); the next one shows it
@@ -831,7 +848,7 @@ Public Sub SetUiScaleForMe(ByVal larger As Boolean)
 End Sub
 
 Public Sub ScaleForm(ByVal frm As Object)
-    Dim k As Double: k = UiScale()
+    Dim k As Double: k = UiScale(frm.Height)         ' clamped to the screen for this form's height
     If k = 1 Then Exit Sub
     Dim ctl As Object
     On Error Resume Next

@@ -206,9 +206,7 @@ Public Function NewestLogRowByMe() As String
     Dim lo As ListObject: Set lo = LogTable()
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function
-    Dim nRows As Long: nRows = lo.ListRows.Count
-    If nRows > 400 Then nRows = 400                ' today's rows sit at the top: a bounded read
-    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange.Resize(nRows))
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)   ' (review LOW-23) the whole log: a failed sort could leave today's rows anywhere
     Dim me_ As String: me_ = LCase$(Trim$(CurrentUser()))
     Dim i As Long
     For i = 1 To UBound(v, 1)

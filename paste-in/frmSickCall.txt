@@ -61,7 +61,7 @@ Private Sub UserForm_Initialize()
     Next old
     Me.Caption = "Sick Call"
     Me.Width = 412
-    Me.Height = 362                                  ' v26.5.5: + 12 for the three-line hint
+    Me.Height = 376                                  ' v26.5.5: + 12 for the three-line hint; v27: + 14 for it at 10 pt
 
     Dim o As Object
     Set o = AddLabel("hdr", "SICK CALL", LBL_L, 8, 300)
@@ -97,14 +97,14 @@ Private Sub UserForm_Initialize()
     o.Height = 48: o.WordWrap = True: o.Font.Size = 10: o.ForeColor = RGB(120, 60, 0)   ' v27 (item 20, B14): floors at 10
 
     Set o = AddLabel("info", "Off call lists for this shift and any shift starting within 24 h after it ends.", LBL_L, RowT(9) + 2, 372)
-    o.Height = 40: o.WordWrap = True: o.Font.Size = 10: o.ForeColor = RGB(30, 56, 100)     ' v26.5.5: up to three lines (the night hint); the buttons sit 12 lower; v27: 10 pt
+    o.Height = 54: o.WordWrap = True: o.Font.Size = 10: o.ForeColor = RGB(30, 56, 100)     ' v26.5.5: up to three lines (the night hint); v27: four at 10 pt, the buttons sit 26 lower
 
-    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(10) + 14, 200, 30)
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, RowT(10) + 28, 200, 30)
     mSave.Caption = "SAVE + START CALL-OUT"
     mSave.Font.Bold = True: mSave.Font.Size = 10
-    Set mSaveOnly = AddCtl("Forms.CommandButton.1", "cmdSaveOnly", LBL_L + 206, RowT(10) + 14, 86, 30)
+    Set mSaveOnly = AddCtl("Forms.CommandButton.1", "cmdSaveOnly", LBL_L + 206, RowT(10) + 28, 86, 30)
     mSaveOnly.Caption = "Save, no call-out"
-    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 298, RowT(10) + 14, 74, 30)
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + 298, RowT(10) + 28, 74, 30)
     mClose.Caption = "Close"
     mClose.Cancel = True
 

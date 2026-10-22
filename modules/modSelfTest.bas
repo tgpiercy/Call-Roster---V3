@@ -269,6 +269,8 @@ Private Function RunCase(f() As String) As String
             RunCase = CaseWithdrawn(i1)
         Case "sgsuspect"                           ' v27 (item 14): the file's stamp, its time on disk (yyyy-mm-dd-hh-nn; 0 = unknown) -> suspect / ok
             RunCase = IIf(SignupSuspect(ParseStampMin(i1), ParseStampMin(i2), (UCase$(i3) = "Y")), "suspect", "ok")   ' in3 Y = a clock change lies between
+        Case "clockchg"                            ' v27 (item 14, review): two times (yyyy-mm-dd-hh-nn) -> Y when a clock change (2 AM after a change night) lies between them
+            RunCase = IIf(ClockChangeBetween(ParseStampMin(i1), ParseStampMin(i2)), "Y", "N")
         Case "sgmix"                               ' v27 (item 14): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> the reduced sign-ups, name[!] (! = another login for that name) / none
             RunCase = CaseSignupMix(i1)
         Case "calloffer"
@@ -1816,5 +1818,12 @@ Private Sub LoadCases5()
     AddCase "weekcap,partial-pushes-over,44,8,48,,,4"
     AddCase "weekcap,nothing-before,0,12,48,,,0"
     AddCase "weekcap,dst-night,36,13,48,,,1"
+    AddCase "clockchg,spring-across-2am,2027-03-14-01-30,2027-03-14-03-00,,,,Y"
+    AddCase "clockchg,spring-both-after,2027-03-14-03-00,2027-03-14-04-00,,,,N"
+    AddCase "clockchg,spring-both-before,2027-03-13-22-00,2027-03-14-01-00,,,,N"
+    AddCase "clockchg,fall-across-2am,2027-11-07-01-00,2027-11-07-03-00,,,,Y"
+    AddCase "clockchg,a-year-apart,2027-01-10-09-00,2027-12-01-09-00,,,,Y"
+    AddCase "clockchg,two-quiet-days,2027-01-10-09-00,2027-01-12-09-00,,,,N"
+    AddCase "clockchg,reversed-pair,2027-03-14-03-00,2027-03-14-01-30,,,,Y"
 ' <<< CASES
 End Sub

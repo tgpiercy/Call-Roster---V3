@@ -374,8 +374,8 @@ End Function
 
 ' Department -> section title on the Blank Call Out Roster sheet
 ' v27 (item 20, B12): the ONE display name of a unit - what people call it, the stored value unchanged (the combos,
-' the tables and the log keep "Material Handler" / "QC Derivatives"). The prints, the Desk's tiles, the call-out
-' pop-up's lines and the calendar groups read it.
+' the tables and the log keep "Material Handler" / "QC Derivatives"). The Desk's cover tile and the call-out
+' pop-up's lines read it; the printed roster keeps DeptRosterTitle's own titles.
 Public Function UnitDisplayName(ByVal unit As String) As String
     Select Case Trim$(unit)
         Case "Material Handler": UnitDisplayName = "Fumigation (Material Handler)"
@@ -1253,7 +1253,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
                                      ByVal entryDate As Date, ByVal hours As Double, ByRef entries() As EmpRec, _
                                      ByRef taken() As Double, ByVal n As Long, ByRef sessionID As String, _
                                      ByRef summary As String, Optional ByRef shortSummary As String = "", _
-                                     Optional ByVal slotKey As String = "") As Boolean
+                                     Optional ByVal slotKey As String = "", Optional ByVal keepDraft As Boolean = False) As Boolean
     ' v25.5: shortSummary = the four-line box the call-out pop-up shows; summary = the full detail (status bar, SmokeTest)
     ' v27 (item 10): slotKey = the calendar line this call-out was started from (a sick call's absence), for the acceptance
     Dim i As Long, k As Long, logged As Long
@@ -1345,7 +1345,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
 
     Dim before As Object: Set before = ReceiptBefore()     ' v27 (receipts): everyone's Total Hours before the rows land
     If Not AppendLogRows(data) Then Exit Function     ' the caller keeps its entries so nothing is lost
-    DraftClear user                                   ' v27 (item 17): the rows are in the log - the draft has done its job (saved or not)
+    If Not keepDraft Then DraftClear user             ' v27 (item 17): the rows are in the log - the draft has done its job (saved or not); keepDraft = the stored draft is an OLDER session's (review MED-2)
     Dim savedOk As Boolean: savedOk = SaveIfWritable()     ' v26.5.5 (A1): a failed save is in the summary; the rows ARE in the log
 
     ' accepted -> onto the calendar
@@ -1953,6 +1953,19 @@ Public Function IsYearEndSheet(ByVal nm As String) As Boolean
 End Function
 
 ' v27 (item 10, re-review L2): ProtectSheet for an error HANDLER, which may not raise
+' v27 (item 16, review MED-4): before any save by a non-admin the printed roster's phone column goes hidden - the
+' sheet stays on its tab for a later print (Call Out Roster draws it again with the phones). Never raises.
+Public Sub HideCalloutPhonesForSave()
+    On Error Resume Next
+    If gAdminUnlocked Then Exit Sub
+    If Not SheetExists(CALLOUT_SHEET) Then Exit Sub
+    Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(CALLOUT_SHEET)
+    If ws.Columns(CALLOUT_PHONE_COL).Hidden Then Exit Sub
+    UnlockSheet ws
+    ws.Columns(CALLOUT_PHONE_COL).Hidden = True
+    ProtectSheet ws
+End Sub
+
 Public Sub ProtectSheetQuiet(ByVal ws As Worksheet)
     On Error Resume Next
     If Not ws Is Nothing Then ProtectSheet ws
@@ -2078,7 +2091,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     rs.Shapes("ui_btn_Help").Left = fx                ' v27 (item 20): the Help button, the group's third
     On Error GoTo 0
     If SheetExists(CALLOUT_SHEET) Then
-        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView   ' v27 (item 16, review): the renderer shows it to a supervisor for the print; every SAVED view (BeforeSave, SaveRestrictedCopy) hides it again
+        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView   ' v27 (item 16): the renderer shows it to a supervisor for the print; HideCalloutPhonesForSave (Workbook_BeforeSave) hides it before every save of theirs
     End If
     If SheetExists(CAL_SHEET) Then
         For Each shp In ThisWorkbook.Worksheets(CAL_SHEET).Shapes

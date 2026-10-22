@@ -832,3 +832,10 @@ weekcap,one-over,37,12,48,,,1
 weekcap,partial-pushes-over,44,8,48,,,4
 weekcap,nothing-before,0,12,48,,,0
 weekcap,dst-night,36,13,48,,,1
+clockchg,spring-across-2am,2027-03-14-01-30,2027-03-14-03-00,,,,Y
+clockchg,spring-both-after,2027-03-14-03-00,2027-03-14-04-00,,,,N
+clockchg,spring-both-before,2027-03-13-22-00,2027-03-14-01-00,,,,N
+clockchg,fall-across-2am,2027-11-07-01-00,2027-11-07-03-00,,,,Y
+clockchg,a-year-apart,2027-01-10-09-00,2027-12-01-09-00,,,,Y
+clockchg,two-quiet-days,2027-01-10-09-00,2027-01-12-09-00,,,,N
+clockchg,reversed-pair,2027-03-14-03-00,2027-03-14-01-30,,,,Y

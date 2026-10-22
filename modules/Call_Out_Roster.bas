@@ -59,14 +59,8 @@ Sub Call_Out()
                 MsgBox "Couldn't print: " & em & vbNewLine & "The roster is on the " & CALLOUT_SHEET & " tab - use File > Print.", vbExclamation, "Call Out Roster"
             End If
     End Select
-    ' v27 (item 16, re-review B1): the phones were for the PRINT - off the sheet again for a supervisor, so no save of
-    ' theirs (after a submit, the hourly backup) carries them visible; an admin's view keeps them as before
-    On Error Resume Next
-    If Not gAdminUnlocked Then
-        UnlockSheet ws
-        ws.Columns(CALLOUT_PHONE_COL).Hidden = True
-        ProtectSheet ws
-    End If
+    ' v27 (item 16, review MED-4): the phones stay on the tab for "print later"; Workbook_BeforeSave hides the column
+    ' (HideCalloutPhonesForSave) before any save by a non-admin, so no saved file carries them visible
     Exit Sub
 
 Failed:

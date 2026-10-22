@@ -166,7 +166,7 @@ Private Sub UserForm_Initialize()
     C("lblOutside").Font.Size = 10
     ' v27 (item 20, B11): for a non-admin the greyed buttons say whose job they are (this label sits right under them)
     If Not IsAdmin() Then
-        C("lblOutside").Caption = "No takers / award out of department / cancel request: an admin's job - ask " & PRIMARY_ADMIN_NAME & "."
+        C("lblOutside").Caption = "No takers / out of dept / cancel: an admin's job - ask " & PRIMARY_ADMIN_NAME
         C("lblOutside").Font.Bold = False
         C("lblOutside").ForeColor = RGB(120, 60, 0)
     End If
@@ -281,10 +281,13 @@ Private Sub FillOutside()
             cnt = UBound(cand, 1) - LBound(cand, 1) + 1
         End If
     End With
-    C("lblOutside").Caption = "Out of department (signed a blank line):   " & _
-        IIf(Not IsAdmin(), "an admin awards out of department (" & cnt & " free)", _
-        IIf(cnt = 0, "nobody else signed off in " & mP.Unit & " is free that shift", _
-                     cnt & " signed off in " & mP.Unit & " and free - lowest hours first"))
+    ' v27 (item 20, review MED-8): one line at 10 pt bold holds about 55 characters - short texts, and a non-admin keeps
+    ' the "whose job" line
+    If IsAdmin() Then
+        C("lblOutside").Caption = "Out of department: " & IIf(cnt = 0, "nobody signed off in " & mP.Unit & " is free", cnt & " free, lowest hours first")
+    Else
+        C("lblOutside").Caption = "No takers / out of dept / cancel: an admin's job - ask " & PRIMARY_ADMIN_NAME
+    End If
 End Sub
 
 

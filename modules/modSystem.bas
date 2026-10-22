@@ -599,6 +599,41 @@ Public Sub OpenChecks()
     End If
 End Sub
 
+' v27 (item 20): a hidden-name key for this login - <prefix>_<login>, the login's odd characters made safe
+Public Function LoginNameKey(ByVal prefix As String) As String
+    Dim u As String, i As Long, ch As String, s As String
+    u = LCase$(CurrentUser())
+    For i = 1 To Len(u)
+        ch = Mid$(u, i, 1)
+        If ch Like "[a-z0-9]" Then s = s & ch Else s = s & "_"
+    Next i
+    If s = "" Then s = "nobody"
+    LoginNameKey = prefix & "_" & s
+End Function
+
+' v27 (item 20, B15): the first time a login ever opens the roster, one box points at the three things that matter
+' (a hidden name FirstOpen_<login> remembers it). Run by Workbook_Open after the what's-new box. Quiet.
+Public Sub FirstOpenOnOpen()
+    On Error Resume Next
+    If CurrentUser() = "" Or gSmokeRun Then Exit Sub
+    Dim nmKey As String: nmKey = LoginNameKey("FirstOpen")
+    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(nmKey)
+    If Not nmObj Is Nothing Then Exit Sub
+    ' (review MED-9) a login that opened an earlier release has a what's-new name: not a first open - remembered quietly
+    Dim seen As Name: Set seen = ThisWorkbook.Names(WhatsNewName())
+    If Not seen Is Nothing Then
+        ThisWorkbook.Names.Add Name:=nmKey, RefersTo:="=""" & EXPECTED_RELEASE & """", Visible:=False
+        Exit Sub
+    End If
+    Application.ScreenUpdating = True
+    MsgBox "First time here, " & CurrentUser() & "?" & vbNewLine & vbNewLine & _
+           "- To fill a shift: Log Call-Out on the bar (or Fill a shift now on the Desk; Ctrl+Shift+C). Load the list, work down it, SUBMIT." & vbNewLine & _
+           "- The Calendar shows who is off and what needs cover." & vbNewLine & _
+           "- Every job is explained under How do I ... on the bar (the Help tab)." & vbNewLine & vbNewLine & _
+           SignedInText() & IIf(IsSupervisor(), ".", ".  To book sick calls, post and award shifts too, ask " & PRIMARY_ADMIN_NAME & " to be added as a supervisor."), vbInformation, "Call Out Roster"
+    ThisWorkbook.Names.Add Name:=nmKey, RefersTo:="=""" & EXPECTED_RELEASE & """", Visible:=False
+End Sub
+
 ' Name of whoever holds the edit lock on a network share (from Excel's
 ' "~$" owner file next to the workbook), or "" if it can't be read.
 Public Function LockOwner() As String
@@ -669,43 +704,8 @@ End Function
 ' Run by Workbook_Open after OpenChecks (re-review: on a painted screen): the WHATS_NEW box once per login per release. A hidden name per login
 ' ("WhatsNewSeen_<login>") holds the last release seen; it is written here and saved with the next save, so a
 ' read-only open sees the box again. Never raises (the open step logs an error, the box is not worth one).
-' v27 (item 20): a hidden-name key for this login - <prefix>_<login>, the login's odd characters made safe
-Public Function LoginNameKey(ByVal prefix As String) As String
-    Dim u As String, i As Long, ch As String, s As String
-    u = LCase$(CurrentUser())
-    For i = 1 To Len(u)
-        ch = Mid$(u, i, 1)
-        If ch Like "[a-z0-9]" Then s = s & ch Else s = s & "_"
-    Next i
-    If s = "" Then s = "nobody"
-    LoginNameKey = prefix & "_" & s
-End Function
-
-' v27 (item 20, B15): the first time a login ever opens the roster, one box points at the three things that matter
-' (a hidden name FirstOpen_<login> remembers it). Run by Workbook_Open after the what's-new box. Quiet.
-Public Sub FirstOpenOnOpen()
-    On Error Resume Next
-    If CurrentUser() = "" Or gSmokeRun Then Exit Sub
-    Dim nmKey As String: nmKey = LoginNameKey("FirstOpen")
-    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(nmKey)
-    If Not nmObj Is Nothing Then Exit Sub
-    Application.ScreenUpdating = True
-    MsgBox "First time here, " & CurrentUser() & "?" & vbNewLine & vbNewLine & _
-           "- To fill a shift: Log Call-Out on the bar (or Fill a shift now on the Desk; Ctrl+Shift+C). Load the list, work down it, SUBMIT." & vbNewLine & _
-           "- The Calendar shows who is off and what needs cover." & vbNewLine & _
-           "- Every job is explained under How do I ... on the bar (the Help tab)." & vbNewLine & vbNewLine & _
-           "You are signed in as: " & SignedInText() & ".", vbInformation, "Call Out Roster"
-    ThisWorkbook.Names.Add Name:=nmKey, RefersTo:="=""" & EXPECTED_RELEASE & """", Visible:=False
-End Sub
-
 Private Function WhatsNewName() As String
-    Dim u As String, i As Long, ch As String, s As String
-    u = LCase$(CurrentUser())
-    For i = 1 To Len(u)
-        ch = Mid$(u, i, 1)
-        If ch Like "[a-z0-9]" Then s = s & ch Else s = s & "_"
-    Next i
-    WhatsNewName = "WhatsNewSeen_" & s
+    WhatsNewName = LoginNameKey("WhatsNewSeen")   ' v27: the one per-login key builder
 End Function
 
 Public Sub WhatsNewOnOpen()

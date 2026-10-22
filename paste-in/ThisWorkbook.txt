@@ -20,8 +20,8 @@ Private Sub Workbook_Open()
     RecordDiskStamp                    ' v26.5.5 (A2): the file's on-disk time; a save finds it changed = someone else saved meanwhile
     OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
     SetShortcuts True                  ' v25.5: Ctrl+Shift+S / C / K / D while this workbook is active (modUI)
+    FirstOpenOnOpen                    ' v27 (item 20): a login's very FIRST open - the three things that matter (modSystem); before the what's-new box, which it reads to tell an old login from a new one
     WhatsNewOnOpen                     ' v25.5: the what's-new box once per login per release (modSystem) - last, on a painted screen (review)
-    FirstOpenOnOpen                    ' v27 (item 20): a login's very first open - the three things that matter (modSystem)
     ThisWorkbook.Saved = True          ' the hidden name it may write goes with the next real save
     On Error GoTo 0
 End Sub
@@ -82,6 +82,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     End If
     On Error Resume Next
     BackupBeforeSave                               ' v27 (item 12): an hourly backup when the newest is older than BACKUP_SAVE_HOURS (quiet)
+    HideCalloutPhonesForSave                       ' v27 (item 16): a supervisor's printed roster loses its phone column before the file is saved
     mRestoreAdmin = gAdminUnlocked
     mRestoreDesk = gDeskMode                       ' v25.3
     If mRestoreAdmin Then

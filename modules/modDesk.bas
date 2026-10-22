@@ -1107,19 +1107,19 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "members, never why."
 End Sub
 
-' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it
 ' v27 (item 20, B14): toggles this login's pop-up scale (UiScale_<login>) and redraws the Desk
 Public Sub DeskLargerType()
     On Error GoTo Oops
     Dim larger As Boolean: larger = (UiScale() <= 1.05)
     SetUiScaleForMe larger
-    Tell IIf(larger, "Your pop-ups open at " & CLng(UI_LARGER_SCALE * 100) & " % from now on (this login, this roster). Click again for normal type.", "Your pop-ups open at the normal size again."), vbInformation, "Larger type"
+    Tell IIf(larger, "Your pop-ups open at " & CLng(UI_LARGER_SCALE * 100) & " % (this login, this roster; kept when the file is saved - a read-only copy forgets it). Click again for normal type.", "Your pop-ups open at the normal size again."), vbInformation, "Larger type"
     DrawDesk
     Exit Sub
 Oops:
     ReportError "DeskLargerType"
 End Sub
 
+' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it
 Public Sub DeskReport()
     On Error GoTo Oops
     Dim body As String

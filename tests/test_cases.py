@@ -342,6 +342,10 @@ def evaluate(row: dict) -> str:
                 return None
             return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]), int(s[14:16]))
         return "suspect" if rules.signup_suspect(stamp_min(i1), stamp_min(i2), i3.upper() == "Y") else "ok"
+    if suite == "clockchg":                      # v27 (item 14, review): two times -> Y / N
+        def stamp_min2(s: str) -> datetime:
+            return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]), int(s[14:16]))
+        return "Y" if rules.clock_change_between(stamp_min2(i1), stamp_min2(i2)) else "N"
     if suite == "sgmix":                         # v27 (item 14): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> name[!];... / none
         def stamp3(s: str) -> datetime:
             return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]))

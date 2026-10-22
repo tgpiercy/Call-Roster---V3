@@ -22,6 +22,12 @@ Option Explicit
 
 Public Const RCPT_VERSION As String = "Receipt v26.5.5 (Oct 21)"     ' stamped with the release at release prep (v27)
 Public Const RECEIPT_SHEET As String = "Receipt"                     ' output only: drawn for a print, hidden again
+' v27 (item 9): "Was this right?" - every answer given on a receipt card lands here (admin-only, never published)
+Public Const FB_SHEET As String = "Feedback"
+Public Const FB_TABLE As String = "tblFeedback"
+Private Const FB_N As Long = 7              ' When, Login, Release, Ref ID, Answer, Note, Seen
+Private Const FB_SEEN As Long = 7
+Private Const FB_MAX_NOTE As Long = 300
 
 Public Type Receipt
     Title As String
@@ -282,6 +288,148 @@ Private Function RefEdgeFree(ByVal txt As String, ByVal i As Long) As Boolean
     If i < 1 Or i > Len(txt) Then RefEdgeFree = True: Exit Function
     RefEdgeFree = Not (Mid$(txt, i, 1) Like "[A-Za-z0-9]")
 End Function
+
+' ====================================================================
+'  v27 (item 9): "WAS THIS RIGHT?" - the three answers on the card
+'  Yes / Not sure / No, with an optional line, go into tblFeedback on the
+'  admin-only Feedback sheet (When, Login, Release, Ref ID, Answer, Note,
+'  Seen), modelled on the Error Log: made on first use, never published,
+'  pruned by hand. Needs Attention lists the unread ones (UnseenFeedbackCount);
+'  ShowFeedback (admin, Alt+F8 or that line) opens the sheet and marks them seen.
+'  Nothing here raises.
+' ====================================================================
+
+' The table, or Nothing. create:=True adds the sheet and the table.
+Public Function FeedbackTable(Optional ByVal create As Boolean = False) As ListObject
+    Dim ws As Worksheet, lo As ListObject
+    If SheetExists(FB_SHEET) Then
+        Set ws = ThisWorkbook.Worksheets(FB_SHEET)
+        On Error Resume Next
+        Set lo = ws.ListObjects(FB_TABLE)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            Dim was As Object: Set was = ThisWorkbook.ActiveSheet     ' adding a sheet activates it - put the user back
+            UnlockStructure
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = FB_SHEET
+            RelockStructure
+            SetTabColor ws, RGB(30, 56, 100)
+            On Error Resume Next
+            If Not was Is Nothing Then was.Activate
+            On Error GoTo 0
+        End If
+        UnlockSheet ws
+        ws.Range("A1").Resize(1, FB_N).Value = Array("When", "Login", "Release", "Ref ID", "Answer", "Note", "Seen")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, FB_N), , xlYes)
+        lo.Name = FB_TABLE
+        lo.TableStyle = "TableStyleLight9"
+        ws.Columns(1).ColumnWidth = 20
+        ws.Columns(2).ColumnWidth = 12
+        ws.Columns(3).ColumnWidth = 9
+        ws.Columns(4).ColumnWidth = 10
+        ws.Columns(5).ColumnWidth = 9
+        ws.Columns(6).ColumnWidth = 60
+        ws.Columns(7).ColumnWidth = 7
+        ws.Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+        ProtectSheet ws
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+    End If
+    Set FeedbackTable = lo
+End Function
+
+' One answer (Yes / Not sure / No) with its optional line, against the receipt on screen (its first Ref ID).
+' True when the row landed. Never raises, never shows anything (the card says thanks or that it could not be kept).
+Public Function SaveFeedback(ByVal answer As String, ByVal note As String) As Boolean
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim lo As ListObject, ws As Worksheet, cnt As Long
+    On Error GoTo Quit
+    Application.EnableEvents = False               ' before the sheet is made: adding it must not start a redraw
+    Set lo = FeedbackTable(True)
+    If lo Is Nothing Then GoTo Quit
+    Set ws = lo.Parent
+    cnt = lo.ListRows.Count
+    If cnt = 1 Then
+        If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then cnt = 0
+    End If
+    Dim refTxt As String: refTxt = FirstRefIn(gReceipt.Recorded)
+    If refTxt = "" Then refTxt = FirstRefIn(gReceipt.Title)
+    Dim rec(1 To 1, 1 To FB_N) As Variant
+    rec(1, 1) = Now
+    rec(1, 2) = CurrentUser()
+    rec(1, 3) = EXPECTED_RELEASE
+    rec(1, 4) = IIf(refTxt = "", Left$(gReceipt.Title, 60), refTxt)
+    rec(1, 5) = answer
+    rec(1, 6) = "'" & Left$(Trim$(Replace(Replace(note, vbCr, " "), vbLf, " ")), FB_MAX_NOTE)   ' kept as text whatever it starts with
+    rec(1, FB_SEEN) = ""
+    UnlockSheet ws
+    lo.Resize lo.HeaderRowRange.Resize(cnt + 2)
+    lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, FB_N).Value = rec
+    lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(1, 1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+    ProtectSheet ws
+    SaveFeedback = True
+Quit:
+    If Not SaveFeedback Then
+        Dim en As Long: en = Err.Number
+        Dim em As String: em = Err.Description
+        If en <> 0 Then LogError "SaveFeedback", en, em
+    End If
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws       ' a failed write leaves the sheet protected
+    Application.EnableEvents = evWas
+    MarkCalDirty                                   ' Needs Attention's feedback line
+End Function
+
+' The answers nobody has read yet (the Seen column blank). Never raises.
+Public Function UnseenFeedbackCount() As Long
+    Dim lo As ListObject, v As Variant, i As Long
+    On Error GoTo Quit
+    Set lo = FeedbackTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    v = RangeTo2D(lo.DataBodyRange)
+    For i = 1 To UBound(v, 1)
+        If SafeStr(v(i, 1)) <> "" And SafeStr(v(i, FB_SEEN)) = "" Then UnseenFeedbackCount = UnseenFeedbackCount + 1
+    Next i
+Quit:
+End Function
+
+' Alt+F8 / the Needs Attention line (admin): shows the Feedback sheet and marks every unread answer seen
+Public Sub ShowFeedback()
+    If Not RequireAdmin() Then Exit Sub
+    Dim lo As ListObject, ws As Worksheet, v As Variant, i As Long, n As Long
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    On Error GoTo Failed
+    Set lo = FeedbackTable(True)
+    If lo Is Nothing Then Exit Sub
+    Set ws = lo.Parent
+    n = UnseenFeedbackCount()
+    SetSheetVisible ws, xlSheetVisible
+    ws.Activate
+    If n > 0 And Not lo.DataBodyRange Is Nothing Then
+        v = RangeTo2D(lo.ListColumns(FB_SEEN).DataBodyRange)
+        Dim w As Variant: w = RangeTo2D(lo.ListColumns(1).DataBodyRange)
+        For i = 1 To UBound(v, 1)
+            If SafeStr(w(i, 1)) <> "" And SafeStr(v(i, 1)) = "" Then v(i, 1) = "Yes"
+        Next i
+        Application.EnableEvents = False
+        UnlockSheet ws
+        lo.ListColumns(FB_SEEN).DataBodyRange.Value = v
+        ProtectSheet ws
+        Application.EnableEvents = evWas
+        MarkCalDirty
+    End If
+    MsgBox IIf(n = 0, "No new answers.", n & " new answer(s) to ""Was this right?"", now marked as seen.") & vbNewLine & vbNewLine & _
+           "Newest is at the bottom: who answered, which Ref ID, Yes / Not sure / No and their line. A No or a Not sure is worth a look at that log entry. Prune old rows by hand (UnlockForRepair).", vbInformation, "Was this right?"
+    Exit Sub
+Failed:
+    Dim em As String: em = Err.Description
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.EnableEvents = evWas
+    MsgBox "The Feedback sheet couldn't be opened: " & em, vbExclamation, "Was this right?"
+End Sub
 
 ' The receipt as plain text (the print, the email, the SmokeTest log)
 Public Function ReceiptText(ByRef r As Receipt) As String

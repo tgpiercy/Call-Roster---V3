@@ -12,6 +12,12 @@ Option Explicit
 Private WithEvents mPrint As MSForms.CommandButton
 Private WithEvents mMail As MSForms.CommandButton
 Private WithEvents mClose As MSForms.CommandButton
+' v27 (item 9): "Was this right?" - three answers and an optional line into the Feedback table (modReceipt)
+Private WithEvents mYes As MSForms.CommandButton
+Private WithEvents mUnsure As MSForms.CommandButton
+Private WithEvents mNo As MSForms.CommandButton
+Private mNote As Object                     ' the optional line
+Private mFbHint As Object                   ' the hint under the answers; "Thanks" once one is given
 
 Private Const LBL_L As Long = 14
 Private Const BOX_W As Long = 440
@@ -65,6 +71,22 @@ Private Sub UserForm_Initialize()
     o.Height = 26: o.WordWrap = True: o.Font.Size = 7.5: o.ForeColor = RGB(120, 130, 140)
     y = y + 30
 
+    ' v27 (item 9): WAS THIS RIGHT?  [Yes] [Not sure] [No]  [a word about it]  - one answer per card, into the admin's Feedback table
+    Set o = AddLabel("hfb", "WAS THIS RIGHT?", LBL_L, y + 4, 110)
+    o.Font.Bold = True: o.ForeColor = RGB(30, 56, 100)
+    Set mYes = AddCtl("Forms.CommandButton.1", "cmdYes", LBL_L + 112, y, 52, 24)
+    mYes.Caption = "Yes"
+    Set mUnsure = AddCtl("Forms.CommandButton.1", "cmdUnsure", LBL_L + 168, y, 66, 24)
+    mUnsure.Caption = "Not sure"
+    Set mNo = AddCtl("Forms.CommandButton.1", "cmdNo", LBL_L + 238, y, 52, 24)
+    mNo.Caption = "No"
+    Set mNote = AddCtl("Forms.TextBox.1", "txtNote", LBL_L + 298, y, BOX_W - 298, 24)
+    mNote.Font.Size = 9: mNote.MaxLength = 300
+    mNote.ControlTipText = "A word about it, if you like (optional)"
+    Set mFbHint = AddLabel("fbhint", "Optional: a word about it in the box, then an answer. " & PRIMARY_ADMIN_NAME & " reads the answers; a No or a Not sure gets that entry looked at.", LBL_L, y + 27, BOX_W)
+    mFbHint.Font.Size = 7.5: mFbHint.ForeColor = RGB(120, 130, 140): mFbHint.WordWrap = True: mFbHint.Height = 22
+    y = y + 54
+
     Set mPrint = AddCtl("Forms.CommandButton.1", "cmdPrint", LBL_L, y, 130, 28)
     mPrint.Caption = "Print receipt (PDF)"
     Set mMail = AddCtl("Forms.CommandButton.1", "cmdMail", LBL_L + 138, y, 130, 28)
@@ -90,4 +112,31 @@ End Sub
 
 Private Sub mClose_Click()
     Unload Me
+End Sub
+
+' v27 (item 9): one answer per card - the buttons grey once it is kept
+Private Sub FbAnswer(ByVal answer As String)
+    On Error Resume Next
+    Dim ok As Boolean: ok = SaveFeedback(answer, mNote.Text)
+    If ok Then
+        mFbHint.Caption = "Thanks - """ & answer & """ noted for " & PRIMARY_ADMIN_NAME & "."
+        mFbHint.ForeColor = RGB(0, 128, 70)
+        mYes.Enabled = False: mUnsure.Enabled = False: mNo.Enabled = False: mNote.Enabled = False
+        mClose.SetFocus
+    Else
+        mFbHint.Caption = "That answer could not be kept (the Feedback sheet could not be written). Tell " & PRIMARY_ADMIN_NAME & " instead."
+        mFbHint.ForeColor = RGB(176, 0, 32)
+    End If
+End Sub
+
+Private Sub mYes_Click()
+    FbAnswer "Yes"
+End Sub
+
+Private Sub mUnsure_Click()
+    FbAnswer "Not sure"
+End Sub
+
+Private Sub mNo_Click()
+    FbAnswer "No"
 End Sub

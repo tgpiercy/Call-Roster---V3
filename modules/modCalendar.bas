@@ -4601,6 +4601,12 @@ Public Sub DrawNeeds()
         NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
               "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
     End If
+    ' v27 (item 9): receipt answers ("Was this right?") nobody has read yet (modReceipt)
+    Dim nFb As Long: nFb = UnseenFeedbackCount()
+    If nFb > 0 Then
+        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nFb & " receipt answer(s) not yet read", "Feedback", _
+              "Open the list", "", "F:feedback", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
+    End If
 
     ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
     Dim ur() As NARow, nU As Long, uv As Variant, uk As Variant
@@ -5084,6 +5090,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
         ShowErrorLog
         Exit Sub
     End If
+    If Left$(keyTxt, 2) = "F:" Then              ' v27 (item 9): the receipt answers - open the Feedback sheet
+        ShowFeedback
+        Exit Sub
+    End If
     If Left$(keyTxt, 2) = "V:" Then              ' v24.3: a planned unit move - cancel it, or apply it when due
         PlannedMoveMenu Mid$(keyTxt, 3)
         Exit Sub
@@ -5155,6 +5165,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "X:" Then
         ShowErrorLog
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "F:" Then
+        ShowFeedback
         Exit Sub
     End If
     If Left$(keyTxt, 2) = "V:" Then

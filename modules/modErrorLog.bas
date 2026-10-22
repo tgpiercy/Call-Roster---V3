@@ -39,6 +39,7 @@ Private Const EL_FILE As String = "Roster error log.txt"   ' the same lines, bes
 ' True only while ReportError is closing the pop-ups an error left open: their
 ' "close without saving?" questions stay quiet (frmOvertimeEntry, frmPostingEntry)
 Public gErrorClosing As Boolean
+Private mInReport As Boolean                   ' v27 (item 19): True while the error box's email runs - a failure inside it never asks again
 
 
 ' The table, or Nothing. create:=True adds the sheet and the table.
@@ -174,13 +175,54 @@ Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "
     gErrorClosing = False
     gCalPostKey = ""                               ' a calendar line picked for a posting that never got made
     Dim lineNo As Long: lineNo = LogError(proc, en, em, detail)
-    MsgBox "This didn't finish." & vbNewLine & vbNewLine & _
-           "Anything it did before the error is still in the workbook" & _
-           IIf(NoSave() Or ThisWorkbook.ReadOnly, " (this copy can't be saved).", " and is saved when you close.") & vbNewLine & _
-           "Check what you were doing (run it again if it was an import), and tell " & PRIMARY_ADMIN_NAME & ":" & vbNewLine & _
-           "Error Log line " & IIf(lineNo > 0, CStr(lineNo), "(not written)") & "  -  " & proc & vbNewLine & vbNewLine & _
-           Left$(em, 200), vbExclamation, "Call Out Roster"
+    ' v27 (item 19, B7): the box says what the log holds by this login today (was the last thing saved?) and offers
+    ' to email the admin the details now (the Desk's report; a plain user gets the mailto too). A failure inside
+    ' that report comes back here with mInReport set: a plain box, no second offer.
+    Dim savedTxt As String: savedTxt = NewestLogRowByMe()
+    Dim msg As String
+    msg = "This didn't finish." & vbNewLine & vbNewLine & _
+          "Anything it did before the error is still in the workbook" & _
+          IIf(NoSave() Or ThisWorkbook.ReadOnly, " (this copy can't be saved).", " and is saved when you close.") & vbNewLine & _
+          "Was it saved?  Newest OT Log row: " & savedTxt & vbNewLine & _
+          "Check what you were doing (run it again if it was an import), and tell " & PRIMARY_ADMIN_NAME & ":" & vbNewLine & _
+          "Error Log line " & IIf(lineNo > 0, CStr(lineNo), "(not written)") & "  -  " & proc & vbNewLine & vbNewLine & _
+          Left$(em, 200)
+    If mInReport Or gSmokeRun Then
+        MsgBox msg, vbExclamation, "Call Out Roster"
+        Exit Sub
+    End If
+    If MsgBox(msg & vbNewLine & vbNewLine & "Email " & PRIMARY_ADMIN_NAME & " the details now?", vbYesNo + vbExclamation, "Call Out Roster") = vbYes Then
+        mInReport = True
+        DeskReport
+        mInReport = False
+    End If
 End Sub
+
+' v27 (item 19): the newest non-void OT Log row this login wrote today, as one short line ("S-0012 Accepted Joe D at
+' 3:10 AM"), or "none by you today" - one read of the log's top rows (newest first; Logged By = the login). Never raises.
+Public Function NewestLogRowByMe() As String
+    On Error Resume Next
+    NewestLogRowByMe = "none by you today"
+    Dim lo As ListObject: Set lo = LogTable()
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim nRows As Long: nRows = lo.ListRows.Count
+    If nRows > 400 Then nRows = 400                ' today's rows sit at the top: a bounded read
+    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange.Resize(nRows))
+    Dim me_ As String: me_ = LCase$(Trim$(CurrentUser()))
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If LCase$(Trim$(SafeStr(v(i, L_USER)))) = me_ And IsDate(v(i, L_STAMP)) Then
+            If Int(CDate(v(i, L_STAMP))) = Int(Date) Then
+                If UCase$(Trim$(SafeStr(v(i, L_STATUS)))) <> "VOID" Then
+                    NewestLogRowByMe = SafeStr(v(i, L_REF)) & " " & SafeStr(v(i, L_OUTCOME)) & IIf(SafeStr(v(i, L_OUTCOME)) = "", SafeStr(v(i, L_TYPE)), "") & " " & _
+                                       CalName(SafeStr(v(i, L_EMP))) & " at " & Format$(CDate(v(i, L_STAMP)), "h:mm AM/PM")
+                    Exit Function
+                End If
+            End If
+        End If
+    Next i
+End Function
 
 ' v25.3 (the Desk's "Something went wrong"): the newest row as one line of text (rows are appended)
 Public Function NewestErrorLine() As String

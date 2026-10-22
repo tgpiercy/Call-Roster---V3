@@ -254,6 +254,21 @@ Public Function UnseenErrorCount() As Long
 Quit:
 End Function
 
+' v27 (item 32): the Error Log rows logged under this release (SystemCheck's line). Never raises.
+Public Function ErrorsThisRelease() As Long
+    Dim lo As ListObject, v As Variant, i As Long
+    On Error GoTo Quit
+    Set lo = ErrorLogTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    v = RangeTo2D(lo.DataBodyRange)
+    If UBound(v, 2) < 6 Then Exit Function
+    For i = 1 To UBound(v, 1)
+        If SafeStr(v(i, 1)) <> "" And StrComp(Trim$(SafeStr(v(i, 6))), EXPECTED_RELEASE, vbTextCompare) = 0 Then ErrorsThisRelease = ErrorsThisRelease + 1
+    Next i
+Quit:
+End Function
+
 ' Alt+F8 (admin): opens the sheet and marks every row seen
 Public Sub ShowErrorLog()
     If Not RequireAdmin() Then Exit Sub

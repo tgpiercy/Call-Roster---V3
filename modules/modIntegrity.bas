@@ -1083,6 +1083,11 @@ Public Function IntegrityRunCount() As Long
     IntegrityRunCount = nErr
 End Function
 
+' v27 (item 32): this session's PROBLEM count (-1 = not run this session) - the Opens table records it
+Public Function IntegrityProblemCount() As Long
+    If mRanAt = 0 Then IntegrityProblemCount = -1 Else IntegrityProblemCount = mLastErr
+End Function
+
 Public Function IntegrityHasProblems() As Boolean
     IntegrityHasProblems = (mRanAt > 0 And mLastErr > 0)
 End Function

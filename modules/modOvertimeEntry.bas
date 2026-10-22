@@ -2044,7 +2044,7 @@ End Sub
 ' ApplyViewCore and by the daily CSV export (which never writes these tables beside the roster).
 Public Function AdminOnlySheets() As Variant
     AdminOnlySheets = Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
-                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET, CP_SHEET & " print")
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET, CP_SHEET & " print", OP_SHEET)      ' v27 (item 32): + the Opens table
 End Function
 
 ' v25 review: the work itself, raising to its caller (SaveRestrictedCopy refuses the copy on an error;

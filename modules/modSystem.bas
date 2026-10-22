@@ -32,6 +32,10 @@ Public Const WHATS_NEW As String = "The 16 h rule: OT already accepted, an award
 Private Const N_MODULES As Long = 30           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v26.5.5"
+Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
+Private Const OP_TABLE As String = "tblOpens"
+Private Const OP_N As Long = 7
+Private Const OPENS_KEEP_DAYS As Long = 90
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v26.5.5,frmNewPosting|v26.5.5,frmPostingEntry|v26.5.5,frmShiftSwitch|v26.5.5," & _
                                         "frmTimeOff|v26.5.5,frmLeave|v26.5.5,frmSickCall|v26.5.5,frmConvert|v26.5.5,frmEmployee|v26.5,frmReceipt|v26.5.5,frmHistory|v26.5.5,frmTableEdit|v26.5.5"   ' v26.5.5: every form but frmEmployee re-pasted (a title on every box; the call-out, sick-call, posting and award pop-ups changed), ThisWorkbook too (save guard, stale copy, practice banner); v27: + frmReceipt (new, the receipt card) - the release-prep commit bumps every form the receipts touched
@@ -239,6 +243,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
         warn = warn & "- members' template not found next to this workbook: " & MEMBER_TEMPLATE_NAME & " (see the M1 install notes)" & vbNewLine
     End If
     info = info & MembersStatusText() & vbNewLine
+    info = info & OpensSummaryText() & vbNewLine     ' v27 (item 32): errors this release, opens this week
     ' v26.5.5 (A13): where the members' file goes (PUBLISH_FOLDER resolved; "." = beside the master until the folder is named)
     If FolderExists(PublishFolderPath()) Then
         info = info & "Members' folder: " & PublishFolderPath() & IIf(Trim$(PUBLISH_FOLDER) = ".", " (beside the master: PUBLISH_FOLDER not named yet)", "") & vbNewLine
@@ -1161,3 +1166,114 @@ Private Sub BackupStatus(ByRef warn As String, ByRef info As String)
            " pre-change (" & MbText(bPre) & ") beside the roster; copies older than " & BACKUP_KEEP_DAYS & _
            " days are removed on the first admin open of the day" & vbNewLine
 End Sub
+
+' ====================================================================
+'  THE OPENS TABLE (v27 item 32, C12)
+' ====================================================================
+' One row per open of the live roster (When, Login, View, Release, Read-only, Integrity PROBLEMs, Calendar draw s) on
+' the admin-only Opens sheet (made on first use), pruned at OPENS_KEEP_DAYS; never published. Workbook_Open step 13,
+' after the integrity check. A practice / backup copy writes nothing; a read-only open could never keep its row, so
+' it writes nothing either (the column says "no" on every kept row). The row goes with the next real save. Never raises.
+Public Sub OpensOnOpen()
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    On Error GoTo Quit
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then Exit Sub
+    Dim lo As ListObject: Set lo = OpensTable(True)
+    If lo Is Nothing Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Application.EnableEvents = False
+    UnlockSheet ws
+    Dim i As Long
+    If Not lo.DataBodyRange Is Nothing Then          ' the rows older than the keep go first
+        For i = lo.ListRows.Count To 1 Step -1
+            If IsDate(lo.DataBodyRange.Cells(i, 1).Value) Then
+                If CDate(lo.DataBodyRange.Cells(i, 1).Value) < Now - OPENS_KEEP_DAYS Then lo.ListRows(i).Delete
+            End If
+        Next i
+    End If
+    Dim rw As ListRow
+    If lo.DataBodyRange Is Nothing Then
+        Set rw = lo.ListRows.Add
+    ElseIf lo.ListRows.Count = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then
+        Set rw = lo.ListRows(1)                       ' the blank row a new table is made with
+    Else
+        Set rw = lo.ListRows.Add
+    End If
+    Dim v(1 To 1, 1 To OP_N) As Variant
+    v(1, 1) = Now
+    v(1, 2) = CurrentUser()
+    v(1, 3) = ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS)
+    v(1, 4) = EXPECTED_RELEASE
+    v(1, 5) = "no"
+    Dim nProb As Long: nProb = IntegrityProblemCount()
+    If nProb < 0 Then v(1, 6) = "not run" Else v(1, 6) = nProb
+    v(1, 7) = CalDrawSeconds()
+    rw.Range.Value = v
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Exit Sub
+Quit:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    Application.EnableEvents = evWas
+    LogError "OpensOnOpen", en, em
+End Sub
+
+Public Function OpensTable(Optional ByVal create As Boolean = False) As ListObject
+    Dim ws As Worksheet, lo As ListObject
+    If SheetExists(OP_SHEET) Then
+        Set ws = ThisWorkbook.Worksheets(OP_SHEET)
+        On Error Resume Next
+        Set lo = ws.ListObjects(OP_TABLE)
+        On Error GoTo 0
+    End If
+    If lo Is Nothing And create Then
+        If ws Is Nothing Then
+            Dim was As Object: Set was = ThisWorkbook.ActiveSheet     ' adding a sheet activates it - put the user back
+            UnlockStructure
+            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            ws.Name = OP_SHEET
+            RelockStructure
+            SetTabColor ws, RGB(30, 56, 100)
+            On Error Resume Next
+            If Not was Is Nothing Then was.Activate
+            On Error GoTo 0
+        End If
+        UnlockSheet ws
+        ws.Range("A1").Resize(1, OP_N).Value = Array("When", "Login", "View", "Release", "Read-only", "Integrity PROBLEMs", "Calendar draw s")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, OP_N), , xlYes)
+        lo.Name = OP_TABLE
+        lo.TableStyle = "TableStyleLight9"
+        ws.Columns(1).ColumnWidth = 20
+        ws.Columns(2).ColumnWidth = 14
+        ws.Columns(3).ColumnWidth = 11
+        ws.Columns(4).ColumnWidth = 10
+        ws.Columns(5).ColumnWidth = 9
+        ws.Columns(6).ColumnWidth = 17
+        ws.Columns(7).ColumnWidth = 15
+        ws.Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
+        ProtectSheet ws
+        SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
+    End If
+    Set OpensTable = lo
+End Function
+
+
+' SystemCheck's line: the errors logged under this release (and how many nobody has read), the opens in 7 days
+Public Function OpensSummaryText() As String
+    Dim nOpen As Long, i As Long
+    On Error Resume Next                            ' never raises
+    Dim lo As ListObject: Set lo = OpensTable(False)
+    If Not lo Is Nothing Then
+        If Not lo.DataBodyRange Is Nothing Then
+            Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
+            For i = 1 To UBound(v, 1)
+                If IsDate(v(i, 1)) Then
+                    If CDate(v(i, 1)) >= Now - 7 Then nOpen = nOpen + 1
+                End If
+            Next i
+        End If
+    End If
+    OpensSummaryText = "Errors this release: " & ErrorsThisRelease() & " (" & UnseenErrorCount() & " unseen); opens in the last 7 days: " & nOpen
+End Function

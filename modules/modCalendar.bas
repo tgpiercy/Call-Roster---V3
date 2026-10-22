@@ -6313,3 +6313,13 @@ Public Function SetMinStaff(ByVal r As Long, ByVal minTxt As String, ByVal note 
     MarkCalDirty
     SetMinStaff = True
 End Function
+
+' v27 (item 32): the last calendar draw's seconds, from the CalMap line "... drawn in N s" (Empty when never drawn). Never raises.
+Public Function CalDrawSeconds() As Variant
+    On Error Resume Next                            ' never raises
+    CalDrawSeconds = Empty
+    If Not SheetExists(MAP_SHEET) Then Exit Function
+    Dim s As String: s = SafeStr(MapSheet().Range("Z14").Value)
+    Dim k As Long: k = InStr(1, s, "drawn in ", vbTextCompare)
+    If k > 0 Then CalDrawSeconds = Val(Mid$(s, k + 9))
+End Function

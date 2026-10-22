@@ -11,7 +11,7 @@ Private mRestoreDesk As Boolean        ' v25.3: the Desk view was on before the 
 Private Sub Workbook_Open()
     Dim k As Long
     Application.ScreenUpdating = False
-    For k = 1 To 12                    ' v24.2: a step that fails is written to the Error Log; the rest still run
+    For k = 1 To 13                    ' v24.2: a step that fails is written to the Error Log; the rest still run
         OpenStep k
     Next k
     On Error Resume Next
@@ -41,6 +41,7 @@ Private Sub OpenStep(ByVal k As Long)
         Case 10: DeskOpenLanding          ' v25.3: a Desk user lands on the Desk, everyone else on the roster (modDesk)
         Case 11: PracticeBannerOnOpen     ' v26.5.5: a practice copy carries a red banner on every sheet and in its title (modSystem)
         Case 12: ExportTablesOnOpen       ' v27 (item 25): the day's CSV export of every table beside the backups (modEvidence)
+        Case 13: OpensOnOpen              ' v27 (item 32): one row on the admin-only Opens sheet (modSystem)
     End Select
     Exit Sub
 Oops:

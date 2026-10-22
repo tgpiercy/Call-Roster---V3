@@ -116,6 +116,7 @@ CHANGELOG.md
 | `Rules` (`tblRules`) | v27 (item 22): ID, Rule, Basis (typed by an admin), Suite, Since - the rules the roster applies, rewritten from the code by `DrawRules`; admin-only, never published |
 | `Settings` (`tblSettings`) | v27 (item 22): Name, Value, Effective, Changed By, Previous, Note - the overrides of the six tunable settings, written by `SetSetting` only; admin-only, never published |
 | `Restrictions` (`tblRestrictions`) | v27 (item 21): Restriction ID (`RS-`), Employee, From, To, Reason, Status (Active / VOID), Entered By, Entered At, Void Note - one row per OT restriction; made on first use (`RstTable`), admin-only, never published; rows are voided, never removed |
+| `Opens` (`tblOpens`) | v27 (item 32): When, Login, View, Release, Read-only, Integrity PROBLEMs, Calendar draw s - one row per open of the live roster (Workbook_Open step 13, `OpensOnOpen`), pruned at 90 days; admin-only, never published; SystemCheck's "Errors this release / opens in the last 7 days" line reads it |
 | `Feedback` (`tblFeedback`) | v27 (item 9): When, Login, Release, Ref ID, Answer, Note, Seen - one row per answer to the receipt card's "Was this right?" (Yes / Not sure / No + an optional line); made on first use (`FeedbackTable`), admin-only, never published, pruned by hand; Needs Attention lists the unread ones, `ShowFeedback` marks them seen |
 | `Legacy Entry Log` (hidden) | Pre-migration history |
 

@@ -38,6 +38,9 @@ Private mSlotShift As String
 Private mSlotUnit As String
 Private mActivated As Boolean    ' v27 (item 17): the resume offer runs once, when the form first shows
 Private mResuming As Boolean     ' v27 (item 17): True while a draft is being replayed (no draft write per outcome)
+Private mKeptDraft As Boolean    ' v27 (item 17, review A2): a draft this login chose to keep for later sits in the table - the first outcome of a NEW session asks before replacing it
+Private mNoDraft As Boolean      ' v27 (item 17, review A2): True = this session writes no draft (the kept one stays)
+Private mDraftSavedAt As Date    ' v27 (item 17, review A1): the last time the draft went to disk through SaveIfWritable
 Private mTaken() As Double       ' v24.1: hours an Accepted person took (0 = everything on offer)
 Private mCount As Long
 Private mCurrent As Long
@@ -360,6 +363,7 @@ Private Sub btnLoad_Click()
     If mCount > 0 And LoggedCount() > 0 Then
         If MsgBox("Reloading clears the " & LoggedCount() & " outcome(s) already recorded." & vbNewLine & _
                   "Reload anyway?", vbYesNo + vbExclamation, "Reload list") = vbNo Then Exit Sub
+        If Not mNoDraft Then DraftClear CurrentUser()   ' (review A3) the cleared outcomes leave the draft too
     End If
     LoadListNow
 End Sub
@@ -794,8 +798,20 @@ Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String, Optio
 End Sub
 
 ' v27 (item 17, B4): this session's entries to the Draft sheet (quiet; a draft that cannot be written is simply not there)
-Private Sub DraftSave()
-    If mCount = 0 Then Exit Sub
+Private Function DraftSave() As Boolean
+    If mCount = 0 Or mNoDraft Then Exit Function
+    ' (review A2) a draft kept for later belongs to another session: ask once before this one replaces it
+    If mKeptDraft Then
+        Dim kd As String, ks As String, kc As String, ke As String, ko As String, kdt As Date, kh As Double, kst As Date
+        If DraftRead(CurrentUser(), kd, ks, kc, kdt, kh, kst, ke, ko) Then
+            If MsgBox("You kept a draft for later: " & kd & " " & ks & " " & Format$(kdt, "ddd mmm d") & " (" & (UBound(Split(ko, ";")) + 1) & " logged)." & vbNewLine & vbNewLine & _
+                      "Replace it with THIS session's draft?  (No = keep the old one; this session is not drafted.)", vbYesNo + vbQuestion + vbDefaultButton2, "Call-out session") = vbNo Then
+                mNoDraft = True
+                Exit Function
+            End If
+        End If
+        mKeptDraft = False
+    End If
     Dim i As Long, s As String
     For i = 1 To mCount
         If mEntries(i).Outcome <> "" Then
@@ -806,8 +822,14 @@ Private Sub DraftSave()
     Dim slotKey As String
     If mSlotKey <> "" And Int(mDate) = Int(mSlotDate) And StrComp(mShiftLbl, mSlotShift, vbTextCompare) = 0 _
        And StrComp(mDept, mSlotUnit, vbTextCompare) = 0 Then slotKey = mSlotKey
-    DraftWrite CurrentUser(), mDept, mShiftLbl, mShift, mDate, mHours, mStarted, slotKey, s
-End Sub
+    DraftSave = DraftWrite(CurrentUser(), mDept, mShiftLbl, mShift, mDate, mHours, mStarted, slotKey, s)
+    ' (review A1) the row is in the workbook; the file is saved every DRAFT_SAVE_MINUTES so a crash loses minutes, not the session
+    If DraftSave And Not gSmokeRun Then
+        If (Now - mDraftSavedAt) * 1440 >= DRAFT_SAVE_MINUTES Then
+            If SaveIfWritable() Then mDraftSavedAt = Now
+        End If
+    End If
+End Function
 
 ' v27 (item 17): shown fresh (no Prefill, nothing loaded) by a login with a draft: offer to pick it up
 Private Sub UserForm_Activate()
@@ -818,6 +840,7 @@ Private Sub UserForm_Activate()
     On Error GoTo Quiet
     Dim dept As String, sh As String, crewSel As String, d As Date, hrs As Double, startedAt As Date, slotKey As String, outcomes As String
     If Not DraftRead(CurrentUser(), dept, sh, crewSel, d, hrs, startedAt, slotKey, outcomes) Then Exit Sub
+    mKeptDraft = True                                ' (review A2) until it is resumed or discarded, a new session asks before replacing it
     Dim nOut As Long: nOut = UBound(Split(outcomes, ";")) + 1
     If outcomes = "" Then nOut = 0
     Dim ans As Long
@@ -825,14 +848,22 @@ Private Sub UserForm_Activate()
                  Format$(startedAt, "h:mm AM/PM") & IIf(Int(startedAt) <> Int(Now), " " & Format$(startedAt, "ddd"), "") & ")?" & vbNewLine & vbNewLine & _
                  "Yes = load that list again and put the outcomes back.  No = discard it.  Cancel = leave it for later.", _
                  vbYesNoCancel + vbQuestion, "Call-out session")
-    If ans = vbNo Then DraftClear CurrentUser(): Exit Sub
+    If ans = vbNo Then DraftClear CurrentUser(): mKeptDraft = False: Exit Sub
     If ans <> vbYes Then Exit Sub
+    ' (review A6) a unit or crew the lists no longer offer is said, not swallowed; the draft stays for No
+    If Not ComboHas(C("cmbDept"), dept) Then
+        MsgBox "The draft's unit (" & dept & ") is not in the unit list any more. Discard the draft with No next time, or ask " & PRIMARY_ADMIN_NAME & ".", vbExclamation, "Call-out session"
+        Exit Sub
+    End If
+    mKeptDraft = False
     ' the inputs as the draft had them, then the list, then the outcomes by name
     C("cmbDept").Value = dept
     C("cmbDN").Value = IIf(IsNightShift(sh), "Nights", "Days")
     C("txtDate").Value = DateText(d)
     C("txtHours").Value = HoursText(hrs): mAutoHours = ""
-    If crewSel <> "" Then C("cmbShift").Value = crewSel
+    If crewSel <> "" Then
+        If ComboHas(C("cmbShift"), crewSel) Then C("cmbShift").Value = crewSel Else C("cmbShift").Value = CREW_ALL
+    End If
     mSlotKey = slotKey: mSlotDate = d: mSlotShift = sh: mSlotUnit = dept
     mResuming = True
     If Not LoadListNow() Then mResuming = False: Exit Sub
@@ -874,6 +905,15 @@ Quiet:
     mResuming = False
     LogError "frmOvertimeEntry.Resume", Err.Number, Err.Description
 End Sub
+
+' True when the combo's list holds the text (case-insensitive)
+Private Function ComboHas(ByVal cb As Object, ByVal txt As String) As Boolean
+    On Error Resume Next
+    Dim i As Long
+    For i = 0 To cb.ListCount - 1
+        If StrComp(Trim$(CStr(cb.List(i, 0))), Trim$(txt), vbTextCompare) = 0 Then ComboHas = True: Exit Function
+    Next i
+End Function
 
 
 ' ================================================================
@@ -968,7 +1008,10 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
         Select Case MsgBox(logged & " entries are not submitted. They are kept as a draft and offered the next time you open Fill a shift now." & vbNewLine & vbNewLine & _
                            "Yes = close and keep the draft.   No = close and DISCARD the entries.   Cancel = stay here.", _
                            vbYesNoCancel + vbExclamation, "Unsaved entries")
-            Case vbYes: DraftSave
+            Case vbYes
+                If Not DraftSave() Then
+                    If Not mNoDraft Then MsgBox "The draft could not be written (the Draft sheet): these entries are NOT kept.", vbExclamation, "Unsaved entries"
+                End If
             Case vbNo: DraftClear CurrentUser()
             Case Else: Cancel = 1
         End Select

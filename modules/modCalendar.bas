@@ -1310,8 +1310,18 @@ Public Function AddCoverage(ByVal d As Date, ByVal shiftLbl As String, ByVal uni
     Dim v As Variant: v = mCov
 
     ' fill an open need line in place
+    Dim r As Long
+    ' (re-review B2) an absence whose posting closed with NO TAKERS: that live line is the one to fill, not a second one under it
+    If Left$(slotKey, 2) = "A:" And IsArray(v) Then
+        Dim ai As Long
+        For ai = 1 To UBound(v, 1)
+            If StrComp(SafeStr(v(ai, CV_ABS)), Mid$(slotKey, 3), vbTextCompare) = 0 And CovLive(ai, d, shiftLbl) Then
+                If UCase$(SafeStr(v(ai, CV_BY))) Like "NO TAKERS*" Then slotKey = "C:" & SafeStr(v(ai, CV_ID)): Exit For
+            End If
+        Next ai
+    End If
     If Left$(slotKey, 2) = "C:" Then
-        Dim r As Long: r = RowOf(v, Mid$(slotKey, 3))
+        r = RowOf(v, Mid$(slotKey, 3))
         If r > 0 Then
             Dim cur As String: cur = UCase$(SafeStr(v(r, CV_BY)))
             Dim curSrc As String: curSrc = SafeStr(v(r, CV_SOURCE))
@@ -1322,9 +1332,19 @@ Public Function AddCoverage(ByVal d As Date, ByVal shiftLbl As String, ByVal uni
                 UnlockSheet lo.Parent
                 lo.DataBodyRange.Cells(r, CV_BY).Value = coveredBy
                 If IsNumeric(hrs) And Not IsEmpty(hrs) Then
-                    If CDbl(hrs) > 0 And CDbl(hrs) < FULL_SHIFT Then lo.DataBodyRange.Cells(r, CV_HOURS).Value = CDbl(hrs)
+                    If CDbl(hrs) > 0 And CDbl(hrs) < FULL_SHIFT Then
+                        lo.DataBodyRange.Cells(r, CV_HOURS).Value = CDbl(hrs)
+                    Else
+                        lo.DataBodyRange.Cells(r, CV_HOURS).ClearContents      ' (re-review B4) a whole shift: no stale partial hours left on the line
+                    End If
                 End If
-                If source <> "" Then lo.DataBodyRange.Cells(r, CV_SOURCE).Value = source
+                If source <> "" Then
+                    ' (re-review B3) a NO TAKERS line taken over by a call-out keeps its posting's id in the Note
+                    If cur Like "NO TAKERS*" And curSrc <> "" And StrComp(curSrc, source, vbTextCompare) <> 0 Then
+                        lo.DataBodyRange.Cells(r, CV_NOTE).Value = Trim$(SafeStr(v(r, CV_NOTE)) & " was " & curSrc & " (no takers)")
+                    End If
+                    lo.DataBodyRange.Cells(r, CV_SOURCE).Value = source
+                End If
                 ProtectSheet lo.Parent
                 AddCoverage = SafeStr(v(r, CV_ID))
                 Exit Function
@@ -5298,7 +5318,7 @@ Private Sub ShowLineMenu(ByVal keyTxt As String)
                     If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", False
                     If postId <> "" Then
                         If PostRow(postId) > 0 Then
-                            If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", False
+                            If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", (UCase$(rt) Like "POSTED*")   ' (re-review B8) the first job on a POSTED line
                         End If
                     End If
                     GoTo ShowIt

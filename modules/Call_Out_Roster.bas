@@ -59,6 +59,14 @@ Sub Call_Out()
                 MsgBox "Couldn't print: " & em & vbNewLine & "The roster is on the " & CALLOUT_SHEET & " tab - use File > Print.", vbExclamation, "Call Out Roster"
             End If
     End Select
+    ' v27 (item 16, re-review B1): the phones were for the PRINT - off the sheet again for a supervisor, so no save of
+    ' theirs (after a submit, the hourly backup) carries them visible; an admin's view keeps them as before
+    On Error Resume Next
+    If Not gAdminUnlocked Then
+        UnlockSheet ws
+        ws.Columns(CALLOUT_PHONE_COL).Hidden = True
+        ProtectSheet ws
+    End If
     Exit Sub
 
 Failed:
@@ -174,7 +182,7 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
         .LeftMargin = Application.InchesToPoints(0.5)
         .RightMargin = Application.InchesToPoints(0.5)
         .TopMargin = Application.InchesToPoints(0.5)
-        .BottomMargin = Application.InchesToPoints(0.5)
+        .BottomMargin = Application.InchesToPoints(0.75)   ' (re-review B7) room for the two footer lines
         .HeaderMargin = Application.InchesToPoints(0.3)
         .FooterMargin = Application.InchesToPoints(0.3)
         .PrintGridlines = False

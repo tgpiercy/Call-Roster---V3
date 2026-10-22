@@ -69,7 +69,9 @@ Public Const WD_N As Long = 4
 ' latest stamp wins (of two with the same stamp, the later row). People
 ' whose newest action is "signup" come back in out(1..m, 1..SR_N), in the
 ' order each name first appeared. closesAt = 0 means "never late".
-Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByRef out() As Variant) As Long
+' v27 (item 14): asOf = the reader's now (for the clock-change allowance on the suspect flag); 0 = no allowance - the
+' function stays PURE: it reads nothing but its arguments
+Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByRef out() As Variant, Optional ByVal asOf As Date = 0) As Long
     If Not IsArray(rows) Then Exit Function
     Dim newest As Object: Set newest = CreateObject("Scripting.Dictionary")
     newest.CompareMode = 1
@@ -102,7 +104,9 @@ Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByR
             If UBound(rows, 2) >= SG_MTIME Then
                 If IsDate(rows(r, SG_MTIME)) Then mt = CDate(rows(r, SG_MTIME))
             End If
-            out(m, SR_SUSPECT) = SignupSuspect(CDate(rows(r, SG_STAMP)), mt, ClockChangeBetween(CDate(rows(r, SG_STAMP)), Now))
+            Dim across As Boolean: across = False
+            If mt > 0 And asOf > 0 Then across = ClockChangeBetween(CDate(rows(r, SG_STAMP)), asOf)
+            out(m, SR_SUSPECT) = SignupSuspect(CDate(rows(r, SG_STAMP)), mt, across)
             lg = Trim$(SafeStr(rows(r, SG_LOGIN)))
             out(m, SR_LOGINMIX) = False
             If lg <> "" Then
@@ -135,15 +139,20 @@ Public Function SignupSuspect(ByVal stamp As Date, ByVal fileTime As Date, Optio
     SignupSuspect = (secs > SIGNUP_STAMP_SLACK_MIN * 60)
 End Function
 
-' True when a clock-change night (modShiftCycle) lies between the two dates (at most a year is looked at)
+' True when a clock change lies between the two times: the change happens at 2 AM the morning after a change night
+' (modShiftCycle names the nights), so the moment tested is 2 AM on the day after each one (re-review B5); at most a
+' year is looked at
 Public Function ClockChangeBetween(ByVal d1 As Date, ByVal d2 As Date) As Boolean
     If d1 = 0 Or d2 = 0 Then Exit Function
-    Dim a As Date, b As Date, k As Date
-    a = Int(d1): b = Int(d2)
+    Dim a As Date, b As Date, k As Date, m As Date
+    a = d1: b = d2
     If a > b Then k = a: a = b: b = k
     If b - a > 366 Then b = a + 366
-    For k = a To b
-        If DstNightHours(k) <> 12 Then ClockChangeBetween = True: Exit Function
+    For k = Int(a) - 1 To Int(b)
+        If DstNightHours(k) <> 12 Then
+            m = Int(k) + 1 + TimeSerial(2, 0, 0)
+            If a < m And b >= m Then ClockChangeBetween = True: Exit Function
+        End If
     Next k
 End Function
 
@@ -416,7 +425,7 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
     Dim red() As Variant, m As Long, k As Long, i As Long, hit As Long
     Dim nTick As Long, nPart As Long, lateTxt As String, outTxt As String, nm As String, nUnknown As Long
     Dim onRoster As Object: Set onRoster = RosterNameMap()
-    m = ReduceSignups(rows, PostingCloseAt(p.ClosesOn), red)
+    m = ReduceSignups(rows, PostingCloseAt(p.ClosesOn), red, Now)
     For k = 1 To m
         nm = CStr(red(k, SR_EMP))
         hit = 0
@@ -479,7 +488,7 @@ Public Function SignupStatusMap(ByVal postingId As String, ByVal postHours As Do
     If Not IsArray(rows) Then Exit Function
     Dim red() As Variant, m As Long, k As Long, nm As String
     Dim onRoster As Object: Set onRoster = RosterNameMap()
-    m = ReduceSignups(rows, PostingCloseAt(closesOn), red)
+    m = ReduceSignups(rows, PostingCloseAt(closesOn), red, Now)
     For k = 1 To m
         ' only a name that is on the roster is ever published, and in the roster's own spelling:
         ' whatever else a file holds (a formula, a phone number, anything typed) goes nowhere

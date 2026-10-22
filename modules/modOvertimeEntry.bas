@@ -17,6 +17,7 @@ Public Const LOG_TABLE As String = "tblOTLog"
 Public Const CALLOUT_SHEET As String = "Blank Call Out Roster"
 Public Const DRAFT_SHEET As String = "Draft"          ' v27 (item 17): the call-out pop-up's session in progress, one row per login (very hidden, never shown)
 Public Const DRAFT_TABLE As String = "tblDraft"
+Public Const DRAFT_SAVE_MINUTES As Double = 2      ' (review A1) the draft reaches the DISK with a save this often during a session - a crash loses minutes, not the session
 Private Const DR_N As Long = 10                    ' the Draft table's columns: Login, Unit, Shift, Crew, Date, Hours, Started, Slot Key, Outcomes, Saved At
 Public Const CALLOUT_PHONE_COL As Long = 5          ' phone column on the printed call out roster (hidden for non-admins) - v21
 Public Const POSTING_SHEET As String = "Overtime Posting"

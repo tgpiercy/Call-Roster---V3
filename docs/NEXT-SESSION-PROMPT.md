@@ -7,7 +7,7 @@ rule" row of the not-free table, the Total Hours rule's v27 sentence). Then brie
 Oct 21" block holds every decision; items 1, 4, 11, 26 are marked BUILT), briefs/v27-kronos.md (sections 0, 1,
 1b, 2, 3 and the Status line), docs/NEXT-SESSION-PROMPT.md (this file: the review record below). Confirm the
 four checkers (py -3.14 tests/vbacheck.py . / shadowcheck / undeclcheck / callcheck) and py -3.14 -m pytest
-tests -q are green on main (913) and the tree is clean. vbacheck's only hits must be the three named false
+tests -q are green on main (914) and the tree is clean. vbacheck's only hits must be the three named false
 positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 877 in 100 suites, emitted as
 LoadCases1..5. tests/docscheck.py has 4 findings until release prep updates the docs. Tags: `git ls-remote --tags origin` shows v26.5 and v26.5.5; main is AHEAD of v26.5.5 by the v27
 commits (not pushed yet unless Graeme pushed from his Terminal panel: ask).
@@ -142,7 +142,8 @@ main, re-run both (same scopes) and fix before release prep. Every earlier commi
 
 ANSWERED BY GRAEME Oct 22 (end of session): the CSV export stays supervisor-level (Q3), no dStats for now (Q5), the
 paper-position column is DROPPED (Q4) - all as built. Q1 (the weekly cap): "48h is scheduled work. OT is requested" - the warning is OFF
-(WEEK_MAX_HOURS 0; a Settings number turns it back on).
+(WEEK_MAX_HOURS 0; a Settings number turns it back on). Q2: the FULL history PDF stays BESIDE the roster. ONLY Q6
+is left: item 39's email digest needs his wording and recipient list (not built until then).
 SEVEN QUESTIONS FOR GRAEME (the 7th answered by default; 3, 4 and 5 answered above) (all in briefs/v27.md at their items; ask them as multiple choice, the built default first):
 1. Weekly cap (item 21): built as OVERTIME hours in the trailing 7 days. Keep / a calendar week / all hours?
 2. The FULL history PDF (logins, void notes) lands beside the roster: keep / REPORT_FOLDER?

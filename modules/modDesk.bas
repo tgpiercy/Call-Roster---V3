@@ -1116,14 +1116,15 @@ Public Sub DeskLargerType()
     On Error GoTo Oops
     Dim larger As Boolean: larger = (UiScale() <= 1.05)
     SetUiScaleForMe larger
-    Tell IIf(larger, "Your pop-ups open at " & CLng(UI_LARGER_SCALE * 100) & " % (this login, this roster; kept when the file is saved - a read-only copy forgets it). Click again for normal type.", "Your pop-ups open at the normal size again."), vbInformation, "Larger type"
+    Dim roomTxt As String                            ' (review L9) the call-out pop-up (615 pt high) may have no room for it
+    If larger And UiScale(615) <= 1 Then roomTxt = vbNewLine & vbNewLine & "The call-out pop-up has no room for it on this screen and stays at its size; the others grow."
+    Tell IIf(larger, "Your pop-ups open at " & CLng(UI_LARGER_SCALE * 100) & " % (this login, this roster; kept when the file is saved - a read-only copy forgets it). Click again for normal type." & roomTxt, "Your pop-ups open at the normal size again."), vbInformation, "Larger type"
     DrawDesk
     Exit Sub
 Oops:
     ReportError "DeskLargerType"
 End Sub
 
-' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it
 ' v27 (item 24): the two admin posting jobs behind one button
 Public Sub DeskPostingJobs()
     On Error GoTo Oops
@@ -1136,6 +1137,7 @@ Oops:
     ReportError "DeskPostingJobs"
 End Sub
 
+' "Something went wrong": an email draft to the primary admin with the newest Error Log line in it
 Public Sub DeskReport()
     On Error GoTo Oops
     Dim body As String

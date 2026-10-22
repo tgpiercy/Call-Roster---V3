@@ -25,6 +25,7 @@ Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
 Private Const LIGHT As Long = 15787486          ' RGB(222, 229, 240)
 
 Private mFlipStarted As Boolean
+Private mFormScale As Double                    ' v27 (review M6): the scale ScaleForm chose for the form being built (clamped); ScaleWidths / UiPx use it
 
 Public Sub ApplyRosterLayout()
     If Not RequireAdmin() Then Exit Sub
@@ -849,6 +850,7 @@ End Sub
 
 Public Sub ScaleForm(ByVal frm As Object)
     Dim k As Double: k = UiScale(frm.Height)         ' clamped to the screen for this form's height
+    mFormScale = k                                   ' (review M6) the sizes written after this one use the same factor
     If k = 1 Then Exit Sub
     Dim ctl As Object
     On Error Resume Next
@@ -872,14 +874,19 @@ Public Function ScaleWidths(ByVal widths As String) As String
     parts = Split(widths, ";")
     For i = LBound(parts) To UBound(parts)
         v = Val(Replace(Trim$(CStr(parts(i))), ",", "."))      ' a comma-decimal locale reads back "22,5 pt" (review)
-        If v > 0 Then parts(i) = CStr(CLng(v * UiScale())) & " pt" Else parts(i) = Trim$(CStr(parts(i)))   ' whole points: no decimal separator, whatever the locale (re-review)
+        If v > 0 Then parts(i) = CStr(CLng(v * FormScale())) & " pt" Else parts(i) = Trim$(CStr(parts(i)))   ' whole points: no decimal separator, whatever the locale (re-review)
     Next i
     ScaleWidths = Join(parts, ";")
 End Function
 
 ' a size written AFTER ScaleForm ran goes through this
 Public Function UiPx(ByVal v As Double) As Double
-    UiPx = v * UiScale()
+    UiPx = v * FormScale()
+End Function
+
+' (review M6) the factor of the form ScaleForm last scaled (one pop-up at a time), else this login's scale
+Private Function FormScale() As Double
+    If mFormScale >= 1 Then FormScale = mFormScale Else FormScale = UiScale()
 End Function
 
 ' --------------------------------------------------------------------

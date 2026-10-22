@@ -81,8 +81,8 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
         Exit Sub
     End If
     On Error Resume Next
+    HideCalloutPhonesForSave                       ' v27 (item 16): a supervisor's printed roster loses its phone column before the file is saved (review L8: before the backup copy too)
     BackupBeforeSave                               ' v27 (item 12): an hourly backup when the newest is older than BACKUP_SAVE_HOURS (quiet)
-    HideCalloutPhonesForSave                       ' v27 (item 16): a supervisor's printed roster loses its phone column before the file is saved
     mRestoreAdmin = gAdminUnlocked
     mRestoreDesk = gDeskMode                       ' v25.3
     If mRestoreAdmin Then

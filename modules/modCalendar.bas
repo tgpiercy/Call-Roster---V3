@@ -5430,7 +5430,7 @@ End Function
 Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
     Cancel = True
     Dim keyTxt As String: keyTxt = NAKeyAt(Target)
-    If keyTxt = "" Then Exit Sub
+    If keyTxt = "" Or Left$(keyTxt, 2) = "Q:" Then Exit Sub      ' (review L17) Q: lines are for reading
     If Left$(keyTxt, 2) = "J:" Then
         On Error Resume Next
         Application.Goto Target.Worksheet.Cells(CLng(Mid$(keyTxt, 3)), 1), True
@@ -5511,7 +5511,7 @@ End Sub
 
 Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     Dim keyTxt As String: keyTxt = NAKeyAt(Target)
-    If keyTxt = "" Or Left$(keyTxt, 2) = "J:" Then Exit Sub
+    If keyTxt = "" Or Left$(keyTxt, 2) = "J:" Or Left$(keyTxt, 2) = "Q:" Then Exit Sub
     Cancel = True
     If Left$(keyTxt, 2) = "H:" Then
         GoToHoliday DateSerial(CLng(Mid$(keyTxt, 3, 4)), CLng(Mid$(keyTxt, 8, 2)), CLng(Mid$(keyTxt, 11, 2)))

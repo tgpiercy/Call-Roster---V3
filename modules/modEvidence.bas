@@ -8,7 +8,7 @@ Option Explicit
 '  PERIOD CLOSE (ClosePeriod, admin, the Desk's FINISH band): one pay
 '  period's OT Log rows, roster totals and postings to a CSV in
 '  CLOSED_FOLDER (.\Closed), its SHA-256 worked out by Windows' certutil
-'  (through WScript.Shell; "(hash not available)" when the plant blocks
+'  (through WScript.Shell; "(not available)" when the plant blocks
 '  it), a Period Close PDF beside it with the hash in its footer, and one
 '  row in tblClosedPeriods (period, when, who, rows, charged, the files,
 '  the hash, the PREVIOUS period's hash - so the chain can be checked).
@@ -151,7 +151,9 @@ Public Sub AddScan(ByVal postingId As String)
     f = Application.GetOpenFilename("Scans (*.pdf;*.jpg;*.jpeg;*.png),*.pdf;*.jpg;*.jpeg;*.png", , "The scanned sign-up sheet for " & postingId)
     If VarType(f) = vbBoolean Then Exit Sub
     Dim src As String: src = CStr(f)
-    Dim ext As String: ext = LCase$(Mid$(src, InStrRev(src, ".")))
+    Dim baseName As String: baseName = Mid$(src, InStrRev(src, "\") + 1)     ' (review M4) the extension of the FILE name
+    Dim ext As String
+    If InStrRev(baseName, ".") > 0 Then ext = LCase$(Mid$(baseName, InStrRev(baseName, ".")))
     Dim folder As String: folder = EnsureFolderPath(SCAN_FOLDER)
     If folder = "" Then MsgBox "The scans folder (" & SCAN_FOLDER & ") could not be made beside the roster.", vbExclamation, "Scan": Exit Sub
     Dim target As String: target = folder & postingId & ext
@@ -172,7 +174,12 @@ Public Sub AddScan(ByVal postingId As String)
     Tell "Filed: " & target & vbNewLine & "The FULL employee history shows it beside " & postingId & "'s rows.", vbInformation, "Scan"
     Exit Sub
 Oops:
-    ReportError "AddScan"
+    ' (review M4) called from inside the award pop-up: its own box, never ReportError (which unloads the pop-up
+    ' and throws away the supervisor's unsaved ticks)
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    LogError "AddScan", en, em
+    MsgBox "The scan was not filed: " & em & vbNewLine & vbNewLine & "The award pop-up is as you left it. Try again, or file it later.", vbExclamation, "Scan"
 End Sub
 
 ' ====================================================================
@@ -187,6 +194,9 @@ Public Sub RaiseDispute()
     If VarType(a) = vbBoolean Then Exit Sub
     Dim ref As String: ref = UCase$(Trim$(CStr(a)))
     If ref = "" Then Exit Sub
+    If Not RefInLog(ref) Then                       ' (review L14) a typo is said, not filed
+        If MsgBox(ref & " is not a Ref ID in the OT Log. Record the dispute against it anyway?", vbYesNo + vbQuestion + vbDefaultButton2, "Dispute") = vbNo Then Exit Sub
+    End If
     a = Application.InputBox(Prompt:="Who disputes it? Part of the name (the last name is enough):", Title:="Dispute", Type:=2)
     If VarType(a) = vbBoolean Then Exit Sub
     Dim who As String: who = ResolvePersonName(Trim$(CStr(a)), "Dispute")
@@ -306,9 +316,19 @@ Public Function FileSha256(ByVal path As String) As String
     Dim i As Long, t As String
     For i = LBound(lines) To UBound(lines)
         t = Replace(Trim$(CStr(lines(i))), " ", "")
-        If Len(t) = 64 And t Like "[0-9a-fA-F]*" Then FileSha256 = LCase$(t): Exit Function
+        If Len(t) = 64 And Not t Like "*[!0-9a-fA-F]*" Then FileSha256 = LCase$(t): Exit Function      ' (review L13) every character hex
     Next i
 Quit:
+End Function
+
+' (review L14) the Ref ID is on some OT Log row
+Private Function RefInLog(ByVal ref As String) As Boolean
+    Dim lg As Variant: lg = LogRowsNow()
+    If Not IsArray(lg) Then Exit Function
+    Dim i As Long
+    For i = 1 To UBound(lg, 1)
+        If StrComp(Trim$(SafeStr(lg(i, L_REF))), ref, vbTextCompare) = 0 Then RefInLog = True: Exit Function
+    Next i
 End Function
 
 ' The newest closed period's hash ("" when none): the next close writes it beside its own
@@ -336,6 +356,7 @@ Public Sub ClosePeriod()
     Dim evWas As Boolean: evWas = Application.EnableEvents
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub          ' (review L12) a read-only copy would leave files with no Closed Periods row
     Dim ps As Date: ps = PeriodStartFor(Date) - 14
     Dim a As Variant
     a = Application.InputBox(Prompt:="Close which pay period? Its START date (the last completed one is offered):", Title:="Close the pay period", Default:=DateText(ps), Type:=2)
@@ -397,10 +418,10 @@ Public Sub ClosePeriod()
     Print #ff, ""
     Print #ff, Csv("POSTINGS WITH A SHIFT IN THE PERIOD")
     Dim nPost As Long
-    If SheetExists(POSTING_SHEET) Then
+    If SheetExists(POSTINGS_SHEET) Then             ' (review H2) tblPostings lives on Postings, not the print sheet
         Dim plo As ListObject
         On Error Resume Next
-        Set plo = ThisWorkbook.Worksheets(POSTING_SHEET).ListObjects(PT_TABLE)
+        Set plo = ThisWorkbook.Worksheets(POSTINGS_SHEET).ListObjects(PT_TABLE)
         On Error GoTo Oops
         If Not plo Is Nothing Then
             If Not plo.DataBodyRange Is Nothing Then
@@ -451,7 +472,7 @@ Public Sub ClosePeriod()
         .CenterFooter = "SHA-256 " & IIf(hash = "", "(not available)", hash)
     End With
     ProtectSheet ws
-    Dim pdfBase As String: pdfBase = tag & " close"
+    Dim pdfBase As String: pdfBase = tag & " close " & Format$(Now, "hhnn")      ' (review L12) a same-day re-close keeps the first PDF
     ReportPdf ws, pdfBase, "Close the pay period", False, folder
     Dim pdfPath As String: pdfPath = folder & pdfBase & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
     SetSheetVisible ws, xlSheetVeryHidden
@@ -469,11 +490,10 @@ Public Sub ClosePeriod()
            "CSV + PDF in " & folder & vbNewLine & "SHA-256: " & IIf(hash = "", "(not available on this PC)", hash), vbInformation, "Close the pay period"
     Exit Sub
 Oops:
-    Dim en As Long: en = Err.Number
-    Dim em As String: em = Err.Description
+    ReportError "ClosePeriod"                      ' (review M3) first, while Err still holds the error
     On Error Resume Next
     If ff <> 0 Then Close #ff
+    SetSheetVisible ThisWorkbook.Worksheets(CP_SHEET & " print"), xlSheetVeryHidden   ' (review L12) never left showing
     Application.ScreenUpdating = scrWas
     Application.EnableEvents = evWas
-    ReportError "ClosePeriod"
 End Sub

@@ -1958,7 +1958,6 @@ Public Function IsYearEndSheet(ByVal nm As String) As Boolean
     IsYearEndSheet = (nm Like LOG_SHEET & " ####" Or nm = YE_SHEET)
 End Function
 
-' v27 (item 10, re-review L2): ProtectSheet for an error HANDLER, which may not raise
 ' v27 (item 16, review MED-4): before any save by a non-admin the printed roster's phone column goes hidden - the
 ' sheet stays on its tab for a later print (Call Out Roster draws it again with the phones). Never raises.
 Public Sub HideCalloutPhonesForSave()
@@ -1972,6 +1971,7 @@ Public Sub HideCalloutPhonesForSave()
     ProtectSheet ws
 End Sub
 
+' v27 (item 10, re-review L2): ProtectSheet for an error HANDLER, which may not raise
 Public Sub ProtectSheetQuiet(ByVal ws As Worksheet)
     On Error Resume Next
     If Not ws Is Nothing Then ProtectSheet ws
@@ -2049,7 +2049,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
-                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log, the Kronos Files record, the Reconcile and Stats sheets, the Feedback answers
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET, CP_SHEET & " print")   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log, the Kronos Files record, the Reconcile and Stats sheets, the Feedback answers
         If SheetExists(CStr(nm)) Then
             Dim showIt As Boolean
             showIt = adminView And Not gDeskMode

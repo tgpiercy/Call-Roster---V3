@@ -2681,6 +2681,7 @@ Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, By
     AddNameCol los, cols, labels, n, KronosTotalsTable(False), 2, "Kronos Totals"
     AddNameCol los, cols, labels, n, WorkedChangesTable(False), 3, "Worked Changes"
     AddNameCol los, cols, labels, n, RstTable(False), RS_EMP, "OT restrictions"      ' v27 (item 21, review M3)
+    AddNameCol los, cols, labels, n, EvidenceTable(False), 3, "Evidence"                ' v27 (item 23, review L16): a dispute's Who
     NameColumns = n
 End Function
 

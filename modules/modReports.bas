@@ -1106,9 +1106,11 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
         ws.Columns(12).ColumnWidth = 20
         ws.Columns(13).ColumnWidth = 8
         ws.Columns(14).ColumnWidth = 30
+        ws.Columns(15).ColumnWidth = 40              ' (review L15) the Evidence column
     End If
     If rRowsEnd >= 5 Then
         ws.Range(ws.Cells(5, 10), ws.Cells(rRowsEnd, 10)).WrapText = True
+        If full Then ws.Range(ws.Cells(5, 15), ws.Cells(rRowsEnd, 15)).WrapText = True
         ws.Range(ws.Cells(5, 1), ws.Cells(rRowsEnd, nc)).VerticalAlignment = xlTop
         ws.Range(ws.Cells(5, 5), ws.Cells(rRowsEnd, 8)).HorizontalAlignment = xlCenter
         ws.Range(ws.Cells(4, 1), ws.Cells(rRowsEnd, nc)).Borders(xlInsideHorizontal).Color = RGB(220, 220, 220)

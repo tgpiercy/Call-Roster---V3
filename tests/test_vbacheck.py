@@ -53,3 +53,36 @@ def test_a_declaration_after_the_first_procedure_is_a_problem(tmp_path):
 def test_a_declarations_block_above_the_procedures_is_clean(tmp_path):
     out = run(tmp_path, GOOD)
     assert "after the first procedure" not in out and "OK" in out, out
+
+
+EXIT_BAD = """Attribute VB_Name = "modFixture"
+Option Explicit
+
+Private Function Pick(ByVal x As Long) As Boolean
+    If x < 1 Then Exit Sub
+    Pick = True
+End Function
+"""
+
+EXIT_GOOD = """Attribute VB_Name = "modFixture"
+Option Explicit
+
+Private Function Pick(ByVal x As Long) As Boolean
+    If x < 1 Then Exit Function
+    Pick = True
+End Function
+
+Private Sub Go()
+    If Pick(2) Then Exit Sub
+End Sub
+"""
+
+
+def test_exit_sub_inside_a_function_is_a_problem(tmp_path):
+    out = run(tmp_path, EXIT_BAD)
+    assert "'Exit Sub' inside a Function" in out, out
+
+
+def test_matching_exits_are_clean(tmp_path):
+    out = run(tmp_path, EXIT_GOOD)
+    assert "inside a" not in out and "OK" in out, out

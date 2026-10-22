@@ -74,6 +74,13 @@ for f in files:
         if not s:
             continue
         low = s.lower()
+        # v27 (review of item 21): an Exit Sub inside a Function (or the reverse) does not compile
+        procs_open = [k for k, _ in stack if k in ("sub", "function", "property")]
+        if procs_open:
+            for ex in re.findall(r"\bexit\s+(sub|function|property)\b", low):
+                if ex != procs_open[-1]:
+                    problems.append(f"{f.name}:{n}: 'Exit {ex.capitalize()}' inside a {procs_open[-1].capitalize()} "
+                                    f"(compile error: write 'Exit {procs_open[-1].capitalize()}')")
         if seen_proc and not stack:
             dm = re.match(r"(public |private |friend |global )?(const|dim|type|enum|declare|withevents)\b", low)
             if dm:

@@ -770,10 +770,10 @@ End Sub
 ' v27 (item 21, review M4): a Function - False = the weekly-cap reason box was cancelled and NOTHING changed (the
 ' partial-hours caller puts its value back)
 Private Function RecordOutcome(ByVal outcome As String, ByVal reason As String, Optional ByVal keepTaken As Boolean = False) As Boolean
-    If mCurrent < 1 Or mCurrent > mCount Then Exit Sub
+    If mCurrent < 1 Or mCurrent > mCount Then Exit Function
     If outcome = "Accepted" And Not keepTaken Then       ' v26.5.5 (item 9): the whole offer must fit the 16 h rule
         If mEntries(mCurrent).MaxHours < OfferFor(mCurrent) - 0.001 Then
-            MsgBox FatigueRefusalText(mCurrent), vbExclamation, "16 h rule": FocusList: Exit Sub
+            MsgBox FatigueRefusalText(mCurrent), vbExclamation, "16 h rule": FocusList: Exit Function
         End If
     End If
     Dim takenWas As Double: takenWas = mTaken(mCurrent)
@@ -879,7 +879,6 @@ Private Sub UserForm_Activate()
         MsgBox "The draft's unit (" & dept & ") is not in the unit list any more. Discard the draft with No next time, or ask " & PRIMARY_ADMIN_NAME & ".", vbExclamation, "Call-out session"
         Exit Sub
     End If
-    mResumedDraft = True                             ' this session's draft from here on
     ' the inputs as the draft had them, then the list, then the outcomes by name
     C("cmbDept").Value = dept
     C("cmbDN").Value = IIf(IsNightShift(sh), "Nights", "Days")
@@ -891,6 +890,7 @@ Private Sub UserForm_Activate()
     mSlotKey = slotKey: mSlotDate = d: mSlotShift = sh: mSlotUnit = dept
     mResuming = True
     If Not LoadListNow() Then mResuming = False: Exit Sub
+    mResumedDraft = True                             ' this session's draft from here on (review: only once the list loaded)
     If startedAt > 0 Then mStarted = startedAt
     Dim parts As Variant, p As Variant, i As Long, k As Long, placed As Long, missing As String
     parts = Split(outcomes, ";")

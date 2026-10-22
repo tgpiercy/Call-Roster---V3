@@ -63,7 +63,7 @@ End Sub
 ' INITIALIZE
 ' ================================================================
 Private Sub UserForm_Initialize()
-    Me.Width = 480: Me.Height = 612
+    Me.Width = 480: Me.Height = 640                 ' v27 (review M5): room for the Scan button under the status line
     Me.Caption = "Award Overtime Posting"
 
     MakeLabel "lblPick", "Posting:", 10, 13, 50
@@ -258,6 +258,8 @@ Private Sub btnLoad_Click()
         If OtRestrictedOn(mL(fi).EmpName, mP.ShiftDate) Then
             If mL(fi).ExemptNote = "" Then mL(fi).ExemptNote = EXEMPT_TAG & "OT restricted"
             mL(fi).MaxHours = 0
+        ElseIf mL(fi).ExemptNote = EXEMPT_TAG & "OT restricted" Then
+            mL(fi).ExemptNote = ""                   ' (review L11) a reopened posting: the restriction has ended since
         End If
         mL(fi).MaxSet = True
     Next fi
@@ -339,7 +341,9 @@ Private Sub RefreshList(ByVal keepIdx As Long)
         End Select
         ' v26.5.5 (item 9): the 16 h rule leaves them less than the posting - a partial sign-up up to that is allowed
         ' (review: shown whatever the result, so a signed-up person sees it before the award is refused)
-        If mL(i).MaxSet And mL(i).MaxHours < mP.Hours - 0.001 And mL(i).Result <> "16 h rule" Then
+        If mL(i).ExemptNote = EXEMPT_TAG & "OT restricted" Then
+            ' (review L11) the restriction's own words, no 16 h max
+        ElseIf mL(i).MaxSet And mL(i).MaxHours < mP.Hours - 0.001 And mL(i).Result <> "16 h rule" Then
             res = res & IIf(res = "", "", "  -  ") & "max " & HoursText(mL(i).MaxHours) & " h (16 h rule)"
         ElseIf mL(i).Result = "16 h rule" Then
             res = "not charged (16 h rule: could take none of it)"
@@ -392,6 +396,10 @@ Private Sub btnPassed_Click()           ' AWARD toggle
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation, "Call Out Roster": Exit Sub
     If Not mL(i).Awarded Then                        ' v26.5.5 (item 9): the hours they would take must fit the 16 h rule
+        If mL(i).ExemptNote = EXEMPT_TAG & "OT restricted" Then      ' (review L11) said as what it is
+            MsgBox mL(i).EmpName & " is restricted from overtime on " & Format$(mP.ShiftDate, "ddd mmm d") & " (an admin's OT restriction): not awarded, never charged.", vbExclamation, "OT restricted"
+            Exit Sub
+        End If
         Dim mxWhy As String: mxWhy = AwardMaxProblem(mL, i, IIf(mL(i).SignupHrs > 0, mL(i).SignupHrs, mP.Hours))
         If mxWhy <> "" Then MsgBox mxWhy, vbExclamation, "16 h rule": Exit Sub
     End If
@@ -408,14 +416,14 @@ Private Sub ToggleSigned()
     RefreshList i - 1
 End Sub
 
-' PARTIAL HOURS (v24): the selected person signed up for only part of the shift.
-' Blank or the posting's full hours = the whole shift.
 ' v27 (item 23): the scanned sign-up sheet for the loaded posting
 Private Sub mScan_Click()
     If mN = 0 Then Exit Sub
     AddScan mP.ID
 End Sub
 
+' PARTIAL HOURS (v24): the selected person signed up for only part of the shift.
+' Blank or the posting's full hours = the whole shift.
 Private Sub mPartial_Click()
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation, "Call Out Roster": Exit Sub

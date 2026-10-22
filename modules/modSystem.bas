@@ -613,7 +613,7 @@ Public Function LoginNameKey(ByVal prefix As String) As String
 End Function
 
 ' v27 (item 20, B15): the first time a login ever opens the roster, one box points at the three things that matter
-' (a hidden name FirstOpen_<login> remembers it). Run by Workbook_Open after the what's-new box. Quiet.
+' (a hidden name FirstOpen_<login> remembers it). Run by Workbook_Open BEFORE the what's-new box, which it reads. Quiet.
 Public Sub FirstOpenOnOpen()
     On Error Resume Next
     If CurrentUser() = "" Or gSmokeRun Then Exit Sub

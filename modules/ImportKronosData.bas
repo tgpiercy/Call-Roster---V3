@@ -709,9 +709,9 @@ Public Function KronosFilesToImport(Optional ByRef nNew As Long = 0) As Variant 
         If hit <> "" Then
             KronosFilesToImport = Array(p)
             Dim fAt As Date: fAt = FileDateTime(p)       ' read first: under Resume Next an error in an If test runs its Then
-            Dim isKnown As Boolean: isKnown = True
-            isKnown = KnownSources().Exists(hit)
-            If fAt > KronosImportedAt() Or Not isKnown Then nNew = 1
+            ' (review M1) one file (the processing workbook, read through the pivot sheet, never recorded in Kronos Files):
+            ' new = saved after the last import, nothing else
+            If fAt > KronosImportedAt() Then nNew = 1
         End If
         Exit Function
     End If

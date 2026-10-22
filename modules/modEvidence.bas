@@ -41,6 +41,8 @@ Private Const EV_STAMP As Long = 9
 Private Const EV_STATUS As Long = 10
 Private Const CP_N As Long = 9                  ' Period, Closed At, By, Log Rows, Charged, CSV, PDF, SHA-256, Previous Hash
 Public Const EXPORT_KEEP_DAYS As Long = 30      ' v27 (item 25): the daily CSV exports of every table are kept this many days
+Private Const EXPORT_DONE As String = "export complete.txt"   ' (review L2) written last: a folder without it is redone
+Private mExportLogged As Boolean               ' (review L1) one Error Log row per session, not one per open
 
 ' ---- the two tables (made on first use, admin-only, never published) ----
 Private Function MakeTable(ByVal sheetName As String, ByVal tableName As String, ByRef heads As Variant, ByVal create As Boolean) As ListObject
@@ -502,14 +504,17 @@ End Sub
 ' ====================================================================
 '  THE DAILY TABLE EXPORT (v27 item 25, 1.4)
 ' ====================================================================
-' Workbook_Open step 12: the first writable open of the live roster each day writes every table in the workbook
-' to CSV in <backup folder>\csv\<yyyy-mm-dd>\ (one file per table, every column, every row whatever the view),
-' then prunes the day folders older than EXPORT_KEEP_DAYS. Plain text a person can open without Excel: the
-' backup copy's second form, and what a later SharePoint List would be loaded from. Any writable open takes it,
-' as the daily backup does (decided Oct 19-20); a practice, backup or read-only copy does nothing. Quiet: a
-' failure goes to the Error Log, never a box.
+' Workbook_Open step 12: the first ADMIN open of the live roster each day writes the tables a SUPERVISOR's view
+' shows to CSV in <backup folder>\csv\<yyyy-mm-dd>\ (one file per table, every column, every row whatever the view),
+' then prunes the day folders older than EXPORT_KEEP_DAYS. Plain text a person can open without Excel: what a
+' later SharePoint List would be loaded from. (Review of item 25, HIGH: the folder sits beside the roster where
+' every user can list it, so the admin-only tables - absences with their leave types, the error log, feedback,
+' evidence, restrictions, the Kronos tables - and the very hidden ones are NOT written; they live in the daily
+' .xlsm backup.) A practice, backup or read-only copy does nothing. Quiet: a failure goes to the Error Log once a
+' session, never a box.
 Public Sub ExportTablesOnOpen()
     On Error GoTo Quit
+    If Not IsAdmin() Then Exit Sub                  ' (review H1) the brief's "admin, daily on open"
     If ThisWorkbook.ReadOnly Then Exit Sub
     If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then Exit Sub
     If Trim$(BACKUP_FOLDER) = "" Then Exit Sub
@@ -518,15 +523,24 @@ Public Sub ExportTablesOnOpen()
     Dim csvRoot As String: csvRoot = root & "csv\"
     If Not FolderExists(csvRoot) Then MkDir Left$(csvRoot, Len(csvRoot) - 1)
     Dim dayDir As String: dayDir = csvRoot & Format$(Date, "yyyy-mm-dd") & "\"
-    If FolderExists(dayDir) Then Exit Sub               ' already taken today
-    MkDir Left$(dayDir, Len(dayDir) - 1)
+    If Len(Dir$(dayDir & EXPORT_DONE)) > 0 Then Exit Sub    ' already taken today (review L2: a half-written folder is redone)
+    If Not FolderExists(dayDir) Then MkDir Left$(dayDir, Len(dayDir) - 1)
     ExportTablesTo dayDir
+    MarkExportDone dayDir
     PruneCsvExports csvRoot
     Exit Sub
 Quit:
     Dim en As Long: en = Err.Number
     Dim em As String: em = Err.Description
-    LogError "ExportTablesOnOpen", en, em
+    If Not mExportLogged Then mExportLogged = True: LogError "ExportTablesOnOpen", en, em
+End Sub
+
+' the marker that says the day's folder is complete
+Private Sub MarkExportDone(ByVal folder As String)
+    Dim ff As Integer: ff = FreeFile
+    Open folder & EXPORT_DONE For Output As #ff
+    Print #ff, "Call Out Roster CSV export " & Format$(Now, "yyyy-mm-dd hh:nn") & " by " & CurrentUser() & " (" & EXPECTED_RELEASE & ")"
+    Close #ff
 End Sub
 
 ' Alt+F8 (admin): the same export now, into a folder of its own (<date> <hhnn>), and says where
@@ -540,18 +554,27 @@ Public Sub ExportTables()
     Dim dayDir As String: dayDir = csvRoot & Format$(Now, "yyyy-mm-dd hhnn") & "\"
     If Not FolderExists(dayDir) Then MkDir Left$(dayDir, Len(dayDir) - 1)
     Dim n As Long: n = ExportTablesTo(dayDir)
-    Tell n & " tables written as CSV to:" & vbNewLine & dayDir, vbInformation, "Export tables"
+    MarkExportDone dayDir
+    Tell n & " tables written as CSV to:" & vbNewLine & dayDir & vbNewLine & vbNewLine & "The admin-only tables are not written beside the roster: they are in the daily backup copy.", vbInformation, "Export tables"
     Exit Sub
 Oops:
     ReportError "ExportTables"
 End Sub
 
-' Every ListObject in the workbook -> <folder><table name>.csv. Returns how many were written. An error closes
-' the open file and goes up to the caller.
+' Every ListObject on a sheet a supervisor's view shows -> <folder><table name>.csv (an admin-only sheet, a very
+' hidden one and an archived year are skipped). Returns how many were written. An error closes the open file and
+' goes up to the caller.
 Private Function ExportTablesTo(ByVal folder As String) As Long
     Dim ws As Worksheet, lo As ListObject, ff As Integer, v As Variant, i As Long, j As Long, ln As String
     On Error GoTo Fail
+    Dim skip As Object: Set skip = CreateObject("Scripting.Dictionary")
+    skip.CompareMode = 1
+    Dim nm As Variant
+    For Each nm In AdminOnlySheets()
+        skip(CStr(nm)) = True
+    Next nm
     For Each ws In ThisWorkbook.Worksheets
+        If skip.Exists(ws.Name) Or ws.Visible = xlSheetVeryHidden Or IsYearEndSheet(ws.Name) Then GoTo NextSheet
         For Each lo In ws.ListObjects
             ff = FreeFile
             Open folder & lo.Name & ".csv" For Output As #ff
@@ -574,6 +597,7 @@ Private Function ExportTablesTo(ByVal folder As String) As Long
             ff = 0
             ExportTablesTo = ExportTablesTo + 1
         Next lo
+NextSheet:
     Next ws
     Exit Function
 Fail:
@@ -590,7 +614,7 @@ Private Sub PruneCsvExports(ByVal csvRoot As String)
     Dim dirs As Collection: Set dirs = New Collection
     Dim nm As String: nm = Dir$(csvRoot & "*", vbDirectory)
     Do While nm <> ""
-        If nm Like "####-##-##*" Then dirs.Add nm
+        If nm Like "####-##-##" Or nm Like "####-##-## ####" Then dirs.Add nm      ' (review L3) the export's own names only
         nm = Dir$()
     Loop
     Dim k As Variant, d As Date, files As Collection, f As Variant
@@ -601,12 +625,13 @@ Private Sub PruneCsvExports(ByVal csvRoot As String)
             Set files = New Collection
             nm = Dir$(csvRoot & k & "\*.csv")
             Do While nm <> ""
-                files.Add nm
+                If LCase$(Left$(nm, 3)) = "tbl" Then files.Add nm     ' (review L3) a table's file, nothing else
                 nm = Dir$()
             Loop
             For Each f In files
                 Kill csvRoot & k & "\" & f
             Next f
+            If Len(Dir$(csvRoot & k & "\" & EXPORT_DONE)) > 0 Then Kill csvRoot & k & "\" & EXPORT_DONE
             RmDir csvRoot & k                       ' fails quietly when something else was put in it
         End If
     Next k

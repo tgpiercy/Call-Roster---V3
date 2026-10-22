@@ -22,6 +22,7 @@ Public Const AB_TABLE As String = "tblAbsence"
 Public Const CV_SHEET As String = "Coverage"
 Public Const CV_TABLE As String = "tblCoverage"
 Public Const CAL_SHEET As String = "Calendar"
+Public Const MS_CALLNOTE As Long = 5          ' v27 (review of item 25, M2): the Min Staff table's Call-out note column (added on first write)
 Public Const BOARD_SHEET As String = "Board"        ' v26: the two-week board (BoardPrint), output only
 Public Const BOARD_DAYS As Long = 14                 ' v26: today .. today + 13
 Private Const MAP_SHEET As String = "CalMap"
@@ -3879,22 +3880,23 @@ Public Function MinStaffMap() As Object
     Next i
 End Function
 
-' v27 (item 25, 1.4): the admin-typed Note on the Min Staff sheet for a unit and shift ("" when none). The call-out
-' pop-up shows it at LOAD - a unit's standing instruction ("train 2 needs a PH3 operator", ...). Never raises.
+' v27 (item 25, 1.4): the admin-typed CALL-OUT NOTE on the Min Staff sheet for a unit and shift ("" when none) - the
+' 5th column (review M2: the Note column holds the minimums' own explanations, "days only" ..., which were never
+' meant for the call-out pop-up). The pop-up shows it at LOAD. Never raises.
 Public Function MinStaffNote(ByVal unit As String, ByVal shiftLbl As String) As String
     On Error Resume Next                            ' never raises
     Dim lo As ListObject: Set lo = MinStaffTable(False)
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function
     Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
-    If UBound(v, 2) < 4 Then Exit Function
+    If UBound(v, 2) < MS_CALLNOTE Then Exit Function      ' an older table: no call-out note yet
     Dim i As Long, sh As String, want As String
     want = IIf(IsNightShift(shiftLbl), "N", "D")
     For i = 1 To UBound(v, 1)
         If StrComp(Trim$(SafeStr(v(i, 1))), Trim$(unit), vbTextCompare) = 0 Then
             sh = UCase$(Left$(Trim$(SafeStr(v(i, 2))), 1))
             If sh <> "N" Then sh = "D"
-            If sh = want And Trim$(SafeStr(v(i, 4))) <> "" Then MinStaffNote = Trim$(SafeStr(v(i, 4))): Exit Function
+            If sh = want And Trim$(SafeStr(v(i, MS_CALLNOTE))) <> "" Then MinStaffNote = Trim$(SafeStr(v(i, MS_CALLNOTE))): Exit Function
         End If
     Next i
 End Function
@@ -6261,6 +6263,7 @@ Public Sub ShowMinStaffEditor()
     If MinStaffTable(True) Is Nothing Then MsgBox "The Min Staff sheet couldn't be made (is the file read-only?).", vbExclamation, "Minimum staffing": Exit Sub
     frmTableEdit.Setup "minstaff"
     frmTableEdit.Show
+    Unload frmTableEdit                             ' (review L6) the form hides itself on Close
     Exit Sub
 Oops:
     ReportError "ShowMinStaffEditor"
@@ -6276,11 +6279,13 @@ End Function
 
 ' The ONE write to the Min Staff table: row r (1-based), the minimum as typed (blank = none, else a whole number 0
 ' to 20; 0 = none) and the note (blank = none, 250 characters kept). Admin, writable. False = refused (why).
-Public Function SetMinStaff(ByVal r As Long, ByVal minTxt As String, ByVal note As String, ByRef why As String) As Boolean
+Public Function SetMinStaff(ByVal r As Long, ByVal minTxt As String, ByVal note As String, ByRef why As String, _
+                            Optional ByVal callNote As String = "") As Boolean     ' (review M2) + the call-out note, column 5
     why = ""
     If Not RequireAdmin() Then why = "admins only": Exit Function
     If Not RequireWritable() Then why = "this copy can't be saved": Exit Function
     minTxt = Trim$(minTxt): note = Trim$(Replace(Replace(note, vbCr, " "), vbLf, " "))
+    callNote = Trim$(Replace(Replace(callNote, vbCr, " "), vbLf, " "))
     Dim m As Long
     If minTxt <> "" Then
         If Not IsNumeric(minTxt) Then why = "the minimum is a whole number (blank = no minimum)": Exit Function
@@ -6295,6 +6300,12 @@ Public Function SetMinStaff(ByVal r As Long, ByVal minTxt As String, ByVal note 
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Application.EnableEvents = False
     UnlockSheet ws
+    If lo.ListColumns.Count < MS_CALLNOTE Then      ' an older table: the column is added once
+        lo.ListColumns.Add
+        lo.HeaderRowRange.Cells(1, MS_CALLNOTE).Value = "Call-out note"
+        ws.Columns(lo.Range.Column + MS_CALLNOTE - 1).ColumnWidth = 50
+    End If
+    If callNote <> "" Then lo.DataBodyRange.Cells(r, MS_CALLNOTE).Value = "'" & Left$(callNote, 200) Else lo.DataBodyRange.Cells(r, MS_CALLNOTE).ClearContents
     If m > 0 Then lo.DataBodyRange.Cells(r, 3).Value = m Else lo.DataBodyRange.Cells(r, 3).ClearContents
     If note <> "" Then lo.DataBodyRange.Cells(r, 4).Value = "'" & Left$(note, 250) Else lo.DataBodyRange.Cells(r, 4).ClearContents
     ProtectSheet ws

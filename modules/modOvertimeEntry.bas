@@ -2040,6 +2040,13 @@ Oops:
     ReportError "ApplyView"
 End Sub
 
+' The sheets only an admin's view shows (very hidden for everyone else). v27 (review of item 25): one list, read by
+' ApplyViewCore and by the daily CSV export (which never writes these tables beside the roster).
+Public Function AdminOnlySheets() As Variant
+    AdminOnlySheets = Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET, CP_SHEET & " print")
+End Function
+
 ' v25 review: the work itself, raising to its caller (SaveRestrictedCopy refuses the copy on an error;
 ' the updater's "did the new code run" probe sees a real error). Buttons and the open use ApplyView.
 Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As Boolean = False)
@@ -2049,8 +2056,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     gDeskMode = adminView And deskMode
     If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
-    For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
-                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET, CP_SHEET & " print")   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log, the Kronos Files record, the Reconcile and Stats sheets, the Feedback answers
+    For Each nm In AdminOnlySheets()      ' v27 (review of item 25): the one list, which the daily CSV export reads too. Absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log, the Kronos Files record, the Reconcile and Stats sheets, the Feedback answers
         If SheetExists(CStr(nm)) Then
             Dim showIt As Boolean
             showIt = adminView And Not gDeskMode

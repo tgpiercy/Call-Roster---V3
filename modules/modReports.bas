@@ -1332,7 +1332,7 @@ Private Function ActivityScan(ByVal ws As Worksheet, ByRef r As Long, ByVal sinc
                     mine = (StrComp(Trim$(SafeStr(av(i, AB_USER))), me_, vbTextCompare) = 0)
                     If CDate(st) >= since And Not (othersOnly And mine) Then
                         If draw Then HandoverRow ws, r, Array(Format$(CDate(st), "ddd h:mm AM/PM"), SafeStr(av(i, AB_ID)), SafeStr(av(i, AB_EMP)), _
-                            SafeStr(av(i, AB_UNIT)), TypeLong(SafeStr(av(i, AB_TYPE))), DayText(av(i, AB_START)), _
+                            SafeStr(av(i, AB_UNIT)), TypeLong(TypeCode(SafeStr(av(i, AB_TYPE)))), DayText(av(i, AB_START)), _
                             IIf(IsDate(av(i, AB_END)), DayText(av(i, AB_END)), "open-ended"), SafeStr(av(i, AB_STATUS)))
                         n = n + 1
                     End If

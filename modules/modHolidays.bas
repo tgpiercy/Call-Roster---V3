@@ -397,6 +397,7 @@ Public Sub OpenHolidayEditor(ByVal pick As Date)
     If HolidayTable(False) Is Nothing Then MsgBox "The Holidays sheet couldn't be created (is the file read-only?).", vbExclamation, "Holidays": Exit Sub
     frmTableEdit.Setup "holidays", pick
     frmTableEdit.Show
+    Unload frmTableEdit                             ' (review L6) the form hides itself on Close
 End Sub
 
 ' the pop-up's rows: the table as it stands (Year, Holiday, Date, Day, Observed on, Note), or Empty

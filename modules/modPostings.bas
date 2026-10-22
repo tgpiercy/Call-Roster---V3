@@ -658,7 +658,7 @@ Public Sub EditPosting()
         VoidCoverageBySource id
         calTxt = CalendarPosted(p)
     ElseIf p.Hours <> pOld.Hours Then
-        UpdateCoverageBySource id, "POSTED " & id, p.Hours, (p.Hours >= 12 - 0.001)     ' (review M2) a full shift clears the line's part hours
+        UpdateCoverageBySource id, "POSTED " & id, p.Hours, (p.Hours >= DefaultShiftHours(p.ShiftDate, IsNightShift(p.ShiftLbl), USUAL_SHIFT_HOURS) - 0.001)     ' (review M2 / L7) a full shift, DST nights too, clears the part hours
         calTxt = "the line's hours updated"
     End If
     MarkCalDirty
@@ -723,8 +723,9 @@ Private Function SameListOn(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
     SameListOn = (nNot = 0 And nNew = 0)
 End Function
 
-' v27 (item 24, review L7): an open posting already on this unit, date and shift ("" when none)
-Private Function OpenPostingOn(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String) As String
+' v27 (item 24, review L7): an open posting already on this unit, date and shift for the same Reason ("" when none) -
+' Post all lines' Reason names the person off, so a second person off the same shift is not taken for a duplicate
+Private Function OpenPostingOn(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, ByVal reasonTxt As String) As String
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function
@@ -733,7 +734,8 @@ Private Function OpenPostingOn(ByVal unit As String, ByVal d As Date, ByVal shif
     For i = 1 To UBound(v, 1)
         If SafeStr(v(i, PS_STATUS)) = "Open" And StrComp(SafeStr(v(i, PS_UNIT)), unit, vbTextCompare) = 0 Then
             If IsDate(v(i, PS_DATE)) Then
-                If Int(CDate(v(i, PS_DATE))) = Int(d) And IsNightShift(SafeStr(v(i, PS_SHIFT))) = IsNightShift(shiftLbl) Then OpenPostingOn = SafeStr(v(i, PS_ID)): Exit Function
+                If Int(CDate(v(i, PS_DATE))) = Int(d) And IsNightShift(SafeStr(v(i, PS_SHIFT))) = IsNightShift(shiftLbl) _
+                   And StrComp(Trim$(SafeStr(v(i, PS_REASON))), Trim$(reasonTxt), vbTextCompare) = 0 Then OpenPostingOn = SafeStr(v(i, PS_ID)): Exit Function
             End If
         End If
     Next i
@@ -767,7 +769,7 @@ Public Function PostAllLines(ByVal emp As String, ByVal unit As String, ByVal ab
         sh = EmpShiftOn(emp, d)
         If sh <> "" And d < Date Then nPast = nPast + 1: sh = ""      ' (review L5) a shift already gone is not posted
         If sh <> "" Then
-            dupId = OpenPostingOn(unit, d, sh)          ' (review L7) one open posting per unit, date and shift
+            dupId = OpenPostingOn(unit, d, sh, CalName(emp) & " off")     ' (review L7 / M3) this person's posting for that shift
             If dupId <> "" Then dupTxt = dupTxt & IIf(dupTxt = "", "", ", ") & dupId & " (" & Format$(d, "ddd mmm d") & ")": sh = ""
         End If
         If sh <> "" Then

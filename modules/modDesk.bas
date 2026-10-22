@@ -176,7 +176,7 @@ Public Sub DrawDesk()
         Dim nNewK As Long: nNewK = KronosNewFileCount()
         If nNewK > 0 Then
             kTxt = nNewK & " new Kronos report" & IIf(nNewK = 1, "", "s") & " - click to import"
-            kOld = True: kMac = "SyncKronosData"
+            kOld = True: kMac = "modDesk.DeskKronos"     ' (review) the import, then the Desk redrawn
         End If
     End If
     Dim nsTxt As String                            ' v26.5.5 (A1): a failed save stays on the header until a save goes through
@@ -805,6 +805,16 @@ Oops:
 End Sub
 
 ' v27 (item 26): the quarterly Stats report (admin)
+' v27 (item 2, review): the Kronos pill's click - the import, then the Desk redrawn with the new figures
+Public Sub DeskKronos()
+    On Error GoTo Oops
+    SyncKronosData
+    DeskRefreshIfShown
+    Exit Sub
+Oops:
+    ReportError "DeskKronos"
+End Sub
+
 ' v27 (item 33): the Holidays and Min Staff pop-ups behind one button (admin)
 Public Sub DeskTables()
     On Error GoTo Oops
@@ -1187,7 +1197,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
     HelpAdd h, n, "Since you were last here", _
         "The last TODAY tile counts what OTHER logins logged since you last opened the roster - call-out sessions, awards and " & _
         "adjustments (one per Ref ID), time off and sick calls, switches. Click it for the list on the Handover tab (no logins, " & _
-        "leave shown as Leave); your own entries are left out. The time is kept per login in the roster file."
+        "leave shown as Leave); your own entries are left out. The time is kept per login in the roster file and moves on " & _
+        "when the file is saved, so after a look-only visit the tile still counts from your last SAVED session."
     HelpAdd h, n, "Shift handover", _
         "Shift handover (last 12 h) in the Desk's FINISH band draws one page of everything logged in the last 12 hours - the OT Log rows " & _
         "(call-outs, awards, adjustments, with a void shown in Status), the time off, sick calls and leave booked (leave shows as Leave), " & _

@@ -21,6 +21,8 @@ Private mLbl1 As Object
 Private mBox1 As Object
 Private mLbl2 As Object
 Private mBox2 As Object
+Private mLbl3 As Object
+Private mBox3 As Object
 Private mHint As Object
 Private mMode As String
 Private mRows As Variant
@@ -67,6 +69,9 @@ Private Sub UserForm_Initialize()
     Set mLbl2 = AddLabel("l2", "Note:", LBL_L, y + 3, 90)
     Set mBox2 = AddCtl("Forms.TextBox.1", "b2", LBL_L + 96, y, LIST_W - 96, 20)
     y = y + 26
+    Set mLbl3 = AddLabel("l3", "Call-out note:", LBL_L, y + 3, 90)          ' (review M2) what the call-out pop-up shows
+    Set mBox3 = AddCtl("Forms.TextBox.1", "b3", LBL_L + 96, y, LIST_W - 96, 20)
+    y = y + 26
     Set mHint = AddLabel("hint", "", LBL_L, y, LIST_W)
     mHint.Height = 30: mHint.WordWrap = True: mHint.Font.Size = 10: mHint.ForeColor = RGB(30, 56, 100)
     y = y + 34
@@ -94,15 +99,17 @@ Public Sub Setup(ByVal mode As String, Optional ByVal pick As Date = 0)
         mList.ColumnWidths = ScaleWidths("44 pt;170 pt;120 pt;50 pt;140 pt")
         mLbl1.Caption = "Observed on:"
         mLbl2.Visible = False: mBox2.Visible = False
+        mLbl3.Visible = False: mBox3.Visible = False
     Else
         mMode = "minstaff"
         Me.Caption = "Minimum staffing - per unit and shift"
         mHead.Caption = "Pick a unit and shift, type the minimum operators (blank = no minimum on that shift) and an optional note " & _
                         "(the call-out pop-up shows it at LOAD), and Save."
-        mList.ColumnCount = 4
-        mList.ColumnWidths = ScaleWidths("130 pt;60 pt;60 pt;280 pt")
+        mList.ColumnCount = 5
+        mList.ColumnWidths = ScaleWidths("120 pt;56 pt;56 pt;170 pt;140 pt")
         mLbl1.Caption = "Minimum:"
         mLbl2.Visible = True: mBox2.Visible = True
+        mLbl3.Visible = True: mBox3.Visible = True
     End If
     LoadRows pick, -1
 End Sub
@@ -128,7 +135,7 @@ Private Sub LoadRows(ByVal pick As Date, ByVal keep As Long)
         End If
         mList.AddItem CellText(mRows(i, 1))
         For j = 2 To mList.ColumnCount
-            mList.List(n, j - 1) = CellText(mRows(i, j))
+            If j <= UBound(mRows, 2) Then mList.List(n, j - 1) = CellText(mRows(i, j))     ' an older Min Staff table has no 5th column
         Next j
         mIdx(n) = i
         If pick > 0 And mMode = "holidays" Then
@@ -151,6 +158,7 @@ Private Sub mList_Click()
     Else
         mBox1.Text = SafeStr(mRows(r, 3))
         mBox2.Text = SafeStr(mRows(r, 4))
+        If UBound(mRows, 2) >= 5 Then mBox3.Text = SafeStr(mRows(r, 5)) Else mBox3.Text = ""
     End If
     mHint.Caption = ""
 End Sub
@@ -168,14 +176,14 @@ Private Sub mSave_Click()
         ok = SetObservedOn(r, d, why)
         saidTxt = SafeStr(mRows(r, 2)) & " " & SafeStr(mRows(r, 1)) & ": observed on " & IIf(d > 0, Format$(d, "ddd mmm d, yyyy"), "(none)")
     Else
-        ok = SetMinStaff(r, mBox1.Text, mBox2.Text, why)
+        ok = SetMinStaff(r, mBox1.Text, mBox2.Text, why, mBox3.Text)
         saidTxt = SafeStr(mRows(r, 1)) & " " & SafeStr(mRows(r, 2)) & ": minimum " & IIf(Trim$(mBox1.Text) = "", "(none)", Trim$(mBox1.Text)) & _
-                  IIf(Trim$(mBox2.Text) <> "", ", note: " & Trim$(mBox2.Text), "")
+                  IIf(Trim$(mBox2.Text) <> "", ", note: " & Trim$(mBox2.Text), "") & IIf(Trim$(mBox3.Text) <> "", ", call-out note: " & Trim$(mBox3.Text), "")
     End If
     If Not ok Then mHint.Caption = "Not saved: " & why & ".": Exit Sub
     mDone = mDone & IIf(mDone = "", "", vbLf) & saidTxt
-    mHint.Caption = "Saved: " & saidTxt
     LoadRows 0, i
+    mHint.Caption = "Saved: " & saidTxt          ' (review L5) after the reload, whose row click clears the hint
     Exit Sub
 Oops:
     ReportError "frmTableEdit.Save"
@@ -192,7 +200,8 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     End If
 End Sub
 
-' the file saved once and one receipt for everything changed, then closed
+' the file saved once and one receipt for everything changed, then HIDDEN (review L6): the caller unloads the form
+' once Show returns, so nothing unloads it from inside its own QueryClose
 Private Sub DoClose()
     On Error GoTo Oops
     mClosing = True
@@ -204,7 +213,6 @@ Private Sub DoClose()
                        "The Min Staff sheet. The calendar's short flags and Needs Attention follow at the next draw; the note shows on the call-out pop-up."), _
                        "Open this pop-up again (the admin Desk: Holidays / minimum staffing) and change it back."
     End If
-    Unload Me
     Exit Sub
 Oops:
     ReportError "frmTableEdit.Close"

@@ -1827,6 +1827,7 @@ Private Sub LoadCases5()
     AddCase "weekcap,partial-pushes-over,44,8,48,,,4"
     AddCase "weekcap,nothing-before,0,12,48,,,0"
     AddCase "weekcap,dst-night,36,13,48,,,1"
+    AddCase "weekcap,off-by-default,60,12,0,,,0"
     AddCase "clockchg,spring-across-2am,2027-03-14-01-30,2027-03-14-03-00,,,,Y"
     AddCase "clockchg,spring-both-after,2027-03-14-03-00,2027-03-14-04-00,,,,N"
     AddCase "clockchg,spring-both-before,2027-03-13-22-00,2027-03-14-01-00,,,,N"

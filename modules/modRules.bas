@@ -42,7 +42,7 @@ Private Function RuleList() As Variant
         "EL-3|Not free: working a shift switch that day, or gave the shift up in one (a shift given up relieves the next day's rest rule).|fatigue|v25", _
         "EL-4|The 16 h rule: the work that ends when the offer starts plus the offer may not pass " & FATIGUE_MAX_HOURS & " h, and " & FATIGUE_MIN_REST & " h must remain before the next work; a capped person is offered their maximum.|fatigue|v26.5.5", _
         "EL-5|OT restricted by an admin: not listed between the dates, never charged.|-|v27", _
-        "WK-1|The weekly cap: an acceptance or award that takes a person's OVERTIME past " & WEEK_MAX_HOURS & " h in the 7 days before the shift warns and takes a reason into the log; it never blocks (the default; Settings may override the number).|weekcap|v27", _
+        "WK-1|The weekly cap is OFF: the 48 h is a limit on scheduled work and overtime is requested (Graeme, Oct 22). An admin may turn a warning on with a number on the Settings sheet: then an acceptance or award that takes a person's overtime past it in the 7 days before the shift asks for a reason; it never blocks.|weekcap|v27", _
         "CH-1|A call-out refusal or a message left is charged the hours offered x " & CHARGE_MULTIPLIER & " (grade " & CHARGE_MAX_GRADE & " and below).|calloffer|v20", _
         "CH-2|A partial acceptance closes the call-out shift: nobody below is offered the rest, nobody is charged for it.|calloffer|v25", _
         "CH-3|A posting award charges everyone ahead of the last awarded person in call order who did not sign up, at the posting's full hours x " & CHARGE_MULTIPLIER & ".|awardorder|v20", _

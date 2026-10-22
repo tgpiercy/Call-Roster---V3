@@ -770,6 +770,7 @@ End Function
 
 ' "" when the offer fits the week; otherwise the sentence the pop-ups show before asking for a reason
 Public Function WeekCapProblem(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String, ByVal offer As Double) As String
+    If WeekCap() <= 0 Then Exit Function             ' off (the default): no log reads at all
     Dim before As Double: before = WeekHoursBefore(empName, crewCode, d, shiftLbl)
     Dim over As Double: over = WeekCapOver(before, offer, WeekCap())
     If over <= 0 Then Exit Function

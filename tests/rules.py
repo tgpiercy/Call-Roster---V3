@@ -1726,6 +1726,8 @@ def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str
 # ---------------------------------------------------------------- the weekly cap (v27 item 21, modOvertimeEntry)
 def week_cap_over(hours_before: float, offer: float, cap: float) -> float:
     """modOvertimeEntry.WeekCapOver: the hours past the weekly cap (0 = the offer fits)."""
+    if cap <= 0:
+        return 0.0                              # 0 = the warning is off (the default since Oct 22)
     o = hours_before + offer - cap
     return o if o > 0.001 else 0.0
 

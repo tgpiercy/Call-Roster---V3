@@ -65,7 +65,7 @@ Public Const DST_USE_ACTUAL_HOURS As Boolean = True
 Public Const USUAL_SHIFT_HOURS As Double = 12
 Public Const RECENT_SESSION_HOURS As Double = 12  ' v27 (item 10): a second call-out session for the same unit, date and shift inside this asks first
 Public Const EXCEPTION_REASON As String = "Plant upset (exception: nobody charged)"   ' v27 (item 24): picked under U, logged as the Exception outcome - nobody charged, flagged for the superintendent
-Public Const WEEK_MAX_HOURS As Double = 48        ' v27 (item 21): an accept or award that takes a person past this in the trailing 7 days warns and needs a reason (never blocks)
+Public Const WEEK_MAX_HOURS As Double = 0         ' v27 (item 21): 0 = OFF (Graeme, Oct 22: the 48 h is a limit on SCHEDULED work; overtime is requested). A number on the Settings sheet (SetSetting WEEK_MAX_HOURS) turns a warning back on: an accept or award past it in the trailing 7 days of OT then asks for a reason (never blocks)
 Public Const RS_SHEET As String = "Restrictions"  ' v27 (item 21): OT restrictions (tblRestrictions): not listed while restricted, never charged; admin-only, never published
 Public Const RS_TABLE As String = "tblRestrictions"
 Public Const CLOSED_FOLDER As String = ".\Closed"   ' v27 (item 23): the period close's CSV + PDF ("." = beside the roster; a network folder later)
@@ -1615,6 +1615,7 @@ End Sub
 ' offer = the hours on offer; the overage past the cap (0 = fine). PURE (SelfTest "weekcap"; mirrored in tests/rules.py).
 ' The cap WARNS and takes a reason into the log row; it never blocks (decided Oct 19-20).
 Public Function WeekCapOver(ByVal hoursBefore As Double, ByVal offer As Double, ByVal cap As Double) As Double
+    If cap <= 0 Then Exit Function                   ' 0 = the warning is off (the default since Oct 22)
     Dim o As Double: o = hoursBefore + offer - cap
     If o > 0.001 Then WeekCapOver = o
 End Function

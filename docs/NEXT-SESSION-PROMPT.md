@@ -8,7 +8,7 @@ Oct 21" block holds every decision; items 1, 4, 11, 26 are marked BUILT), briefs
 1b, 2, 3 and the Status line), docs/NEXT-SESSION-PROMPT.md (this file: the review record below). Confirm the
 four checkers (py -3.14 tests/vbacheck.py . / shadowcheck / undeclcheck / callcheck) and py -3.14 -m pytest
 tests -q are green on main (913) and the tree is clean. vbacheck's only hits must be the three named false
-positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 876 in 101 suites, emitted as
+positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 876 in 100 suites, emitted as
 LoadCases1..5. tests/docscheck.py has 4 findings until release prep updates the docs. Tags: `git ls-remote --tags origin` shows v26.5 and v26.5.5; main is AHEAD of v26.5.5 by the v27
 commits (not pushed yet unless Graeme pushed from his Terminal panel: ask).
 

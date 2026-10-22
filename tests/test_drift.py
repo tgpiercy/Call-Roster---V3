@@ -166,3 +166,44 @@ def test_versions_agree():
         txt = (ROOT / "paste-in" / f"{name}.txt").read_text(encoding="ascii")
         m = re.search(r"^' @version (\S+) ", txt, re.M)
         assert m and m.group(1) == rel_, f"{name}: FORM_RELEASES says {rel_}, the paste-in says {m.group(1) if m else None}"
+
+
+# ---------------------------------------------------------------- v27 (item 30, C8): more of the one-table-in-two-places rules
+def test_holiday_names_match_vba():
+    m = re.search(r"HolidayNames = Array\((.*?)\)\s*\n\s*End Function", vba("modHolidays.bas").replace(" _\r\n", " ").replace(" _\n", " "), re.S)
+    assert m, "modHolidays.HolidayNames not found"
+    names = re.findall(r'"([^"]*)"', m.group(1))
+    assert names == rules.HOLIDAY_NAMES
+
+
+def test_leave_codes_match_vba():
+    m = re.search(r"Case\s+((?:\"[A-Z]+\",?\s*)+):\s*IsLeaveCode = True", vba("modCalendar.bas"))
+    assert m, "modCalendar.IsLeaveCode not found"
+    assert tuple(re.findall(r'"([^"]+)"', m.group(1))) == rules.LEAVE_CODES
+
+
+def test_posting_constants_match_vba():
+    close = vba_const("modPostings.bas", "POSTING_CLOSE_TIME").strip('"')
+    hh = re.match(r"(\d+):(\d\d)\s*(AM|PM)", close, re.I)
+    assert hh, close
+    hour = int(hh.group(1)) % 12 + (12 if hh.group(3).upper() == "PM" else 0)
+    assert hour == rules.POSTING_CLOSE_HOUR
+    assert vba_const("modPostings.bas", "EXEMPT_TAG").strip('"') == rules.EXEMPT_TAG
+    assert int(vba_const("modPostings.bas", "POSTING_CLOSE_DAYS")) == rules.POSTING_CLOSE_DAYS
+
+
+def test_tunable_defaults_match_vba():
+    assert int(vba_const("modOvertimeEntry.bas", "PAYBACK_WARN_DAYS")) == rules.PAYBACK_WARN_DAYS
+    assert int(vba_const("modOvertimeEntry.bas", "SIGNUP_STALE_DAYS")) == rules.SIGNUP_STALE_DAYS
+
+
+def test_sick_window_and_shift_starts_match_vba():
+    """The sick shift + the 24 h after it, days from 07:00 and nights from 19:00: the same arithmetic both sides."""
+    import inspect
+    body = re.search(r"Public Function SickBlocks.*?End Function", vba("modLeave.bas"), re.S).group(0)
+    for frag in ("19 / 24, 7 / 24", "sickStart + 0.5", "sickEnd + 1"):
+        assert frag in body, f"modLeave.SickBlocks no longer has {frag!r}: update rules.sick_blocks with it"
+    src = inspect.getsource(rules.sick_blocks)
+    for frag in ("19 / 24 if sick_night else 7 / 24", "sick_start + 0.5", "sick_end + 1"):
+        assert frag in src, f"rules.sick_blocks no longer has {frag!r}"
+

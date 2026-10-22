@@ -1851,3 +1851,11 @@ def data_shape_problem(kind: str, v: str) -> str:
     if k == "crew":
         return "crew blank" if v == "" else ""
     return ""
+
+
+# ---------------------------------------------------------------- v27 (item 30, C8): constants the drift test ties to the VBA
+EXEMPT_TAG = "Exempt - "              # modPostings.EXEMPT_TAG: starts a list row's never-charged note
+PAYBACK_WARN_DAYS = 42                # modOvertimeEntry.PAYBACK_WARN_DAYS (the Settings sheet may override it)
+SIGNUP_STALE_DAYS = 7                 # modOvertimeEntry.SIGNUP_STALE_DAYS
+POSTING_CLOSE_DAYS = 14               # modPostings.POSTING_CLOSE_DAYS
+

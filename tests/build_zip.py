@@ -12,6 +12,7 @@ and groups 1-2 come from the repo; groups 3-4 from briefs/steps-<tag>.txt.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import subprocess
 import sys
@@ -40,6 +41,12 @@ def main() -> int:
                          + "\n  ".join(pending))
     for ln in pending:
         changed.append(ln[3:].strip())
+    # v27 (item 30, C9): the end-user docs must say what the code says, before anything is built
+    sys.path.insert(0, str(ROOT / "tests"))
+    import docscheck
+    doc_probs = docscheck.check(ROOT)
+    if doc_probs and "--allow-dirty" not in sys.argv:
+        raise SystemExit("the end-user docs are behind the code (tests/docscheck.py):\n  " + "\n  ".join(doc_probs))
     # v25 review: the note names the tag, so the tag goes on first (git tag -a vNN), then the zip is built
     exact = subprocess.run(["git", "describe", "--tags", "--exact-match"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     if exact != tag and "--allow-dirty" not in sys.argv:
@@ -73,6 +80,12 @@ def main() -> int:
         z.writestr(top + "INSTALL.md", install.read_bytes() + stamp.encode("ascii"))
         if steps is not None:
             z.writestr(top + "install-steps.txt", steps)
+        # v27 (item 30, C13): every code file's SHA-256 and size, so the folder the Install panel reads can be checked
+        manifest = ["# manifest.txt - Call Out Roster " + tag + ": path | SHA-256 | bytes (built by tests/build_zip.py)"]
+        for fp in files:
+            data = (ROOT / fp).read_bytes()
+            manifest.append(f"{fp.replace(chr(92), '/')} | {hashlib.sha256(data).hexdigest()} | {len(data)}")
+        z.writestr(top + "manifest.txt", ("\r\n".join(manifest) + "\r\n").encode("ascii"))
     print(f"{out.relative_to(ROOT)}: {len(files)} code files + INSTALL.md" + (" + install-steps.txt" if steps else ""))
     for p in files:
         print("  " + p)
@@ -118,7 +131,14 @@ def install_steps(tag: str, changed: list[str]) -> bytes:
         "finish  | Lift the save block, save, then close and reopen the roster | | reopen",
         "",
     ]
-    body = src.read_text(encoding="ascii").replace("\r\n", "\n").split("\n")
+    # v27 (item 30): {CASES} / {SUITES} / {MODULES} / {STEPS} in the steps file are the code's own counts
+    sys.path.insert(0, str(ROOT / "tests"))
+    import docscheck
+    facts = docscheck.code_facts(ROOT)
+    src_txt = src.read_text(encoding="ascii")
+    for key, val in (("{CASES}", facts["cases"]), ("{SUITES}", facts["suites"]), ("{MODULES}", facts["modules"]), ("{STEPS}", facts["steps"])):
+        src_txt = src_txt.replace(key, str(val))
+    body = src_txt.replace("\r\n", "\n").split("\n")
     body = [ln.rstrip() for ln in body]
     if member:
         # the template step is the first row of group 3 (or its own group when there is none)

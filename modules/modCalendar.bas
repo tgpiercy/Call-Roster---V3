@@ -767,10 +767,10 @@ End Function
 ' "" when the offer fits the week; otherwise the sentence the pop-ups show before asking for a reason
 Public Function WeekCapProblem(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String, ByVal offer As Double) As String
     Dim before As Double: before = WeekHoursBefore(empName, crewCode, d, shiftLbl)
-    Dim over As Double: over = WeekCapOver(before, offer, WEEK_MAX_HOURS)
+    Dim over As Double: over = WeekCapOver(before, offer, WeekCap())
     If over <= 0 Then Exit Function
     WeekCapProblem = CalName(empName) & ": " & HoursText(before) & " h worked in the 7 days before this shift + " & HoursText(offer) & " h on offer = " & _
-                     HoursText(before + offer) & " h, over the " & HoursText(WEEK_MAX_HOURS) & " h week by " & HoursText(over) & " h."
+                     HoursText(before + offer) & " h, over the " & HoursText(WeekCap()) & " h week by " & HoursText(over) & " h."
 End Function
 
 ' Is this person booked off (any absence type) on date d?
@@ -4806,8 +4806,8 @@ Public Sub DrawNeeds()
             If SwitchInfo(id, swD, swSh, swU, swOff, swWorks) Then
                 If UnitInGroup(swU, grp) Then
                     owDays = CLng(Int(Date) - Int(swD))
-                    st = OwedStatusText(owDays, PAYBACK_WARN_DAYS)
-                    If owDays > PAYBACK_WARN_DAYS Then
+                    st = OwedStatusText(owDays, PaybackWarnDays())
+                    If owDays > PaybackWarnDays() Then
                         stC = thOpen(): stF = RGB(255, 236, 179)
                     Else
                         stC = TypeColor("SS"): stF = Tint(TypeColor("SS"), 0.85)
@@ -4889,7 +4889,7 @@ Public Sub DrawNeeds()
     pubAt = MembersPublishedAt()
     If pubAt = 0 Then
         pubTxt = "never published - click Member View on the roster"
-    ElseIf Int(Date) - Int(pubAt) >= MEMBERS_STALE_DAYS Then
+    ElseIf Int(Date) - Int(pubAt) >= MembersStaleDays() Then
         pubTxt = "last published " & Format$(pubAt, "ddd mmm d, h:mm AM/PM") & " (" & (Int(Date) - Int(pubAt)) & " days ago)"
     End If
     If pubTxt <> "" Then
@@ -5041,7 +5041,7 @@ Public Sub DrawNeeds()
                   Array("Shift date", "Shift", "Crew", "Unit", "Posting", "Type", "Status", "Closes"))
     r = NARows(ws, r, pr, nP, "No open postings.")
     rowS = r
-    r = NASection(ws, r, "SHIFT SWITCH PAYBACKS OWED  -  oldest first; over " & PAYBACK_WARN_DAYS & " days in amber", nS, TypeColor("SS"), _
+    r = NASection(ws, r, "SHIFT SWITCH PAYBACKS OWED  -  oldest first; over " & PaybackWarnDays() & " days in amber", nS, TypeColor("SS"), _
                   Array("Switch date", "Shift", "Crew", "Unit", "Owed", "Type", "Status", "When"))
     r = NARows(ws, r, sr, nS, "No paybacks owed.")
     rowB = r

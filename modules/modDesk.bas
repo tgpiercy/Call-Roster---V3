@@ -219,14 +219,14 @@ Public Sub DrawDesk()
     If Not sup Then
         Dim nOver As Long: nOver = OwedOverdueCount()      ' v26 (payback aging): owed longer than PAYBACK_WARN_DAYS
         DeskTile ws, "dk_tile_owed", nOwed, IIf(nOwed = 1, "payback owed", "paybacks owed") & _
-                 IIf(nOver > 0, ", " & nOver & " over " & PAYBACK_WARN_DAYS & " days", ""), "modDesk.DeskSwitch", _
+                 IIf(nOver > 0, ", " & nOver & " over " & PaybackWarnDays() & " days", ""), "modDesk.DeskSwitch", _
                  tileX, yy, tw, IIf(nOwed > 0, dkGreen(), 0), IIf(nOwed = 0, "", "See the OWED list")
         tileX = tileX + tw + GAP
     End If
     Dim pubTxt As String, pubCol As Long
     If pubAt = 0 Then
         pubTxt = "never published": pubCol = dkNavy()
-    ElseIf Int(Date) - Int(pubAt) >= MEMBERS_STALE_DAYS Then
+    ElseIf Int(Date) - Int(pubAt) >= MembersStaleDays() Then
         pubTxt = "updated " & Format$(pubAt, "ddd mmm d"): pubCol = dkNavy()
     Else
         pubTxt = "updated today " & Format$(pubAt, "h:mm AM/PM"): pubCol = 0
@@ -276,6 +276,8 @@ Public Sub DrawDesk()
         DeskBtn ws, "dk_btn_reconcile", "Reconcile with the paper roster", "modDesk.DeskReconcile", xF, yF, dkNavy()   ' v27 (item 4): the parallel run's sheet
         yF = yF + BTN_H + GAP
         DeskBtn ws, "dk_btn_stats", "Stats (quarterly report)", "modDesk.DeskStats", xF, yF, dkNavy()   ' v27 (item 26)
+        yF = yF + BTN_H + GAP
+        DeskBtn ws, "dk_btn_rules", "The rules (sheet)", "modRules.DrawRules", xF, yF, dkNavy()   ' v27 (item 22): the Rules sheet, Basis typed by an admin
         yF = yF + BTN_H + GAP
     End If
 

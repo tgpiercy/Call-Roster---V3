@@ -288,7 +288,7 @@ Private Function SmkPosting(ByRef st As SmkState, ByRef why As String) As Boolea
     p.Reason = "Unit Operator Support"
     p.Hours = USUAL_SHIFT_HOURS
     p.Positions = 1
-    p.ClosesOn = st.PostDate - POSTING_CLOSE_DAYS
+    p.ClosesOn = st.PostDate - PostingCloseDays()
     If Not CreatePostingFrom(p, False, False) Then Exit Function
     st.PostId = p.ID
     If PostingStatus(st.PostId) <> "Open" Then why = st.PostId & " isn't Open after being created": Exit Function
@@ -559,7 +559,7 @@ Private Function SmkPlanned(ByRef st As SmkState, ByRef why As String) As Boolea
     p.Reason = "Unit Operator Support"
     p.Hours = USUAL_SHIFT_HOURS
     p.Positions = 1
-    p.ClosesOn = d - POSTING_CLOSE_DAYS
+    p.ClosesOn = d - PostingCloseDays()
     If Not CreatePostingFrom(p, False, False) Then why = "the second posting couldn't be created": Exit Function
     st.PostId2 = p.ID
     Dim rowsWas As Long, postWas As Long

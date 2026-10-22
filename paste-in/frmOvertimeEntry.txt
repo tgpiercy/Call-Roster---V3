@@ -775,7 +775,7 @@ Private Sub RecordOutcome(ByVal outcome As String, ByVal reason As String, Optio
             MsgBox wc & vbNewLine & vbNewLine & "The plant's weekly limit is " & HoursText(WEEK_MAX_HOURS) & " h. It can be accepted with a reason, which goes into the log row.", vbExclamation, "Weekly hours"
             Dim wr As String: wr = AskRequired("Why is this acceptance OK past the weekly limit?", "Weekly hours")
             If wr = "" Then FocusList: Exit Sub
-            reason = Trim$(reason & " [over " & HoursText(WEEK_MAX_HOURS) & " h/week: " & wr & "]")
+            reason = Trim$(reason & " [over " & HoursText(WeekCap()) & " h/week: " & wr & "]")
         End If
     End If
 

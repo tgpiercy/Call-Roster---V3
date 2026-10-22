@@ -565,7 +565,7 @@ End Function
 ' v26 (payback aging): how many owed paybacks are older than PAYBACK_WARN_DAYS (the Desk tile)
 Public Function OwedOverdueCount() As Long
     Dim txt As String
-    OwedOverdueCount = OwedOlderThan(PAYBACK_WARN_DAYS, txt)
+    OwedOverdueCount = OwedOlderThan(PaybackWarnDays(), txt)
 End Function
 
 ' v26 (payback aging): the Needs Attention status for a payback owed for `days` days.

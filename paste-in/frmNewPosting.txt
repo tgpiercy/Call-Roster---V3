@@ -289,7 +289,7 @@ Private Sub AutoCloses()
     Dim d As Date
     If Not ParseTypedDate(mDate.Text, d) Then Exit Sub
     If Trim$(mCloses.Text) <> "" And Trim$(mCloses.Text) <> mAutoCloses Then Exit Sub   ' typed by hand
-    Dim cl As Date: cl = d - POSTING_CLOSE_DAYS
+    Dim cl As Date: cl = d - PostingCloseDays()
     If cl < Date Then cl = d - 1
     If cl < Date Then cl = Date
     mAutoCloses = DateText(cl)

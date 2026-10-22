@@ -132,7 +132,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 12
+        For k = 1 To 13
             RunCheck k
         Next k
     End If
@@ -156,6 +156,7 @@ Private Function CheckName(ByVal k As Long) As String
         Case 10: CheckName = "Sign-ups"
         Case 11: CheckName = "Planned moves"
         Case 12: CheckName = "Coverage = log"
+        Case 13: CheckName = "Settings"
     End Select
 End Function
 
@@ -175,6 +176,7 @@ Private Sub RunCheck(ByVal k As Long)
         Case 10: CheckSignups
         Case 11: CheckPlannedMoves
         Case 12: CheckCoverageVsLog
+        Case 13: CheckSettings
     End Select
     Exit Sub
 Oops:
@@ -511,9 +513,9 @@ End Function
 ' ---- 10. electronic sign-up files left in the inbox for a closed posting (v24.1) ----
 Private Sub CheckSignups()
     Dim txt As String, n As Long
-    n = StaleSignups(SIGNUP_STALE_DAYS, txt)
+    n = StaleSignups(SignupStaleDays(), txt)
     If n > 0 Then
-        AddIssue SEV_WARN, "Sign-ups", n & " sign-up file(s) over " & SIGNUP_STALE_DAYS & " days old are still in the inbox for postings that aren't open (" & txt & ")", _
+        AddIssue SEV_WARN, "Sign-ups", n & " sign-up file(s) over " & SignupStaleDays() & " days old are still in the inbox for postings that aren't open (" & txt & ")", _
                  "Move them into the Done folder inside " & SignupFolderPath()
     End If
 End Sub
@@ -872,12 +874,20 @@ Private Sub CheckCoverageVsLog()
     ' (review) the variable sev is reused per row above; nothing else to restore
 End Sub
 
+' ---- 13. the Settings sheet (v27, item 22) ----
+Private Sub CheckSettings()
+    Dim bad As String, txt As String
+    txt = SettingsOverrideText(bad)
+    If bad <> "" Then AddIssue SEV_WARN, "Settings", bad, "Alt+F8 > SetSetting writes a row; a row that is not a setting is ignored - remove it through UnlockForRepair"
+    If txt <> "Settings overrides: none" Then AddIssue SEV_INFO, "Settings", txt, ""
+End Sub
+
 ' ---- 7. paybacks owed for a long time ----
 Private Sub CheckPaybacks()
     Dim txt As String, n As Long
-    n = OwedOlderThan(PAYBACK_WARN_DAYS, txt)
+    n = OwedOlderThan(PaybackWarnDays(), txt)
     If n > 0 Then
-        AddIssue SEV_WARN, "Paybacks", n & " shift-switch payback(s) owed for more than " & PAYBACK_WARN_DAYS & " days: " & txt, _
+        AddIssue SEV_WARN, "Paybacks", n & " shift-switch payback(s) owed for more than " & PaybackWarnDays() & " days: " & txt, _
                  "See SHIFT SWITCH PAYBACKS OWED on Needs Attention"
     End If
 End Sub

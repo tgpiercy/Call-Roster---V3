@@ -1757,9 +1757,9 @@ End Function
 
 Public Function KronosIsStale() As Boolean
     Dim aw As Date: aw = KronosAwaitFrom()       ' v23: after a rollover the clock starts on Jan 1
-    If aw > 0 Then KronosIsStale = (Int(Date) > Int(aw) + KRONOS_STALE_DAYS): Exit Function
+    If aw > 0 Then KronosIsStale = (Int(Date) > Int(aw) + KronosStaleDays()): Exit Function
     Dim a As Long: a = KronosAgeDays()
-    KronosIsStale = (a < 0 Or a > KRONOS_STALE_DAYS)
+    KronosIsStale = (a < 0 Or a > KronosStaleDays())
 End Function
 
 ' Status line text, e.g. "Kronos: Oct 7 (2 days ago)"
@@ -1775,7 +1775,7 @@ Public Function KronosStatusText() As String
         Case Else: t = a & " days ago"
     End Select
     KronosStatusText = "Kronos: " & Format$(KronosDataDate(), "mmm d") & " (" & t & ")" & _
-                       IIf(a > KRONOS_STALE_DAYS, " - import", "")
+                       IIf(a > KronosStaleDays(), " - import", "")
 End Function
 
 ' v26.5.5 (B5): the one red line a supervisor's pop-up shows when the worked hours are old ("" when fresh)

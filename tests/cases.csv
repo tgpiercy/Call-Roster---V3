@@ -791,3 +791,19 @@ bhourly,pre-change-copy,Backup before kronos 2026-10-21 141500 - V2 - Call Out R
 backupname,hourly-backup,Call Out Roster backup 2026-10-21 14.xlsm,,,,,yes
 bhourly,feb-29-leap,Call Out Roster backup 2028-02-29 06.xlsm,,,,,2028-02-29 06
 bhourly,feb-30-rejected,Call Out Roster backup 2026-02-30 06.xlsm,,,,,none
+firstref,session-row,  S-0012  Refused  Ann Bee  12 h  charged 21,,,,,S-0012
+firstref,adjustment,Adjustment ADJ-0003 added,,,,,ADJ-0003
+firstref,posting-award,P-0041 awarded to Bob Cee,,,,,P-0041
+firstref,second-wins-when-first-is-a-date,on 2026-10-22: SS-0007 saved,,,,,SS-0007
+firstref,leave-return,Leave return LV-0002 saved,,,,,LV-0002
+firstref,renamed-test-name,ZZ Test-1 took the shift,,,,,-
+firstref,lieu-code,LIEU OT - DT Split 4 h,,,,,-
+firstref,glued-letter,aS-12 is not a ref,,,,,-
+firstref,glued-digit,S-0012a is not a ref either,,,,,-
+firstref,five-letters,ABCDE-12 is too long a prefix,,,,,-
+firstref,lowercase,s-0012 lower case,,,,,-
+firstref,dash-only,nothing - here,,,,,-
+firstref,empty,,,,,,-
+firstref,entry-id-no-dash,#17 by piercyg,,,,,-
+firstref,at-the-end,voided NH-0009,,,,,NH-0009
+firstref,in-brackets,(see P-7),,,,,P-7

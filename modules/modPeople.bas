@@ -3240,6 +3240,7 @@ Public Sub PeopleRosterDoubleClick(ByVal Sh As Object, ByVal Target As Range, By
     If Target.Column > UnitColLast() Then Exit Sub          ' the pay-period cells: nothing to edit there
     Dim nm As String: nm = Trim$(SafeStr(Sh.Cells(Target.Row, C_NAME).Value))
     If nm = "" Then Exit Sub
+    If Target.Column = C_TOTAL Then ShowTotalBreakdown nm: Exit Sub   ' v27 (item 8): any login - the figure's parts and pay periods (modReports)
     If Not IsAdmin() Then Exit Sub                           ' a supervisor's double-click does nothing, quietly
     OpenEmployeeEdit nm
 End Sub

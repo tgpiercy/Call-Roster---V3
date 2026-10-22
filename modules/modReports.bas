@@ -328,6 +328,7 @@ End Sub
 ' status bar. Must never raise or slow a click.
 Public Sub RosterSelectionChanged(ByVal Sh As Object, ByVal Target As Range)
     On Error GoTo Quit
+    If TotalMarksExpired() Then ClearTotalMarks       ' v27 (item 8): the before / after marks come off at the first click MARK_SECONDS after a save (the one write this handler makes; the save had cleared Undo already)
     Dim txt As String, nm As String, c As Double, p As Double, o As Double
     If Not Target Is Nothing Then
         If Sh.Name = RosterSheet().Name And Target.Rows.Count = 1 And Target.Row >= R_FIRST Then
@@ -352,6 +353,93 @@ Quit:
     On Error Resume Next
     If mBarShown Then Application.StatusBar = False: mBarShown = False
 End Sub
+
+' ====================================================================
+'  v27 (item 8, review 5.2): the Total Hours breakdown - a double-click on a G cell, any login
+' ====================================================================
+' From ThisWorkbook's double-click through modPeople.PeopleRosterDoubleClick. A box with the figure's
+' parts (Worked, Refused with its split, provisional) and the charged hours per pay period, the same
+' figures the history report draws. Reads only; no rule here (the roster's formulas and RefusedBucket).
+Public Sub ShowTotalBreakdown(ByVal nm As String)
+    On Error GoTo Oops
+    MsgBox TotalBreakdownText(nm), vbInformation, "Total Hours - " & nm
+    Exit Sub
+Oops:
+    ReportError "ShowTotalBreakdown"
+End Sub
+
+Public Function TotalBreakdownText(ByVal nm As String) As String
+    Dim ws As Worksheet: Set ws = RosterSheet()
+    Dim r As Long: r = RosterRowOf(nm)
+    If r < R_FIRST Then TotalBreakdownText = nm & " is not on the roster.": Exit Function
+    Dim g As Double, h As Double, rf As Double, pv As Double
+    g = NumOr0(ws.Cells(r, C_TOTAL).Value): h = NumOr0(ws.Cells(r, C_WORKED).Value)
+    rf = NumOr0(ws.Cells(r, C_REFUSED).Value): pv = NumOr0(ws.Cells(r, C_PROV).Value)
+    Dim co As Double, po As Double, ot As Double
+    RefusedSplitOf CachedSplit(), nm, co, po, ot
+    Dim dt As Date: dt = KronosDataThrough()
+    Dim capAt As Date: capAt = RefusedThrough()
+    Dim s As String
+    s = "Total Hours " & HoursText(g) & " h  =" & vbNewLine & _
+        "  Worked (Kronos" & IIf(dt > 0, " through " & Format$(dt, "mmm d"), ": nothing imported yet") & "):  " & HoursText(h) & " h" & vbNewLine & _
+        "  Refused (charged, pay periods up to " & Format$(capAt, "mmm d") & "):  " & HoursText(rf) & " h  =  " & SplitText(co, po, ot) & vbNewLine & _
+        "  Provisional accepted OT (logged, not yet in Kronos):  " & HoursText(pv) & " h" & vbNewLine
+    If Abs(g - (h + rf + pv)) > 0.01 Then s = s & "  (the parts add to " & HoursText(h + rf + pv) & ": run IntegrityCheck)" & vbNewLine
+
+    ' the charged hours per pay period from the log (non-void rows for this person), newest first
+    Dim lg As Variant: lg = LogRowsNow()
+    Dim tot As Object: Set tot = CreateObject("Scripting.Dictionary")
+    Dim tc As Object: Set tc = CreateObject("Scripting.Dictionary")
+    Dim tp As Object: Set tp = CreateObject("Scripting.Dictionary")
+    Dim i As Long, ps As Long, ch As Double
+    If IsArray(lg) Then
+        For i = 1 To UBound(lg, 1)
+            If StrComp(Trim$(SafeStr(lg(i, L_EMP))), nm, vbTextCompare) = 0 And IsDate(lg(i, L_PERIOD)) Then
+                If UCase$(Trim$(SafeStr(lg(i, L_STATUS)))) <> "VOID" Then
+                    ps = CLng(Int(CDbl(CDate(lg(i, L_PERIOD)))))
+                    ch = NumOr0(lg(i, L_CHARGED))
+                    If tot.Exists(ps) Then tot(ps) = tot(ps) + ch Else tot.Add ps, ch
+                    Select Case RefusedBucket(SafeStr(lg(i, L_TYPE)))
+                        Case "callout": If tc.Exists(ps) Then tc(ps) = tc(ps) + ch Else tc.Add ps, ch
+                        Case "posting": If tp.Exists(ps) Then tp(ps) = tp(ps) + ch Else tp.Add ps, ch
+                    End Select
+                End If
+            End If
+        Next i
+    End If
+    Dim worked As Object: Set worked = WorkedPeriodsFor(nm)
+    Dim ks() As Long, nk As Long, k As Variant, t As Long, j As Long
+    If tot.Count > 0 Then
+        ReDim ks(1 To tot.Count)
+        For Each k In tot.Keys
+            nk = nk + 1: ks(nk) = CLng(k)
+        Next k
+        For i = 2 To nk                                     ' newest first
+            t = ks(i): j = i - 1
+            Do While j >= 1
+                If ks(j) >= t Then Exit Do
+                ks(j + 1) = ks(j): j = j - 1
+            Loop
+            ks(j + 1) = t
+        Next i
+    End If
+    s = s & vbNewLine & "Charged by pay period" & IIf(nk = 0, ": nothing this year.", " (newest first):") & vbNewLine
+    Dim shown As Long, cc As Double, pp As Double, wTxt As String
+    For i = 1 To nk
+        If shown >= 8 Then s = s & "  ... and " & (nk - shown) & " more (the Employee history report lists them)" & vbNewLine: Exit For
+        cc = 0: pp = 0
+        If tc.Exists(ks(i)) Then cc = tc(ks(i))
+        If tp.Exists(ks(i)) Then pp = tp(ks(i))
+        wTxt = ""
+        If worked.Exists(ks(i)) Then wTxt = "  worked " & HoursText(worked(ks(i)))
+        s = s & "  " & Format$(CDate(ks(i)), "mmm d") & " - " & Format$(CDate(ks(i)) + 13, "mmm d") & ":  " & HoursText(tot(ks(i))) & " h  (" & SplitText(cc, pp, tot(ks(i)) - cc - pp) & ")" & _
+            IIf(CDate(ks(i)) > capAt, "  - counts from " & Format$(CDate(ks(i)), "mmm d"), "") & wTxt & vbNewLine
+        shown = shown + 1
+    Next i
+    s = s & vbNewLine & "A charge carries the pay period of its shift and counts in Total Hours once that period begins. " & _
+        "Employee history (the Desk, or Find a person's group) draws every row."
+    TotalBreakdownText = s
+End Function
 
 ' v26: the status-bar text for one OT Log sheet row ("" when the row isn't a table row): the person,
 ' the ref, the shift and WhyFromRow with the Note. Reads one table row; writes nothing.

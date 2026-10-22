@@ -330,6 +330,9 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(kp <> "", kp, Format$(kf, "yyyy-mm-dd") & "|" & Format$(kt, "yyyy-mm-dd"))
         Case "kkind"                               ' v27: from, to, the roster year's first and last day -> day / cumulative / range / outside
             RunCase = ReportKindCore(ParseD(i1), ParseD(i2), ParseD(i3), ParseD(i4))
+        Case "firstref"                            ' v27 (item 8): a block of text -> its first Ref ID, or "" as "-"
+            RunCase = FirstRefIn(i1)
+            If RunCase = "" Then RunCase = "-"
         Case "reconcile"                           ' v27: the paper's names (;), the roster's names (;) -> positions that differ|not listed|not on paper
             RunCase = ReconcileDiffCore(i1, i2)
         Case "squarter"                            ' v27 (Stats): a date, the roster year's Jan 1 -> Q1 .. Q4 (late December before it = Q1)
@@ -929,6 +932,7 @@ Private Sub LoadCases()
     LoadCases2
     LoadCases3
     LoadCases4
+    LoadCases5
 End Sub
 
 Private Sub LoadCases1()
@@ -1732,5 +1736,24 @@ Private Sub LoadCases4()
     AddCase "backupname,hourly-backup,Call Out Roster backup 2026-10-21 14.xlsm,,,,,yes"
     AddCase "bhourly,feb-29-leap,Call Out Roster backup 2028-02-29 06.xlsm,,,,,2028-02-29 06"
     AddCase "bhourly,feb-30-rejected,Call Out Roster backup 2026-02-30 06.xlsm,,,,,none"
+    AddCase "firstref,session-row,  S-0012  Refused  Ann Bee  12 h  charged 21,,,,,S-0012"
+    AddCase "firstref,adjustment,Adjustment ADJ-0003 added,,,,,ADJ-0003"
+    AddCase "firstref,posting-award,P-0041 awarded to Bob Cee,,,,,P-0041"
+    AddCase "firstref,second-wins-when-first-is-a-date,on 2026-10-22: SS-0007 saved,,,,,SS-0007"
+    AddCase "firstref,leave-return,Leave return LV-0002 saved,,,,,LV-0002"
+    AddCase "firstref,renamed-test-name,ZZ Test-1 took the shift,,,,,-"
+    AddCase "firstref,lieu-code,LIEU OT - DT Split 4 h,,,,,-"
+    AddCase "firstref,glued-letter,aS-12 is not a ref,,,,,-"
+    AddCase "firstref,glued-digit,S-0012a is not a ref either,,,,,-"
+End Sub
+
+Private Sub LoadCases5()
+    AddCase "firstref,five-letters,ABCDE-12 is too long a prefix,,,,,-"
+    AddCase "firstref,lowercase,s-0012 lower case,,,,,-"
+    AddCase "firstref,dash-only,nothing - here,,,,,-"
+    AddCase "firstref,empty,,,,,,-"
+    AddCase "firstref,entry-id-no-dash,#17 by piercyg,,,,,-"
+    AddCase "firstref,at-the-end,voided NH-0009,,,,,NH-0009"
+    AddCase "firstref,in-brackets,(see P-7),,,,,P-7"
 ' <<< CASES
 End Sub

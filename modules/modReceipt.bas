@@ -35,8 +35,19 @@ End Type
 Public gReceipt As Receipt
 Public gReceiptLog As String                ' SmokeTest: every receipt's text, appended (the card is not shown)
 
+' v27 (item 8): the before / after marks on the roster. ReceiptChanges keeps every name whose Total Hours
+' moved ("before|delta"); MarkChangedTotals paints those G cells after the card; ClearTotalMarks takes
+' them off (ApplyView, the next save, the first click on the roster MARK_SECONDS after the paint).
+Private mMarks As Object                    ' name -> "before|delta" from the last ReceiptChanges
+Private mMarksFresh As Boolean              ' True between a ReceiptChanges and the paint that used it
+Private mMarkedAt As Date                   ' when the marks were painted (0 = none on the roster)
+Public Const MARK_SECONDS As Long = 60      ' the marks come off at the first click on the roster after this
+Private Const MARK_TAG As String = "Was "   ' every mark's note starts with it: how ClearTotalMarks finds them
+Private Const MARK_FILL As Long = 13101055  ' RGB(255, 243, 199): a light amber on the moved Total Hours cells
+
 ' The roster's Total Hours before a save, for ReceiptChanges (name -> "Total|Refused|periods")
 Public Function ReceiptBefore() As Object
+    ClearTotalMarks                               ' v27 (item 8): the last save's marks come off before this save's go on
     On Error Resume Next                          ' (review M4) a receipt must never stop a save: an empty map when the roster cannot be read
     Set ReceiptBefore = CreateObject("Scripting.Dictionary")
     Set ReceiptBefore = RosterTotalsMap()
@@ -49,6 +60,9 @@ Public Function ReceiptChanges(ByVal before As Object) As String
     If before Is Nothing Then ReceiptChanges = "  (the before figures could not be read)" & vbNewLine: Exit Function
     If before.Count = 0 Then ReceiptChanges = "  (the before figures could not be read)" & vbNewLine: Exit Function   ' (review) never 'everyone is new'
     Application.Calculate
+    Set mMarks = CreateObject("Scripting.Dictionary")     ' v27 (item 8): the names this save moved, for the roster marks
+    mMarks.CompareMode = 1
+    mMarksFresh = True
     Dim after As Object: Set after = RosterTotalsMap()
     Dim k As Variant, s As String, tb As Double, ta As Double, n As Long
     For Each k In after.Keys
@@ -57,6 +71,7 @@ Public Function ReceiptChanges(ByVal before As Object) As String
             tb = TotalOf(CStr(before(k)))
             If Abs(ta - tb) > 0.001 Then
                 n = n + 1
+                mMarks(k) = HoursText(tb) & "|" & HoursText(ta - tb)
                 If n <= 12 Then s = s & "  " & k & ": " & HoursText(tb) & " -> " & HoursText(ta) & " h (" & IIf(ta > tb, "+", "") & HoursText(ta - tb) & ")" & vbNewLine
             End If
         Else
@@ -106,6 +121,7 @@ End Sub
 ' Shows gReceipt: the card, or (SmokeTest) the text into gReceiptLog; a card that cannot open falls back to a box
 Public Sub ShowReceipt()
     gReceipt.Trust = TrustStrip()
+    MarkChangedTotals                            ' v27 (item 8): the moved Total Hours cells marked before the card (SmokeTest reads the marks too)
     ' (review M7) a save that failed, or saving blocked: the card says so first - it must never read as a saved entry
     If Not gSmokeRun And (gSaveFailedAt > 0 Or NoSave()) Then
         If Left$(gReceipt.Title, 9) <> "NOT SAVED" Then gReceipt.Title = "NOT SAVED - " & gReceipt.Title
@@ -122,6 +138,150 @@ Fallback:
     LogError "ShowReceipt", Err.Number, Err.Description
     MsgBox ReceiptText(gReceipt), vbInformation, IIf(gReceipt.Title = "", "Saved", gReceipt.Title)
 End Sub
+
+' ====================================================================
+'  v27 (item 8): BEFORE / AFTER ON THE ROSTER
+'  After a save, every Total Hours cell the save moved carries a light fill
+'  and a note "Was 120, +21 from S-0012 (3:10 AM)". The marks come off at
+'  ApplyView (every view change, every saved copy), the next save
+'  (ReceiptBefore) or the first click on the roster MARK_SECONDS after
+'  the paint (RosterSelectionChanged asks TotalMarksExpired). No OnTime
+'  timer: it would reopen a closed roster. Nothing here raises.
+' ====================================================================
+
+' Paints the marks from the last ReceiptChanges (once per receipt: a card without a ReceiptChanges of its
+' own - a cancelled posting - repaints nothing)
+Public Sub MarkChangedTotals()
+    Dim ws As Worksheet, evWas As Boolean, n As Long
+    On Error GoTo Quiet
+    If Not mMarksFresh Then Exit Sub
+    mMarksFresh = False
+    If mMarks Is Nothing Then Exit Sub
+    If mMarks.Count = 0 Then Exit Sub
+    Set ws = RosterSheet()
+    Dim lastRow As Long: lastRow = RosterLastRow()
+    If lastRow < R_FIRST Then Exit Sub
+    Dim refTxt As String: refTxt = FirstRefIn(gReceipt.Recorded)
+    If refTxt = "" Then refTxt = FirstRefIn(gReceipt.Title)
+    If refTxt = "" Then refTxt = "this save"
+    Dim stampTxt As String: stampTxt = Format$(Now, "h:mm AM/PM")
+    Dim names As Variant: names = ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)).Value2
+    evWas = Application.EnableEvents
+    Application.EnableEvents = False
+    UnlockSheet ws
+    Dim i As Long, nm As String, parts() As String
+    For i = 1 To UBound(names, 1)
+        nm = Trim$(SafeStr(names(i, 1)))
+        If nm <> "" Then
+            If mMarks.Exists(nm) Then
+                parts = Split(CStr(mMarks(nm)), "|")
+                With ws.Cells(R_FIRST + i - 1, C_TOTAL)
+                    .Interior.Color = MARK_FILL
+                    If Not .Comment Is Nothing Then .Comment.Delete
+                    .AddComment MARK_TAG & parts(0) & ", " & IIf(Left$(parts(1), 1) = "-", "", "+") & parts(1) & " from " & refTxt & " (" & stampTxt & ")"
+                    .Comment.Visible = False
+                End With
+                n = n + 1
+            End If
+        End If
+    Next i
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    If n > 0 Then mMarkedAt = Now
+    Exit Sub
+Quiet:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.EnableEvents = evWas
+    LogError "MarkChangedTotals", en, em
+End Sub
+
+' Takes every mark off the roster (the fill and the note; a Total Hours note that is not ours is left alone).
+' Safe to call any time, on any sheet, in any view; a roster that cannot be read is left as it is.
+Public Sub ClearTotalMarks()
+    Dim ws As Worksheet, evWas As Boolean
+    On Error GoTo Quiet
+    mMarkedAt = 0
+    Set ws = RosterSheet()
+    If ws.Comments.Count = 0 Then Exit Sub         ' the note is the mark: a fill is never left behind without one
+    evWas = Application.EnableEvents
+    Application.EnableEvents = False
+    UnlockSheet ws
+    Dim i As Long, c As Comment
+    For i = ws.Comments.Count To 1 Step -1
+        Set c = ws.Comments(i)
+        If c.Parent.Column = C_TOTAL And c.Parent.Row >= R_FIRST Then
+            If Left$(c.Text, Len(MARK_TAG)) = MARK_TAG Then
+                c.Parent.Interior.ColorIndex = xlNone
+                c.Delete
+            End If
+        End If
+    Next i
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    Exit Sub
+Quiet:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.EnableEvents = evWas
+    LogError "ClearTotalMarks", en, em
+End Sub
+
+' True once marks have sat on the roster for MARK_SECONDS (the next click takes them off)
+Public Function TotalMarksExpired() As Boolean
+    If mMarkedAt = 0 Then Exit Function
+    TotalMarksExpired = ((Now - mMarkedAt) * 86400 >= MARK_SECONDS)
+End Function
+
+' The mark on one person's Total Hours cell ("" = none): SmokeTest step 4 reads it
+Public Function TotalMarkText(ByVal emp As String) As String
+    On Error Resume Next
+    Dim r As Long: r = RosterRowOf(emp)
+    If r < R_FIRST Then Exit Function
+    Dim c As Comment: Set c = RosterSheet().Cells(r, C_TOTAL).Comment
+    If c Is Nothing Then Exit Function
+    If Left$(c.Text, Len(MARK_TAG)) = MARK_TAG Then TotalMarkText = c.Text
+End Function
+
+' The first Ref ID in a block of text ("S-0012", "ADJ-0003", "P-0041"): one to four capital letters, a dash,
+' one or more digits, standing on its own (no letter or digit touching either end - so a date, "Test-1" or
+' "LIEU OT - DT" is not one); "" when there is none. Pure: suite firstref (tests/rules.py first_ref).
+Public Function FirstRefIn(ByVal txt As String) As String
+    Dim n As Long, p As Long, a As Long, b As Long, ch As String
+    n = Len(txt)
+    p = InStr(1, txt, "-")
+    Do While p > 0
+        a = p - 1                                   ' walks back over the capital letters
+        Do While a >= 1
+            ch = Mid$(txt, a, 1)
+            If ch < "A" Or ch > "Z" Then Exit Do
+            a = a - 1
+        Loop
+        b = p + 1                                   ' walks forward over the digits
+        Do While b <= n
+            ch = Mid$(txt, b, 1)
+            If ch < "0" Or ch > "9" Then Exit Do
+            b = b + 1
+        Loop
+        If p - 1 - a >= 1 And p - 1 - a <= 4 And b - p - 1 >= 1 Then
+            If RefEdgeFree(txt, a) And RefEdgeFree(txt, b) Then
+                FirstRefIn = Mid$(txt, a + 1, b - a - 1)
+                Exit Function
+            End If
+        End If
+        p = InStr(p + 1, txt, "-")
+    Loop
+End Function
+
+' True when position i is off the text's ends or holds something that is not a letter or a digit
+Private Function RefEdgeFree(ByVal txt As String, ByVal i As Long) As Boolean
+    If i < 1 Or i > Len(txt) Then RefEdgeFree = True: Exit Function
+    RefEdgeFree = Not (Mid$(txt, i, 1) Like "[A-Za-z0-9]")
+End Function
 
 ' The receipt as plain text (the print, the email, the SmokeTest log)
 Public Function ReceiptText(ByRef r As Receipt) As String

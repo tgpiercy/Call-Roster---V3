@@ -1683,6 +1683,16 @@ def report_kind(from_d: date, to_d: date, year_from: date, year_to: date) -> str
     return "cumulative" if from_d <= year_from + timedelta(days=KRONOS_YEAR_SLACK) else "range"
 
 
+# ---------------------------------------------------------------- the receipts (v27, modReceipt)
+_REF = re.compile(r"(?<![A-Za-z0-9])[A-Z]{1,4}-[0-9]+(?![A-Za-z0-9])")
+
+
+def first_ref(txt: str) -> str:
+    """modReceipt.FirstRefIn: the first Ref ID standing on its own (1-4 capitals, a dash, digits), else ''."""
+    m = _REF.search(txt)
+    return m.group(0) if m else ""
+
+
 # ---------------------------------------------------------------- the Stats report (v27, modStats)
 def stats_quarter(d: date, jan1: date) -> str:
     """modStats.StatsQuarter: the calendar quarter, Q1..Q4; the roster year's late-December start (before jan1) is Q1."""

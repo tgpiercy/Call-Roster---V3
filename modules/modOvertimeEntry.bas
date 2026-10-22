@@ -1809,6 +1809,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     If SheetExists(HOL_SHEET) Then LockHolidayCells adminView
     If SheetExists(MINSTAFF_SHEET) Then LockMinStaffCells adminView   ' v26: the Minimum / Note cells open for an admin
     If SheetExists(RECON_SHEET) Then LockReconcileCells adminView     ' v27: the paper names, decisions and notes open for an admin
+    ClearTotalMarks                                 ' v27 (item 8): the before / after marks never outlive a view change or reach a saved copy
     Dim leftWas As Double: leftWas = rs.Cells(1, C_SHIFT).Left
     rs.Columns(C_PHONE).Hidden = Not adminView
     rs.Columns(C_EMAIL).Hidden = Not adminView Or gDeskMode          ' v25.3: a Desk user keeps Phone, not these two

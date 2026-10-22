@@ -1265,6 +1265,10 @@ Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
     If Left$(SafeStr(ws.Range("A1").Value), 14) <> "SHIFT HANDOVER" Then why = "the shift handover did not draw": Exit Function
     If ActivitySinceCount(Now - 1 / 24, False) = 0 Then why = "the last hour's activity counts nothing, but this run logged rows": Exit Function
     Dim dc As Variant: dc = DataCheckLines()         ' it must run; what it finds on a copy is the copy's own business
-    st.Note = IIf(IsArray(dc), (UBound(dc) - LBound(dc) + 1) & " data-check line(s) on this copy", "no data-check lines")
+    If IsArray(dc) Then                              ' (Oct 22: an IIf worked out UBound of an empty result too - Type mismatch)
+        st.Note = (UBound(dc) - LBound(dc) + 1) & " data-check line(s) on this copy"
+    Else
+        st.Note = "no data-check lines"
+    End If
     SmkPages = True
 End Function

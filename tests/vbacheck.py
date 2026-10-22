@@ -83,6 +83,13 @@ for f in files:
                 break
         if depth != 0:
             problems.append(f"{f.name}:{n}: brackets don't balance ({'a stray )' if depth < 0 else 'an unclosed ('}) - Syntax error")
+        # v27 (Oct 22, SmokeTest step 22 at install): IIf works out BOTH answers, so a guard in its condition guards
+        # nothing - IIf(IsArray(x), UBound(x) ...) and IIf(x Is Nothing, .., x.Member) raise on the case they test for
+        for mm in re.finditer(r"\biif\(\s*(?:not\s+)?(?:isarray\(\s*(\w+)\s*\)|(\w+)\s+is\s+nothing)", low):
+            v = mm.group(1) or mm.group(2)
+            rest = low[mm.end():]
+            if re.search(r"\b(?:ubound|lbound)\(\s*" + re.escape(v) + r"\b", rest) or re.search(r"\b" + re.escape(v) + r"\.\w", rest):
+                problems.append(f"{f.name}:{n}: IIf guards {v} in its condition but uses it in a branch - IIf works out both: use If ... Else")
         # v27 (review of item 21): an Exit Sub inside a Function (or the reverse) does not compile
         procs_open = [k for k, _ in stack if k in ("sub", "function", "property")]
         if procs_open:

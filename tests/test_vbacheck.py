@@ -108,3 +108,21 @@ def test_a_stray_bracket_is_a_problem_and_brackets_in_strings_are_not(tmp_path):
     hits = [ln for ln in out.splitlines() if "brackets don't balance" in ln]
     assert len(hits) == 1 and "stray" in hits[0], out
 
+
+IIF_BAD = """Attribute VB_Name = "modFixture"
+Option Explicit
+
+Private Sub Caller(ByVal dc As Variant, ByVal o As Object)
+    Dim s As String
+    s = IIf(IsArray(dc), UBound(dc) & " lines", "none")
+    s = IIf(o Is Nothing, "", o.Name)
+    s = IIf(IsArray(dc), "some", "none")
+End Sub
+"""
+
+
+def test_an_iif_that_uses_what_it_guards_is_a_problem(tmp_path):
+    out = run(tmp_path, IIF_BAD)
+    hits = [ln for ln in out.splitlines() if "IIf guards" in ln]
+    assert len(hits) == 2, out
+

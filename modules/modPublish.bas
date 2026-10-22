@@ -31,7 +31,7 @@ Public Const DS_LOG As String = "dLog"
 Public Const DS_ATT As String = "dAttend"     ' v24.1 / M2: sick time COUNTS only (no dates)
 Public Const DS_WORKED As String = "dWorked"  ' v26.5 / M3.1: premium hours worked per pay period, from the Kronos export (Employee, Period Start, Hours)
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
-Private Const MEMBER_NEEDS As String = "Members M3.1" ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked)
+Private Const MEMBER_NEEDS As String = "Members M4"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends)
 
 ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
 Private Const ROSTER_FIXED As Long = 10
@@ -458,7 +458,7 @@ Private Function BuildMeta() As Variant
     Dim yFrom As Variant, yTo As Variant
     yFrom = ws.Cells(PStartRow(), C_PERIOD1).Value
     yTo = ws.Cells(PEndRow(), PeriodLastCol()).Value
-    Dim a(1 To 20, 1 To 2) As Variant
+    Dim a(1 To 24, 1 To 2) As Variant              ' v27 (M4): + 21-24
     a(1, 1) = "Key": a(1, 2) = "Value"
     a(14, 1) = "Posting close time": a(14, 2) = POSTING_CLOSE_TIME
     a(15, 1) = "Crews": a(15, 2) = Join(ShiftList(), "|")
@@ -482,6 +482,11 @@ Private Function BuildMeta() As Variant
     a(18, 1) = "Signup folder": a(18, 2) = IIf(SIGNUPS_ON, SIGNUP_FOLDER, "")
     a(19, 1) = "Calendar groups": a(19, 2) = Join(CalGroups(), ";")
     a(20, 1) = "Template needs": a(20, 2) = MEMBER_NEEDS
+    ' v27 (Members M4): the header band's age, the Help sheet's footer and the one legend (item 27)
+    a(21, 1) = "Members stale days": a(21, 2) = MembersStaleDays()
+    a(22, 1) = "Trust strip": a(22, 2) = TrustStrip()
+    a(23, 1) = "Legend calendar": a(23, 2) = CalLegendText()
+    a(24, 1) = "Legend log": a(24, 2) = OutcomeLegendText()
     BuildMeta = a
 End Function
 

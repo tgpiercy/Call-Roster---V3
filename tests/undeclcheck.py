@@ -31,7 +31,7 @@ attribute friend implements event raiseevent addressof gosub return rem
 
 BUILTINS = set(x.lower() for x in """
 Abs Array Asc AscW CBool CByte CCur CDate CDbl CInt CLng CSng CStr CVar CVErr Choose Chr ChrW Cos CreateObject
-CurDir DateAdd DateDiff DatePart DateSerial DateValue Day Dir DoEvents Environ EOF Err Exp FileDateTime FileLen
+GetSetting SaveSetting DeleteSetting GetAllSettings CurDir DateAdd DateDiff DatePart DateSerial DateValue Day Dir DoEvents Environ EOF Err Exp FileDateTime FileLen
 Fix Format FreeFile GetAttr GetObject Hex Hour IIf InStr InStrRev InputBox Int IsArray IsDate IsEmpty IsError
 IsMissing IsNull IsNumeric IsObject Join LBound LCase Left Len Log LTrim Mid Minute MkDir Month MonthName MsgBox
 Now Replace RGB Right Rnd Round RTrim Second SetAttr Sgn Shell Sin Space Split Sqr Str StrComp StrConv Tan Time

@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M3.1 (Oct 19)"     ' v26.5: the per-period split + Worked (Kronos) in My history (dWorked is new: the template is rebuilt)
+Public Const MEM_VERSION As String = "Members M4 (Oct 22)"     ' v27 (M4, items 34-36): me first - remember me, the four tiles, since you last looked, the header band, How it works (the template is rebuilt)
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -35,6 +35,10 @@ Private Const SH_CAL As String = "Calendar"
 Private Const SH_POST As String = "Postings"
 Private Const SH_HIST As String = "My history"
 Private Const SH_LISTS As String = "dLists"       ' picker lists, rebuilt by MemberRefreshAll
+Private Const SH_HELP As String = "How it works"  ' M4: the rules in plain words, inside the file
+Private Const APP_KEY As String = "CallOutRoster"  ' M4: Excel's per-user setting store (this PC user), never the shared file
+Private Const APP_SEC As String = "Members"
+Private Const LAYOUT_CELL As String = "Z1"        ' M4: where BuildMemberTemplate writes the version (Home; was B19)
 
 Private Const NAVY As Long = 6567966              ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443               ' RGB(51, 51, 51)
@@ -63,9 +67,9 @@ Private Const NEXT_SHIFT As String = "F2"
 Private Const CAL_MONTH As String = "C2"
 Private Const CAL_UNIT As String = "G2"            ' a calendar group (the master's groups) or All units
 Private Const HIST_NAME As String = "B2"
-Private Const HOME_FIND As String = "C14"
+Private Const HOME_FIND As String = "C6"          ' M4: me first - the name sits at the top
 Private Const POST_PICK As String = "C2"           ' Postings: "show the list for"
-Private Const CARD_ROW As Long = 21                ' Home: the Where I stand card starts here
+Private Const CARD_ROW As Long = 21                ' Home: the rest of the card starts here, under the tiles (rows 7-12) and the buttons (14-20)
 Private Const CAL_COLW As Double = 17              ' calendar: width of each half of a day
 Private Const CAL_MAX_LINES As Long = 6            ' calendar: lines shown per day half; the rest become "... and N more"
 Private Const US As String = "~|~"                 ' separators for the calendar's per-day line lists
@@ -74,6 +78,8 @@ Private Const RS As String = "~#~"
 Private mDrawing As Boolean
 Private mViewErr As String                         ' M2.1: a view that failed to draw says so here (its own handler ends quietly)
 Private mLoadNote As String                        ' M2.1: the note MemberRefreshAll left on Home ("" = none)
+Private mSeenWho As String                         ' M4: "since you last looked" is worked out once a session per name
+Private mSeenTxt As String
 
 
 ' ====================================================================
@@ -143,10 +149,10 @@ Public Function MemberVersion() As String
     MemberVersion = MEM_VERSION
 End Function
 
-' The version whose BuildMemberTemplate laid the sheets out (Home B19: only the build writes it)
+' The version whose BuildMemberTemplate laid the sheets out (Home Z1 since M4 - B19 before: only the build writes it)
 Public Function MemberLayoutVersion() As String
     Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
-    If Not ws Is Nothing Then MemberLayoutVersion = Trim$(Txt(ws.Range("B19").Value))
+    If Not ws Is Nothing Then MemberLayoutVersion = Trim$(Txt(ws.Range(LAYOUT_CELL).Value))
 End Function
 
 ' "" = fine. New code on sheets an older version laid out reads the wrong cells.
@@ -201,6 +207,7 @@ Private Sub BlankViews()
     Set ws = WsOf(SH_HOME)
     If Not ws Is Nothing Then
         UnprotectWs ws
+        ClearTiles ws                                ' M4: the tiles too
         ClearBelow ws, CARD_ROW
         ProtectWs ws
     End If
@@ -345,13 +352,13 @@ Public Sub BuildMemberTemplate()
         ProtectWs ws
     Next nm
     ' view sheets, in order
-    For Each nm In Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)
+    For Each nm In ViewSheets()
         Set ws = WsOf(CStr(nm), True)
         ws.Visible = xlSheetVisible
     Next nm
     Dim i As Long, order As Variant
-    order = Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)
-    For i = 0 To 5
+    order = ViewSheets()
+    For i = 0 To UBound(order)
         ThisWorkbook.Worksheets(CStr(order(i))).Move Before:=ThisWorkbook.Worksheets(i + 1)
     Next i
     ' the blank workbook's own sheet(s) - by index, backwards, so none is skipped
@@ -360,8 +367,7 @@ Public Sub BuildMemberTemplate()
     For i = ThisWorkbook.Worksheets.Count To 1 Step -1
         Set sh = ThisWorkbook.Worksheets(i)
         If sh.Visible = xlSheetVisible Then
-            If InStr(1, "|" & SH_HOME & "|" & SH_ROSTER & "|" & SH_NEXT & "|" & SH_CAL & "|" & SH_POST & "|" & SH_HIST & "|", _
-                     "|" & sh.Name & "|") = 0 Then sh.Delete
+            If InStr(1, "|" & Join(ViewSheets(), "|") & "|", "|" & sh.Name & "|") = 0 Then sh.Delete
         End If
     Next i
     Application.DisplayAlerts = True
@@ -372,8 +378,18 @@ Public Sub BuildMemberTemplate()
     LayoutCalendar
     LayoutPostings
     LayoutHistory
+    LayoutHelp                                       ' M4
+    For Each nm In ViewSheets()                      ' M4: one header band on every sheet but Home, the version in every footer
+        Set ws = WsOf(CStr(nm))
+        UnprotectWs ws
+        If CStr(nm) <> SH_HOME Then HeaderBand ws
+        On Error Resume Next
+        ws.PageSetup.RightFooter = "&7" & MEM_VERSION
+        On Error GoTo 0
+        ProtectWs ws
+    Next nm
     MemberRefreshAll
-    For Each nm In Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)      ' M3: the template ships at 100 % (Larger type is per session)
+    For Each nm In ViewSheets()      ' M3: the template ships at 100 % (Larger type is per session)
         ThisWorkbook.Worksheets(CStr(nm)).Activate
         ActiveWindow.Zoom = 100
     Next nm
@@ -383,47 +399,66 @@ Public Sub BuildMemberTemplate()
            "The master's Member View button fills it and publishes the members' copy.", vbInformation, "Members' template"
 End Sub
 
+' M4 (item 34): me first. Rows 2-4 the title and the published stamp, 5 the warning line, 6 Find me (remembered on
+' this PC), 7 the name, 8 "since you last looked", 9-12 the four tiles, 14-20 the six buttons, 21 on the rest of the
+' card. Row heights are set BEFORE the buttons are placed: shapes don't move with cells.
 Private Sub LayoutHome()
     Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
     UnprotectWs ws
     ws.Cells.Clear
     ws.Cells.Font.Name = "Segoe UI": ws.Cells.Font.Size = 10: ws.Cells.Font.Color = INK
     ws.Columns("A").ColumnWidth = 3
-    ws.Columns("B:H").ColumnWidth = 18
+    ws.Columns("B:I").ColumnWidth = 18
+    ws.Rows(1).RowHeight = 6
     ws.Rows(2).RowHeight = 36
     With ws.Range("B2")
         .Value = "OVERTIME CALL OUT ROSTER"
         .Font.Size = 20: .Font.Bold = True: .Font.Color = NAVY
     End With
     ws.Range("B3").Font.Size = 9: ws.Range("B3").Font.Color = RGB(100, 100, 100)
-    ws.Range("B4").Font.Size = 9: ws.Range("B4").Font.Color = RGB(100, 100, 100)
-    ws.Range("B5:H5").Merge                          ' M2.1: the warning line (HomeNote). Row heights are set
-    ws.Range("B5").WrapText = True                   ' BEFORE the buttons are placed: they don't move with cells
+    ws.Range("B4").Font.Size = 8: ws.Range("B4").Font.Color = RGB(130, 135, 145)
+    ws.Range("B5:I5").Merge                          ' M2.1: the warning line (HomeNote)
+    ws.Range("B5").WrapText = True
     ws.Range("B5").VerticalAlignment = xlTop
-    ws.Rows(5).RowHeight = 30
-    Dim top As Double: top = ws.Range("B7").Top
-    Dim lft As Double: lft = ws.Range("B7").Left
+    ws.Rows(5).RowHeight = 26
+    ws.Rows(6).RowHeight = 22
+    ws.Rows(7).RowHeight = 22
+    ws.Rows(8).RowHeight = 30
+    ws.Rows(9).RowHeight = 15
+    ws.Rows(10).RowHeight = 26
+    ws.Rows(11).RowHeight = 34
+    ws.Rows(12).RowHeight = 20
+    ws.Rows(13).RowHeight = 10
+    Dim r As Long
+    For r = 14 To 20
+        ws.Rows(r).RowHeight = 15
+    Next r
+    ' the band on Home: Larger type and How it works beside the title
+    Btn ws, "mb_band_zoom", "Larger type", "MemberZoomToggle", ws.Range("G2").Left, ws.Range("B2").Top + 8, 90, 20, LIGHT, INK
+    Btn ws, "mb_band_help", "How it works", "MemberGoHelp", ws.Range("G2").Left + 96, ws.Range("B2").Top + 8, 100, 20, LIGHT, INK
+    ' Find me, remembered on this PC (Excel's own per-user setting store), Not me
+    Picker ws, HOME_FIND, "", "Find me:"
+    ws.Range(HOME_FIND).ColumnWidth = 26
+    ' 26 points clear of the box: Excel draws the drop-down arrow just outside its right edge
+    Btn ws, "mb_notme", "Not me", "MemberNotMe", ws.Range("D6").Left + 26, ws.Range("D6").Top + 1, 80, 20, vbWhite, RGB(100, 100, 100)
+    Btn ws, "mb_find", "Show me on the roster", "MemberFindFromHome", ws.Range("D6").Left + 112, ws.Range("D6").Top + 1, 150, 20, LIGHT, INK
+    With ws.Range("F6")
+        .Value = "Remembered on this PC, never in the shared file."
+        .Font.Size = 8: .Font.Italic = True: .Font.Color = RGB(130, 135, 145)
+    End With
+    ' the six buttons below the tiles
+    Dim top As Double: top = ws.Range("B14").Top
+    Dim lft As Double: lft = ws.Range("B14").Left
     Btn ws, "mb_roster", "ROSTER", "MemberGoRoster", lft, top, 150, 44, NAVY, vbWhite
     Btn ws, "mb_next", "WHO'S NEXT", "MemberGoNext", lft + 160, top, 150, 44, GREEN, vbWhite
     Btn ws, "mb_cal", "CALENDAR", "MemberGoCalendar", lft + 320, top, 150, 44, RGB(31, 56, 100), vbWhite
     Btn ws, "mb_post", "OPEN POSTINGS", "MemberGoPostings", lft, top + 54, 150, 44, RGB(93, 64, 55), vbWhite
     Btn ws, "mb_hist", "MY HISTORY", "MemberGoHistory", lft + 160, top + 54, 150, 44, RGB(106, 27, 154), vbWhite
-    Btn ws, "mb_zoom", "Larger type", "MemberZoomToggle", lft + 320, top + 54, 150, 44, LIGHT, INK     ' M3 (C2)
-    Picker ws, HOME_FIND, "", "Find me:"
-    ws.Range(HOME_FIND).ColumnWidth = 26
-    ' 26 points clear of the box: Excel draws the drop-down arrow just outside its right edge
-    Btn ws, "mb_find", "Show me on the roster", "MemberFindFromHome", ws.Range("D14").Left + 26, ws.Range("D14").Top - 2, 150, 20, LIGHT, INK
-    Btn ws, "mb_notme", "Not me (clear)", "MemberNotMe", ws.Range("D14").Left + 182, ws.Range("D14").Top - 2, 110, 20, vbWhite, RGB(100, 100, 100)
-    With ws.Range("B17")
-        .Value = "Pick your name in Find me: every sheet opens on your home unit and your own figures show below. " & _
-                 "Hours and call order are worked out by the supervisors' roster and published here as values. Leave shows only as 'Leave'."
-        .Font.Size = 8.5: .Font.Italic = True: .Font.Color = RGB(100, 100, 100)
+    Btn ws, "mb_helpbig", "HOW IT WORKS", "MemberGoHelp", lft + 320, top + 54, 150, 44, LIGHT, INK
+    With ws.Range(LAYOUT_CELL)                       ' the layout version: only the build writes it (MemberLayoutVersion)
+        .Value = MEM_VERSION
+        .Font.Size = 6: .Font.Color = vbWhite
     End With
-    ws.Range("B17:H17").Merge
-    ws.Range("B17").WrapText = True
-    ws.Rows(17).RowHeight = 30
-    ws.Range("B19").Value = MEM_VERSION
-    ws.Range("B19").Font.Size = 8: ws.Range("B19").Font.Color = RGB(160, 165, 175)
     ProtectWs ws
 End Sub
 
@@ -607,6 +642,8 @@ Public Sub MemberRefreshAll()
         DrawHistory ""
         stepTxt = "the Home card"
         DrawHomeCard
+        stepTxt = "How it works"
+        DrawHelp                                     ' M4
     End If
 Done:
     en = Err.Number: em = Err.Description          ' reached normally (0) or from an error anywhere above
@@ -742,17 +779,19 @@ Private Sub DrawHome()
     Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
     UnprotectWs ws
     If HasData() Then
-        ws.Range("B3").Value = "Updated " & Format$(Dt(Meta("Published at")), "ddd mmm d, yyyy h:mm AM/PM") & _
-                               "   |   Kronos data " & Format$(Dt(Meta("Kronos data date")), "mmm d") & _
+        ws.Range("B3").Value = StampText() & "   |   Kronos through " & Format$(Dt(Meta("Kronos data through")), "mmm d") & _
                                "   |   pay period " & Format$(Dt(Meta("Pay period start")), "mmm d") & " - " & _
                                Format$(Dt(Meta("Pay period end")), "mmm d")
-        ws.Range("B4").Value = "Roster " & Txt(Meta("Master version")) & "   |   charged: " & Txt(Meta("Charge rule")) & _
-                               "   |   members file " & MEM_VERSION
+        ws.Range("B3").Font.Color = IIf(StampOld(), RGB(176, 0, 32), RGB(100, 100, 100))
+        ws.Range("B3").Font.Bold = StampOld()
+        ws.Range("B4").Value = "Hours and call order come from the supervisors' roster (" & Txt(Meta("Master version")) & ") and are published here as values. " & _
+                               "Leave shows only as 'Leave'. Sick time is counts only. Charged: " & Txt(Meta("Charge rule")) & "."
     Else
         ws.Range("B3").Value = "Not published yet - the supervisors' roster fills this file with its Member View button."
         ws.Range("B4").Value = ""
     End If
     ProtectWs ws
+    StampBands                                       ' M4: the same stamp in every sheet's header band
 End Sub
 
 
@@ -782,13 +821,25 @@ Public Sub MemberFindFromHome()
     ApplyMe nm, SH_ROSTER
 End Sub
 
-' Home: back to the neutral views
+' Home: back to the neutral views, and this PC forgets the name (M4)
 Public Sub MemberNotMe()
+    RememberMe ""
     ApplyMe "", SH_HOME
 End Sub
 
-' The name picked in Find me on Home ("" = nobody). Nothing is remembered
-' between opens: the published file always starts with no name.
+' M4 (item 34): the name this PC user picked last time, from Excel's per-user setting store (never the shared file)
+Private Function RememberedMe() As String
+    On Error Resume Next
+    RememberedMe = GetSetting(APP_KEY, APP_SEC, "Me", "")
+End Function
+
+Private Sub RememberMe(ByVal nm As String)
+    On Error Resume Next
+    If nm = "" Then DeleteSetting APP_KEY, APP_SEC, "Me" Else SaveSetting APP_KEY, APP_SEC, "Me", nm
+End Sub
+
+' The name picked in Find me on Home ("" = nobody). The published file starts with no name; M4: the open puts
+' back the name this PC user picked last time (RememberedMe).
 Private Function WhoAmI() As String
     WhoAmI = Txt(WsOf(SH_HOME).Range(HOME_FIND).Value)
 End Function
@@ -835,6 +886,7 @@ Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
     DrawHistory nm
     MemberShowPostings
     DrawHomeCard
+    If nm <> "" Then RememberMe nm                ' M4: the next open starts on this name
 Done:
     en = Err.Number: em = Err.Description          ' reached normally (0) or from an error anywhere above
     On Error Resume Next
@@ -951,9 +1003,9 @@ Private Sub DrawRoster(ByVal unit As String, ByVal viewTxt As String, Optional B
 
     Dim heads As Variant
     If unit = "" Then
-        heads = Array("Name", "Crew", "Home unit", "Total", "Worked", "Refused", "Refused by kind")
+        heads = Array("Name", "Crew", "Home unit", "Total", "Worked", "Charged (refusals)", "Charged by kind")     ' M4: plain words
     Else
-        heads = Array("#", "Name", "Crew", "Code", "Total", "Worked", "Refused", "Refused by kind")
+        heads = Array("#", "Name", "Crew", "Code", "Total", "Worked", "Charged (refusals)", "Charged by kind")
     End If
     Header ws, 5, heads
     ws.Range("A3").Value = "View: " & viewTxt & IIf(crew <> "", "  |  crew " & crew, "") & _
@@ -1142,6 +1194,17 @@ Public Sub MemberShowNext()
         With ws.Range(ws.Cells(6, 1), ws.Cells(6, 5))
             .Interior.Color = RGB(198, 239, 206)
         End With
+        Dim meNm As String: meNm = WhoAmI()          ' M4 (item 35): highlight me
+        If meNm <> "" Then
+            For i = 1 To n
+                If StrComp(CStr(out(i, 2)), meNm, vbTextCompare) = 0 Then
+                    ws.Cells(5 + i, 2).Value = meNm & "  (you)"
+                    With ws.Range(ws.Cells(5 + i, 1), ws.Cells(5 + i, 5))
+                        .Interior.Color = RGB(255, 242, 204): .Font.Bold = True
+                    End With
+                End If
+            Next i
+        End If
     Else
         ws.Cells(6, 2).Value = "No one is free for that shift (or the date is outside the published " & Txt(Meta("Who's next days")) & " days)."
         ws.Cells(6, 2).Font.Italic = True
@@ -1956,110 +2019,152 @@ Private Sub CardLine(ByVal ws As Worksheet, ByRef r As Long, ByVal label As Stri
     r = r + 1
 End Sub
 
+' M4 (items 34-36): the name, "since you last looked", four tiles (Total hours, My call position, Am I next?, Sick
+' time), then - under the buttons - the open postings I can sign up for and the days near the top of the list.
 Private Sub DrawHomeCard()
     Dim ws As Worksheet: Set ws = WsOf(SH_HOME)
     Dim who As String: who = WhoAmI()
     UnprotectWs ws
+    ClearTiles ws
     ClearBelow ws, CARD_ROW
     Dim r As Long: r = CARD_ROW
     If who = "" Or Not HasData() Then GoTo Finish
     Dim rv As Variant: rv = Data("dRoster")
     Dim meRow As Long: meRow = RosterRowOf(rv, who)
     If meRow = 0 Then
-        ws.Cells(r, 2).Value = who & " isn't in the published roster. Ask your supervisor."
+        ws.Range("B7").Value = who & " isn't in the published roster. Ask your supervisor."
         GoTo Finish
     End If
-    With ws.Cells(r, 2)
-        .Value = "WHERE I STAND  -  " & who
-        .Font.Bold = True: .Font.Size = 13: .Font.Color = NAVY
-    End With
-    r = r + 1
-    ws.Cells(r, 2).Value = "As published " & Format$(Dt(Meta("Published at")), "ddd mmm d, h:mm AM/PM") & _
-                           ", Kronos hours through " & Format$(Dt(Meta("Kronos data through")), "mmm d") & "."
-    ws.Cells(r, 2).Font.Size = 8.5: ws.Cells(r, 2).Font.Italic = True: ws.Cells(r, 2).Font.Color = RGB(100, 100, 100)
-    r = r + 2
+    Dim homeU As String: homeU = Txt(rv(meRow, RC_HOME))
 
-    CardLine ws, r, "Crew / home unit", Txt(rv(meRow, RC_CREW)) & "   |   " & IIf(Txt(rv(meRow, RC_HOME)) = "", "(no home unit on file)", Txt(rv(meRow, RC_HOME)))
-    CardLine ws, r, "Total hours", CStr(HoursText(rv(meRow, RC_TOTAL), rv(meRow, RC_PROV))) & _
-             IIf(Num(rv(meRow, RC_PROV)) > 0, "   (* includes " & NumTxt(Num(rv(meRow, RC_PROV))) & " h accepted, not yet in Kronos)", ""), True
-    CardLine ws, r, "Worked", NumTxt(Num(rv(meRow, RC_WORKED)))
-    CardLine ws, r, "Refused", NumTxt(Num(rv(meRow, RC_REFUSED))) & IIf(RefusedKinds(rv, meRow) <> "", "   =   " & RefusedKinds(rv, meRow), "")
-
-    ' call position in every unit they hold a code in
-    Dim units As Variant: units = UnitList()
-    Dim i As Long, c As Long, posTxt As String
-    For i = LBound(units) To UBound(units)
-        c = RC_FIXED + 2 * (i - LBound(units)) + 1
-        If c + 1 <= UBound(rv, 2) Then
-            If Txt(rv(meRow, c)) <> "" Then
-                posTxt = posTxt & IIf(posTxt = "", "", "     ") & Txt(units(i)) & " #" & Txt(rv(meRow, c + 1)) & " (" & Txt(rv(meRow, c)) & ")"
-            End If
-        End If
-    Next i
-    CardLine ws, r, "Call position", IIf(posTxt = "", "(no unit code on file)", posTxt)
-    CardLine ws, r, "Am I next?", NextForMe(who), True             ' M3 (C2): the next shift they are listed for
-    r = r + 1
-
-    ' sick time: counts only (decided Oct 12, 2026) - never a date of a sick day
-    Dim av As Variant: av = Data("dAttend")
-    Dim j As Long, found As Boolean
-    If IsArray(av) Then
-        For j = 2 To UBound(av, 1)
-            If StrComp(Txt(av(j, 1)), who, vbTextCompare) = 0 And UBound(av, 2) >= 6 Then
-                CardLine ws, r, "Sick time", "sick days used " & NumTxt(Num(av(j, 2))) & "   |   paid sick days left " & NumTxt(Num(av(j, 3))) & _
-                         "   |   occurrences used " & NumTxt(Num(av(j, 4))) & "   |   personal days used " & NumTxt(Num(av(j, 5)))
-                CardLine ws, r, "", Txt(av(j, 6)), True
-                found = True
-                Exit For
-            End If
-        Next j
-    End If
-    If Not found Then CardLine ws, r, "Sick time", "not published - ask your supervisor"
-    ws.Cells(r, 3).Value = "Counts since Jan 1, or since your counters restarted. Ask your supervisor for the days behind them."
-    ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
-    r = r + 2
-
-    ' open postings they can sign up for (the buttons are on the Postings sheet)
+    ' ---- the open postings I can sign up for (listed, or out of department), soonest first ----
     Dim p As Variant: p = Data("dPost")
     Dim l As Variant: l = Data("dPostList")
     Dim place As Long, signedTxt As String, isSigned As Boolean, statusTxt As String, codeCol As Long, placeTxt As String, nMine As Long
-    ws.Cells(r, 2).Value = "Open postings I can sign up for"
-    ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Color = NAVY
-    r = r + 1
-    Dim ordC() As Long, nPc As Long, q As Long       ' M2.1: soonest shift first, as on the Postings sheet
+    Dim ordC() As Long, nPc As Long, q As Long, i As Long
+    Dim myIds As String, nextPost As String, nextPostTxt As String
+    Dim mineRow() As Long, mineTxt() As String, mineStat() As String
     If IsArray(p) Then nPc = UBound(p, 1) - 1
     If nPc > 0 Then
+        ReDim mineRow(1 To nPc): ReDim mineTxt(1 To nPc): ReDim mineStat(1 To nPc)
         SoonestFirst p, nPc, ordC
         For q = 1 To nPc
             i = ordC(q)
             place = MyPlace(l, Txt(p(i, 1)), who, signedTxt)
             placeTxt = ""
             If place > 0 Then
-                placeTxt = "#" & place & " on the list"
-            ElseIf place < 0 Then
-                placeTxt = ""                                  ' M3: Exempt - not one they can sign up for
-            Else
+                placeTxt = Ordinal(place) & " on the list"
+            ElseIf place = 0 Then
                 codeCol = UnitCodeCol(Txt(p(i, 2)))
                 If codeCol > 0 And codeCol <= UBound(rv, 2) Then
                     If Txt(rv(meRow, codeCol)) <> "" Then placeTxt = "out of department"
                 End If
-            End If
+            End If                                       ' place < 0: Exempt - not one they can sign up for
             If placeTxt <> "" Then
                 nMine = nMine + 1
                 statusTxt = MyStatus(Txt(p(i, 1)), who, signedTxt, isSigned)
-                ws.Cells(r, 2).Value = Txt(p(i, 1)) & "  " & Txt(p(i, 2))
-                ws.Cells(r, 3).NumberFormat = "@"
-                ws.Cells(r, 3).Value = Format$(Dt(p(i, 3)), "ddd mmm d") & "  " & Txt(p(i, 4)) & "  " & NumTxt(Num(p(i, 5))) & " h   |   " & placeTxt & _
-                                       "   |   closes " & Format$(Dt(p(i, 8)), "ddd mmm d") & IIf(statusTxt <> "", "   |   " & statusTxt, "")
-                r = r + 1
+                mineRow(nMine) = i: mineTxt(nMine) = placeTxt: mineStat(nMine) = statusTxt
+                myIds = myIds & "," & Txt(p(i, 1))
+                If nextPost = "" And Not isSigned And SignupsOn() And Now <= ClosesAt(Dt(p(i, 8))) Then
+                    nextPost = Txt(p(i, 1))
+                    nextPostTxt = "open posting " & nextPost & ": " & Format$(Dt(p(i, 3)), "ddd mmm d") & " " & Txt(p(i, 4)) & ", " & Txt(p(i, 2))
+                End If
             End If
         Next q
     End If
+
+    ' ---- the name, the crew and home unit, since you last looked ----
+    With ws.Range("B7")
+        .Value = who & "     Crew " & Txt(rv(meRow, RC_CREW)) & "  -  " & IIf(homeU = "", "no home unit on file", homeU)
+        .Font.Bold = True: .Font.Size = 13: .Font.Color = NAVY
+    End With
+
+    ' ---- the call positions: the home unit first ----
+    Dim units As Variant: units = UnitList()
+    Dim c As Long, k As Long, nIn As Long, posMain As String, posMainDetail As String, posOther As String, mainPos As Long
+    For k = LBound(units) To UBound(units)
+        c = RC_FIXED + 2 * (k - LBound(units)) + 1
+        If c + 1 <= UBound(rv, 2) Then
+            If Txt(rv(meRow, c)) <> "" Then
+                nIn = 0
+                For i = 2 To UBound(rv, 1)
+                    If Txt(rv(i, c)) <> "" Then nIn = nIn + 1
+                Next i
+                If posMain = "" And (StrComp(Txt(units(k)), homeU, vbTextCompare) = 0 Or homeU = "") Then
+                    mainPos = CLng(Num(rv(meRow, c + 1)))
+                    posMain = Ordinal(mainPos) & " of " & nIn
+                    posMainDetail = "in " & Txt(units(k)) & " (" & Txt(rv(meRow, c)) & ")"
+                Else
+                    posOther = posOther & IIf(posOther = "", "", "  -  ") & Ordinal(CLng(Num(rv(meRow, c + 1)))) & " of " & nIn & " in " & Txt(units(k)) & " (" & Txt(rv(meRow, c)) & ")"
+                End If
+            End If
+        End If
+    Next k
+    If posMain = "" And posOther <> "" Then posMain = Split(posOther, " in ")(0): posMainDetail = posOther: posOther = ""
+
+    With ws.Range("B8:I8")
+        .Merge
+        .Value = SinceText(who, myIds, homeU, mainPos)
+        .WrapText = True: .VerticalAlignment = xlTop
+        .Font.Size = 9: .Font.Color = RGB(60, 60, 60)
+    End With
+
+    ' ---- the four tiles ----
+    Dim totTxt As String, detail As String
+    totTxt = CStr(HoursText(rv(meRow, RC_TOTAL), rv(meRow, RC_PROV)))
+    detail = NumTxt(Num(rv(meRow, RC_WORKED))) & " worked + " & NumTxt(Num(rv(meRow, RC_REFUSED))) & " charged (refusals)" & _
+             IIf(Num(rv(meRow, RC_PROV)) > 0, " + " & NumTxt(Num(rv(meRow, RC_PROV))) & " accepted, not yet in Kronos", "") & _
+             IIf(RefusedKinds(rv, meRow) <> "", "   Charged: " & RefusedKinds(rv, meRow), "")
+    Tile ws, 2, "TOTAL HOURS", totTxt, detail
+    Tile ws, 4, "MY CALL POSITION", IIf(posMain = "", "-", posMain), IIf(posMainDetail = "", "no unit code on file", posMainDetail) & IIf(posOther <> "", "   " & posOther, "")
+    Dim nxPlace As Long, nxTotal As Long, nxD As Date, nxSh As String, nxU As String, nxEst As Boolean
+    If NextParts(who, nxPlace, nxTotal, nxD, nxSh, nxU, nxEst) Then
+        Tile ws, 6, "AM I NEXT?", Ordinal(nxPlace), Format$(nxD, "ddd mmm d") & " " & nxSh & ", " & nxU & " - " & Ordinal(nxPlace) & " of " & nxTotal & _
+             IIf(nxEst, " (~ estimate after a planned move)", "") & IIf(nextPostTxt <> "", "   " & nextPostTxt, "")
+    Else
+        Tile ws, 6, "AM I NEXT?", "Not listed", "Not listed in the next " & Txt(Meta("Who's next days")) & " days (not free, or no unit code)." & _
+             IIf(nextPostTxt <> "", "   " & nextPostTxt, "")
+    End If
+    Dim av As Variant: av = Data("dAttend")
+    Dim j As Long, found As Boolean
+    If IsArray(av) Then
+        For j = 2 To UBound(av, 1)
+            If StrComp(Txt(av(j, 1)), who, vbTextCompare) = 0 And UBound(av, 2) >= 6 Then
+                Tile ws, 8, "SICK TIME", NumTxt(Num(av(j, 3))) & " left", NumTxt(Num(av(j, 2))) & " used, " & NumTxt(Num(av(j, 4))) & " occurrence(s), " & _
+                     NumTxt(Num(av(j, 5))) & " personal day(s) - counts only.  " & Txt(av(j, 6))
+                found = True
+                Exit For
+            End If
+        Next j
+    End If
+    If Not found Then Tile ws, 8, "SICK TIME", "-", "not published - ask your supervisor"
+    ' the actions under the tiles: the total opens My history; the next posting's Sign me up
+    Btn ws, "mb_hometotal", "My history  >", "MemberGoHistory", ws.Range("B12").Left + 4, ws.Range("B12").Top + 2, 110, 16, vbWhite, NAVY
+    If nextPost <> "" Then
+        Btn ws, "mb_homesign", "Sign me up: " & nextPost, "'MemberSignUp """ & nextPost & """'", ws.Range("F12").Left + 4, ws.Range("F12").Top + 2, 160, 16, GREEN, vbWhite
+    Else
+        On Error Resume Next
+        ws.Shapes("mb_homesign").Delete
+        On Error GoTo 0
+    End If
+
+    ' ---- under the buttons: the open postings I can sign up for ----
+    ws.Cells(r, 2).Value = "Open postings I can sign up for"
+    ws.Cells(r, 2).Font.Bold = True: ws.Cells(r, 2).Font.Color = NAVY
+    r = r + 1
+    For q = 1 To nMine
+        i = mineRow(q)
+        ws.Cells(r, 2).Value = Txt(p(i, 1)) & "  " & Txt(p(i, 2))
+        ws.Cells(r, 3).NumberFormat = "@"
+        ws.Cells(r, 3).Value = Format$(Dt(p(i, 3)), "ddd mmm d") & "  " & Txt(p(i, 4)) & "  " & NumTxt(Num(p(i, 5))) & " h   |   " & mineTxt(q) & _
+                               "   |   closes " & Format$(Dt(p(i, 8)), "ddd mmm d") & IIf(mineStat(q) <> "", "   |   " & mineStat(q), "")
+        r = r + 1
+    Next q
     If nMine = 0 Then
         ws.Cells(r, 3).Value = "none right now"
         r = r + 1
     Else
-        ws.Cells(r, 3).Value = IIf(SignupsOn(), "Open Postings has the Sign me up buttons.", "Sign up on the posted paper sheet.")
+        ws.Cells(r, 3).Value = IIf(SignupsOn(), "Open Postings has a Sign me up button for each.", "Sign up on the posted paper sheet.")
         ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
         r = r + 1
     End If
@@ -2067,14 +2172,13 @@ Private Sub DrawHomeCard()
 
     ' the next days where they are among the first three free in their home unit
     Dim nv As Variant: nv = Data("dNext")
-    Dim homeU As String: homeU = Txt(rv(meRow, RC_HOME))
     Dim nextTxt As String, nNext As Long
     If IsArray(nv) And homeU <> "" Then
         For i = 2 To UBound(nv, 1)
             If Num(nv(i, 4)) <= 3 Then
                 If StrComp(Txt(nv(i, 5)), who, vbTextCompare) = 0 And StrComp(Txt(nv(i, 1)), homeU, vbTextCompare) = 0 Then
                     nNext = nNext + 1
-                    If nNext <= 8 Then nextTxt = nextTxt & IIf(nextTxt = "", "", "     ") & Format$(Dt(nv(i, 2)), "ddd mmm d") & " " & Txt(nv(i, 3)) & " #" & NumTxt(Num(nv(i, 4)))
+                    If nNext <= 8 Then nextTxt = nextTxt & IIf(nextTxt = "", "", "     ") & Format$(Dt(nv(i, 2)), "ddd mmm d") & " " & Txt(nv(i, 3)) & " " & Ordinal(CLng(Num(nv(i, 4))))
                 End If
             End If
         Next i
@@ -2085,44 +2189,145 @@ Private Sub DrawHomeCard()
     ws.Cells(r, 3).Value = IIf(nextTxt = "", "Not in the first three for " & IIf(homeU = "", "any unit", homeU) & " in the published days.", _
                                homeU & ":  " & nextTxt & IIf(nNext > 8, "  ... and " & (nNext - 8) & " more", ""))
     r = r + 1
-    ws.Cells(r, 3).Value = "Who is free changes with time off and switches: this is as of the last publish."
+    ws.Cells(r, 3).Value = "Who is free changes with time off and switches: this is as of the last publish. Sick time counts since Jan 1, or since your counters restarted."
     ws.Cells(r, 3).Font.Size = 8: ws.Cells(r, 3).Font.Italic = True: ws.Cells(r, 3).Font.Color = RGB(100, 100, 100)
 Finish:
+    If who = "" Or Not HasData() Then
+        On Error Resume Next
+        ws.Shapes("mb_homesign").Delete
+        ws.Shapes("mb_hometotal").Delete
+        On Error GoTo 0
+    End If
     ProtectWs ws
     MarkClean
 End Sub
+
+' M4: the tiles' rows (7-12) emptied before a redraw
+Private Sub ClearTiles(ByVal ws As Worksheet)
+    With ws.Range("B7:I12")
+        .UnMerge
+        .ClearContents
+        .ClearFormats
+        .Font.Name = "Segoe UI": .Font.Size = 10: .Font.Color = INK
+    End With
+End Sub
+
+' M4: one tile - two columns from col, the label (row 9), the figure (row 10), the line under it (row 11)
+Private Sub Tile(ByVal ws As Worksheet, ByVal col As Long, ByVal label As String, ByVal figure As String, ByVal detail As String)
+    With ws.Range(ws.Cells(9, col), ws.Cells(9, col + 1))
+        .Merge
+        .Value = label
+        .Font.Size = 8: .Font.Bold = True: .Font.Color = RGB(100, 100, 100)
+    End With
+    With ws.Range(ws.Cells(10, col), ws.Cells(10, col + 1))
+        .Merge
+        .NumberFormat = "@"
+        .Value = figure
+        .Font.Size = 16: .Font.Bold = True: .Font.Color = NAVY
+    End With
+    With ws.Range(ws.Cells(11, col), ws.Cells(11, col + 1))
+        .Merge
+        .NumberFormat = "@"
+        .Value = detail
+        .WrapText = True: .VerticalAlignment = xlTop
+        .Font.Size = 8: .Font.Color = RGB(60, 60, 60)
+    End With
+    With ws.Range(ws.Cells(9, col), ws.Cells(12, col + 1))
+        .Interior.Color = RGB(240, 244, 250)
+        .IndentLevel = 1
+        .BorderAround xlContinuous, xlThin, , RGB(200, 210, 225)
+    End With
+End Sub
+
+' 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th, 21st
+Private Function Ordinal(ByVal n As Long) As String
+    Dim s As String
+    Select Case n Mod 100
+        Case 11, 12, 13: s = "th"
+        Case Else
+            Select Case n Mod 10
+                Case 1: s = "st"
+                Case 2: s = "nd"
+                Case 3: s = "rd"
+                Case Else: s = "th"
+            End Select
+    End Select
+    Ordinal = n & s
+End Function
+
+' M4 (item 36): what changed since this PC user last looked at this name - new open postings in my units, postings
+' that closed (awarded, no takers or cancelled), my place in my home unit. Read once a session per name, then the
+' new state is kept (Excel's per-user setting store, never the shared file).
+Private Function SinceText(ByVal who As String, ByVal myIds As String, ByVal homeU As String, ByVal mainPos As Long) As String
+    If StrComp(mSeenWho, who, vbTextCompare) = 0 Then SinceText = mSeenTxt: Exit Function
+    On Error Resume Next
+    Dim key As String: key = "Seen " & Left$(SafeName(Replace(who, " ", "_")), 60)
+    Dim stored As String: stored = GetSetting(APP_KEY, APP_SEC, key, "")
+    Dim s As String
+    If stored = "" Then
+        s = "First look at " & who & " on this PC: from the next open, what changed shows here."
+    Else
+        Dim parts As Variant: parts = Split(stored, "|")      ' at | ids | unit | pos
+        Dim atTxt As String, oldIds As String, oldUnit As String, oldPos As Long
+        If UBound(parts) >= 3 Then atTxt = parts(0): oldIds = parts(1): oldUnit = parts(2): oldPos = CLng(Val(parts(3)))
+        Dim k As Variant, nNew As Long, nGone As Long
+        For Each k In Split(myIds, ",")
+            If CStr(k) <> "" And InStr(oldIds & ",", "," & CStr(k) & ",") = 0 Then nNew = nNew + 1
+        Next k
+        For Each k In Split(oldIds, ",")
+            If CStr(k) <> "" And InStr(myIds & ",", "," & CStr(k) & ",") = 0 Then nGone = nGone + 1
+        Next k
+        Dim bits As String
+        If nNew > 0 Then bits = bits & "  -  " & nNew & " new posting" & IIf(nNew = 1, "", "s") & " you can sign up for"
+        If nGone > 0 Then bits = bits & "  -  " & nGone & " posting" & IIf(nGone = 1, "", "s") & " closed (awarded, no takers or cancelled)"
+        If oldPos > 0 And mainPos > 0 And oldPos <> mainPos And StrComp(oldUnit, homeU, vbTextCompare) = 0 Then
+            bits = bits & "  -  your " & homeU & " place moved from " & Ordinal(oldPos) & " to " & Ordinal(mainPos)
+        End If
+        s = "Since you last looked (" & atTxt & "):" & IIf(bits = "", "  nothing new for you.", bits & ".")
+    End If
+    SaveSetting APP_KEY, APP_SEC, key, Format$(Now, "ddd mmm d, h:mm AM/PM") & "|" & myIds & "|" & homeU & "|" & mainPos
+    mSeenWho = who: mSeenTxt = s
+    SinceText = s
+End Function
+
+' M4: the earliest published shift (dNext) this person is listed for - place, how many listed, the date, shift and
+' unit, and whether their hours there are an estimate. False = not listed in the published days.
+Private Function NextParts(ByVal who As String, ByRef place As Long, ByRef total As Long, ByRef d As Date, _
+                           ByRef sh As String, ByRef unit As String, ByRef est As Boolean) As Boolean
+    Dim nv As Variant: nv = Data("dNext")
+    Dim i As Long, best As Long, dd As Date
+    place = 0: total = 0: d = 0: sh = "": unit = "": est = False
+    If Not IsArray(nv) Then Exit Function
+    For i = 2 To UBound(nv, 1)
+        If StrComp(Txt(nv(i, 5)), who, vbTextCompare) = 0 Then
+            dd = Dt(nv(i, 2))
+            If best = 0 Or dd < d Or (dd = d And Txt(nv(i, 3)) = "Days" And sh = "Nights") Then
+                best = i: d = dd: unit = Txt(nv(i, 1)): sh = Txt(nv(i, 3))
+            End If
+        End If
+    Next i
+    If best = 0 Then Exit Function
+    For i = 2 To UBound(nv, 1)
+        If StrComp(Txt(nv(i, 1)), unit, vbTextCompare) = 0 And Int(Dt(nv(i, 2))) = Int(d) And _
+           StrComp(Txt(nv(i, 3)), sh, vbTextCompare) = 0 Then total = total + 1
+    Next i
+    place = CLng(Num(nv(best, 4)))
+    If UBound(nv, 2) >= 9 Then est = (StrComp(Txt(nv(best, 9)), "Yes", vbTextCompare) = 0)
+    NextParts = True
+End Function
 
 
 ' M3 (C2) "Am I next?": the earliest published shift (dNext, the master's Who's next window) this person is
 ' listed for, with their place: "Tue Oct 21 Days, Phosphine - you are #2 of 9" (~ = an estimate after a
 ' planned unit move). No rule: the master worked the order out.
 Private Function NextForMe(ByVal who As String) As String
-    Dim nv As Variant: nv = Data("dNext")
-    Dim i As Long, best As Long, d As Date, bestD As Date, bestN As Long, bestU As String, bestSh As String
-    Dim hasEst As Boolean
-    If IsArray(nv) Then hasEst = (UBound(nv, 2) >= 9)
-    If IsArray(nv) Then
-        For i = 2 To UBound(nv, 1)
-            If StrComp(Txt(nv(i, 5)), who, vbTextCompare) = 0 Then
-                d = Dt(nv(i, 2))
-                If best = 0 Or d < bestD Or (d = bestD And Txt(nv(i, 3)) = "Days" And bestSh = "Nights") Then
-                    best = i: bestD = d: bestU = Txt(nv(i, 1)): bestSh = Txt(nv(i, 3))
-                End If
-            End If
-        Next i
-    End If
-    If best = 0 Then
+    Dim place As Long, total As Long, d As Date, sh As String, unit As String, est As Boolean
+    If Not NextParts(who, place, total, d, sh, unit, est) Then
         NextForMe = "Not listed in the next " & Txt(Meta("Who's next days")) & " days (not free, or no unit code)."
         Exit Function
     End If
-    For i = 2 To UBound(nv, 1)                              ' how many are listed on that shift
-        If StrComp(Txt(nv(i, 1)), bestU, vbTextCompare) = 0 And Int(Dt(nv(i, 2))) = Int(bestD) And _
-           StrComp(Txt(nv(i, 3)), bestSh, vbTextCompare) = 0 Then bestN = bestN + 1
-    Next i
-    NextForMe = Format$(bestD, "ddd mmm d") & " " & bestSh & ", " & bestU & "  -  you are #" & NumTxt(Num(nv(best, 4))) & " of " & bestN
-    If hasEst Then
-        If StrComp(Txt(nv(best, 9)), "Yes", vbTextCompare) = 0 Then NextForMe = NextForMe & "  (~ estimated hours after a planned unit move)"
-    End If
+    NextForMe = Format$(d, "ddd mmm d") & " " & sh & ", " & unit & "  -  you are " & Ordinal(place) & " of " & total & _
+                IIf(est, "  (~ estimated hours after a planned unit move)", "")
 End Function
 
 ' M3 (C2) "Larger type": every view sheet at 130 % or back to 100 %, for this session (the file never saves)
@@ -2134,15 +2339,17 @@ Public Sub MemberZoomToggle()
     ws.Activate
     Dim big As Boolean: big = (ActiveWindow.Zoom < 130)     ' the state is the window's zoom itself (review: no module flag to go stale)
     Dim nm As Variant
-    For Each nm In Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST)
+    For Each nm In ViewSheets()
         WsOf(CStr(nm)).Activate
         ActiveWindow.Zoom = IIf(big, 130, 100)
     Next nm
     If Not was Is Nothing Then was.Activate
-    UnprotectWs ws
-    Btn ws, "mb_zoom", IIf(big, "Normal type", "Larger type"), "MemberZoomToggle", _
-        ws.Range("B7").Left + 320, ws.Range("B7").Top + 54, 150, 44, LIGHT, INK
-    ProtectWs ws
+    For Each nm In ViewSheets()                      ' M4: every header band's button says what a click does next
+        Set ws = WsOf(CStr(nm))
+        UnprotectWs ws
+        ws.Shapes("mb_band_zoom").TextFrame2.TextRange.Text = IIf(big, "Normal type", "Larger type")
+        ProtectWs ws
+    Next nm
     Application.ScreenUpdating = True
     MarkClean
 End Sub
@@ -2323,6 +2530,11 @@ Public Sub MemberOnOpen()
     On Error Resume Next
     Application.EnableEvents = True                ' (only matters when this is run by hand: with events off, Excel never calls it on open)
     MemberRefreshAll
+    ' M4 (item 34): the name this PC user picked last time, if it is still on the published roster
+    Dim me_ As String: me_ = RememberedMe()
+    If me_ <> "" And LayoutProblem() = "" And DataProblem() = "" Then
+        If RosterRowOf(Data("dRoster"), me_) > 0 Then ApplyMe me_, SH_HOME
+    End If
     WsOf(SH_HOME).Activate
     ActiveWindow.DisplayGridlines = False
     MarkClean
@@ -2354,4 +2566,120 @@ Public Sub MemberSheetActivated(ByVal Sh As Object)
     On Error Resume Next
     ActiveWindow.DisplayGridlines = False
     MarkClean
+End Sub
+
+' ====================================================================
+'  M4 (item 34): ONE HEADER BAND ON EVERY SHEET, THE STAMP, HOW IT WORKS
+' ====================================================================
+' The view sheets in tab order (Home first, How it works last)
+Private Function ViewSheets() As Variant
+    ViewSheets = Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST, SH_HELP)
+End Function
+
+' < Home, Larger type, How it works and the published stamp, on row 1 to the right of the title (row 1 is made taller)
+Private Sub HeaderBand(ByVal ws As Worksheet)
+    ws.Rows(1).RowHeight = 40
+    Dim x As Double: x = ws.Range("A1").Left + 230
+    Dim y As Double: y = ws.Range("A1").Top + 19
+    Btn ws, "mb_band_home", "<  Home", "MemberGoHome", x, y, 60, 18, NAVY, vbWhite
+    Btn ws, "mb_band_zoom", "Larger type", "MemberZoomToggle", x + 66, y, 80, 18, LIGHT, INK
+    If ws.Name <> SH_HELP Then Btn ws, "mb_band_help", "How it works", "MemberGoHelp", x + 152, y, 90, 18, LIGHT, INK
+    Dim s As Shape
+    On Error Resume Next
+    ws.Shapes("mb_stamp").Delete
+    On Error GoTo 0
+    Set s = ws.Shapes.AddTextbox(msoTextOrientationHorizontal, x, ws.Range("A1").Top + 2, 330, 14)
+    s.Name = "mb_stamp"
+    s.Fill.Visible = msoFalse
+    s.Line.Visible = msoFalse
+    s.Placement = xlFreeFloating
+    With s.TextFrame2
+        .WordWrap = msoFalse
+        .MarginLeft = 0: .MarginTop = 0: .MarginBottom = 0
+        .TextRange.Font.Name = "Segoe UI"
+        .TextRange.Font.Size = 8
+    End With
+End Sub
+
+' "Published Mon Oct 19, 7:12 AM", or "Published Oct 12 - 7 days old: ask a supervisor to update" past the age the
+' master published (Members stale days)
+Private Function StampText() As String
+    If Not HasData() Then StampText = "Not published yet": Exit Function
+    Dim pub As Date: pub = Dt(Meta("Published at"))
+    If StampOld() Then
+        StampText = "Published " & Format$(pub, "ddd mmm d") & " - " & (Int(Date) - Int(pub)) & " days old: ask a supervisor to update"
+    Else
+        StampText = "Published " & Format$(pub, "ddd mmm d, h:mm AM/PM")
+    End If
+End Function
+
+Private Function StampOld() As Boolean
+    If Not HasData() Then Exit Function
+    Dim lim As Long: lim = CLng(Num(Meta("Members stale days")))
+    If lim <= 0 Then lim = 3
+    StampOld = (Int(Date) - Int(Dt(Meta("Published at"))) >= lim)
+End Function
+
+' the stamp written into every band (after a publish and on open)
+Private Sub StampBands()
+    Dim nm As Variant, ws As Worksheet
+    On Error Resume Next
+    For Each nm In ViewSheets()
+        Set ws = WsOf(CStr(nm))
+        If Not ws Is Nothing Then
+            If CStr(nm) <> SH_HOME Then
+                UnprotectWs ws
+                With ws.Shapes("mb_stamp").TextFrame2.TextRange
+                    .Text = StampText()
+                    .Font.Fill.ForeColor.RGB = IIf(StampOld(), RGB(176, 0, 32), RGB(100, 100, 100))
+                    .Font.Bold = IIf(StampOld(), msoTrue, msoFalse)
+                End With
+                ProtectWs ws
+            End If
+        End If
+    Next nm
+End Sub
+
+Public Sub MemberGoHome(): WsOf(SH_HOME).Activate: End Sub
+Public Sub MemberGoHelp(): WsOf(SH_HELP).Activate: End Sub
+
+Private Sub LayoutHelp()
+    Dim ws As Worksheet: Set ws = WsOf(SH_HELP, True)
+    UnprotectWs ws
+    ws.Cells.Clear
+    ws.Cells.Font.Name = "Segoe UI": ws.Cells.Font.Size = 10: ws.Cells.Font.Color = INK
+    Title ws, "HOW IT WORKS", "The rules the supervisors' roster uses, in plain words. Nothing here is worked out in this file."
+    ws.Columns("A").ColumnWidth = 110
+    ProtectWs ws
+End Sub
+
+' M4 (item 35): the rules once, in the file (the legend comes from the master's own text)
+Private Sub DrawHelp()
+    Dim ws As Worksheet: Set ws = WsOf(SH_HELP)
+    If ws Is Nothing Then Exit Sub
+    UnprotectWs ws
+    ClearBelow ws, 4
+    Dim r As Long: r = 5
+    HelpPara ws, r, "Who is called first", "Everyone with a code in the unit who is free for the shift is listed. The order: the grade in the code (D1 before D2), then the lowest Total hours, then the earliest plant seniority, then the name. Total hours = the hours worked (from Kronos) + the hours charged for refusals + overtime accepted but not in Kronos yet (marked *)."
+    HelpPara ws, r, "Why was I charged?", "A refusal or a message left on a call-out is charged the hours offered x 1.75, for grade 2 and below. On a posting, everyone ahead of the last person awarded who did not sign up is charged the posting's hours x 1.75. My history shows a Why line for every charge."
+    HelpPara ws, r, "Not charged", "Accepting, being unavailable for a reason, a plant upset (exception), a cancelled posting, a part acceptance that closed the shift for those below it, and an Exempt row (moved unit, left, or restricted before the shift) are never charged."
+    HelpPara ws, r, "~ and *", "~ = the hours someone will have after a planned unit move (used for their place only). * = the total includes overtime accepted but not yet in Kronos."
+    HelpPara ws, r, "Sign-ups", "Sign me up drops a request for the supervisors' roster; the supervisor confirms it when the posting is awarded. The posted paper sheet still counts. A sign-up for part of the shift is awarded only when nobody takes the whole shift."
+    HelpPara ws, r, "Who is free", "Not free: scheduled on that shift, coming off nights that morning or starting days the next morning (the rest rule), booked off, on a shift switch, inside the 24 h after a sick shift, or when the 16 h rule leaves nothing (no more than 16 h of work in a row, and 11 h rest before the next work)."
+    HelpPara ws, r, "The calendar", Txt(Meta("Legend calendar"))
+    HelpPara ws, r, "The log and the lists", Txt(Meta("Legend log"))
+    ws.Cells(r + 1, 1).Value = "As published " & Format$(Dt(Meta("Published at")), "ddd mmm d, h:mm AM/PM") & ".  " & Txt(Meta("Trust strip"))
+    ws.Cells(r + 1, 1).Font.Size = 8: ws.Cells(r + 1, 1).Font.Italic = True: ws.Cells(r + 1, 1).Font.Color = RGB(100, 100, 100)
+    ws.Cells(r + 1, 1).WrapText = True
+    ProtectWs ws
+End Sub
+
+Private Sub HelpPara(ByVal ws As Worksheet, ByRef r As Long, ByVal head As String, ByVal body As String)
+    If body = "" Then Exit Sub
+    ws.Cells(r, 1).Value = head
+    ws.Cells(r, 1).Font.Bold = True: ws.Cells(r, 1).Font.Size = 11: ws.Cells(r, 1).Font.Color = NAVY
+    ws.Cells(r + 1, 1).Value = body
+    ws.Cells(r + 1, 1).WrapText = True
+    ws.Rows(r + 1).AutoFit
+    r = r + 3
 End Sub

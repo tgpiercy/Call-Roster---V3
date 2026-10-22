@@ -1891,7 +1891,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     rs.Shapes("ui_sup_History").Left = fx              ' v26: the group's second button moves with it
     On Error GoTo 0
     If SheetExists(CALLOUT_SHEET) Then
-        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not adminView
+        ThisWorkbook.Worksheets(CALLOUT_SHEET).Columns(CALLOUT_PHONE_COL).Hidden = Not (adminView Or IsSupervisor())   ' v27 (item 16): a supervisor's printed roster carries the phones
     End If
     If SheetExists(CAL_SHEET) Then
         For Each shp In ThisWorkbook.Worksheets(CAL_SHEET).Shapes

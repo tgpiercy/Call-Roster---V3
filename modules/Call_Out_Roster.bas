@@ -18,6 +18,12 @@ Public Const CO_VERSION As String = "Call out roster v26.5.5 (Oct 21)"
 
 Private Const NAVY_C As Long = 6567966        ' RGB(30, 56, 100)
 Private Const HDR_ROWS As Long = 4            ' title block repeated on every printed page
+' v27 (item 16, B3): the outage print - a supervisor can run a call-out from the paper when the roster is down:
+' the phone column for supervisors too (hidden for a plain user only), four tick columns A / R / L / U and a
+' time per row, a session line under each unit title, the legend in the page footer. CO_LAST_COL = the last column.
+Private Const CO_LAST_COL As Long = 10        ' #, Hours, Name, Crew, Phone, A, R, L, U, Time
+Private Const CO_TICK1 As Long = 6            ' the first tick column (A)
+Private Const CO_TIME As Long = 10
 
 ' Button: draw, show, offer to print
 Sub Call_Out()
@@ -99,20 +105,24 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
     ws.Columns(2).ColumnWidth = 8         ' hours
     ws.Columns(3).ColumnWidth = 30        ' name
     ws.Columns(4).ColumnWidth = 7         ' crew
-    ws.Columns(CALLOUT_PHONE_COL).ColumnWidth = 15   ' phone (hidden for non-admins)
-    ws.Columns(CALLOUT_PHONE_COL).Hidden = Not gAdminUnlocked
+    ws.Columns(CALLOUT_PHONE_COL).ColumnWidth = 15   ' phone (v27: hidden for a plain user only - a supervisor calls from the paper)
+    ws.Columns(CALLOUT_PHONE_COL).Hidden = Not (gAdminUnlocked Or IsSupervisor())
+    For i = CO_TICK1 To CO_TICK1 + 3
+        ws.Columns(i).ColumnWidth = 3.5          ' A R L U: a tick each
+    Next i
+    ws.Columns(CO_TIME).ColumnWidth = 7          ' the time of the call
 
     ' ---- title block (rows 1-4, repeated on every page) ----
     Dim ps As Date: ps = PeriodStartFor(Date)
     ws.Rows(1).RowHeight = 30
-    With ws.Range("A1:E1")
+    With ws.Range(ws.Cells(1, 1), ws.Cells(1, CO_LAST_COL))
         .Merge
         .Value = "OVERTIME CALL OUT ROSTER"
         .Font.Size = 18: .Font.Bold = True: .Font.Color = NAVY_C
         .HorizontalAlignment = xlLeft
     End With
     ws.Rows(2).RowHeight = 16
-    With ws.Range("A2:E2")
+    With ws.Range(ws.Cells(2, 1), ws.Cells(2, CO_LAST_COL))
         .Merge
         .Value = "Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d, yyyy") & "     |     " & _
                  TrustStrip() & "     |     printed " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM")    ' v26.5.5 (5.2): the trust strip
@@ -120,16 +130,19 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
         .HorizontalAlignment = xlLeft
     End With
     ws.Rows(3).RowHeight = 14
-    With ws.Range("A3:E3")
+    With ws.Range(ws.Cells(3, 1), ws.Cells(3, CO_LAST_COL))
         .Merge
+        .WrapText = True
         .Value = "Listed in call order: grade code, then total hours, then plant seniority.  " & _
                  "* = total includes accepted overtime not yet in Kronos (data through " & _
                  Format$(EnsureDataThrough(), "mmm d") & ").  >> = above grade " & CHARGE_MAX_GRADE & " (called, not charged)." & _
-                 IIf(HasPlannedMoves(), "  ~ = hours after a planned unit move's top-up.", "")
+                 IIf(HasPlannedMoves(), "  ~ = hours after a planned unit move's top-up.", "") & _
+                 "  Roster down? Call down each list in order, tick A / R / L / U and the time, fill the session line, and log it in the roster when it is back."
         .Font.Size = 8: .Font.Italic = True: .Font.Color = greyTxt
-        .HorizontalAlignment = xlLeft
+        .HorizontalAlignment = xlLeft: .VerticalAlignment = xlTop
     End With
-    With ws.Range("A4:E4")
+    ws.Rows(3).RowHeight = 24
+    With ws.Range(ws.Cells(4, 1), ws.Cells(4, CO_LAST_COL))
         .Borders(xlEdgeBottom).LineStyle = xlContinuous
         .Borders(xlEdgeBottom).Weight = xlThick
         .Borders(xlEdgeBottom).Color = NAVY_C
@@ -151,7 +164,7 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
     On Error Resume Next
     Application.PrintCommunication = False
     With ws.PageSetup
-        .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, 5)).Address
+        .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, CO_LAST_COL)).Address
         .PrintTitleRows = "$1:$" & HDR_ROWS
         .Orientation = xlPortrait
         .Zoom = False
@@ -166,8 +179,10 @@ Private Sub RenderCalloutRoster(ByVal ws As Worksheet, ByRef nPeople As Long, By
         .FooterMargin = Application.InchesToPoints(0.3)
         .PrintGridlines = False
         .LeftHeader = "": .CenterHeader = "": .RightHeader = ""
-        .LeftFooter = "": .RightFooter = ""
-        .CenterFooter = "Page &P of &N"
+        ' v27 (item 16): the legend in the footer (item 27's legend, the paper's copy)
+        .LeftFooter = "&8A accepted   R refused (charged x" & CHARGE_MULTIPLIER & ")   L left message (charged x" & CHARGE_MULTIPLIER & ")   U unavailable (not charged)   grade " & CHARGE_MAX_GRADE & " and below are charged; >> = called, never charged"
+        .RightFooter = ""
+        .CenterFooter = "&8Page &P of &N"
     End With
     Application.PrintCommunication = True
     ws.DisplayPageBreaks = False
@@ -184,7 +199,7 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
     Dim i As Long
     ' a unit never starts in the last few lines of a page: let Excel break before it
     ws.Rows(r).RowHeight = 21
-    With ws.Range(ws.Cells(r, 1), ws.Cells(r, 5))
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r, CO_LAST_COL))
         .Merge
         .Value = UCase$(title) & "   -   " & n & IIf(n = 1, " person", " people")
         .Interior.Color = NAVY_C
@@ -193,9 +208,19 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
         .IndentLevel = 1
     End With
     r = r + 1
+    ' v27 (item 16): the session line to fill in by hand when the roster is down
+    ws.Rows(r).RowHeight = 18
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r, CO_LAST_COL))
+        .Merge
+        .Value = "Session S-________    Shift  Days / Nights    Date ____________    Hours ______    Called by ______________"
+        .Font.Size = 9: .Font.Color = greyTxt
+        .HorizontalAlignment = xlLeft
+        .IndentLevel = 1
+    End With
+    r = r + 1
     ws.Rows(r).RowHeight = 16
-    ws.Range(ws.Cells(r, 1), ws.Cells(r, 5)).Value = Array("#", "Hours", "Name", "Crew", "Phone")
-    With ws.Range(ws.Cells(r, 1), ws.Cells(r, 5))
+    ws.Range(ws.Cells(r, 1), ws.Cells(r, CO_LAST_COL)).Value = Array("#", "Hours", "Name", "Crew", "Phone", "A", "R", "L", "U", "Time")
+    With ws.Range(ws.Cells(r, 1), ws.Cells(r, CO_LAST_COL))
         .Interior.Color = lightFill
         .Font.Bold = True: .Font.Size = 9: .Font.Color = greyTxt
         .HorizontalAlignment = xlCenter
@@ -215,7 +240,7 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
         Exit Function
     End If
 
-    Dim v() As Variant: ReDim v(1 To n, 1 To 5)
+    Dim v() As Variant: ReDim v(1 To n, 1 To CO_LAST_COL)   ' v27 (item 16): the tick and time cells stay empty - they are written by hand
     For i = 1 To n
         v(i, 1) = i
         If recs(i).ProvHrs > 0 Or recs(i).EstHrs Then          ' v24.3: ~ = hours after a planned unit move's top-up
@@ -229,7 +254,7 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
     Next i
     Dim first As Long: first = r
     Dim last As Long: last = r + n - 1
-    With ws.Range(ws.Cells(first, 1), ws.Cells(last, 5))
+    With ws.Range(ws.Cells(first, 1), ws.Cells(last, CO_LAST_COL))
         .NumberFormat = "@"
         .Value = v
         .RowHeight = 18
@@ -245,9 +270,15 @@ Private Function WriteSection(ByVal ws As Worksheet, ByVal r As Long, ByVal titl
     ws.Range(ws.Cells(first, 1), ws.Cells(last, 2)).HorizontalAlignment = xlCenter
     ws.Range(ws.Cells(first, 4), ws.Cells(last, 5)).HorizontalAlignment = xlCenter
     ws.Range(ws.Cells(first, 3), ws.Cells(last, 3)).Font.Size = 11
+    ' v27 (item 16): the tick boxes - a thin border round each A / R / L / U cell and the time cell
+    With ws.Range(ws.Cells(first, CO_TICK1), ws.Cells(last, CO_LAST_COL)).Borders
+        .LineStyle = xlContinuous
+        .Weight = xlHairline
+        .Color = lineCol
+    End With
     For i = 1 To n
         If recs(i).Grade > CHARGE_MAX_GRADE Then
-            With ws.Range(ws.Cells(first + i - 1, 1), ws.Cells(first + i - 1, 5)).Font
+            With ws.Range(ws.Cells(first + i - 1, 1), ws.Cells(first + i - 1, CO_LAST_COL)).Font
                 .Color = RGB(130, 135, 145): .Italic = True
             End With
         End If

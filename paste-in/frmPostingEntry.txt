@@ -29,6 +29,7 @@ Private WithEvents mNoTakers As MSForms.CommandButton
 Private WithEvents mCancelReq As MSForms.CommandButton
 Private WithEvents mOutside As MSForms.CommandButton
 Private WithEvents mPartial As MSForms.CommandButton
+Private WithEvents mScan As MSForms.CommandButton       ' v27 (item 23): file the scanned sign-up sheet
 
 Private mP As PostRec
 Private mL() As PListRec
@@ -200,6 +201,14 @@ Private Sub UserForm_Initialize()
     C("lblStatus").Font.Size = 10
     C("lblStatus").Height = 40
     C("lblStatus").WordWrap = True
+    ' v27 (item 23): the scanned sign-up sheet filed beside the roster as <posting>.<ext> (modEvidence.AddScan)
+    Set mScan = Me.Controls.Add("Forms.CommandButton.1", "cmdScan", True)
+    With mScan
+        .Caption = "Scan of the sheet..."
+        .Left = 316: .Top = 578: .Width = 144: .Height = 24
+        .Font.Size = 10
+        .Enabled = False
+    End With
 
     LoadChoices
     ApplyFormTheme Me
@@ -395,6 +404,12 @@ End Sub
 
 ' PARTIAL HOURS (v24): the selected person signed up for only part of the shift.
 ' Blank or the posting's full hours = the whole shift.
+' v27 (item 23): the scanned sign-up sheet for the loaded posting
+Private Sub mScan_Click()
+    If mN = 0 Then Exit Sub
+    AddScan mP.ID
+End Sub
+
 Private Sub mPartial_Click()
     Dim i As Long: i = lstEmployees.ListIndex + 1
     If i < 1 Or i > mN Then MsgBox "Select a name first.", vbInformation, "Call Out Roster": Exit Sub
@@ -488,6 +503,7 @@ Private Sub SetActionButtons(ByVal on_ As Boolean)
     mPartial.Enabled = on_
     btnSubmit.Enabled = on_
     mNoTakers.Enabled = adm
+    If Not mScan Is Nothing Then mScan.Enabled = on_      ' v27 (item 23): a loaded posting can have its scan filed
     mCancelReq.Enabled = adm
     mOutside.Enabled = adm
     C("cmbOutside").Enabled = adm

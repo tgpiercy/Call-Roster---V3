@@ -29,7 +29,7 @@ Public Const EXPECTED_RELEASE As String = "v26.5.5"
 Public Const WHATS_NEW As String = "The 16 h rule: OT already accepted, an award or a switch on the shift that touches the one on offer counts as worked time, so the call-out and award pop-ups show max N h beside anyone who can only take part (A or a full award is refused; P and a partial sign-up up to the max are fine).|" & _
                                    "Before 7 AM the date box is yesterday (the night under way); the Hours box fills itself; a sick call asks before it saves; every submitted session ends with what to do next; the keys say what they cost (R and L charged x1.75, U not charged); the trust strip on every pop-up and printout says how current the hours are.|" & _
                                    "A save that fails is REPORTED (NOT SAVED in red on the Desk until it goes through) and a file someone else saved meanwhile refuses to be overwritten; Practice on a copy (the Desk's grey row) opens a throw-away copy with a red banner."
-Private Const N_MODULES As Long = 29           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules
+Private Const N_MODULES As Long = 30           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v26.5.5"
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
@@ -73,6 +73,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     VerCheck "modStats", STATS_VERSION, warn, nOk            ' v27: the quarterly Stats report
     VerCheck "modReceipt", RCPT_VERSION, warn, nOk           ' v27: the receipt card after every save
     VerCheck "modRules", RULES_VERSION, warn, nOk            ' v27 (item 22): the Rules and Settings sheets
+    VerCheck "modEvidence", EVID_VERSION, warn, nOk          ' v27 (item 23): the period close, scans, disputes
     VerCheck "modSignups", SG_VERSION, warn, nOk
     VerCheck "modErrorLog", EL_VERSION, warn, nOk
     VerCheck "modSmokeTest", SMK_VERSION, warn, nOk

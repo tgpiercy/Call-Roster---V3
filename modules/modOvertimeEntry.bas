@@ -67,6 +67,8 @@ Public Const RECENT_SESSION_HOURS As Double = 12  ' v27 (item 10): a second call
 Public Const WEEK_MAX_HOURS As Double = 48        ' v27 (item 21): an accept or award that takes a person past this in the trailing 7 days warns and needs a reason (never blocks)
 Public Const RS_SHEET As String = "Restrictions"  ' v27 (item 21): OT restrictions (tblRestrictions): not listed while restricted, never charged; admin-only, never published
 Public Const RS_TABLE As String = "tblRestrictions"
+Public Const CLOSED_FOLDER As String = ".\Closed"   ' v27 (item 23): the period close's CSV + PDF ("." = beside the roster; a network folder later)
+Public Const SCAN_FOLDER As String = ".\Scans"      ' v27 (item 23): the scanned sign-up sheets, one per posting
 ' v26.5.5 (item 9, Graeme Oct 19-21): the plant's fatigue rule. At most FATIGUE_MAX_HOURS of consecutive
 ' work (the shift already worked that touches the OT, plus the OT), and at least FATIGUE_MIN_REST before the
 ' next shift. Accepted call-outs, awards and switches are WORKED shifts for it (modCalendar.FatigueMaxFor).
@@ -2043,7 +2045,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     If adminView Then EnsureInstallLog               ' v25: the Install panel writes it; made BEFORE the visibility loop so it shows this session
     Dim nm As Variant
     For Each nm In Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
-                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log, the Kronos Files record, the Reconcile and Stats sheets, the Feedback answers
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET)   ' absences hold leave types - admin only; IL_SHEET v24.4; v26: the FULL history (logins) and the staffing minimums; v26.5: the per-period Kronos hours; v27: the Kronos Totals snapshot, the Worked Days ledger, the Worked Changes log, the Kronos Files record, the Reconcile and Stats sheets, the Feedback answers
         If SheetExists(CStr(nm)) Then
             Dim showIt As Boolean
             showIt = adminView And Not gDeskMode

@@ -279,6 +279,8 @@ Public Sub DrawDesk()
         yF = yF + BTN_H + GAP
         DeskBtn ws, "dk_btn_rules", "The rules (sheet)", "modRules.DrawRules", xF, yF, dkNavy()   ' v27 (item 22): the Rules sheet, Basis typed by an admin
         yF = yF + BTN_H + GAP
+        DeskBtn ws, "dk_btn_close", "Close the pay period", "modEvidence.ClosePeriod", xF, yF, dkNavy()   ' v27 (item 23): the CSV + PDF + hash
+        yF = yF + BTN_H + GAP
     End If
 
     ' ---- the footer row: help, the two emails, Undo (admin), Practice - grey, reached for rarely ----

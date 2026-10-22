@@ -805,7 +805,7 @@ Private Function ReportSheet() As Worksheet
 End Function
 
 ' v26: an output-only report sheet by name, made on first use (the Refusals Report's pattern)
-Private Function ReportSheetNamed(ByVal sheetName As String) As Worksheet
+Public Function ReportSheetNamed(ByVal sheetName As String) As Worksheet     ' v27 (item 23): modEvidence draws its page with it
     If Not SheetExists(sheetName) Then
         Dim was As Object: Set was = ActiveSheet
         Dim ws As Worksheet
@@ -986,7 +986,7 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
     SetSheetVisible ws, xlSheetVisible
     UnlockSheet ws
     ws.Cells.Clear
-    Dim nc As Long: nc = IIf(full, 14, 10)
+    Dim nc As Long: nc = IIf(full, 15, 10)                  ' v27 (item 23): the FULL report's 15th column = Evidence (scans, disputes)
     ws.Range("A1").Value = "EMPLOYEE HISTORY  -  " & nm & "  -  " & DateText(dFrom) & " to " & DateText(dTo) & IIf(full, "  (FULL, admin)", "  (member-safe)")
     ws.Range("A1").Font.Bold = True: ws.Range("A1").Font.Size = 13
     ws.Range("A2").Value = "Every OT Log entry for " & nm & IIf(full, " with a shift date in the range", " counted in a pay period starting in the range") & _
@@ -996,7 +996,7 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
     Dim heads As Variant
     If full Then
         heads = Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Call order", "Outcome", "Charged", "Pay period", "Why", _
-                      "Logged by", "When", "Status", "Void note")
+                      "Logged by", "When", "Status", "Void note", "Evidence")
     Else
         heads = Array("Shift date", "Ref", "Type", "Unit / shift", "Hours", "Call order", "Outcome", "Charged", "Pay period", "Why")   ' My history's order
     End If
@@ -1038,6 +1038,7 @@ Private Sub DrawHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo
             If IsDate(lg(t, L_STAMP)) Then ws.Cells(r, 12).Value = Format$(CDate(lg(t, L_STAMP)), "mmm d, yyyy h:mm AM/PM")
             ws.Cells(r, 13).Value = SafeStr(lg(t, L_STATUS))
             ws.Cells(r, 14).Value = SafeStr(lg(t, L_VOIDNOTE))
+            ws.Cells(r, 15).Value = EvidenceFor(SafeStr(lg(t, L_REF)))   ' v27 (item 23)
             If isVoid Then ws.Range(ws.Cells(r, 1), ws.Cells(r, nc)).Font.Strikethrough = True
         End If
         If Not isVoid Then
@@ -1207,9 +1208,10 @@ End Function
 
 ' v26: fileBase is the PDF's name before the date (was fixed to "Refused hours <what>"); ttl the box title
 Public Sub ReportPdf(ByVal ws As Worksheet, ByVal fileBase As String, Optional ByVal ttl As String = "Refusals report", _
-                     Optional ByVal besideRoster As Boolean = False)     ' v27: Public - the Reconcile sheet saves its page with it
+                     Optional ByVal besideRoster As Boolean = False, Optional ByVal targetFolder As String = "")     ' v27: Public - the Reconcile sheet saves its page with it; item 23: a folder of the caller's
     Dim folder As String: folder = EnsureSlash(ReportFolder())
     If besideRoster Or Not FolderExists(folder) Then folder = EnsureSlash(ThisWorkbook.Path)
+    If targetFolder <> "" Then folder = EnsureSlash(targetFolder)
     Dim pdfPath As String: pdfPath = folder & fileBase & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
     Dim em As String
     On Error Resume Next

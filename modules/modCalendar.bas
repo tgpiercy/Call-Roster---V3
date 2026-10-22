@@ -4920,6 +4920,15 @@ Public Sub DrawNeeds()
         NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
               "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
     End If
+    ' v27 (item 23): the open disputes, one line each (an admin settles one through CloseDispute)
+    Dim nDp As Long, dpTxt As String: dpTxt = OpenDisputesText(nDp)
+    If nDp > 0 Then
+        Dim dpLine As Variant
+        For Each dpLine In Split(dpTxt, vbNewLine)
+            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "Disputed: " & CStr(dpLine), "Dispute", _
+                  "Alt+F8 > CloseDispute", "", "J:dispute", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+        Next dpLine
+    End If
     ' v27 (item 21): the active OT restrictions, one line each (information: an admin ends one through EndRestriction)
     Dim nRs As Long, rsTxt As String: rsTxt = ActiveRestrictionsText(nRs)
     If nRs > 0 Then

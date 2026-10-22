@@ -1275,27 +1275,46 @@ def accepted_hours(offer: float, taken: float) -> float:
 
 
 # ---------------------------------------------------------------- electronic sign-ups (v24.1)
-def reduce_signups(rows: list[tuple[str, str, float, datetime]], closes_at: datetime | None):
-    """modSignups.ReduceSignups. rows = (employee, action, hours, stamp) in any
+SIGNUP_STAMP_SLACK_MIN = 10          # modSignups.SIGNUP_STAMP_SLACK_MIN (v27, item 14)
+
+
+def signup_suspect(stamp: datetime | None, file_time: datetime | None) -> bool:
+    """modSignups.SignupSuspect: the file was written more than the slack after the stamp it claims."""
+    if stamp is None or file_time is None:
+        return False
+    return (file_time - stamp).total_seconds() / 60 > SIGNUP_STAMP_SLACK_MIN
+
+
+def reduce_signups(rows: list[tuple], closes_at: datetime | None):
+    """modSignups.ReduceSignups. rows = (employee, action, hours, stamp[, login[, file_time]]) in any
     order. Each person's action with the latest stamp wins (same stamp: the
-    later row). Returns [(employee, hours, late)] for people whose newest action
-    is a sign-up, in the order each name first appeared."""
+    later row). Returns [(employee, hours, late, suspect, login_mix)] for people whose newest action
+    is a sign-up, in the order each name first appeared. v27 (item 14): suspect = the winning file's time
+    on disk is more than the slack after its stamp; login_mix = another file for that name came from a
+    different (non-empty) login."""
     newest: dict[str, int] = {}
-    names: dict[str, str] = {}
-    for i, (emp, _action, _hours, stamp) in enumerate(rows):
-        key = emp.strip().casefold()
+    for i, row in enumerate(rows):
+        key = row[0].strip().casefold()
         if not key:
             continue
         if key not in newest:
             newest[key] = i
-            names[key] = emp.strip()
-        elif stamp >= rows[newest[key]][3]:
+        elif row[3] >= rows[newest[key]][3]:
             newest[key] = i
     out = []
     for key, i in newest.items():
-        emp, action, hours, stamp = rows[i]
-        if action.strip().lower() == "signup":
-            out.append((emp.strip(), hours, closes_at is not None and stamp > closes_at))
+        row = rows[i]
+        emp, action, hours, stamp = row[0], row[1], row[2], row[3]
+        login = row[4].strip() if len(row) > 4 else ""
+        file_time = row[5] if len(row) > 5 else None
+        if action.strip().lower() != "signup":
+            continue
+        mix = bool(login) and any(
+            j != i and r[0].strip().casefold() == key and len(r) > 4 and r[4].strip()
+            and r[4].strip().casefold() != login.casefold()
+            for j, r in enumerate(rows))
+        out.append((emp.strip(), hours, closes_at is not None and stamp > closes_at,
+                    signup_suspect(stamp, file_time), mix))
     return out
 
 

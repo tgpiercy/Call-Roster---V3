@@ -267,6 +267,10 @@ Private Function RunCase(f() As String) As String
             RunCase = CaseSignups(i1, i2)
         Case "withdrawn"                           ' v26 (M3): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> name=login[!];... / none
             RunCase = CaseWithdrawn(i1)
+        Case "sgsuspect"                           ' v27 (item 14): the file's stamp, its time on disk (yyyy-mm-dd-hh-nn; 0 = unknown) -> suspect / ok
+            RunCase = IIf(SignupSuspect(ParseStampMin(i1), ParseStampMin(i2)), "suspect", "ok")
+        Case "sgmix"                               ' v27 (item 14): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> the reduced sign-ups, name[!] (! = another login for that name) / none
+            RunCase = CaseSignupMix(i1)
         Case "calloffer"
             RunCase = CaseCallOffer(CDbl(i1), i2)
         Case "attendocc"
@@ -662,6 +666,36 @@ Private Function CaseWithdrawn(ByVal spec As String) As String
         CaseWithdrawn = CaseWithdrawn & IIf(i = 1, "", ";") & CStr(wd(i, WD_EMP)) & "=" & CStr(wd(i, WD_LOGIN)) & IIf(CBool(wd(i, WD_MISMATCH)), "!", "")
     Next i
     If CaseWithdrawn = "" Then CaseWithdrawn = "none"
+End Function
+
+' v27 (item 14): "yyyy-mm-dd-hh-nn" -> the date and time; "0" / "" -> 0
+Private Function ParseStampMin(ByVal s As String) As Date
+    s = Trim$(s)
+    If Len(s) < 16 Then Exit Function
+    ParseStampMin = ParseD(Left$(s, 10)) + TimeSerial(CLng(Mid$(s, 12, 2)), CLng(Mid$(s, 15, 2)), 0)
+End Function
+
+' v27 (item 14): "name:S|W:hours:yyyy-mm-dd-hh:login;..." -> "name[!];..." for the reduced sign-ups ("!" = files from
+' more than one login for that name); "none"
+Private Function CaseSignupMix(ByVal spec As String) As String
+    Dim parts As Variant: parts = Split(spec, ";")
+    Dim n As Long: n = UBound(parts) + 1
+    Dim rows() As Variant: ReDim rows(1 To n, 1 To SG_N)
+    Dim i As Long, p As Variant, red() As Variant, m As Long
+    For i = 1 To n
+        p = Split(parts(i - 1), ":")
+        rows(i, SG_EMP) = CStr(p(0))
+        rows(i, SG_ACTION) = IIf(CStr(p(1)) = "S", "signup", "withdraw")
+        rows(i, SG_HOURS) = CDbl(p(2))
+        rows(i, SG_STAMP) = ParseD(CStr(p(3))) + TimeSerial(CLng(Mid$(CStr(p(3)), 12, 2)), 0, 0)
+        If UBound(p) >= 4 Then rows(i, SG_LOGIN) = CStr(p(4)) Else rows(i, SG_LOGIN) = ""
+    Next i
+    Dim v As Variant: v = rows
+    m = ReduceSignups(v, 0, red)
+    For i = 1 To m
+        CaseSignupMix = CaseSignupMix & IIf(i = 1, "", ";") & CStr(red(i, SR_EMP)) & IIf(CBool(red(i, SR_LOGINMIX)), "!", "")
+    Next i
+    If CaseSignupMix = "" Then CaseSignupMix = "none"
 End Function
 
 ' hours, "outcome:taken;..." in call order (everyone grade 1) -> "offered=charged;..."
@@ -1755,5 +1789,20 @@ Private Sub LoadCases5()
     AddCase "firstref,entry-id-no-dash,#17 by piercyg,,,,,-"
     AddCase "firstref,at-the-end,voided NH-0009,,,,,NH-0009"
     AddCase "firstref,in-brackets,(see P-7),,,,,P-7"
+    AddCase "sgsuspect,written-at-once,2027-01-10-09-00,2027-01-10-09-00,,,,ok"
+    AddCase "sgsuspect,written-5-min-later,2027-01-10-09-00,2027-01-10-09-05,,,,ok"
+    AddCase "sgsuspect,written-10-min-later-exactly,2027-01-10-09-00,2027-01-10-09-10,,,,ok"
+    AddCase "sgsuspect,written-11-min-later,2027-01-10-09-00,2027-01-10-09-11,,,,suspect"
+    AddCase "sgsuspect,written-a-day-later,2027-01-10-09-00,2027-01-11-09-00,,,,suspect"
+    AddCase "sgsuspect,stamp-after-file-time,2027-01-10-09-30,2027-01-10-09-00,,,,ok"
+    AddCase "sgsuspect,file-time-unknown,2027-01-10-09-00,0,,,,ok"
+    AddCase "sgsuspect,stamp-unknown,0,2027-01-10-09-00,,,,ok"
+    AddCase "sgmix,one-login,Ann:S:0:2027-01-10-09:jdoe,,,,,Ann"
+    AddCase "sgmix,two-logins-same-name,Ann:S:0:2027-01-10-09:jdoe;Ann:S:8:2027-01-10-11:psmith,,,,,Ann!"
+    AddCase "sgmix,other-login-earlier-withdraw,Ann:S:0:2027-01-10-09:psmith;Ann:W:0:2027-01-10-10:jdoe;Ann:S:0:2027-01-10-11:psmith,,,,,Ann!"
+    AddCase "sgmix,two-names-two-logins,Ann:S:0:2027-01-10-09:jdoe;Bob:S:0:2027-01-10-09:psmith,,,,,Ann;Bob"
+    AddCase "sgmix,blank-login-ignored,Ann:S:0:2027-01-10-09:;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann"
+    AddCase "sgmix,newest-is-withdraw,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:psmith,,,,,none"
+    AddCase "sgmix,case-of-login-ignored,Ann:S:0:2027-01-10-09:JDoe;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann"
 ' <<< CASES
 End Sub

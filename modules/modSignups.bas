@@ -40,7 +40,8 @@ Public Const SG_ACTION As Long = 3      ' signup / withdraw
 Public Const SG_LOGIN As Long = 4
 Public Const SG_STAMP As Long = 5
 Public Const SG_FILE As Long = 6
-Public Const SG_N As Long = 6
+Public Const SG_MTIME As Long = 7       ' v27 (item 14): the file's modified time on disk (0 = unknown)
+Public Const SG_N As Long = 7
 
 ' rows ReduceSignups gives back (people whose newest action is a sign-up)
 Public Const SR_EMP As Long = 1
@@ -48,7 +49,10 @@ Public Const SR_HOURS As Long = 2
 Public Const SR_LATE As Long = 3        ' stamped after the posting closed
 Public Const SR_LOGIN As Long = 4
 Public Const SR_STAMP As Long = 5
-Public Const SR_N As Long = 5
+Public Const SR_SUSPECT As Long = 6     ' v27 (item 14): True = the file was written more than SIGNUP_STAMP_SLACK_MIN after its stamp
+Public Const SR_LOGINMIX As Long = 7    ' v27 (item 14): True = another file for this name came from a different login
+Public Const SR_N As Long = 7
+Public Const SIGNUP_STAMP_SLACK_MIN As Long = 10   ' v27 (item 14, A12): a stamp this much older than the file's own time is suspect
 
 ' v26 (M3, D-M4): rows WithdrawnSignups gives back (people whose newest action is a withdraw)
 Public Const WD_EMP As Long = 1
@@ -82,6 +86,7 @@ Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByR
     Next i
     If newest.Count = 0 Then Exit Function
     ReDim out(1 To newest.Count, 1 To SR_N)
+    Dim lg As String, mt As Date
     For Each k In newest.Keys
         r = CLng(newest(k))
         If LCase$(Trim$(SafeStr(rows(r, SG_ACTION)))) = "signup" Then
@@ -91,9 +96,35 @@ Public Function ReduceSignups(ByRef rows As Variant, ByVal closesAt As Date, ByR
             out(m, SR_LATE) = (closesAt > 0 And CDate(rows(r, SG_STAMP)) > closesAt)
             out(m, SR_LOGIN) = SafeStr(rows(r, SG_LOGIN))
             out(m, SR_STAMP) = CDate(rows(r, SG_STAMP))
+            ' v27 (item 14, A12): the two flags - a back-dated stamp (the file is newer than it says by more than the
+            ' slack) and a name whose files came from more than one login (a shared PC, or someone else's click)
+            mt = 0
+            If UBound(rows, 2) >= SG_MTIME Then
+                If IsDate(rows(r, SG_MTIME)) Then mt = CDate(rows(r, SG_MTIME))
+            End If
+            out(m, SR_SUSPECT) = SignupSuspect(CDate(rows(r, SG_STAMP)), mt)
+            lg = Trim$(SafeStr(rows(r, SG_LOGIN)))
+            out(m, SR_LOGINMIX) = False
+            If lg <> "" Then
+                For i = 1 To UBound(rows, 1)
+                    If i <> r Then
+                        If StrComp(Trim$(SafeStr(rows(i, SG_EMP))), CStr(k), vbTextCompare) = 0 Then
+                            If Trim$(SafeStr(rows(i, SG_LOGIN))) <> "" And StrComp(Trim$(SafeStr(rows(i, SG_LOGIN))), lg, vbTextCompare) <> 0 Then out(m, SR_LOGINMIX) = True: Exit For
+                        End If
+                    End If
+                Next i
+            End If
         End If
     Next k
     ReduceSignups = m
+End Function
+
+' v27 (item 14, A12): a sign-up file whose own stamp is more than SIGNUP_STAMP_SLACK_MIN older than the time the
+' file was written is suspect (a stamp typed or reset by hand; the members' file writes the two within a second).
+' PURE (SelfTest "sgsuspect"; mirrored in tests/rules.py). An unknown time on either side = not suspect.
+Public Function SignupSuspect(ByVal stamp As Date, ByVal fileTime As Date) As Boolean
+    If stamp = 0 Or fileTime = 0 Then Exit Function
+    SignupSuspect = ((fileTime - stamp) * 1440 > SIGNUP_STAMP_SLACK_MIN)
 End Function
 
 ' v26 (M3; D-M4, Oct 13: every withdrawal listed with login and time at LOAD). PURE (SelfTest
@@ -205,7 +236,7 @@ Public Function ReadSignups(ByVal postingId As String, Optional ByRef skipped As
     On Error GoTo 0
     If n = 0 Then Exit Function
     Dim rows() As Variant: ReDim rows(1 To n, 1 To SG_N)
-    Dim i As Long, k As Long, p As Long
+    Dim i As Long, k As Long, p As Long, mt As Date
     Dim post As String, emp As String, hrs As Double, act As String, login As String, stamp As Date
     For i = 1 To n
         If ReadOneSignup(folder & files(i), post, emp, hrs, act, login, stamp) Then
@@ -218,6 +249,11 @@ Public Function ReadSignups(ByVal postingId As String, Optional ByRef skipped As
                 rows(k, SG_LOGIN) = login
                 rows(k, SG_STAMP) = stamp
                 rows(k, SG_FILE) = files(i)
+                mt = 0                                   ' v27 (item 14): the file's own time, for the suspect flag
+                On Error Resume Next
+                mt = FileDateTime(folder & files(i))
+                On Error GoTo 0
+                rows(k, SG_MTIME) = mt
             End If
         Else
             skipped = skipped + 1
@@ -230,7 +266,40 @@ Public Function ReadSignups(ByVal postingId As String, Optional ByRef skipped As
             out(i, p) = rows(i, p)
         Next p
     Next i
+    SortSignupRows out, k                            ' v27 (item 14): by stamp, then file name - the same order on every PC
     ReadSignups = out
+End Function
+
+' v27 (item 14, A12): the rows in (stamp, file name) order, so a tie on the stamp is broken the same way on every
+' PC (Dir$ returns files in no promised order; ReduceSignups keeps the LATER row on a tie)
+Private Sub SortSignupRows(ByRef rows() As Variant, ByVal n As Long)
+    Dim i As Long, j As Long, c As Long, tmp(1 To SG_N) As Variant
+    For i = 2 To n
+        For c = 1 To SG_N
+            tmp(c) = rows(i, c)
+        Next c
+        j = i - 1
+        Do While j >= 1
+            If Not SignupRowAfter(rows, j, tmp) Then Exit Do
+            For c = 1 To SG_N
+                rows(j + 1, c) = rows(j, c)
+            Next c
+            j = j - 1
+        Loop
+        For c = 1 To SG_N
+            rows(j + 1, c) = tmp(c)
+        Next c
+    Next i
+End Sub
+
+' True when row j sorts after the row held in tmp (stamp, then file name)
+Private Function SignupRowAfter(ByRef rows() As Variant, ByVal j As Long, ByRef tmp() As Variant) As Boolean
+    Dim a As Double, b As Double
+    If IsDate(rows(j, SG_STAMP)) Then a = CDbl(CDate(rows(j, SG_STAMP)))
+    If IsDate(tmp(SG_STAMP)) Then b = CDbl(CDate(tmp(SG_STAMP)))
+    If a > b Then SignupRowAfter = True: Exit Function
+    If a < b Then Exit Function
+    SignupRowAfter = (StrComp(SafeStr(rows(j, SG_FILE)), SafeStr(tmp(SG_FILE)), vbTextCompare) > 0)
 End Function
 
 ' v26.5.5 (A8): the inbox files (any posting, not the Done folder) whose employee line is this name - a
@@ -346,6 +415,15 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
             nTick = nTick + 1
         End If
     Next k
+    ' v27 (item 14, A12): the two flags named (the tick stands: the supervisor's tick is what counts, the paper sheet too)
+    Dim suspTxt As String, mixTxt As String
+    For k = 1 To m
+        nm = CStr(red(k, SR_EMP))
+        If onRoster.Exists(nm) Then
+            If CBool(red(k, SR_SUSPECT)) Then suspTxt = suspTxt & IIf(suspTxt = "", "", ", ") & onRoster(nm)
+            If CBool(red(k, SR_LOGINMIX)) Then mixTxt = mixTxt & IIf(mixTxt = "", "", ", ") & onRoster(nm)
+        End If
+    Next k
     ' v26 (M3, D-M4): every withdrawal named, with its login and time; a login other than the sign-up's is said
     Dim wd() As Variant, nWd As Long, wdTxt As String
     nWd = WithdrawnSignups(rows, wd)
@@ -360,6 +438,8 @@ Public Function ApplySignups(ByRef p As PostRec, ByRef lst() As PListRec, ByVal 
               IIf(lateTxt <> "", "  AFTER CLOSING, not ticked: " & lateTxt & ".", "") & _
               IIf(outTxt <> "", "  Not on the list (out of department box): " & outTxt & ".", "") & _
               IIf(wdTxt <> "", "  Withdrawn (newest file is a withdrawal), not ticked: " & wdTxt & ".", "") & _
+              IIf(suspTxt <> "", "  SUSPECT stamp (the file was written more than " & SIGNUP_STAMP_SLACK_MIN & " min after the time it claims): " & suspTxt & ".", "") & _
+              IIf(mixTxt <> "", "  More than one login for the same name: " & mixTxt & ".", "") & _
               IIf(nUnknown > 0, "  " & nUnknown & " file(s) name someone who isn't on the roster: ignored.", "") & _
               IIf(skipped > 0, "  " & skipped & " file(s) couldn't be read: LOAD again in a minute.", "") & _
               "  Check them against the paper sheet."

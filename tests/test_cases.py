@@ -332,7 +332,21 @@ def evaluate(row: dict) -> str:
         rows = [(f[0], "signup" if f[1] == "S" else "withdraw", float(f[2]), stamp(f[3]))
                 for f in (r.split(":") for r in i1.split(";") if r)]
         red = rules.reduce_signups(rows, stamp(i2) if i2 else None)
-        return ";".join(f"{n}={'F' if h == 0 else fmt_num(h)}{'L' if late else ''}" for n, h, late in red) or "none"
+        return ";".join(f"{n}={'F' if h == 0 else fmt_num(h)}{'L' if late else ''}" for n, h, late, _s, _m in red) or "none"
+    if suite == "sgsuspect":                     # v27 (item 14): stamp, file time (yyyy-mm-dd-hh-nn; 0 = unknown) -> suspect / ok
+        def stamp_min(s: str):
+            s = s.strip()
+            if len(s) < 16:
+                return None
+            return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]), int(s[14:16]))
+        return "suspect" if rules.signup_suspect(stamp_min(i1), stamp_min(i2)) else "ok"
+    if suite == "sgmix":                         # v27 (item 14): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> name[!];... / none
+        def stamp3(s: str) -> datetime:
+            return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]))
+        rows5 = [(f[0], "signup" if f[1] == "S" else "withdraw", float(f[2]), stamp3(f[3]), f[4] if len(f) > 4 else "")
+                 for f in (r.split(":") for r in i1.split(";") if r)]
+        red = rules.reduce_signups(rows5, None)
+        return ";".join(f"{n}{'!' if m else ''}" for n, _h, _l, _s, m in red) or "none"
     if suite == "withdrawn":                     # v26 (M3): 'name:S|W:hours:yyyy-mm-dd-hh:login;...' -> name=login[!];... / none
         def stamp2(s: str) -> datetime:
             return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]))

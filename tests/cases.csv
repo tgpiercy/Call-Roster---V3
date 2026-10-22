@@ -807,3 +807,18 @@ firstref,empty,,,,,,-
 firstref,entry-id-no-dash,#17 by piercyg,,,,,-
 firstref,at-the-end,voided NH-0009,,,,,NH-0009
 firstref,in-brackets,(see P-7),,,,,P-7
+sgsuspect,written-at-once,2027-01-10-09-00,2027-01-10-09-00,,,,ok
+sgsuspect,written-5-min-later,2027-01-10-09-00,2027-01-10-09-05,,,,ok
+sgsuspect,written-10-min-later-exactly,2027-01-10-09-00,2027-01-10-09-10,,,,ok
+sgsuspect,written-11-min-later,2027-01-10-09-00,2027-01-10-09-11,,,,suspect
+sgsuspect,written-a-day-later,2027-01-10-09-00,2027-01-11-09-00,,,,suspect
+sgsuspect,stamp-after-file-time,2027-01-10-09-30,2027-01-10-09-00,,,,ok
+sgsuspect,file-time-unknown,2027-01-10-09-00,0,,,,ok
+sgsuspect,stamp-unknown,0,2027-01-10-09-00,,,,ok
+sgmix,one-login,Ann:S:0:2027-01-10-09:jdoe,,,,,Ann
+sgmix,two-logins-same-name,Ann:S:0:2027-01-10-09:jdoe;Ann:S:8:2027-01-10-11:psmith,,,,,Ann!
+sgmix,other-login-earlier-withdraw,Ann:S:0:2027-01-10-09:psmith;Ann:W:0:2027-01-10-10:jdoe;Ann:S:0:2027-01-10-11:psmith,,,,,Ann!
+sgmix,two-names-two-logins,Ann:S:0:2027-01-10-09:jdoe;Bob:S:0:2027-01-10-09:psmith,,,,,Ann;Bob
+sgmix,blank-login-ignored,Ann:S:0:2027-01-10-09:;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann
+sgmix,newest-is-withdraw,Ann:S:0:2027-01-10-09:jdoe;Ann:W:0:2027-01-10-11:psmith,,,,,none
+sgmix,case-of-login-ignored,Ann:S:0:2027-01-10-09:JDoe;Ann:S:0:2027-01-10-11:jdoe,,,,,Ann

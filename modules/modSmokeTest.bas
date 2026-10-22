@@ -1256,14 +1256,19 @@ End Function
 ' ---- 22. v27 (item 29): the output pages draw from the data (nothing printed, no PDF) - the employee history
 '          (member-safe), the shift handover (it must list this run's rows), the "since" count, the data check ----
 Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
-    Dim ws As Worksheet
+    Dim ws As Worksheet, part As String               ' (Oct 22) an error names the part it came from
+    On Error GoTo Failed
+    part = "the employee history"
     RunHistoryReport st.Peer, RosterYearFrom(), RosterYearTo(), False, False
     Set ws = ThisWorkbook.Worksheets(HISTORY_SHEET)
     If Left$(SafeStr(ws.Range("A1").Value), 16) <> "EMPLOYEE HISTORY" Then why = "the employee history did not draw for " & st.Peer & " (A1: " & Left$(SafeStr(ws.Range("A1").Value), 60) & ")": Exit Function
+    part = "the shift handover"
     ShiftHandover                                   ' Ask "Print it now?" answers No under SmokeTest
     Set ws = ThisWorkbook.Worksheets(HANDOVER_SHEET)
     If Left$(SafeStr(ws.Range("A1").Value), 14) <> "SHIFT HANDOVER" Then why = "the shift handover did not draw": Exit Function
+    part = "the since count"
     If ActivitySinceCount(Now - 1 / 24, False) = 0 Then why = "the last hour's activity counts nothing, but this run logged rows": Exit Function
+    part = "the data check"
     Dim dc As Variant: dc = DataCheckLines()         ' it must run; what it finds on a copy is the copy's own business
     If IsArray(dc) Then                              ' (Oct 22: an IIf worked out UBound of an empty result too - Type mismatch)
         st.Note = (UBound(dc) - LBound(dc) + 1) & " data-check line(s) on this copy"
@@ -1271,4 +1276,8 @@ Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
         st.Note = "no data-check lines"
     End If
     SmkPages = True
+    Exit Function
+Failed:
+    why = "error " & Err.Number & " in " & part & ": " & Err.Description & " (step 22, Oct 22 build)"
+    SmkPages = False
 End Function

@@ -1326,10 +1326,12 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
                                     IIf(entries(i).Reason <> "", "  " & entries(i).Reason, "")     ' v27 (item 21): the weekly-cap override reason stays on the row
             ElseIf offers(i) = 0 And entries(i).Reason = "" Then
                 data(k, L_REASON) = "Not offered: a partial acceptance closed the shift"      ' v25 (D-E4): never charged
-            ElseIf capped(i) And entries(i).Reason = "" Then
-                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (the 16 h rule: OT accepted, an award or a switch touches this shift)"
-            ElseIf offers(i) < hours And entries(i).Reason = "" Then
-                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (part already taken)"
+            ElseIf capped(i) And (entries(i).Reason = "" Or entries(i).Outcome = "Accepted") Then
+                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (the 16 h rule: OT accepted, an award or a switch touches this shift)" & _
+                                    IIf(entries(i).Reason <> "", "  " & entries(i).Reason, "")     ' (review L8) the weekly-cap reason rides along
+            ElseIf offers(i) < hours And (entries(i).Reason = "" Or entries(i).Outcome = "Accepted") Then
+                data(k, L_REASON) = "Offered " & HoursText(offers(i)) & " of " & HoursText(hours) & " h (part already taken)" & _
+                                    IIf(entries(i).Reason <> "", "  " & entries(i).Reason, "")
             End If
             data(k, L_CHARGED) = charged
             data(k, L_PERIOD) = ps

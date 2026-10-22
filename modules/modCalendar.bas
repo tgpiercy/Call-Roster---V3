@@ -642,6 +642,7 @@ Public Function ActiveRestrictionsText(ByRef count As Long) As String
             If Not IsDate(mRst(r, RS_TO)) Or Int(CDate(mRst(r, RS_TO))) >= Int(Date) Then
                 count = count + 1
                 s = s & IIf(s = "", "", vbNewLine) & SafeStr(mRst(r, RS_ID)) & "  " & CalName(SafeStr(mRst(r, RS_EMP))) & "  " & _
+                    IIf(Int(CDate(mRst(r, RS_FROM))) > Int(Date), "from " & Format$(CDate(mRst(r, RS_FROM)), "ddd mmm d") & " ", "") & _
                     IIf(IsDate(mRst(r, RS_TO)), "until " & Format$(CDate(mRst(r, RS_TO)), "ddd mmm d"), "open-ended") & "  -  " & SafeStr(mRst(r, RS_REASON))
             End If
         End If
@@ -752,15 +753,17 @@ Oops:
     ReportError "EndRestriction"
 End Sub
 
-' v27 (item 21): the hours worked in the 7 days before an offer (both shifts of each day, and the other shift of
-' the offer's own day when it comes first) - scheduled shifts, accepted OT, awards and switches, as the 16 h rule
-' reads them (WorkedHoursOn). The weekly cap's "hoursBefore".
+' v27 (item 21): the OVERTIME hours already held in the 7 days before an offer - accepted call-outs and awards from
+' the log (OtWorkedOn), both shifts of each day, and the other shift of the offer's own day when it comes first.
+' Scheduled shifts are NOT counted (review: a 4-crew rotation alone holds 48-60 h in many 7-day windows, so the
+' cap would fire on most off-day acceptances; the brief's "Worked Periods + provisional" is premium hours). Whether
+' Graeme's 48 means this, a calendar week, or all hours is an open question in briefs/v27.md. The cap's "hoursBefore".
 Public Function WeekHoursBefore(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String) As Double
     Dim k As Long, t As Double
     For k = 1 To 7
-        t = t + WorkedHoursOn(empName, crewCode, d - k, False) + WorkedHoursOn(empName, crewCode, d - k, True)
+        t = t + OtWorkedOn(empName, d - k, False) + OtWorkedOn(empName, d - k, True)
     Next k
-    If IsNightShift(shiftLbl) Then t = t + WorkedHoursOn(empName, crewCode, d, False)   ' the day shift of the same day comes before a night
+    If IsNightShift(shiftLbl) Then t = t + OtWorkedOn(empName, d, False)   ' the day shift of the same day comes before a night
     WeekHoursBefore = t
 End Function
 
@@ -769,7 +772,7 @@ Public Function WeekCapProblem(ByVal empName As String, ByVal crewCode As String
     Dim before As Double: before = WeekHoursBefore(empName, crewCode, d, shiftLbl)
     Dim over As Double: over = WeekCapOver(before, offer, WeekCap())
     If over <= 0 Then Exit Function
-    WeekCapProblem = CalName(empName) & ": " & HoursText(before) & " h worked in the 7 days before this shift + " & HoursText(offer) & " h on offer = " & _
+    WeekCapProblem = CalName(empName) & ": " & HoursText(before) & " h of overtime in the 7 days before this shift + " & HoursText(offer) & " h on offer = " & _
                      HoursText(before + offer) & " h, over the " & HoursText(WeekCap()) & " h week by " & HoursText(over) & " h."
 End Function
 
@@ -867,7 +870,9 @@ Public Function NotFreeReason(ByVal empName As String, ByVal crewCode As String,
     Dim night As Boolean: night = IsNightShift(shiftLbl)
     Dim t As String
     If AbsentForShift(empName, d, shiftLbl, t) Then NotFreeReason = t: Exit Function
-    If OtRestrictedOn(empName, d) Then NotFreeReason = "restricted": Exit Function     ' v27 (item 21): an admin's OT restriction - not listed, never charged
+    ' (v27 item 21, review H1: an OT restriction is NOT tested here - NotFreeReason is also the switch rule, and a
+    ' restricted person still works and switches their own shifts. FilterNotFree and the two posting sites ask
+    ' OtRestrictedOn themselves.)
     ' v24: the crew on each of the three days comes from the crew history; crewCode
     ' (the roster's crew) is only the answer for someone with no history rows
     NotFreeReason = RotationFreeReason3(CrewOn(empName, d - 1, crewCode), CrewOn(empName, d, crewCode), _
@@ -1114,7 +1119,12 @@ Public Function FilterNotFree(ByRef recs() As EmpRec, ByVal n As Long, ByVal d A
     If Not SwitchBatchActive() Then BeginSwitchBatch: batched = True
     On Error GoTo Failed
     For i = 1 To n
-        why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, d, shiftLbl, 0, mx)
+        ' v27 (item 21, review H1): the restriction is a LIST rule - tested here, never inside NotFreeReason
+        If OtRestrictedOn(recs(i).EmpName, d) Then
+            why = "restricted": mx = 0
+        Else
+            why = NotFreeReason(recs(i).EmpName, recs(i).EmpShift, d, shiftLbl, 0, mx)
+        End If
         Select Case why
             Case ""
                 k = k + 1
@@ -4926,7 +4936,7 @@ Public Sub DrawNeeds()
         Dim dpLine As Variant
         For Each dpLine In Split(dpTxt, vbNewLine)
             NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "Disputed: " & CStr(dpLine), "Dispute", _
-                  "Alt+F8 > CloseDispute", "", "J:dispute", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+                  "Alt+F8 > CloseDispute", "", "Q:dispute", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
         Next dpLine
     End If
     ' v27 (item 21): the active OT restrictions, one line each (information: an admin ends one through EndRestriction)
@@ -4935,7 +4945,7 @@ Public Sub DrawNeeds()
         Dim rsLine As Variant
         For Each rsLine In Split(rsTxt, vbNewLine)
             NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "OT restricted: " & CStr(rsLine), "Restriction", _
-                  "Alt+F8 > EndRestriction", "", "J:restriction", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+                  "Alt+F8 > EndRestriction", "", "Q:restriction", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
         Next rsLine
     End If
     ' v27 (item 9): receipt answers ("Was this right?") nobody has read yet (modReceipt)

@@ -253,6 +253,12 @@ Private Sub btnLoad_Click()
         mL(fi).MaxHours = FatigueMaxFor(mL(fi).EmpName, mL(fi).EmpShift, mP.ShiftDate, mP.ShiftLbl)
         ' (re-review) OT already accepted or awarded on THIS shift since the list was frozen: they can take none of it
         If OtWorkedOn(mL(fi).EmpName, mP.ShiftDate, IsNightShift(mP.ShiftLbl)) > 0 Then mL(fi).MaxHours = 0
+        ' v27 (item 21, review H2): restricted since the list was frozen - exempt (ComputeAward / NoTakers / Outside never
+        ' charge an exempt row) and nothing to take; the frozen row itself is not rewritten
+        If OtRestrictedOn(mL(fi).EmpName, mP.ShiftDate) Then
+            If mL(fi).ExemptNote = "" Then mL(fi).ExemptNote = EXEMPT_TAG & "OT restricted"
+            mL(fi).MaxHours = 0
+        End If
         mL(fi).MaxSet = True
     Next fi
     mDirty = False
@@ -439,7 +445,7 @@ Private Sub btnSubmit_Click()
         If mL(i).Awarded Then
             wc = WeekCapProblem(mL(i).EmpName, mL(i).EmpShift, mP.ShiftDate, mP.ShiftLbl, AwardedHours(mP.Hours, mL(i).SignupHrs))
             If wc <> "" Then
-                MsgBox wc & vbNewLine & vbNewLine & "The plant's weekly limit is " & HoursText(WEEK_MAX_HOURS) & " h. The award can go ahead with a reason, which goes into the log row.", vbExclamation, "Weekly hours"
+                MsgBox wc & vbNewLine & vbNewLine & "The weekly overtime limit is " & HoursText(WeekCap()) & " h. The award can go ahead with a reason, which goes into the log row (Cancel = the award is not submitted).", vbExclamation, "Weekly hours"
                 wr = AskRequired("Why is this award OK past the weekly limit?", "Weekly hours")
                 If wr = "" Then Exit Sub
                 mL(i).OverrideNote = "[over " & HoursText(WeekCap()) & " h/week: " & wr & "]"

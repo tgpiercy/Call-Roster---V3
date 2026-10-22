@@ -2680,6 +2680,7 @@ Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, By
     AddNameCol los, cols, labels, n, WorkedDaysTable(False), 2, "Worked Days"        ' v27: the Kronos ledger, snapshot and change log
     AddNameCol los, cols, labels, n, KronosTotalsTable(False), 2, "Kronos Totals"
     AddNameCol los, cols, labels, n, WorkedChangesTable(False), 3, "Worked Changes"
+    AddNameCol los, cols, labels, n, RstTable(False), RS_EMP, "OT restrictions"      ' v27 (item 21, review M3)
     NameColumns = n
 End Function
 

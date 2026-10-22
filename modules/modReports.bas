@@ -850,18 +850,12 @@ End Sub
 Public Sub RunHistoryReport(ByVal nm As String, ByVal dFrom As Date, ByVal dTo As Date, ByVal full As Boolean, ByVal pdf As Boolean)
     If full And Not (IsAdmin() And gAdminUnlocked) Then full = False
     DrawHistoryReport nm, dFrom, dTo, full
-    If pdf Then ReportPdf ThisWorkbook.Worksheets(IIf(full, HISTORY_ADMIN_SHEET, HISTORY_SHEET)), "History " & CalName(nm), "Employee history - " & nm, True
+    If pdf Then
+        Dim hs As Worksheet: Set hs = ThisWorkbook.Worksheets(IIf(full, HISTORY_ADMIN_SHEET, HISTORY_SHEET))
+        ' (review L9) a draw that failed cleared the sheet and said so: no PDF of it
+        If Left$(SafeStr(hs.Range("A1").Value), 16) = "EMPLOYEE HISTORY" Then ReportPdf hs, "History " & CalName(nm), "Employee history - " & nm, True
+    End If
 End Sub
-
-' v26: part of a name -> the roster name (the first match, as Find a person), or someone no longer on
-' the roster who has log rows; "" = cancelled or nobody
-Private Function AskPersonName(ByVal ttl As String) As String
-    Dim q As Variant
-    q = Application.InputBox(Prompt:="Whose history? Part of the name (the last name is enough):", Title:=ttl, Type:=2)
-    If VarType(q) = vbBoolean Then Exit Function
-    AskPersonName = ResolvePersonName(Trim$(CStr(q)), ttl)
-End Function
-
 ' v27 (item 20): part of a name -> the roster name (the first match), or someone no longer on the roster who has
 ' log rows; several matches ask "Did you mean"; "" = nobody, or cancelled. The one match the form and the box share.
 Public Function ResolvePersonName(ByVal t As String, ByVal ttl As String) As String
@@ -869,6 +863,10 @@ Public Function ResolvePersonName(ByVal t As String, ByVal ttl As String) As Str
     If t = "" Then Exit Function
     Dim rs As Worksheet: Set rs = RosterSheet()
     Dim r As Long, nm As String, hit As String, nHits As Long
+    For r = R_FIRST To RosterLastRow()                  ' (review M7) a whole name typed or picked wins at once
+        nm = Trim$(SafeStr(rs.Cells(r, C_NAME).Value))
+        If StrComp(nm, t, vbTextCompare) = 0 Then ResolvePersonName = nm: Exit Function
+    Next r
     For r = R_FIRST To RosterLastRow()
         nm = Trim$(SafeStr(rs.Cells(r, C_NAME).Value))
         If nm <> "" Then
@@ -905,37 +903,6 @@ Public Function ResolvePersonName(ByVal t As String, ByVal ttl As String) As Str
     End If
     ResolvePersonName = hit
 End Function
-
-' v26: From and To dates typed through the one parser (ParseTypedDate); the boxes open on the
-' roster year to date. False = cancelled. Shift dates, both ends included.
-Private Function AskDateRange(ByRef dFrom As Date, ByRef dTo As Date, ByVal ttl As String, _
-                              Optional ByVal byPeriod As Boolean = False) As Boolean
-    Dim ws As Worksheet: Set ws = RosterSheet()
-    Dim y0 As Date, y1 As Date, a As Variant, t As String, what As String
-    If IsDate(ws.Cells(PStartRow(), C_PERIOD1).Value) Then y0 = CDate(ws.Cells(PStartRow(), C_PERIOD1).Value) Else y0 = DateSerial(Year(Date), 1, 1)
-    If IsDate(ws.Cells(PEndRow(), PeriodLastCol()).Value) Then y1 = CDate(ws.Cells(PEndRow(), PeriodLastCol()).Value) Else y1 = DateSerial(Year(Date), 12, 31)
-    what = IIf(byPeriod, "pay-period start date", "shift date")
-    Do
-        a = Application.InputBox(Prompt:="From (" & what & ", included). For example  Jan 5  or  2026-01-05:", Title:=ttl, Default:=DateText(y0), Type:=2)
-        If VarType(a) = vbBoolean Then Exit Function
-        t = Trim$(CStr(a))
-        If ParseTypedDate(t, dFrom) Then Exit Do
-        MsgBox "That isn't a date I can read: " & t, vbExclamation, ttl
-    Loop
-    Do
-        a = Application.InputBox(Prompt:="To (" & what & ", included):", Title:=ttl, Default:=DateText(IIf(byPeriod, y1, Date)), Type:=2)
-        If VarType(a) = vbBoolean Then Exit Function
-        t = Trim$(CStr(a))
-        If ParseTypedDate(t, dTo) Then
-            If dTo >= dFrom Then Exit Do
-            MsgBox "The To date is before the From date (" & DateText(dFrom) & ").", vbExclamation, ttl
-        Else
-            MsgBox "That isn't a date I can read: " & t, vbExclamation, ttl
-        End If
-    Loop
-    AskDateRange = True
-End Function
-
 ' v26: the Why column as the members' file carries it: the sentence with the Note for a CHARGED row,
 ' "" for any other (nothing about an uncharged call or an unavailable reason leaves the master)
 Public Function PublicWhy(ByRef lg As Variant, ByVal r As Long) As String

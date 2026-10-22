@@ -763,7 +763,7 @@ Private Sub mRestrict_Click()
     Dim nm As String: nm = mEditEmp.Text
     Me.Hide
     RestrictOTFor nm
-    Me.Show
+    Unload Me                                    ' (review L12) a Show after an error's unload would open a fresh, empty form
     Exit Sub
 Oops:
     ReportError "frmEmployee.Restrict"

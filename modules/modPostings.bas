@@ -1442,6 +1442,9 @@ Public Function SubmitAwardOutside(ByRef p As PostRec, ByRef lst() As PListRec, 
                "Award anyway?", vbYesNo + vbExclamation, "Out of department", vbYes) = vbNo Then Exit Function
     End If
     If onRoster Then why = NotFreeReason(outName, crew, p.ShiftDate, p.ShiftLbl)
+    If onRoster And why = "" Then
+        If OtRestrictedOn(outName, p.ShiftDate) Then why = "OT restricted"     ' v27 (item 21, review H1)
+    End If
     If why <> "" Then
         If Ask(outName & " isn't free that shift (" & why & ")." & vbNewLine & _
                "Award anyway?", vbYesNo + vbExclamation, "Out of department", vbYes) = vbNo Then Exit Function
@@ -2089,7 +2092,7 @@ Public Sub SyncPersonOnPostings(ByVal emp As String, ByVal unit As String, ByVal
                     End If
                 Next j
                 If hit > 0 Then
-                    If NotFreeReason(emp, recs(hit).EmpShift, p.ShiftDate, p.ShiftLbl) = "" Then
+                    If NotFreeReason(emp, recs(hit).EmpShift, p.ShiftDate, p.ShiftLbl) = "" And Not OtRestrictedOn(emp, p.ShiftDate) Then   ' v27 (item 21): a restricted mover is not added
                         InsertListRow p, lst, n, recs(hit)
                         addedTxt = addedTxt & IIf(addedTxt = "", "", ", ") & p.ID
                         changed = True

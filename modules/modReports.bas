@@ -765,6 +765,8 @@ Public Sub RefusalsReport()
         .Zoom = False
         .FitToPagesWide = 1
         .FitToPagesTall = False
+        ' v27 (item 5, 5.3): where the figures came from
+        .CenterFooter = "&8Produced by the Call Out Roster from the OT Log's charged rows (S- call-outs, P- postings, ADJ- adjustments)  -  page &P of &N"
     End With
     On Error GoTo Failed
     ProtectSheet ws

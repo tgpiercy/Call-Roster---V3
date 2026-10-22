@@ -1079,6 +1079,8 @@ Private Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef 
         .PrintGridlines = False
         .LeftHeader = "": .CenterHeader = "": .RightHeader = ""
         .LeftFooter = "": .CenterFooter = "": .RightFooter = ""
+        ' v27 (item 5, 5.3): the old sheet's layout, with where it came from
+        If Not blank Then .CenterFooter = "&8Produced by the Call Out Roster from " & p.ID & " (the list frozen at posting, hours as they were then)  -  printed " & Format$(Now, "mmm d, yyyy h:mm AM/PM")
     End With
     Application.PrintCommunication = True
     ws.DisplayPageBreaks = False

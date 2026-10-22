@@ -810,14 +810,14 @@ End Sub
 ' Find me on the Roster sheet (button, or its picker cell)
 Public Sub MemberFindMe()
     Dim nm As String: nm = Txt(WsOf(SH_ROSTER).Range(ROSTER_FIND).Value)
-    If nm = "" Then MsgBox "Pick your name in the Find me box first.", vbInformation: Exit Sub
+    If nm = "" Then MsgBox "Pick your name in the Find me box first.", vbInformation, "Find me": Exit Sub
     ApplyMe nm, SH_ROSTER
 End Sub
 
 ' Home: the "Show me on the roster" button
 Public Sub MemberFindFromHome()
     Dim nm As String: nm = WhoAmI()
-    If nm = "" Then MsgBox "Pick your name first.", vbInformation: Exit Sub
+    If nm = "" Then MsgBox "Pick your name first.", vbInformation, "Find me": Exit Sub
     ApplyMe nm, SH_ROSTER
 End Sub
 

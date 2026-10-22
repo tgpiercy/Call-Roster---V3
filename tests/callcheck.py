@@ -27,7 +27,7 @@ Checks, per project (master = modules/ + paste-in/, members = member/):
             set" / "Invalid use of property" at run time)             (v25)
   MSGTITLE  a MsgBox (statement or function form) with fewer than three
             arguments: every box carries a title (v26.5.5, item 15; the
-            default title is "Call Out Roster")                    (v26.5.5)
+            default title is "Call Out Roster"; the members' file too since M4) (v26.5.5)
   MACROSTR  a "Module.Name" string (an OnAction, Application.Run, a Desk
             button) naming a procedure that module does not have, or a
             Private one; a bare OnAction / Application.Run "Name" that no
@@ -347,8 +347,8 @@ def check_project(files: list[Path], label: str) -> int:
                 return None
 
             # ---- MSGTITLE (v26.5.5): every MsgBox names its title (the third argument) ----
-            # (the members' workbook gets its titles with Members M4 - its template is not rebuilt for this)
-            if label not in ("member", "members"):
+            # (the members' workbook got its titles with Members M4: every project now)
+            if True:
                 for st in stmts:
                     for args in msgbox_args(st):
                         if len(args) < 3:

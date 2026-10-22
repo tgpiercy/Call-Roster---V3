@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (written Oct 21, 2026, end of the v27 build session 1: v26.5.5 is ON THE REAL ROSTER; the Kronos import was found WRONG and rebuilt; v27 items 1, 4, 11, 26 and the LoadCases split are BUILT and reviewed on main; the live re-import is still OWED by Graeme)
+# Paste this into a fresh session to carry on (updated Oct 22, 2026, end of v27 build session 3 - items 8 + 9; first written Oct 21 at the end of session 1: v26.5.5 is ON THE REAL ROSTER; the Kronos import was found WRONG and rebuilt; v27 items 1, 4, 11, 26 and the LoadCases split are BUILT and reviewed on main; the live re-import is still OWED by Graeme)
 
 ```
 Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first (the numbering rule, the three gating levels,
@@ -8,11 +8,12 @@ Oct 21" block holds every decision; items 1, 4, 11, 26 are marked BUILT), briefs
 1b, 2, 3 and the Status line), docs/NEXT-SESSION-PROMPT.md (this file: the review record below). Confirm the
 four checkers (py -3.14 tests/vbacheck.py . / shadowcheck / undeclcheck / callcheck) and py -3.14 -m pytest
 tests -q are green on main (793) and the tree is clean. vbacheck's only hits must be the three named false
-positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 776 in 93 suites, emitted as
+positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 807 in 96 suites, emitted as
 LoadCases1..4. Tags: `git ls-remote --tags origin` shows v26.5 and v26.5.5; main is AHEAD of v26.5.5 by the v27
 commits (not pushed yet unless Graeme pushed from his Terminal panel: ask).
 
-THE ONE URGENT THING (ask about it first, once): the real roster's Worked (H) has been WRONG since the Oct 21
+THE ONE URGENT THING (ask about it first, once; asked again Oct 22: STILL NOT DONE, and main was still not pushed):
+the real roster's Worked (H) has been WRONG since the Oct 21
 v26.5 import - the export's dated "Transactions" block is timecard EDITS (435 of 629 rows negative, ~800 h net)
 and v26.5 summed it instead of the undated "Totals" block (~29,500 h, the real year-to-date). Graeme confirmed
 the live import read the transactions. The no-code remedy is briefs/v27-kronos.md section 0 (delete the pasted
@@ -57,9 +58,22 @@ WHAT v27 HOLDS SO FAR (main, one commit per item, all four checkers + pytest gre
   backup on a bad header); 72ff653 item 13 the AUDIT OF IN-PLACE EDITS (Grade Log Field column + LogFieldChange,
   SetAbsenceEnd / SetAbsenceEndTo keep the old end in the Note, ReleaseCoverage voids and re-writes) + its fix
   round. All reviewed read-only (one Opus reviewer, every round re-read until clean or LOW-only).
-Checkers and pytest after the last commit: four checkers clean (the three vbacheck false positives), 809
-passed, 791 cases / 95 suites. The re-pasted forms (frmOvertimeEntry, frmSickCall, frmShiftSwitch, frmTimeOff,
-frmLeave, frmEmployee) and ThisWorkbook changed: release prep bumps FORM_RELEASES / THISWB_RELEASE and the
+- OCT 22 (session 3): e5b30c8 item 8 BEFORE / AFTER ON THE ROSTER (modReceipt.MarkChangedTotals paints every Total
+  Hours cell a save moved from the receipt's own before / after map: a note "Was 120, +21 from S-0012 (3:10 AM)" +
+  amber fill + amber ink [the row banding's conditional format hides a fill alone]; ClearTotalMarks at ApplyViewCore,
+  the next save that reads a before map [ReceiptBefore], or the first roster click 60 s after the card closes
+  [RestartMarkClock / TotalMarksExpired in RosterSelectionChanged; NO OnTime]; pure FirstRefIn, suite firstref 16
+  cases; the Total Hours DOUBLE-CLICK for any login = modReports.ShowTotalBreakdown, a box with the parts and the
+  charged hours per pay period; SmokeTest step 4 asserts the acceptor's "+8" mark) + d189b1f item 9 "WAS THIS
+  RIGHT?" (Yes / Not sure / No + an optional line on frmReceipt -> tblFeedback on the admin-only Feedback sheet
+  [When, Login, Release, Ref ID, Answer, Note, Seen; made on first use], UnseenFeedbackCount on a Needs Attention
+  line [key F:], ShowFeedback marks seen; SaveFeedback REFUSES on a read-only / NoSave copy and the write is
+  WriteFeedbackRow so SmokeTest step 4 tests both; the Desk's morning tile [item 2, not built] takes the count
+  when built) + fixes 052e10b (4 MED / 8 LOW) + 112b997 (1 HIGH the fix round had made: step 4 vs the NoSave
+  refusal; 4 LOW). frmOvertimeEntry re-pasted again (NOT SAVED branch paints its marks; QueryClose restarts the clock).
+Checkers and pytest after the last commit (112b997): four checkers clean (the three vbacheck false positives), 825
+passed, 807 cases / 96 suites. The re-pasted forms (frmOvertimeEntry, frmSickCall, frmShiftSwitch, frmTimeOff,
+frmLeave, frmEmployee, frmReceipt) and ThisWorkbook changed: release prep bumps FORM_RELEASES / THISWB_RELEASE and the
 INSTALL note lists THREE new modules (modReconcile, modStats, modReceipt) and ONE new form (frmReceipt).
 Stamps are still v26.5.5 everywhere (test_drift ties every stamp to EXPECTED_RELEASE): the release-prep
 commit bumps all 27 + the two new modules' stamps, FORM_RELEASES / THISWB_RELEASE as touched.
@@ -75,8 +89,7 @@ every morning + the cumulative at each period end; Excel export; Welland Hourly 
 first snapshot ("not available before <date>"); no union-folder PDF (the members' pay-period block shows the
 premium hours); the live re-import OWED.
 
-NEXT in order (briefs/v27.md): items 8-9 (before / after on the roster; "Was this right?" feedback),
-the 3 AM pass (10, 14-20; 11, 12, 13 are done), the process items (21-25; 21 as tblRestrictions), the Desk tiles (2:
+NEXT in order (briefs/v27.md): the 3 AM pass (10, 14-20; 11, 12, 13 are done; 8-9 done Oct 22), the process items (21-25; 21 as tblRestrictions), the Desk tiles (2:
 "Import now" = KronosFilesToImport has unread files), 3, 33, the testing items (28, 29, 30 b-e, 31, 32), 27
 language, Members M4 (34-39, + dStats from StatsUnitRows, + the MsgBox titles), then 40 release prep
 (stamps, INSTALL-v27.md: TWO NEW MODULES to import - modReconcile, modStats - the updater's swap step must
@@ -109,6 +122,7 @@ Graeme sent the Kronos files (two one-day PDFs, the cumulative .xlsx, his proces
 ## Review record (v27 so far; two read-only Opus reviewers, every round re-reviewed until clean)
 - **Kronos import 1388f89, reviewer 1, four rounds.** Round 1 (5 HIGH / 10 MED): the rename arrays one slot short; tables written before the sanity confirm (No left them in); the rollover kept last year's snapshot; an older or empty cumulative accepted; one-day reports alone setting H; edits dated against the new Through; a re-imported day keeping other people's rows; the Payroll # match without the name check; a roster person missing from the report keeping old H; exits that did not block the save; a wrong date in the message; quiet days read as missing; the pivot fall-back skipped on an unreadable Totals; no test of the reader; files picked by saved time only -> 96f86b7. Round 2 (1 HIGH / 6 MED): a clash or an unmatched row zeroed H; the save block set only after the ingest returned; IntegrityCheck PROBLEMs with one-day reports alone; edit rows into periods before the ledger start and after the rollover; a re-pulled day counted twice; H holding days past a gap; every file reopened -> 1d40a38 (+ the Kronos Files record). Round 3 (3 MED): a clash forgotten after one run; an edit dropped when its day was first imported later; January reopening a year of files -> 7fc840c. Round 4 (1 MED): a refused year-to-date dropping the held clashes -> 3629ec8. Verdict after round 4: closed (two cosmetic LOWs noted: a rename leaves the old name in a "clash:" row until the next clean year-to-date; a file literally named "clash: ..." would read as a clash).
 - **Desk v2 / Reconcile / Stats (0da0e38, b2f13c2, 333d678), reviewer 2, two rounds.** Round 1 (1 HIGH / 5 MED): the Stats fairness line's 0 / 0 inside an IIf stopped the report for any unit with no offers (certain after the rollover); the roster year's late-December days in Q4; hours offered understated; the Reconcile "as of that day" claim false for the hours; long one-cell lines cut off in the PDFs; cross-coded people double-counted in the all-units sick denominator; + LOWs -> 8fac4a1 (Stats) and 7ba246a (Desk + Reconcile). Round 2: all fixed, no new HIGH / MED; the LOWs taken in the commit after (jan1 once per report, wrapped section titles, the differ count over every position, the Reconcile frame redrawn when its version in L1 changes with the typed cells kept, the stale comments). Left as noted: `TableByName` duplicates `TableData`; the denominator loop's cost (a few seconds); the mirrors' `.strip()` / `float` vs `Trim$` / `Val` (no case hits them); the Reconcile PDF prompt's "since it was last changed" wording; NBSP in typed names.
+- **Items 8 + 9 (e5b30c8, d189b1f), reviewer 3, three rounds.** Round 1 (4 MED / 8 LOW): EnableEvents captured after `On Error` (an early error left events off for the session); a call-out that did not save left a fresh map a later card repainted under its own ref; the row banding's conditional format hid the fill on every second row; the 60 s ran from the paint, not the card's close; + the box past MsgBox's 1,024 characters, a foreign note deleted, the structure left unlocked on a failed sheet make, an answer "kept" on a copy that will not be saved, Enter closing the card from the note box, no LogError, a wrong colour comment, docs -> 052e10b. Round 2 (1 HIGH / 4 LOW): the NoSave refusal made SmokeTest step 4 fail every run (SmokeTest blocks saving from its first line) -> the write split into `WriteFeedbackRow`; a threaded comment stopping the loop; marks painted before an error never expiring; xlAutomatic = black not the roster's ink; the clock under the modal call-out form -> 112b997. Round 3 (112b997): clean, no finding (one doc nit taken: CLAUDE.md names WriteFeedbackRow).
 - **Rules that came out of the reviews (now in the code and the briefs):** a roster row is set to 0 only when it HAS a Payroll # the year-to-date report does not hold (no number = "not found", H kept); a Payroll # clash leaves both people's H alone, is named, and is held in Kronos Files until a clean year-to-date; the one-day rows count only along the unbroken run of days after the Totals, and Data Through stops at the gap; the first v27 import needs the year-to-date report (one-day reports alone stay in the ledger).
 
 ## The members' side

@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (updated Oct 22, 2026, end of v27 build session 3 - items 8 + 9; first written Oct 21 at the end of session 1: v26.5.5 is ON THE REAL ROSTER; the Kronos import was found WRONG and rebuilt; v27 items 1, 4, 11, 26 and the LoadCases split are BUILT and reviewed on main; the live re-import is still OWED by Graeme)
+# Paste this into a fresh session to carry on (updated Oct 22, 2026, end of v27 build session 3 - items 2, 3, 8-25 and 33 BUILT and reviewed; first written Oct 21: v26.5.5 is ON THE REAL ROSTER; the Kronos import was found WRONG and rebuilt; the live re-import is still OWED by Graeme; main is NOT pushed)
 
 ```
 Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first (the numbering rule, the three gating levels,
@@ -7,9 +7,9 @@ rule" row of the not-free table, the Total Hours rule's v27 sentence). Then brie
 Oct 21" block holds every decision; items 1, 4, 11, 26 are marked BUILT), briefs/v27-kronos.md (sections 0, 1,
 1b, 2, 3 and the Status line), docs/NEXT-SESSION-PROMPT.md (this file: the review record below). Confirm the
 four checkers (py -3.14 tests/vbacheck.py . / shadowcheck / undeclcheck / callcheck) and py -3.14 -m pytest
-tests -q are green on main (793) and the tree is clean. vbacheck's only hits must be the three named false
-positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 807 in 96 suites, emitted as
-LoadCases1..4. Tags: `git ls-remote --tags origin` shows v26.5 and v26.5.5; main is AHEAD of v26.5.5 by the v27
+tests -q are green on main (882) and the tree is clean. vbacheck's only hits must be the three named false
+positives (Sort_Hours_Dept, frmLeave, modMember: one-line Subs). SelfTest cases: 860 in 98 suites, emitted as
+LoadCases1..5. Tags: `git ls-remote --tags origin` shows v26.5 and v26.5.5; main is AHEAD of v26.5.5 by the v27
 commits (not pushed yet unless Graeme pushed from his Terminal panel: ask).
 
 THE ONE URGENT THING (ask about it first, once; asked again Oct 22: STILL NOT DONE, and main was still not pushed):
@@ -72,30 +72,40 @@ WHAT v27 HOLDS SO FAR (main, one commit per item, all four checkers + pytest gre
   when built) + fixes 052e10b (4 MED / 8 LOW) + 112b997 (1 HIGH the fix round had made: step 4 vs the NoSave
   refusal; 4 LOW). frmOvertimeEntry re-pasted again (NOT SAVED branch paints its marks; QueryClose restarts the clock).
 - OCT 22 (session 3, continued - Graeme: "No let's build v27. Continue with this"; a v27-pre1 preview zip was started and
-  REVERTED on his word): THE 3 AM PASS IS BUILT - 2f23d7c item 10 log/calendar reconciled (auto-pick the UNIT's one open
-  line, the sick call's key rides Prefill -> SubmitCalloutSession -> CalendarAddAccepted, IntegrityCheck 12 "Coverage =
-  log" [PROBLEM from today on, Check for the past], the 12 h second-session question, VoidRef reports a failed release)
-  + fixes 857ef4d; f75babf item 14 the sign-up inbox (SG_MTIME, rows sorted, SR_SUSPECT in WHOLE SECONDS w/ a clock-change
-  allowance, SR_LOGINMIX; suites sgsuspect / sgmix); 8efc66b item 15 the calendar's supervisor menu + CalMenuCallout +
-  NextOpenSlot for the Desk tile (NO TAKERS lines filled IN PLACE, no call-out item on a POSTED line); 8ce0a48 item 16
-  the outage print (ten columns, the session line, the legend footer; the phone column hidden again after the print);
-  31b6236 item 17 the session DRAFT (very-hidden Draft sheet, one row per login, saved to disk every 2 min, the resume
-  offer in UserForm_Activate, Esc = keep / DISCARD / stay) + fixes e44e2ff / e6b1ab4; 5b86cf2 item 18 "Not listed (N)..."
-  (FilterNotFree's detail); 46985af item 19 the error box (NewestLogRowByMe, the email offer); item 20 in three parts
-  364551c / 2092571 / f140613 (the award pop-up's keys and 10 pt, UnitDisplayName, Find a person; type floors, UiScale()
-  per login + the Desk's Larger type, "How do I ..." on the bar for everyone, "Signed in as" on the status cell, the
-  first-open box; frmHistory = a NEW code-built form); 392de3e item 21 OT restrictions (tblRestrictions, never charged,
-  RestrictOT / EndRestriction, the Employee pop-up's Edit button) + the 48 h weekly cap (WeekCapOver, suite weekcap);
-  965fe3d item 22 modRules = a NEW MODULE (N_MODULES 29): the Rules sheet (23 rules in code, Basis typed) + the Settings
-  sheet (six tunables through wrappers, SetSetting). TOOLING: fa67911 vbacheck flags a module-level Const / Dim / Type
-  after the first procedure (a compile error three review rounds read past; it then caught me twice more).
-  NEW FORMS now TWO (frmReceipt, frmHistory); NEW MODULES now FOUR (modReconcile, modStats, modReceipt, modRules).
-Checkers and pytest after the last commit (965fe3d): four checkers clean (the three vbacheck false positives), 852
-passed, 832 cases / 100 suites (firstref, sgsuspect, sgmix, weekcap new). The re-pasted forms (frmOvertimeEntry, frmSickCall, frmShiftSwitch, frmTimeOff,
-frmLeave, frmEmployee, frmReceipt) and ThisWorkbook changed: release prep bumps FORM_RELEASES / THISWB_RELEASE and the
-INSTALL note lists THREE new modules (modReconcile, modStats, modReceipt) and ONE new form (frmReceipt).
-Stamps are still v26.5.5 everywhere (test_drift ties every stamp to EXPECTED_RELEASE): the release-prep
-commit bumps all 27 + the two new modules' stamps, FORM_RELEASES / THISWB_RELEASE as touched.
+  REVERTED on his word, so NO interim zips): THE 3 AM PASS IS BUILT - 2f23d7c item 10 log/calendar reconciled + fixes
+  857ef4d; f75babf item 14 the sign-up inbox; 8efc66b item 15 the calendar's supervisor menu; 8ce0a48 item 16 the outage
+  print; 31b6236 item 17 the session DRAFT + fixes e44e2ff / e6b1ab4; 5b86cf2 item 18 "Not listed (N)..."; 46985af item 19
+  the error box; item 20 in three parts 364551c / 2092571 / f140613 (frmHistory = a NEW code-built form) + fixes 9ab8d9c;
+  392de3e item 21 OT restrictions + the 48 h weekly cap; 965fe3d item 22 modRules (NEW MODULE) the Rules + Settings
+  sheets; 05f689c the fixes for 20C / 21 / 22 (the restriction is a LIST rule, never in NotFreeReason; exempt at award
+  LOAD).
+- OCT 22 (session 3, later): a940e7e item 23 EVIDENCE = modEvidence, a NEW MODULE (N_MODULES 30): ClosePeriod (CSV +
+  certutil SHA-256 + PDF + a hash chain in tblClosedPeriods), AddScan from the award pop-up, RaiseDispute /
+  CloseDispute (a separate tblEvidence; VOID logic untouched), the FULL history's Evidence column. add27be item 24
+  WithdrawAward / EditPosting / PostAllLines / the Exception outcome (U > "Plant upset ..." = nobody charged).
+  40c185c the fixes for 20 / 21 / 23 (2 HIGH: RecordOutcome had become a Function with two Exit Sub lines = a
+  COMPILE ERROR on the call-out pop-up; the period close read tblPostings from the print sheet). 5db61c2 item 25
+  OPERATIONS (Workbook_Open step 12 ExportTablesOnOpen = every table as CSV in <backup folder>\csv\<date>\, 30 days;
+  the DATA CHECK section in Needs Attention, pure DataShapeProblem suite datashape; the unit's Min Staff note on the
+  call-out pop-up; the Handover sheet; the Paybacks ledger; the open-postings digest WAITS for Members M4). e7acb63
+  item 2 the two Desk tiles (the admin's Kronos pill imports in one click; "This morning": integrity, today's backup,
+  unread errors). afadd31 item 3 "Since you were last here" (PrevOpenAt = hidden name LastOpen_<login>; the tile on
+  both Desks; the Handover page filtered to other logins). c540176 item 33 the Holidays + Min Staff pop-up = ONE NEW
+  code-built form frmTableEdit (FORM_RELEASES); every cell of both sheets locked. fe45a8a the item 24 fixes (1 HIGH:
+  a date change kept a list frozen for the old date - EditPosting now refuses a date that changes who is free,
+  SameListOn).
+  TOOLING: fa67911 + 40c185c vbacheck flags a module-level Const / Dim after the first procedure AND an Exit Sub
+  inside a Function (or the reverse); tests/test_vbacheck.py proves both.
+  NEW FORMS now THREE (frmReceipt, frmHistory, frmTableEdit: Insert > UserForm, set (Name), paste); NEW MODULES now
+  FIVE (modReconcile, modStats, modReceipt, modRules, modEvidence) - the updater's swap step must handle a module that
+  does not exist yet: check updater/modUpdater.bas and say so in the INSTALL note.
+Checkers and pytest after fe45a8a: four checkers clean (the three vbacheck false positives), 882 passed, 860 cases in
+98 suites (LoadCases1..5). main is 57+ commits ahead of origin/main (not pushed).
+REVIEW STATE: every commit through fe45a8a has had a read-only Opus review and its fixes; the LAST review (of
+5db61c2, e7acb63, afadd31, c540176, fe45a8a) was RUNNING at the end of the session - if its findings are not in a
+commit after fe45a8a, re-run it (same scope) before anything else in the code. Known leftovers are written into
+each item's BUILT note in briefs/v27.md (e.g. item 24: the posting stays Status Awarded after a withdraw; Post all
+lines uses the default shift hours; item 23: the two boxes at a period close).
 
 DECIDED Oct 21 (the report-back; briefs/v27.md has the block; don't re-ask): build order Desk v2 -> Kronos
 import -> Reconcile -> Stats -> receipts -> the 3 AM pass -> process items -> Desk tiles / Since you were last
@@ -108,15 +118,28 @@ every morning + the cumulative at each period end; Excel export; Welland Hourly 
 first snapshot ("not available before <date>"); no union-folder PDF (the members' pay-period block shows the
 premium hours); the live re-import OWED.
 
-NEXT in order (briefs/v27.md): the 3 AM pass is DONE (10-20); next = item 23 (evidence: period close, scan link, disputes), the process items (21-25; 21 as tblRestrictions), the Desk tiles (2:
-"Import now" = KronosFilesToImport has unread files), 3, 33, the testing items (28, 29, 30 b-e, 31, 32), 27
-language, Members M4 (34-39, + dStats from StatsUnitRows, + the MsgBox titles), then 40 release prep
-(stamps, INSTALL-v27.md: TWO NEW MODULES to import - modReconcile, modStats - the updater's swap step must
-handle a module that does not exist yet: check updater/modUpdater.bas, say so in the note; steps-v27.txt
-group 4 = Desk v2 on a supervisor login, a receipt, the Reconcile sheet with one typed order, the Stats PDF,
-the Kronos acceptance test: after the section-0 re-import, importing the real cumulative on a copy must
-change EXACTLY the people with LIEU OT / LIEU DT hours and nobody else; the session draft; the supervisor
-menu; the outage print; RestoreDrill), four read-only reviewers on main, the zip, the push.
+TWO QUESTIONS FOR GRAEME (in briefs/v27.md; ask them as multiple choice, the built default first):
+1. The weekly cap (item 21): built as OVERTIME hours in the trailing 7 days (counting the schedule too would fire on
+   about 70 % of off-day acceptances). Keep, or a calendar week (Sun-Sat), or all hours?
+2. The FULL employee history PDF (logins, void notes) lands beside the roster: keep, or REPORT_FOLDER?
+Also noted for him: ExportTablesOnOpen runs on ANY writable open (as the daily backup since Oct 19-20), not only an
+admin's; the admin Desk lists the Kronos folder on every draw (a slow share slows the Desk).
+
+NEXT in order (briefs/v27.md): item 5 (the old sheets as prints: "Produced by the roster from S-nnnn / P-nnnn"),
+item 6 ("On paper this would have been ..." on the receipt, read from the Rules sheet), the testing items 28
+(IntegrityCheck "Log rows"), 29 (SmokeTest asserts + steps: the receipts, the draft, the 16 h reason, the new
+pages), 30 b-e (MACROSTR / ORNSWALLOW / PROCLEN / DEADPUB checker classes, the drift asserts, tests/test_docs.py,
+the manifest), 31 (the install record; updater/modUpdater.bas changes), 32 (the Opens table), then 27 language
+(glossary, one legend, the guided first session, the order columns + footer on every list, the paper-position
+column), then Members M4 (34-39 + dStats from StatsUnitRows + the MsgBox titles in modMember; 39 the digest needs
+Graeme's signed wording and recipient list FIRST), then 40 release prep: stamps (every module, ThisWorkbook,
+FORM_RELEASES / THISWB_RELEASE, EXPECTED_RELEASE v27, N_MODULES 30), docs/INSTALL-v27.md (FIVE new modules, THREE
+new forms, run ApplyRosterLayout once for the bar's Help button / 10 pt buttons, test the first-use sheets on a
+fresh copy), briefs/steps-v27.txt (group 4: Desk v2 on a supervisor login, a receipt, the Reconcile sheet with one
+typed order, the Stats PDF, the Kronos acceptance test - after the section-0 re-import, importing the real
+cumulative on a copy must change EXACTLY the people with LIEU OT / LIEU DT hours; the session draft; the supervisor
+menu; the outage print; RestoreDrill; a period close; the Holidays pop-up), CHANGELOG, four read-only reviewers on
+main, the tag, the zip, the push from Graeme's Terminal panel.
 
 v26.5.5 leftovers still open for v27: ChargedText / TotalText not in the call-out summary / status bar; the
 practice banner deleted by the three full-shape-delete redraws (RenderCalloutRoster, ShowAttendance,

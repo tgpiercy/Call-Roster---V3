@@ -1,0 +1,211 @@
+Option Explicit
+' @version v26.5.5 (Oct 21)
+
+' ================================================================
+' THE HOLIDAYS AND MIN STAFF POP-UP (v27, item 33): one code-built form
+'  for the two admin-typed tables, so nothing on any sheet is typed into.
+'  Setup "holidays" lists the Holidays table (the weekday a weekend
+'  holiday is observed on, one box); Setup "minstaff" lists the Min Staff
+'  table (Minimum and Note, two boxes). Pick a row, change it, Save; the
+'  writes go through modHolidays.SetObservedOn / modCalendar.SetMinStaff.
+'  Close saves the file once and shows one receipt for every change.
+'  Every control is built in code below (new form: Insert > UserForm,
+'  name it frmTableEdit, paste this).
+' ================================================================
+
+Private WithEvents mList As MSForms.ListBox
+Private WithEvents mSave As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+Private mHead As Object
+Private mLbl1 As Object
+Private mBox1 As Object
+Private mLbl2 As Object
+Private mBox2 As Object
+Private mHint As Object
+Private mMode As String
+Private mRows As Variant
+Private mIdx() As Long            ' list index (0-based) -> table row (1-based)
+Private mDone As String           ' what was saved, one line each (the receipt at close)
+Private mClosing As Boolean
+
+Private Const LBL_L As Long = 14
+Private Const LIST_W As Long = 540
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single) As Object
+    Dim o As Object
+    Set o = Me.Controls.Add(progId, "te_" & nm, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set AddCtl = o
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single) As Object
+    Dim o As Object
+    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 16)
+    o.Caption = cap
+    Set AddLabel = o
+End Function
+
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Me.Caption = "Holidays / minimum staffing"
+    Me.Width = LIST_W + 2 * LBL_L + 8
+
+    Dim y As Single: y = 10
+    Set mHead = AddLabel("head", "", LBL_L, y, LIST_W)
+    mHead.Height = 28: mHead.WordWrap = True: mHead.Font.Size = 10
+    y = y + 32
+    Set mList = AddCtl("Forms.ListBox.1", "lst", LBL_L, y, LIST_W, 250)
+    mList.Font.Size = 10
+    y = y + 258
+    Set mLbl1 = AddLabel("l1", "", LBL_L, y + 3, 90)
+    Set mBox1 = AddCtl("Forms.TextBox.1", "b1", LBL_L + 96, y, 140, 20)
+    y = y + 26
+    Set mLbl2 = AddLabel("l2", "Note:", LBL_L, y + 3, 90)
+    Set mBox2 = AddCtl("Forms.TextBox.1", "b2", LBL_L + 96, y, LIST_W - 96, 20)
+    y = y + 26
+    Set mHint = AddLabel("hint", "", LBL_L, y, LIST_W)
+    mHint.Height = 30: mHint.WordWrap = True: mHint.Font.Size = 10: mHint.ForeColor = RGB(30, 56, 100)
+    y = y + 34
+    Set mSave = AddCtl("Forms.CommandButton.1", "cmdSave", LBL_L, y, 150, 28)
+    mSave.Caption = "Save this row"
+    mSave.Default = True
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + LIST_W - 90, y, 90, 28)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+    Me.Height = y + 28 + 36
+
+    ApplyFormTheme Me
+    mSave.BackColor = RGB(30, 56, 100): mSave.ForeColor = vbWhite
+    ScaleForm Me                                 ' x the login's scale (modUI), the last line
+End Sub
+
+' "holidays" or "minstaff"; pick = a holiday's date to select (0 = none)
+Public Sub Setup(ByVal mode As String, Optional ByVal pick As Date = 0)
+    mMode = LCase$(Trim$(mode))
+    If mMode = "holidays" Then
+        Me.Caption = "Holidays - the weekday off for a weekend holiday"
+        mHead.Caption = "Pick a holiday, type the weekday the plant gives DAYS workers off for it (blank = none), and Save. " & _
+                        "Last year's and later rows are listed."
+        mList.ColumnCount = 5
+        mList.ColumnWidths = ScaleWidths("44 pt;170 pt;120 pt;50 pt;140 pt")
+        mLbl1.Caption = "Observed on:"
+        mLbl2.Visible = False: mBox2.Visible = False
+    Else
+        mMode = "minstaff"
+        Me.Caption = "Minimum staffing - per unit and shift"
+        mHead.Caption = "Pick a unit and shift, type the minimum operators (blank = no minimum on that shift) and an optional note " & _
+                        "(the call-out pop-up shows it at LOAD), and Save."
+        mList.ColumnCount = 4
+        mList.ColumnWidths = ScaleWidths("130 pt;60 pt;60 pt;280 pt")
+        mLbl1.Caption = "Minimum:"
+        mLbl2.Visible = True: mBox2.Visible = True
+    End If
+    LoadRows pick, -1
+End Sub
+
+Private Function CellText(ByVal v As Variant) As String
+    If VarType(v) = vbDate Then
+        CellText = Format$(CDate(v), "ddd mmm d, yyyy")
+    Else
+        CellText = SafeStr(v)
+    End If
+End Function
+
+' fills the list from the table; selects the row of `pick` (holidays) or list index `keep`
+Private Sub LoadRows(ByVal pick As Date, ByVal keep As Long)
+    mList.Clear
+    If mMode = "holidays" Then mRows = HolidayEditRows() Else mRows = MinStaffEditRows()
+    If Not IsArray(mRows) Then mHint.Caption = "The table is empty.": Exit Sub
+    ReDim mIdx(0 To UBound(mRows, 1))
+    Dim i As Long, j As Long, n As Long, sel As Long: sel = keep
+    For i = 1 To UBound(mRows, 1)
+        If mMode = "holidays" Then
+            If Val(SafeStr(mRows(i, 1))) < Year(Date) - 1 Then GoTo NextRow       ' older years: not listed
+        End If
+        mList.AddItem CellText(mRows(i, 1))
+        For j = 2 To mList.ColumnCount
+            mList.List(n, j - 1) = CellText(mRows(i, j))
+        Next j
+        mIdx(n) = i
+        If pick > 0 And mMode = "holidays" Then
+            If IsDate(mRows(i, 3)) Then
+                If Int(CDate(mRows(i, 3))) = Int(pick) Then sel = n
+            End If
+        End If
+        n = n + 1
+NextRow:
+    Next i
+    If sel >= 0 And sel < mList.ListCount Then mList.ListIndex = sel
+End Sub
+
+Private Sub mList_Click()
+    Dim i As Long: i = mList.ListIndex
+    If i < 0 Then Exit Sub
+    Dim r As Long: r = mIdx(i)
+    If mMode = "holidays" Then
+        If IsDate(mRows(r, 5)) Then mBox1.Text = DateText(CDate(mRows(r, 5))) Else mBox1.Text = ""
+    Else
+        mBox1.Text = SafeStr(mRows(r, 3))
+        mBox2.Text = SafeStr(mRows(r, 4))
+    End If
+    mHint.Caption = ""
+End Sub
+
+Private Sub mSave_Click()
+    On Error GoTo Oops
+    Dim i As Long: i = mList.ListIndex
+    If i < 0 Then mHint.Caption = "Pick a row first.": Exit Sub
+    Dim r As Long: r = mIdx(i)
+    Dim why As String, ok As Boolean, d As Date, saidTxt As String
+    If mMode = "holidays" Then
+        If Trim$(mBox1.Text) <> "" Then
+            If Not ParseTypedDate(mBox1.Text, d) Then mHint.Caption = "Not a date I can read: " & mBox1.Text & ".  Type it as  Dec 28  or  2026-12-28.": Exit Sub
+        End If
+        ok = SetObservedOn(r, d, why)
+        saidTxt = SafeStr(mRows(r, 2)) & " " & SafeStr(mRows(r, 1)) & ": observed on " & IIf(d > 0, Format$(d, "ddd mmm d, yyyy"), "(none)")
+    Else
+        ok = SetMinStaff(r, mBox1.Text, mBox2.Text, why)
+        saidTxt = SafeStr(mRows(r, 1)) & " " & SafeStr(mRows(r, 2)) & ": minimum " & IIf(Trim$(mBox1.Text) = "", "(none)", Trim$(mBox1.Text)) & _
+                  IIf(Trim$(mBox2.Text) <> "", ", note: " & Trim$(mBox2.Text), "")
+    End If
+    If Not ok Then mHint.Caption = "Not saved: " & why & ".": Exit Sub
+    mDone = mDone & IIf(mDone = "", "", vbLf) & saidTxt
+    mHint.Caption = "Saved: " & saidTxt
+    LoadRows 0, i
+    Exit Sub
+Oops:
+    ReportError "frmTableEdit.Save"
+End Sub
+
+Private Sub mClose_Click()
+    DoClose
+End Sub
+
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If CloseMode = vbFormControlMenu And Not mClosing Then
+        Cancel = True
+        DoClose
+    End If
+End Sub
+
+' the file saved once and one receipt for everything changed, then closed
+Private Sub DoClose()
+    On Error GoTo Oops
+    mClosing = True
+    Me.Hide
+    If mDone <> "" Then
+        SaveIfWritable
+        ShowReceiptNow IIf(mMode = "holidays", "Holidays", "Minimum staffing"), mDone, "", _
+                       IIf(mMode = "holidays", "The Holidays sheet. The calendar, the call lists and Needs Attention follow at once.", _
+                       "The Min Staff sheet. The calendar's short flags and Needs Attention follow at the next draw; the note shows on the call-out pop-up."), _
+                       "Open this pop-up again (the admin Desk: Holidays / minimum staffing) and change it back."
+    End If
+    Unload Me
+    Exit Sub
+Oops:
+    ReportError "frmTableEdit.Close"
+End Sub

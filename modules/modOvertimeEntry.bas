@@ -1917,7 +1917,8 @@ Public Function ByHandHint(ByVal sheetName As String) As String
         Case "Postings": button = "the posting's own buttons (Award, No Takers, Cancel Request, Reopen)"
         Case "Shift Switches": button = "Shift Switch"
         Case "Coverage", "Calendar": button = "the calendar line's menu"
-        Case "Holidays": button = "the Observed on cells (the only typed-into ones there)"
+        Case "Holidays": button = "the Holidays pop-up (the admin Desk: Holidays / minimum staffing)"     ' v27 (item 33)
+        Case MINSTAFF_SHEET: button = "the Min Staff pop-up (the admin Desk: Holidays / minimum staffing)"
     End Select
     ByHandHint = " (The " & sheetName & " sheet is protected: nothing on it is typed into. " & _
                  IIf(button <> "", "An admin changes it through " & button & ". ", "") & _

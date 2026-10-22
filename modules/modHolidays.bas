@@ -219,18 +219,13 @@ End Function
 ' ====================================================================
 '  HOLIDAYS SHEET (admin only)
 ' ====================================================================
-' v25 (R4): the "Observed on" column is the one cell block an admin types into on this sheet
+' v25 (R4): the "Observed on" column was the one cell block an admin typed into; v27 (item 33): none, adminView unused
 Public Sub LockHolidayCells(ByVal adminView As Boolean)
     Dim lo As ListObject: Set lo = HolidayTable()
     If lo Is Nothing Then Exit Sub
     Dim ws As Worksheet: Set ws = lo.Parent
     UnlockSheet ws
-    ws.Cells.Locked = True
-    If adminView Then
-        On Error Resume Next
-        If Not lo.DataBodyRange Is Nothing Then lo.ListColumns("Observed on").DataBodyRange.Locked = False
-        On Error GoTo 0
-    End If
+    ws.Cells.Locked = True                          ' v27 (item 33): every cell - the Holidays pop-up writes Observed on (SetObservedOn)
 End Sub
 
 Public Function HolidayTable(Optional ByVal create As Boolean = False) As ListObject
@@ -370,28 +365,80 @@ Fail:
     ReportError "ShowHolidays"                     ' v25 (I5): logged, state restored, plain message
 End Sub
 
-' Opens the sheet on a given holiday's row (from Needs Attention)
+' Opens the sheet on a given holiday's row (from Needs Attention); v27 (item 33): the pop-up on that row instead
 Public Sub GoToHoliday(ByVal d As Date)
     If Not RequireAdmin() Then Exit Sub
     On Error GoTo Fail
-    EnsureHolidayYears Year(d), Year(d)
-    Dim lo As ListObject: Set lo = HolidayTable(False)
-    If lo Is Nothing Then Exit Sub
-    SetSheetVisible ThisWorkbook.Worksheets(HOL_SHEET), xlSheetVisible
-    ThisWorkbook.Worksheets(HOL_SHEET).Activate
-    If lo.DataBodyRange Is Nothing Then Exit Sub
-    Dim r As Long, v As Variant: v = RangeTo2D(lo.DataBodyRange)
-    For r = 1 To UBound(v, 1)
-        If IsDate(v(r, HC_DATE)) Then
-            If Int(CDate(v(r, HC_DATE))) = Int(d) Then
-                lo.DataBodyRange.Cells(r, HC_OBS).Select
-                Exit Sub
-            End If
-        End If
-    Next r
+    OpenHolidayEditor d
     Exit Sub
 Fail:
     Dim em As String: em = Err.Description
     LogError "GoToHoliday", Err.Number, em          ' v25 (I5): an error here used to be a bare box, never logged
-    MsgBox "The Holidays sheet couldn't be opened: " & Err.Description, vbExclamation, "Call Out Roster"
+    MsgBox "The Holidays pop-up couldn't be opened: " & em, vbExclamation, "Call Out Roster"     ' v27: em (LogError clears Err)
 End Sub
+
+' ====================================================================
+'  THE HOLIDAYS POP-UP (v27 item 33)
+' ====================================================================
+' Alt+F8 / the admin Desk (Holidays / minimum staffing): the pop-up on the Holidays table
+Public Sub ShowHolidayEditor()
+    On Error GoTo Oops
+    OpenHolidayEditor 0
+    Exit Sub
+Oops:
+    ReportError "ShowHolidayEditor"
+End Sub
+
+' the pop-up with one holiday's row picked (0 = none); Needs Attention's HOLIDAYS TO CONFIRM lines open it so
+Public Sub OpenHolidayEditor(ByVal pick As Date)
+    If Not RequireAdmin() Then Exit Sub
+    EnsureHolidayYears Year(Date), Year(Date) + 1
+    If pick > 0 Then EnsureHolidayYears Year(pick), Year(pick)
+    If HolidayTable(False) Is Nothing Then MsgBox "The Holidays sheet couldn't be created (is the file read-only?).", vbExclamation, "Holidays": Exit Sub
+    frmTableEdit.Setup "holidays", pick
+    frmTableEdit.Show
+End Sub
+
+' the pop-up's rows: the table as it stands (Year, Holiday, Date, Day, Observed on, Note), or Empty
+Public Function HolidayEditRows() As Variant
+    Dim lo As ListObject: Set lo = HolidayTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    HolidayEditRows = RangeTo2D(lo.DataBodyRange)
+End Function
+
+' The ONE write to an "Observed on" cell: row r of the table (1-based); obs 0 = cleared. Admin, writable. A weekday
+' within a week of the holiday. The holiday cache and the calendar follow. False = refused (why).
+Public Function SetObservedOn(ByVal r As Long, ByVal obs As Date, ByRef why As String) As Boolean
+    why = ""
+    If Not RequireAdmin() Then why = "admins only": Exit Function
+    If Not RequireWritable() Then why = "this copy can't be saved": Exit Function
+    Dim lo As ListObject: Set lo = HolidayTable(False)
+    If lo Is Nothing Then why = "there is no Holidays table": Exit Function
+    If lo.DataBodyRange Is Nothing Then why = "the Holidays table is empty": Exit Function
+    If r < 1 Or r > lo.ListRows.Count Then why = "that row is gone - close and open the pop-up again": Exit Function
+    Dim hd As Variant: hd = lo.DataBodyRange.Cells(r, HC_DATE).Value
+    If obs > 0 Then
+        If Weekday(obs, vbMonday) > 5 Then why = Format$(obs, "ddd mmm d") & " is a weekend day": Exit Function
+        If IsDate(hd) Then
+            If Abs(Int(obs) - Int(CDate(hd))) > 7 Then why = "the day off must be within a week of the holiday (" & Format$(CDate(hd), "ddd mmm d") & ")": Exit Function
+        End If
+    End If
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Application.EnableEvents = False
+    UnlockSheet ws
+    With lo.DataBodyRange.Cells(r, HC_OBS)
+        If obs > 0 Then
+            .NumberFormat = "ddd mmm d, yyyy"
+            .Value = Int(obs)
+        Else
+            .ClearContents
+        End If
+    End With
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    ResetHolidayCache
+    MarkCalDirty
+    SetObservedOn = True
+End Function

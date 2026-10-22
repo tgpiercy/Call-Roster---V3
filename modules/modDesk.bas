@@ -288,6 +288,8 @@ Public Sub DrawDesk()
         yP = yP + BTN_H + GAP
         DeskBtn ws, "dk_btn_leave", "Leave: going or returning", "modDesk.DeskLeave", xP, yP, dkGreen()   ' v27: planned, like time off
         yP = yP + BTN_H + GAP
+        DeskBtn ws, "dk_btn_tables", "Holidays / minimum staffing", "modDesk.DeskTables", xP, yP, dkGreen()   ' v27 (item 33): the two pop-ups
+        yP = yP + BTN_H + GAP
     End If
     ' FINISH
     DeskBtn ws, "dk_btn_publish", "Update the members' file", "modDesk.DeskPublish", xF, yF, dkNavy()   ' v25.5: on the supervisor Desk too (bundle item 8)
@@ -803,6 +805,18 @@ Oops:
 End Sub
 
 ' v27 (item 26): the quarterly Stats report (admin)
+' v27 (item 33): the Holidays and Min Staff pop-ups behind one button (admin)
+Public Sub DeskTables()
+    On Error GoTo Oops
+    Select Case MsgBox("Yes = the Holidays (the weekday off for a weekend holiday)." & vbNewLine & "No = minimum staffing (per unit and shift, and the unit's note).", vbYesNoCancel + vbQuestion, "Holidays / minimum staffing")
+        Case vbYes: ShowHolidayEditor
+        Case vbNo: ShowMinStaffEditor
+    End Select
+    Exit Sub
+Oops:
+    ReportError "DeskTables"
+End Sub
+
 ' v27 (item 3): the Since-you-were-last-here list
 Public Sub DeskSince()
     On Error GoTo Oops
@@ -1157,7 +1171,8 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "hides it is cleared) and the status bar at the bottom says where the person stands in their home unit's call order " & _
         "today, for example 4 of 19 in the Phosphine call order. Click any roster row for the person's refused hours by kind."
     HelpAdd h, n, "Minimum staffing (admin)", _
-        "The Min Staff sheet (admin) holds the minimum operators per unit and shift; blank = no minimum on that shift. For today and " & _
+        "The Min Staff sheet (admin) holds the minimum operators per unit and shift; blank = no minimum on that shift (an admin changes it, " & _
+        "and the unit's note the call-out pop-up shows, through the Desk's Holidays / minimum staffing). For today and " & _
         "the next 13 days the calendar's date cell shows a red N short flag when any unit's day or night shift is below it, whatever unit group the " & _
         "calendar shows (click the date for which), and Needs Attention lists each short shift under BELOW MINIMUM STAFFING, every unit " & _
         "(double-click to open the calendar on that date). Staffed " & _

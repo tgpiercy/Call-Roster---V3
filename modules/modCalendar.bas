@@ -3832,7 +3832,7 @@ Public Function MinStaffTable(Optional ByVal create As Boolean = False) As ListO
         lo.TableStyle = "TableStyleMedium3"
         ws.Columns(1).ColumnWidth = 18: ws.Columns(2).ColumnWidth = 8: ws.Columns(3).ColumnWidth = 10: ws.Columns(4).ColumnWidth = 90
         ws.Range("A" & (n + 3)).Value = "Minimum operators per unit and shift (admin). Blank = no minimum on that shift. The calendar's date cells and " & _
-                                        "Needs Attention flag a shift below its minimum for the next " & BOARD_DAYS & " days. Type into Minimum and Note only."
+                                        "Needs Attention flag a shift below its minimum for the next " & BOARD_DAYS & " days. Change them through the admin Desk's Holidays / minimum staffing."
         ws.Range("A" & (n + 3)).Font.Italic = True: ws.Range("A" & (n + 3)).Font.Size = 8.5
         LockMinStaffCells gAdminUnlocked
         ProtectSheet ws
@@ -3848,22 +3848,14 @@ AddFailed:                                           ' re-review: events back on
     Err.Raise en, , em
 End Function
 
-' v26 (R4): the cells an admin may type into on the Min Staff sheet - Minimum and Note; everything else locked.
+' v26 (R4): the cells an admin may type into on the Min Staff sheet - Minimum and Note; v27 (item 33): none (adminView unused).
 ' Called by ApplyViewCore (the sheet is re-protected by ProtectAll after it) and at the table's making.
 Public Sub LockMinStaffCells(ByVal adminView As Boolean)
     Dim lo As ListObject: Set lo = MinStaffTable(False)
     If lo Is Nothing Then Exit Sub
     Dim ws As Worksheet: Set ws = lo.Parent
     UnlockSheet ws
-    ws.Cells.Locked = True
-    If adminView Then
-        On Error Resume Next
-        If Not lo.DataBodyRange Is Nothing Then
-            lo.ListColumns("Minimum").DataBodyRange.Locked = False
-            lo.ListColumns("Note").DataBodyRange.Locked = False
-        End If
-        On Error GoTo 0
-    End If
+    ws.Cells.Locked = True                          ' v27 (item 33): every cell - the Min Staff pop-up writes Minimum and Note (SetMinStaff)
     ProtectSheet ws
 End Sub
 
@@ -6258,3 +6250,55 @@ Public Sub CalSheetRightClick(ByVal Sh As Object, ByVal Target As Range, ByRef C
         NARightClick Target, Cancel
     End If
 End Sub
+
+' ====================================================================
+'  THE MIN STAFF POP-UP (v27 item 33)
+' ====================================================================
+' Alt+F8 / the admin Desk (Holidays / minimum staffing): the pop-up on the Min Staff table
+Public Sub ShowMinStaffEditor()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If MinStaffTable(True) Is Nothing Then MsgBox "The Min Staff sheet couldn't be made (is the file read-only?).", vbExclamation, "Minimum staffing": Exit Sub
+    frmTableEdit.Setup "minstaff"
+    frmTableEdit.Show
+    Exit Sub
+Oops:
+    ReportError "ShowMinStaffEditor"
+End Sub
+
+' the pop-up's rows: Unit, Shift, Minimum, Note, or Empty
+Public Function MinStaffEditRows() As Variant
+    Dim lo As ListObject: Set lo = MinStaffTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    MinStaffEditRows = RangeTo2D(lo.DataBodyRange)
+End Function
+
+' The ONE write to the Min Staff table: row r (1-based), the minimum as typed (blank = none, else a whole number 0
+' to 20; 0 = none) and the note (blank = none, 250 characters kept). Admin, writable. False = refused (why).
+Public Function SetMinStaff(ByVal r As Long, ByVal minTxt As String, ByVal note As String, ByRef why As String) As Boolean
+    why = ""
+    If Not RequireAdmin() Then why = "admins only": Exit Function
+    If Not RequireWritable() Then why = "this copy can't be saved": Exit Function
+    minTxt = Trim$(minTxt): note = Trim$(Replace(Replace(note, vbCr, " "), vbLf, " "))
+    Dim m As Long
+    If minTxt <> "" Then
+        If Not IsNumeric(minTxt) Then why = "the minimum is a whole number (blank = no minimum)": Exit Function
+        If Val(minTxt) <> Int(Val(minTxt)) Or Val(minTxt) < 0 Or Val(minTxt) > 20 Then why = "the minimum is a whole number from 0 to 20": Exit Function
+        m = CLng(Val(minTxt))
+    End If
+    Dim lo As ListObject: Set lo = MinStaffTable(False)
+    If lo Is Nothing Then why = "there is no Min Staff table": Exit Function
+    If lo.DataBodyRange Is Nothing Then why = "the Min Staff table is empty": Exit Function
+    If r < 1 Or r > lo.ListRows.Count Then why = "that row is gone - close and open the pop-up again": Exit Function
+    Dim ws As Worksheet: Set ws = lo.Parent
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Application.EnableEvents = False
+    UnlockSheet ws
+    If m > 0 Then lo.DataBodyRange.Cells(r, 3).Value = m Else lo.DataBodyRange.Cells(r, 3).ClearContents
+    If note <> "" Then lo.DataBodyRange.Cells(r, 4).Value = "'" & Left$(note, 250) Else lo.DataBodyRange.Cells(r, 4).ClearContents
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    MarkCalDirty
+    SetMinStaff = True
+End Function

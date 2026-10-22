@@ -60,7 +60,7 @@ Option Explicit
 '     code back, so that flag still has working code behind it.
 ' ====================================================================
 
-Public Const UPD_VERSION As String = "Updater v4.1 (Oct 14)"
+Public Const UPD_VERSION As String = "Updater v4.2 (Oct 22)"     ' v27 (item 31): the install record
 
 Private Const UPD_TITLE As String = "Update the roster code"
 Private Const UPD_TEMPLATE As String = "Call Out Roster - Members TEMPLATE.xlsm"
@@ -357,7 +357,7 @@ Private Function UpdBackup(ByVal wb As Workbook, ByVal label As String, ByRef bk
     Application.Run nm & "SaveRestrictedCopy", bk
     If Err.Number = 0 Then
         On Error GoTo 0
-        UpdBackup = True
+        UpdBackup = UpdVerifyCopy(bk, why)          ' v4.2 (item 31): a copy that is empty or will not open is no backup
         Exit Function
     End If
     ' (v4.1 re-review) only "the macro isn't there" (a roster before v25) falls back; the roster's own refusal
@@ -381,7 +381,32 @@ Private Function UpdBackup(ByVal wb As Workbook, ByVal label As String, ByRef bk
     Application.Run nm & "ApplyView", True
     wb.Saved = wasSaved                             ' the view switch changed nothing worth saving (the check step refuses an unsaved roster)
     On Error GoTo 0
-    UpdBackup = (why = "")
+    If why = "" Then UpdBackup = UpdVerifyCopy(bk, why)
+End Function
+
+' v4.2 (item 31, C7): the backup copy is a file with something in it that Excel opens - read-only, its open code
+' and macros off - and it holds the OT Log sheet; closed again unchanged. False = why.
+Private Function UpdVerifyCopy(ByVal bk As String, ByRef why As String) As Boolean
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Dim secWas As Long: secWas = Application.AutomationSecurity
+    Dim w As Workbook, ws As Object, found As Boolean, sz As Long
+    On Error Resume Next
+    sz = FileLen(bk)
+    If Err.Number <> 0 Or sz = 0 Then why = "the backup copy is missing or empty: " & bk: On Error GoTo 0: Exit Function
+    Err.Clear
+    Application.EnableEvents = False
+    Application.AutomationSecurity = 3              ' msoAutomationSecurityForceDisable: the copy's code does not run
+    Set w = Workbooks.Open(Filename:=bk, ReadOnly:=True, UpdateLinks:=0)
+    Application.AutomationSecurity = secWas
+    Application.EnableEvents = evWas
+    If w Is Nothing Or Err.Number <> 0 Then why = "the backup copy would not open: " & Err.Description: On Error GoTo 0: Exit Function
+    For Each ws In w.Worksheets
+        If ws.Name = "OT Log" Then found = True
+    Next ws
+    w.Close SaveChanges:=False
+    On Error GoTo 0
+    If Not found Then why = "the backup copy opened but has no OT Log sheet: " & bk: Exit Function
+    UpdVerifyCopy = True
 End Function
 
 ' v4: the save block goes on, the code is swapped (rolled back on a failure), the report is
@@ -678,6 +703,17 @@ Private Function UpdTemplate(ByVal roster As Workbook, ByVal folder As String) A
         End If
     Next w
 
+    ' v4.2 (item 31, C7): a copy of the template as it was, beside it, before anything touches it
+    Dim tCopy As String: tCopy = UpdSlash(roster.Path) & "Backup before " & wantVer & " " & Format$(Now, "yyyy-mm-dd hhmmss") & " - TEMPLATE.xlsm"
+    On Error Resume Next
+    FileCopy tPath, tCopy
+    If Err.Number <> 0 Then
+        Dim cErr As String: cErr = Err.Description
+        On Error GoTo 0
+        MsgBox "The template couldn't be copied first (" & cErr & "). Nothing was changed.", vbExclamation, TTL
+        Exit Function
+    End If
+    On Error GoTo 0
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim secWas As Long: secWas = Application.AutomationSecurity
     Dim daWas As Boolean: daWas = Application.DisplayAlerts
@@ -1791,6 +1827,7 @@ Private Sub InstRunStep(ByRef wb As Workbook, ByVal folder As String, ByVal ver 
             Else
                 Select Case UpdCompile(wb, why)
                     Case 1: status = "OK": note = "Compile VBAProject: clean"
+                    Case 2: status = "OK": note = "Compile VBAProject: already clean - " & why     ' v4.2 (item 31)
                     Case 0: status = "FAILED": note = why
                     Case Else
                         If MsgBox("The compile couldn't be run from here (" & why & ")." & vbNewLine & vbNewLine & _
@@ -1889,7 +1926,7 @@ Private Function UpdCompile(ByVal wb As Workbook, ByRef why As String) As Long
     End If
     Set ctl = vbe.CommandBars.FindControl(, 578)        ' 578 = Debug > Compile VBAProject
     If ctl Is Nothing Then why = "the Compile command wasn't found in the VBA editor": UpdCompile = -1: Exit Function
-    If Not ctl.Enabled Then why = "the Compile command is already disabled (compiled before, or not this project)": UpdCompile = -1: Exit Function
+    If Not ctl.Enabled Then why = "the Compile command was already greyed out: the project (checked above to be the roster's) was compiled and nothing changed since": UpdCompile = 2: Exit Function     ' v4.2 (item 31)
     Err.Clear
     ctl.Execute
     If Err.Number <> 0 Then why = "the Compile command didn't run: " & Err.Description: UpdCompile = -1: Exit Function
@@ -1919,6 +1956,18 @@ Failed:
     why = Err.Description
 End Function
 
+' v4.2 (item 31, C7): the roster's SystemCheck text on one line (" || " then the lines joined by " / "), "" when the
+' roster is older than v27 and has no SystemCheckText
+Private Function InstSystemCheckText(ByVal wb As Workbook) As String
+    Dim k As Long, args() As Variant, v As Variant
+    ReDim args(1 To 1)
+    On Error Resume Next
+    v = InstRun(wb, "SystemCheckText", args, 0)
+    If Err.Number <> 0 Then Exit Function
+    On Error GoTo 0
+    InstSystemCheckText = " || " & Left$(Replace(Replace(CStr(v), vbCrLf, " / "), vbLf, " / "), 30000)
+End Function
+
 ' A roster macro: "Name arg arg ..." (a Function returning Boolean marks itself; a Sub is OK when it
 ' raised nothing; "| confirm" asks after it)
 Private Sub InstRunMacro(ByVal wb As Workbook, ByRef st As InstStep, ByRef status As String, ByRef note As String)
@@ -1932,6 +1981,7 @@ Private Sub InstRunMacro(ByVal wb As Workbook, ByRef st As InstStep, ByRef statu
     If en <> 0 Then status = "FAILED": note = nm & ": " & em: Exit Sub
     If VarType(v) = vbBoolean Then
         If CBool(v) Then status = "OK": note = nm & " said yes" Else status = "FAILED": note = nm & " said no (see its box)"
+        If StrComp(nm, "SystemCheckOK", vbTextCompare) = 0 Then note = note & InstSystemCheckText(wb)     ' v4.2 (item 31): the whole text, for the record
         If LCase$(st.Flag) <> "confirm" Then Exit Sub
         If status = "FAILED" Then Exit Sub
     End If

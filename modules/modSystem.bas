@@ -298,6 +298,17 @@ End Sub
 ' is on this release (the VERSION lines). The environment lines (Kronos age, P: paths, unseen Error
 ' Log lines ...) are shown as always but don't fail an install: they are expected until go-live.
 ' An error inside logs and returns False.
+' v27 (item 31, C7): the SystemCheck text with no box - the Install panel keeps it in the Install Log row's Note
+Public Function SystemCheckText() As String
+    On Error GoTo Oops
+    Dim warn As String, info As String, verOk As Boolean
+    SystemCheckBuild warn, info, verOk
+    SystemCheckText = IIf(warn = "", "Everything looks right.", "CHECK: " & warn) & vbNewLine & info
+    Exit Function
+Oops:
+    SystemCheckText = "SystemCheck could not run: " & Err.Description
+End Function
+
 Public Function SystemCheckOK() As Boolean
     On Error GoTo Oops
     Dim warn As String, info As String, verOk As Boolean, msg As String

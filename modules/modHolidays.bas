@@ -345,7 +345,7 @@ End Function
 
 ' Workbook_Open: make sure this year and next are listed (admins only)
 Public Sub HolidaysOnOpen()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If EnsureHolidayYears(Year(Date), Year(Date) + 1) > 0 Then MarkCalDirty
 End Sub
 

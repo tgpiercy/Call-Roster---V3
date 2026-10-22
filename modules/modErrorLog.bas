@@ -154,7 +154,7 @@ End Sub
 Public Sub ReportError(ByVal proc As String, Optional ByVal detail As String = "")
     Dim en As Long: en = Err.Number                ' read before anything can clear it
     Dim em As String: em = Err.Description
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If en = 18 Then em = "Stopped by Esc / Ctrl+Break: " & em      ' v26.5.5 (A3): a cancelled write is an error like any other
     Application.EnableCancelKey = xlInterrupt       ' v26.5.5 (A3): a writer that made Esc trappable hands the key back here
     Application.ScreenUpdating = True
@@ -224,7 +224,7 @@ End Function
 
 ' v25.3 (the Desk's "Something went wrong"): the newest row as one line of text (rows are appended)
 Public Function NewestErrorLine() As String
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     NewestErrorLine = "(the Error Log is empty)"
     Dim lo As ListObject: Set lo = ErrorLogTable(False)
     If lo Is Nothing Then Exit Function

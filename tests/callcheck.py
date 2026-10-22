@@ -28,6 +28,18 @@ Checks, per project (master = modules/ + paste-in/, members = member/):
   MSGTITLE  a MsgBox (statement or function form) with fewer than three
             arguments: every box carries a title (v26.5.5, item 15; the
             default title is "Call Out Roster")                    (v26.5.5)
+  MACROSTR  a "Module.Name" string (an OnAction, Application.Run, a Desk
+            button) naming a procedure that module does not have, or a
+            Private one; a bare OnAction / Application.Run "Name" that no
+            module has as a Public procedure                          (v27)
+  ORNSWALLOW an On Error Resume Next that runs to the end of the procedure
+            (no later On Error GoTo, not inside an error handler) with no
+            ' never raises marker in the procedure or the four lines above
+            it: a quiet helper says so, anything else gets a handler (v27)
+  PROCLEN   a procedure over 300 lines (KNOWN_LONG lists the three the
+            v27.5 refactor splits)                                    (v27)
+  DEADPUB   a Public procedure with parameters that nothing in the project
+            names (an Alt+F8 macro has none, so it is never flagged)  (v27)
 
 It is a text scan, not a compiler. Anything it can't parse with confidence
 it skips, so a clean run is good evidence, not proof.
@@ -45,6 +57,35 @@ INTRINSIC = {"long", "integer", "string", "double", "single", "boolean", "date",
              "longlong", "longptr"}
 # an assignment to NAME at the start of a statement, or after Then / Else on a one-line If
 ASSIGN = r"(?:^\s*|\bThen\s+|\bElse\s+)(?:Set\s+)?{name}\s*=(?!=)"
+PROC_MAX_LINES = 300
+KNOWN_LONG = {"synckronosdata", "drawcalendar", "drawneeds"}      # v27 (item 30): the v27.5 refactor splits these
+
+
+def swallowers(mod: Module) -> list[str]:
+    """ORNSWALLOW: procedures whose last On Error Resume Next runs to the end, outside a handler, unmarked."""
+    out = []
+    for name, a, b in mod.procs:
+        body = raw_proc_lines(mod, name)
+        if not body:
+            continue
+        rn = [i for i, ln in enumerate(body) if re.search(r"(^|:)\s*On\s+Error\s+Resume\s+Next\b", ln.split("'")[0], re.I)]
+        if not rn:
+            continue
+        last = rn[-1]
+        if any(re.match(r"^\s*[A-Za-z_]\w*:\s*(?:'.*)?$", ln) for ln in body[1:last + 1]):
+            continue                                   # in an error handler's clean-up
+        if any(re.search(r"On\s+Error\s+GoTo\s", ln.split("'")[0], re.I) for ln in body[last + 1:]):
+            continue
+        key = str(mod.path)
+        lines = _RAW.get(key) or mod.path.read_text(encoding="ascii", errors="replace").replace("\r\n", "\n").split("\n")
+        head_i = next((i for i, ln in enumerate(lines) if ln == body[0]), 0)
+        above = lines[max(0, head_i - 4):head_i]
+        if any("never raises" in ln.lower() for ln in body + above):
+            continue
+        out.append(name)
+    return out
+
+
 OFF_ON = [  # (what, the 'off' value pattern, the 'on' value pattern)
     ("Application.EnableEvents", r"False", r"(?!False\b)\S"),
     ("Application.ScreenUpdating", r"False", r"(?!False\b)\S"),
@@ -312,6 +353,9 @@ def check_project(files: list[Path], label: str) -> int:
                     for args in msgbox_args(st):
                         if len(args) < 3:
                             say("MSGTITLE", m, p.name, f"MsgBox with {len(args)} argument(s): give it a title (the third argument)")
+            # ---- PROCLEN (v27): a procedure over PROC_MAX_LINES lines ----
+            if p.b - p.a + 1 > PROC_MAX_LINES and p.name.lower() not in KNOWN_LONG:
+                say("PROCLEN", m, p.name, f"{p.b - p.a + 1} lines (over {PROC_MAX_LINES}): split it")
             # ---- NORET: a Function that never assigns its own name (v25) ----
             if p.kind == "function":
                 pat = re.compile(ASSIGN.format(name=re.escape(p.name)), re.I)
@@ -445,6 +489,39 @@ def check_project(files: list[Path], label: str) -> int:
                         if v_ty != prm.type and (v_ty in INTRINSIC or prm.type in INTRINSIC or v_ty in types or prm.type in types):
                             say("BYREF", m, p.name, f"'{am.group(1)}' (As {v_ty}) passed to {callee.name}'s ByRef parameter '{prm.name}' (As {prm.type})")
 
+    # ---- ORNSWALLOW (v27) ----
+    for m in mods if label not in ("member", "members", "updater") else []:     # the master's rule (the other two install apart)
+        for name in swallowers(m):
+            say("ORNSWALLOW", m, name, "an On Error Resume Next runs to the end: add a handler, or mark it ' never raises")
+    # ---- MACROSTR / DEADPUB (v27): every string naming a procedure, and every Public with parameters, is matched ----
+    texts = {m.name.lower(): m.path.read_text(encoding="ascii", errors="replace") for m in mods}
+    std_mods = {m.name.lower() for m in mods if m.path.suffix.lower() == ".bas" and not m.is_class}
+    for m in mods:
+        for mm in re.finditer(r'"([A-Za-z_]\w*)\.([A-Za-z_]\w*)"', texts[m.name.lower()]):
+            mod_l, proc_l = mm.group(1).lower(), mm.group(2).lower()
+            if mod_l not in std_mods or proc_l in ("bas", "txt", "cls", "frm", "xlsm", "xlsx"):
+                continue                               # "Scripting.Dictionary", "WScript.Shell", a form's handler label, a file name
+            tgt = by_mod[mod_l].get(proc_l)
+            if tgt is None:
+                say("MACROSTR", m, mm.group(0), f"{mm.group(1)} has no procedure {mm.group(2)}")
+            elif tgt.private:
+                say("MACROSTR", m, mm.group(0), f"{mm.group(1)}.{mm.group(2)} is Private: a button or Application.Run can't reach it")
+        for mm in re.finditer(r'(?:OnAction\s*:?=\s*|Application\.Run\s*\(?\s*)"([A-Za-z_]\w*)"', texts[m.name.lower()], re.I):
+            nm = mm.group(1).lower()
+            if nm not in pub:
+                say("MACROSTR", m, mm.group(1), "no module has a Public procedure of that name")
+    words: dict[str, int] = {}
+    for m in mods:
+        for w in re.findall(r"[A-Za-z_]\w*", texts[m.name.lower()]):
+            words[w.lower()] = words.get(w.lower(), 0) + 1
+    for m in mods:
+        if m.is_class or m.path.suffix.lower() != ".bas":
+            continue
+        for p in by_mod[m.name.lower()].values():
+            if p.private or p.kind == "property" or not p.params:
+                continue
+            if words.get(p.name.lower(), 0) <= 1:
+                say("DEADPUB", m, p.name, "a Public procedure nothing calls: Private, or delete it")
     # ---- RESTORE verdicts: a restore in a procedure this one calls (any depth) counts ----
     def restores(key, what, seen):
         if key in seen:

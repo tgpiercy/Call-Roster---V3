@@ -258,7 +258,7 @@ End Sub
 ' The open disputes, one per line (Needs Attention); count = how many
 Public Function OpenDisputesText(ByRef count As Long) As String
     count = 0
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim v As Variant: v = EvidenceRows()
     If Not IsArray(v) Then Exit Function
     Dim i As Long, s As String
@@ -274,7 +274,7 @@ End Function
 
 ' The FULL history report's Evidence column: "scan: <file>; dispute (Open): ..." for a ref ("" = none)
 Public Function EvidenceFor(ByVal ref As String) As String
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim v As Variant: v = EvidenceRows()
     If Not IsArray(v) Then Exit Function
     Dim i As Long, s As String
@@ -335,7 +335,7 @@ End Function
 ' The newest closed period's hash ("" when none): the next close writes it beside its own
 Private Function LastClosedHash(ByRef lastPeriod As Date) As String
     lastPeriod = 0
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim lo As ListObject: Set lo = ClosedPeriodsTable(False)
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function

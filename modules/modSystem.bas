@@ -329,7 +329,7 @@ End Function
 
 ' the "' @version ..." line in a form's code, or "no version line"
 Private Function FormMarker(ByVal proj As Object, ByVal formName As String) As String
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim cm As Object: Set cm = proj.VBComponents(formName).CodeModule
     Dim n As Long: n = cm.CountOfLines
     If n > 60 Then n = 60
@@ -506,7 +506,7 @@ End Sub
 ' v26.5.5 (5.4): a practice copy says so on every visible sheet (a red banner shape, top left) and in the
 ' window title, so nobody mistakes it for the roster. Workbook_Open runs it; the live roster is untouched.
 Public Sub PracticeBannerOnOpen()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not IsDryRunName(ThisWorkbook.Name) Then Exit Sub
     Dim ws As Worksheet, s As Shape, i As Long
     For Each ws In ThisWorkbook.Worksheets
@@ -551,7 +551,7 @@ End Function
 ' Deletes the practice copies (and nothing else) in the Practice folder beside the roster that are more
 ' than a day old - the copy can't delete itself on close. Returns how many went.
 Public Function PrunePracticeCopies(ByVal folder As String) As Long
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not FolderExists(folder) Then Exit Function
     Dim names() As String, n As Long, f As String, i As Long, removed As Long, d As Date
     f = Dir$(folder & "* COPY ????-??-?? ????.xlsm")
@@ -578,7 +578,7 @@ End Function
 
 ' ---------------- opening checks ----------------
 Public Sub OpenChecks()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If ThisWorkbook.ReadOnly Then
         Dim who As String: who = LockOwner()
         Dim onDisk As Boolean: onDisk = False
@@ -640,7 +640,7 @@ End Function
 ' v27 (item 20, B15): the first time a login ever opens the roster, one box points at the three things that matter
 ' (a hidden name FirstOpen_<login> remembers it). Run by Workbook_Open BEFORE the what's-new box, which it reads. Quiet.
 Public Sub FirstOpenOnOpen()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If CurrentUser() = "" Or gSmokeRun Then Exit Sub
     Dim nmKey As String: nmKey = LoginNameKey("FirstOpen")
     Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(nmKey)
@@ -704,7 +704,7 @@ Public Function BackupFileDate(ByVal fileName As String) As Date
     If Len(fileName) <> Len(pat) Then Exit Function
     If Not fileName Like pat Then Exit Function
     Dim s As String: s = Mid$(fileName, Len(BACKUP_BASENAME) + 2, 10)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     BackupFileDate = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2)))
 End Function
 
@@ -735,7 +735,7 @@ Private Function WhatsNewName() As String
 End Function
 
 Public Sub WhatsNewOnOpen()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If CurrentUser() = "" Then Exit Sub
     Dim nmObj As Name
     Set nmObj = ThisWorkbook.Names(WhatsNewName())
@@ -788,7 +788,7 @@ Public Function BackupFolderPath() As String
 End Function
 
 Public Sub BackupOnOpen()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If BackupOff() Then Exit Sub
     Dim folder As String: folder = BackupFolderPath()
     If Not FolderExists(folder) Then
@@ -845,7 +845,7 @@ End Function
 ' v26: deletes this roster's "Backup before ..." copies older than BACKUP_KEEP_DAYS from the
 ' folder they are written to (beside the roster), matched by PreChangeCopyDate. Returns how many.
 Public Function PrunePreChangeCopies(ByVal folder As String) As Long
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim names() As String, n As Long, f As String, d As Date, i As Long, removed As Long
     f = Dir$(folder & "Backup before * - " & ThisWorkbook.Name)
     Do While f <> ""
@@ -872,7 +872,7 @@ End Function
 ' there are, and their size in bytes
 Private Sub BackupInventory(ByVal folder As String, ByRef nDaily As Long, ByRef bDaily As Double, _
                             ByRef nPre As Long, ByRef bPre As Double)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim f As String, here As String
     f = Dir$(folder & BACKUP_BASENAME & " ????-??-??.xlsm")
     Do While f <> ""
@@ -894,7 +894,7 @@ End Function
 ' Deletes copies older than BACKUP_KEEP_DAYS in the backup folder only,
 ' matched by the exact name pattern. Returns how many were removed.
 Public Function PruneBackups(ByVal folder As String) As Long
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim names() As String, n As Long, f As String, d As Date, i As Long, removed As Long
     f = Dir$(folder & BACKUP_BASENAME & " ????-??-??.xlsm")
     Do While f <> ""
@@ -985,7 +985,7 @@ End Function
 ' v27 (item 12): called by Workbook_BeforeSave - when the newest backup (daily or hourly) is older than BACKUP_SAVE_HOURS,
 ' a copy of the file AS IT IS NOW goes beside the daily backups before the save overwrites it. Quiet: a backup never stops a save.
 Public Sub BackupBeforeSave()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If BackupOff() Then Exit Sub
     If mNewestBackupAt > 0 Then
         If (Now - mNewestBackupAt) * 24 < BACKUP_SAVE_HOURS Then Exit Sub
@@ -1104,7 +1104,7 @@ End Sub
 ' v27: one row into the Install Log from inside the roster (the updater writes the install's rows; the drill its own).
 ' The sheet is never protected by design.
 Public Function LogInstallRow(ByVal kind As String, ByVal stepTxt As String, ByVal status As String, ByVal note As String) As Boolean
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     EnsureInstallLog
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(IL_SHEET)
     Dim lo As ListObject: Set lo = ws.ListObjects("tblInstallLog")
@@ -1129,7 +1129,7 @@ End Function
 
 ' SystemCheck lines for the backup
 Private Sub BackupStatus(ByRef warn As String, ByRef info As String)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Trim$(BACKUP_FOLDER) = "" Then
         warn = warn & "- BACKUP_FOLDER isn't set (modOvertimeEntry), so daily backups are off" & vbNewLine
         Exit Sub

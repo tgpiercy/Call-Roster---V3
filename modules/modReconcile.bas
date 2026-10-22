@@ -203,7 +203,7 @@ Private Sub RcButton(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As Str
     s.Line.Visible = msoFalse
     s.Placement = xlFreeFloating
     s.OnAction = mac
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     s.DrawingObject.PrintObject = False
     With s.TextFrame2
         .WordWrap = msoFalse

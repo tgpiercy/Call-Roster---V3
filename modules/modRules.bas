@@ -324,7 +324,7 @@ End Sub
 Public Function SettingsOverrideText(Optional ByRef bad As String) As String
     bad = ""
     SettingsOverrideText = "Settings overrides: none"
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim lo As ListObject: Set lo = SettingsTable(False)
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function

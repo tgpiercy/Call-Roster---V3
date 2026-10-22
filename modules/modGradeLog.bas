@@ -123,7 +123,7 @@ End Sub
 ' A rename (v24) leaves a line here, so a name in a closed year's archive
 ' can be traced to the person's name today: Unit "(renamed)", Old / New = the names.
 Public Sub LogRename(ByVal oldName As String, ByVal newName As String)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim outA() As Variant: ReDim outA(1 To 1, 1 To GL_N)
     outA(1, 1) = Now
     outA(1, 2) = newName
@@ -226,7 +226,7 @@ End Function
 ' log anything that changed while macros were off. Quiet.
 Public Sub GradeLogOnOpen()
     If ThisWorkbook.ReadOnly Or Not IsAdmin() Then Exit Sub
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not SheetExists(GS_SHEET) Then
         RefreshGradeSnapshot
     Else
@@ -294,7 +294,7 @@ End Sub
 ' v27 (item 13): a detail changed in place through Employee > Edit - one row: Unit "(details)", Old / New = the values,
 ' Field = which detail (seniority, home unit, crew, phone, email). A code change keeps its own rows (RecordGradeRows).
 Public Sub LogFieldChange(ByVal emp As String, ByVal fld As String, ByVal oldV As String, ByVal newV As String)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim outA() As Variant: ReDim outA(1 To 1, 1 To GL_NF)
     outA(1, 1) = Now
     outA(1, 2) = emp

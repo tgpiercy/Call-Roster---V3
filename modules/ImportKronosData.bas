@@ -664,7 +664,7 @@ End Sub
 Public Function KronosFilePath() As String
     Dim p As String: p = Trim$(KRONOS_PATH)
     If p = "" Then Exit Function
-    On Error Resume Next                                     ' an unreachable drive: "" (the caller says no file was found)
+    On Error Resume Next                                     ' an unreachable drive: "" (the caller says no file was found) (never raises)
     Dim hit As String
     Dim pattern As String, folder As String
     If Right$(p, 1) = "\" Then
@@ -698,7 +698,7 @@ Public Function KronosFilesToImport(Optional ByRef nNew As Long = 0) As Variant 
     nNew = 0
     Dim p As String: p = Trim$(KRONOS_PATH)
     If p = "" Then Exit Function
-    On Error Resume Next                                     ' an unreachable drive: nothing (the caller says no file was found)
+    On Error Resume Next                                     ' an unreachable drive: nothing (the caller says no file was found) (never raises)
     Dim folder As String, pattern As String, hit As String
     If Right$(p, 1) = "\" Then
         folder = p: pattern = "*.xls*"
@@ -1664,7 +1664,7 @@ End Function
 ' After an error part-way through the import: the roster is protected again and
 ' the Kronos file is closed if the import opened it. Quiet.
 Private Sub KronosCleanUp(ByVal wsDest As Worksheet, ByVal wbSource As Workbook, ByVal openedHere As Boolean)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not wsDest Is Nothing Then ProtectSheet wsDest
     If openedHere And Not wbSource Is Nothing Then wbSource.Close SaveChanges:=False
     ThisWorkbook.Activate

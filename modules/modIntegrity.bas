@@ -1089,7 +1089,7 @@ End Function
 
 ' Quiet run when an admin opens the file. Never stops the open.
 Public Sub IntegrityOnOpen()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not IsAdmin() Then Exit Sub
     Dim nErr As Long, nWarn As Long
     RunIntegrity nErr, nWarn

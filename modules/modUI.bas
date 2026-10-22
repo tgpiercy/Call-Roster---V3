@@ -813,7 +813,7 @@ End Sub
 ' the declarations block at the top.)
 Public Function UiScale(Optional ByVal formHeight As Double = 0) As Double
     UiScale = UI_SCALE
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(LoginNameKey("UiScale"))
     Dim v As Double: v = UI_SCALE
     If Not nmObj Is Nothing Then v = Val(Replace(Replace(nmObj.RefersTo, "=", ""), ",", "."))
@@ -829,7 +829,7 @@ End Function
 ' The status cell's current view text (the part after "View: "), "All" when none
 Public Function CurrentViewText() As String
     CurrentViewText = "All"
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim cur As String: cur = SafeStr(RosterSheet().Range(STATUS_CELL).Value)
     Dim p As Long: p = InStr(1, cur, "View: ")
     If p > 0 Then CurrentViewText = Trim$(Mid$(cur, p + 6))
@@ -837,7 +837,7 @@ End Function
 
 ' The Desk's "Larger type": this login's pop-ups open at UI_LARGER_SCALE (or back to the default); the next one shows it
 Public Sub SetUiScaleForMe(ByVal larger As Boolean)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim nmKey As String: nmKey = LoginNameKey("UiScale")
     Dim v As Double: v = IIf(larger, UI_LARGER_SCALE, UI_SCALE)
     Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(nmKey)
@@ -896,7 +896,7 @@ End Function
 '  (the gates inside refuse as they do for a click). Listed on the Desk's footer row and the Help tab.
 ' --------------------------------------------------------------------
 Public Sub SetShortcuts(ByVal on_ As Boolean)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim keys As Variant, macs As Variant, i As Long
     keys = Array("^+s", "^+S", "^+c", "^+C", "^+k", "^+K", "^+d", "^+D")
     macs = Array("modUI.KeySick", "modUI.KeySick", "modUI.KeyCallout", "modUI.KeyCallout", _

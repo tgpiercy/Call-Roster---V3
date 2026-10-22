@@ -57,7 +57,7 @@ Private Const MARK_INK As Long = 23470      ' RGB(174, 91, 0): the amber ink on 
 Public Function ReceiptBefore() As Object
     ClearTotalMarks                               ' v27 (item 8): the last save's marks come off before this save's go on
     Set mMarks = Nothing: mMarksFresh = False      ' (review M2) and a map a failed save left behind is forgotten
-    On Error Resume Next                          ' (review M4) a receipt must never stop a save: an empty map when the roster cannot be read
+    On Error Resume Next                          ' (review M4) a receipt must never stop a save: an empty map when the roster cannot be read (never raises)
     Set ReceiptBefore = CreateObject("Scripting.Dictionary")
     Set ReceiptBefore = RosterTotalsMap()
 End Function
@@ -278,7 +278,7 @@ End Function
 
 ' The mark on one person's Total Hours cell ("" = none): SmokeTest step 4 reads it
 Public Function TotalMarkText(ByVal emp As String) As String
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim r As Long: r = RosterRowOf(emp)
     If r < R_FIRST Then Exit Function
     Dim c As Comment: Set c = RosterSheet().Cells(r, C_TOTAL).Comment

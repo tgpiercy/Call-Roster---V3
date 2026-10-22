@@ -117,7 +117,7 @@ End Sub
 
 ' v27 (item 9): one answer per card - the buttons grey once it is kept
 Private Sub FbAnswer(ByVal answer As String)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim ok As Boolean: ok = SaveFeedback(answer, mNote.Text)
     If ok Then
         mFbHint.Caption = "Thanks - """ & answer & """ noted for " & PRIMARY_ADMIN_NAME & "."

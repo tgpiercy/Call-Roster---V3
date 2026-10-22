@@ -910,7 +910,7 @@ End Function
 ' True once the roster's Total (G) formulas add column C, i.e. after
 ' RefreshRosterFormulas has run on v21 (checks the first named row)
 Public Function ProvisionalLive() As Boolean
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim r As Long
     For r = R_FIRST To RosterLastRow()
@@ -1112,7 +1112,7 @@ End Function
 ' date 14 days after AS's (a 27-period year); otherwise AS.
 Public Function PeriodLastCol() As Long
     PeriodLastCol = C_PERIODN
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim sRow As Long: sRow = PStartRow()
     Dim a As Variant, b As Variant
@@ -1974,7 +1974,7 @@ End Sub
 
 ' v27 (item 10, re-review L2): ProtectSheet for an error HANDLER, which may not raise
 Public Sub ProtectSheetQuiet(ByVal ws As Worksheet)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not ws Is Nothing Then ProtectSheet ws
 End Sub
 

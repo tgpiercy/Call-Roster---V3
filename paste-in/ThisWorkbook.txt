@@ -51,7 +51,7 @@ End Sub
 Private Sub Quietly(ByVal what As String)
     Dim en As Long: en = Err.Number
     Dim em As String: em = Err.Description
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If InStr(mQuietSeen, "|" & what & "|") > 0 Then Exit Sub
     mQuietSeen = mQuietSeen & "|" & what & "|"
     LogError what, en, em
@@ -166,14 +166,14 @@ End Sub
 
 ' v24.1: switching to another workbook gives Excel's status bar back; v25.5: and the shortcut keys
 Private Sub Workbook_Deactivate()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     ReleaseStatusBar
     SetShortcuts False
 End Sub
 
 ' v25.5: the shortcut keys are this workbook's only while it is the active one
 Private Sub Workbook_Activate()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     SetShortcuts True
 End Sub
 

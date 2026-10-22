@@ -385,7 +385,7 @@ Private Sub DeskLabel(ByVal ws As Worksheet, ByVal nm As String, ByVal txt As St
     s.Fill.Visible = msoFalse
     s.Line.Visible = msoFalse
     s.Placement = xlFreeFloating
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     s.DrawingObject.PrintObject = False
     With s.TextFrame2
         .WordWrap = msoFalse
@@ -406,7 +406,7 @@ Private Function DeskShape(ByVal ws As Worksheet, ByVal nm As String, ByVal mac 
     s.Line.Visible = msoFalse
     s.Placement = xlFreeFloating
     If mac <> "" Then s.OnAction = mac
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     s.DrawingObject.PrintObject = False
     s.Adjustments.Item(1) = 0.18
     With s.TextFrame2
@@ -423,7 +423,7 @@ Private Sub DeskBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As Stri
                     ByVal l As Double, ByVal t As Double, ByVal fill As Long, _
                     Optional ByVal w As Double = BTN_W, Optional ByVal fontCol As Long = vbWhite, Optional ByVal fontSize As Double = 12)
     Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, BTN_H, fill)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     With s.TextFrame2.TextRange
         .Text = cap
         .ParagraphFormat.Alignment = msoAlignLeft
@@ -439,7 +439,7 @@ Private Function DeskPill(ByVal ws As Worksheet, ByVal nm As String, ByVal txt A
                           ByVal warn As Boolean, Optional ByVal mac As String = "") As Double     ' v27 (item 2): a pill may run a macro
     Dim w As Double: w = Len(txt) * 5.4 + 22                 ' Segoe UI Semibold 10 pt, about 5.4 pt a character
     Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, PILL_H, IIf(warn, dkRed(), dkGrey()))
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     s.Adjustments.Item(1) = 0.5
     With s.TextFrame2
         .MarginTop = 0: .MarginBottom = 0
@@ -521,7 +521,7 @@ Private Sub DeskTile(ByVal ws As Worksheet, ByVal nm As String, ByVal n As Long,
     Dim active As Boolean: active = (col <> 0)
     Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, TILE_H, IIf(active, col, dkGrey()))
     Dim numTxt As String: numTxt = CStr(n)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     With s.TextFrame2.TextRange
         .Text = numTxt & vbCr & cap & IIf(verb <> "", vbCr & verb, "")
         .ParagraphFormat.Alignment = msoAlignLeft
@@ -540,7 +540,7 @@ Private Sub DeskTileText(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As
                          ByVal l As Double, ByVal t As Double, ByVal w As Double, ByVal col As Long, ByVal verb As String)
     Dim active As Boolean: active = (col <> 0)
     Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, TILE_H, IIf(active, col, dkGrey()))
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     With s.TextFrame2.TextRange
         .Text = cap & vbCr & txt & IIf(verb <> "", vbCr & verb, "")
         .ParagraphFormat.Alignment = msoAlignLeft
@@ -558,7 +558,7 @@ End Sub
 Private Sub DeskLink(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
                      ByVal l As Double, ByVal t As Double, ByVal w As Double)
     Dim s As Shape: Set s = DeskShape(ws, nm, mac, l, t, w, 22, vbWhite)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     With s.TextFrame2.TextRange
         .Text = cap
         .ParagraphFormat.Alignment = msoAlignLeft
@@ -584,7 +584,7 @@ Public Sub ShowDeskSheet()
     Else
         ws.Activate
     End If
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     ws.Range("A1").Select
 End Sub
 
@@ -610,7 +610,7 @@ End Sub
 ' A Desk user's 120 % is saved in the file with the sheet: anyone else who lands on that sheet gets 100 % back
 ' (review: Excel keeps each sheet's zoom in the file; activating an already-active sheet fires no event)
 Public Sub DeskZoomReset()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If gDeskMode Then Exit Sub
     Select Case ActiveSheet.Name
         Case ROSTER_SHEET, CAL_SHEET
@@ -645,7 +645,7 @@ End Sub
 ' those sheets at a left-behind 120 % gets 100 % back ONCE per sheet per session (re-review: a user who picks
 ' 120 % himself afterwards is left alone).
 Public Sub DeskSheetActivated(ByVal Sh As Object)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Select Case Sh.Name
         Case DESK_SHEET
             DrawDesk
@@ -662,7 +662,7 @@ End Sub
 
 ' After a pop-up the Desk opened returns, its tiles are recounted when the Desk is what's on screen
 Private Sub DeskRefreshIfShown()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If StrComp(ActiveSheet.Name, DESK_SHEET, vbTextCompare) = 0 Then DrawDesk
 End Sub
 
@@ -915,7 +915,7 @@ Public Sub ShowHelp()
     If SafeStr(ws.Cells(1, 4).Value) <> DESK_VERSION Then DrawHelp ws
     SetSheetVisible ws, xlSheetVisible
     ws.Activate
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     With ActiveWindow
         .DisplayGridlines = False
         .DisplayHeadings = False

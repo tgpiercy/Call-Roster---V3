@@ -553,14 +553,14 @@ End Function
 ' Gives Excel's status bar back if it holds our text. Called when the workbook
 ' loses focus or closes, and by macros that switch tabs with events off.
 Public Sub ReleaseStatusBar(Optional ByVal fromCode As Boolean = True)     ' the argument keeps it out of the Alt+F8 list
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If mBarShown Then Application.StatusBar = False: mBarShown = False
 End Sub
 
 ' v25.5: a selection's text on the status bar from another module (the Calendar's click details), under the
 ' same flag, so it is given back the same way; "" gives it back
 Public Sub ShowBarText(ByVal txt As String)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If txt <> "" Then
         Application.StatusBar = Left$(txt, 250)
         mBarShown = True
@@ -573,7 +573,7 @@ End Sub
 ' Leaving a tab: give the status bar back (the text was about a selection on the tab just left; v25.5: the
 ' Calendar's too)
 Public Sub ReportsSheetActivated(ByVal Sh As Object)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not mBarShown Then Exit Sub
     Application.StatusBar = False: mBarShown = False
 End Sub

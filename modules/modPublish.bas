@@ -69,7 +69,7 @@ End Sub
 ' Set when a posting is created / closed / reopened or a person is added,
 ' moved, renamed or removed; cleared by a successful publish.
 Public Sub MarkMembersDirty(Optional ByVal fromCode As Boolean = True)     ' the argument keeps it out of the Alt+F8 list
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If ThisWorkbook.ReadOnly Then Exit Sub
     Dim nmObj As Name
     Set nmObj = ThisWorkbook.Names(DIRTY_NAME)
@@ -77,7 +77,7 @@ Public Sub MarkMembersDirty(Optional ByVal fromCode As Boolean = True)     ' the
 End Sub
 
 Private Sub ClearMembersDirty()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     ThisWorkbook.Names(DIRTY_NAME).Delete
 End Sub
 
@@ -148,7 +148,7 @@ Public Function MemberTemplatePath() As String
 End Function
 
 Public Function MemberTemplateExists() As Boolean
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     MemberTemplateExists = (Dir$(MemberTemplatePath()) <> "")
 End Function
 

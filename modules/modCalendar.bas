@@ -1541,7 +1541,7 @@ Public Function SaveNeed(ByVal unit As String, ByVal needText As String, ByVal t
 End Function
 
 Private Sub FormatCovDates(ByVal lo As ListObject)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     UnlockSheet lo.Parent
     lo.ListColumns(CV_DATE).DataBodyRange.NumberFormat = "ddd mmm d, yyyy"
     ProtectSheet lo.Parent
@@ -2026,7 +2026,7 @@ End Sub
 '  Z12        = roster names + crews they were drawn from
 ' ====================================================================
 Public Sub MarkCalDirty()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not SheetExists(MAP_SHEET) Then Exit Sub
     MapWrite "Z7", CLng(Val(MapSheet().Range("Z7").Value)) + 1     ' v25.1: through the pair
 End Sub
@@ -2051,7 +2051,7 @@ End Function
 
 ' order-independent fingerprint of roster name + crew (crew changes move time off)
 Private Function RosterSig() As String
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
     If lastRow < R_FIRST Then Exit Function
@@ -2126,7 +2126,7 @@ Oops:
 End Sub
 
 Private Sub SetCalHint(ByVal ws As Worksheet)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim t As String
     t = CalHintText()                                       ' v25.1.2: with the last draw's time
     If SafeStr(ws.Range("F3").Value) = t Then Exit Sub
@@ -2185,7 +2185,7 @@ End Sub
 
 ' v25.5: the hint back in row 3 (the close: a clicked line's details are not saved for the next opener)
 Public Sub CalHintReset()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not SheetExists(CAL_SHEET) Then Exit Sub
     If Not SheetExists(MAP_SHEET) Then Exit Sub
     SetCalHint ThisWorkbook.Worksheets(CAL_SHEET)
@@ -2250,7 +2250,7 @@ End Sub
 Public Function CalDirtyStamp() As String
     CalDirtyStamp = "(no CalMap)"
     If Not SheetExists(MAP_SHEET) Then Exit Function
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     CalDirtyStamp = SafeStr(MapSheet().Range("Z7").Value)
 End Function
 
@@ -2928,7 +2928,7 @@ Private Sub SectionLabel(ByVal ws As Worksheet, ByVal r As Long, ByVal n As Long
 End Sub
 
 Private Sub BuildCalControls(ByVal ws As Worksheet, ByVal m0 As Date, ByVal grp As String)
-    On Error Resume Next                  ' one control failing must not stop the rest
+    On Error Resume Next                  ' one control failing must not stop the rest (never raises)
     UnlockSheet ws
     Dim i As Long
     For i = ws.Shapes.Count To 1 Step -1
@@ -3078,7 +3078,7 @@ Private Sub CalBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As Strin
     s.Line.Visible = msoFalse
     s.Placement = xlFreeFloating
     s.OnAction = mac
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     s.DrawingObject.PrintObject = False
     s.Adjustments.Item(1) = 0.3
     With s.TextFrame2
@@ -4345,7 +4345,7 @@ End Function
 ' ====================================================================
 Private Sub LoadPostCache()
     mPostV = Empty
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim ws As Worksheet, lo As ListObject
     For Each ws In ThisWorkbook.Worksheets
         Set lo = Nothing
@@ -4673,7 +4673,7 @@ End Function
 
 ' tblPostingList snapshot (for "n signed up")
 Private Function PostListData() As Variant
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim ws As Worksheet, lo As ListObject
     For Each ws In ThisWorkbook.Worksheets
         Set lo = Nothing
@@ -5377,7 +5377,7 @@ Private Sub NATile(ByVal ws As Worksheet, ByVal c1 As Long, ByVal c2 As Long, By
 End Sub
 
 Private Sub BuildNAControls(ByVal ws As Worksheet, ByVal grp As String, ByVal nDays As Long)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     UnlockSheet ws
     Dim i As Long
     For i = ws.Shapes.Count To 1 Step -1
@@ -5445,7 +5445,7 @@ Public Sub CalRightClick(ByVal Target As Range, ByRef Cancel As Boolean)
 End Sub
 
 Private Function NAKeyAt(ByVal Target As Range) As String
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim ws As Worksheet: Set ws = Target.Worksheet
     Dim r As Long: r = Target.Cells(1, 1).Row
     If r = 4 Or r = 5 Then
@@ -5463,7 +5463,7 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
     Dim keyTxt As String: keyTxt = NAKeyAt(Target)
     If keyTxt = "" Or Left$(keyTxt, 2) = "Q:" Then Exit Sub      ' (review L17) Q: lines are for reading
     If Left$(keyTxt, 2) = "J:" Then
-        On Error Resume Next
+        On Error Resume Next                            ' never raises
         Application.Goto Target.Worksheet.Cells(CLng(Mid$(keyTxt, 3)), 1), True
         Exit Sub
     End If
@@ -6179,7 +6179,7 @@ Public Sub CalMenuGoto()
     End If
     If moved Then MapWrite "Z8", "moved"
     ShowCalendar
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim hit As Range
     Set hit = MapSheet().Range("A1:P1000").Find(What:=keyTxt, LookIn:=xlFormulas, LookAt:=xlWhole)
     If Not hit Is Nothing Then
@@ -6198,7 +6198,7 @@ End Sub
 ' (new day, something changed, or it was left on another month).
 Public Sub CalOnOpen()
     mEventsSeen = True
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not SheetExists(CAL_SHEET) Then Exit Sub
     CalendarSheet
     If gAdminUnlocked Then MinStaffTable True       ' v26: the Min Staff sheet made with the plant's numbers on an admin's first open
@@ -6214,20 +6214,20 @@ End Sub
 ' Switching to the Calendar tab: redraw only if something changed since it was drawn.
 Public Sub CalActivated()
     If mDrawing Then Exit Sub
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If CalStale() Then DrawCalendar Else SetCalHint CalendarSheet()
 End Sub
 
 Public Sub NAActivated()
     If mDrawing Then Exit Sub
     If Not gAdminUnlocked Then Exit Sub
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If NAStale() Then DrawNeeds
 End Sub
 
 Public Sub CalSheetActivated(ByVal Sh As Object)
     mEventsSeen = True
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Sh.Name = CAL_SHEET Then
         CalActivated
     ElseIf Sh.Name = NA_SHEET Then

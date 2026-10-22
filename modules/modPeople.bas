@@ -638,7 +638,7 @@ Private Sub PutCrewBack(ByVal ws As Worksheet, ByVal r1 As Long, ByRef chgIdx() 
                         ByRef chgOld() As String, ByVal nChg As Long)
     Dim evWas As Boolean: evWas = Application.EnableEvents
     Dim i As Long
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Application.EnableEvents = False
     UnlockSheet ws
     For i = 1 To nChg
@@ -1124,7 +1124,7 @@ Private Sub QuietOn(ByRef evWas As Boolean, ByRef scrWas As Boolean, ByRef calcW
 End Sub
 
 Private Sub QuietOff(ByVal evWas As Boolean, ByVal scrWas As Boolean, ByVal calcWas As Long)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Application.EnableCancelKey = xlInterrupt
     Application.Calculation = calcWas
     Application.EnableEvents = evWas
@@ -1133,7 +1133,7 @@ Private Sub QuietOff(ByVal evWas As Boolean, ByVal scrWas As Boolean, ByVal calc
 End Sub
 
 Private Sub AfterPeopleChange()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     ResetCrewCache
     ResetPlanCache                          ' v24.3
     ResetCalCacheAll

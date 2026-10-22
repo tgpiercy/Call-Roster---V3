@@ -239,7 +239,7 @@ Private Function StampOf(ByVal s As String) As Date
     s = Trim$(s)
     If Len(s) < 19 Then Exit Function
     If Not (s Like "####-##-## ##:##:##*") Then Exit Function
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     StampOf = DateSerial(CLng(Left$(s, 4)), CLng(Mid$(s, 6, 2)), CLng(Mid$(s, 9, 2))) + _
               TimeSerial(CLng(Mid$(s, 12, 2)), CLng(Mid$(s, 15, 2)), CLng(Mid$(s, 18, 2)))
 End Function
@@ -507,7 +507,7 @@ End Function
 ' Done\<posting>\. Quiet: a file that can't be moved stays and is reported by
 ' IntegrityCheck later.
 Public Sub ArchiveSignups(ByVal postingId As String)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not SIGNUPS_ON Then Exit Sub
     Dim folder As String: folder = SignupFolderPath()
     If folder = "" Then Exit Sub
@@ -532,7 +532,7 @@ End Sub
 ' A posting was reopened: its sign-up files come back from Done\<posting>\ into
 ' the inbox, so the people who signed up electronically are ticked again.
 Public Sub RestoreSignups(ByVal postingId As String)
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If Not SIGNUPS_ON Then Exit Sub
     Dim folder As String: folder = SignupFolderPath()
     If folder = "" Then Exit Sub

@@ -268,7 +268,7 @@ End Sub
 
 ' the list keeps the keyboard (the letters are read in lstEmployees_KeyDown)
 Private Sub FocusList()
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If lstEmployees.Enabled And lstEmployees.Visible Then lstEmployees.SetFocus
 End Sub
 
@@ -939,7 +939,7 @@ End Sub
 
 ' True when the combo's list holds the text (case-insensitive)
 Private Function ComboHas(ByVal cb As Object, ByVal txt As String) As Boolean
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim i As Long
     For i = 0 To cb.ListCount - 1
         If StrComp(Trim$(CStr(cb.List(i, 0))), Trim$(txt), vbTextCompare) = 0 Then ComboHas = True: Exit Function

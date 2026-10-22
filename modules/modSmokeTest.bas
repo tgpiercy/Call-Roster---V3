@@ -674,7 +674,7 @@ End Function
 ' v24.3.1: posting-list helpers for the assertions above. They count rows and ask the
 ' roster's own list builders; no rule lives here.
 Private Function SmkPostingTable(ByVal nm As String) As ListObject
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Set SmkPostingTable = ThisWorkbook.Worksheets(POSTINGS_SHEET).ListObjects(nm)
 End Function
 
@@ -788,7 +788,7 @@ End Function
 Private Function SmkFilterList(ByVal turnOn As Boolean) As Boolean
     Dim lr As ListObject: Set lr = SmkPostingTable(PL_TABLE)
     If lr Is Nothing Then Exit Function
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     If turnOn Then
         lr.Range.AutoFilter Field:=PL_RANK, Criteria1:="1"
         SmkFilterList = lr.AutoFilter.FilterMode
@@ -1111,7 +1111,7 @@ End Function
 
 ' v27 (item 29): the highest Entry ID in the log now (0 = none)
 Private Function SmkMaxEntryId() As Double
-    On Error Resume Next
+    On Error Resume Next                            ' never raises
     Dim lo As ListObject: Set lo = LogTable()
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function

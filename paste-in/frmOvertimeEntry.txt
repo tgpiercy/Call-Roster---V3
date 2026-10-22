@@ -282,7 +282,7 @@ Public Sub Prefill(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As Stri
     C("cmbDN").Value = IIf(IsNightShift(shiftLbl), "Nights", "Days")
     If hrs > 0 Then C("txtHours").Value = HoursText(hrs): mAutoHours = ""
     If statusTxt = "" Then statusTxt = "Sick call"
-    C("lblStatus").Caption = TrustStrip() & vbLf & statusTxt & ": " & unit & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - check the hours and click LOAD LIST." & _
+    C("lblStatus").Caption = TrustStrip() & vbLf & statusTxt & ": " & UnitDisplayName(unit) & " " & Format$(d, "ddd mmm d") & " " & shiftLbl & " - check the hours and click LOAD LIST." & _
                              IIf(statusTxt = "Sick call" And Not IsAdmin(), "  Wrong person? Ask " & PRIMARY_ADMIN_NAME & " to void the sick call.", "")
     On Error GoTo 0
 End Sub
@@ -631,9 +631,9 @@ End Sub
 ' v27 (item 18, B6): the names left off this list, grouped by reason (FilterNotFree's detail)
 Private Sub mNotListed_Click()
     If mNotListedTxt = "" Then
-        MsgBox "Everyone with a code in " & mDept & " is on the list.", vbInformation, "Not listed"
+        MsgBox "Everyone with a code in " & UnitDisplayName(mDept) & " is on the list.", vbInformation, "Not listed"
     Else
-        MsgBox "Not on the " & mDept & " " & mShiftLbl & " list for " & Format$(mDate, "ddd mmm d") & ":" & vbNewLine & vbNewLine & mNotListedTxt & vbNewLine & vbNewLine & _
+        MsgBox "Not on the " & UnitDisplayName(mDept) & " " & mShiftLbl & " list for " & Format$(mDate, "ddd mmm d") & ":" & vbNewLine & vbNewLine & mNotListedTxt & vbNewLine & vbNewLine & _
                "The rotation's rules first (scheduled, coming off nights, starting days), then bookings, switches, OT already held and the 16 h rule.", vbInformation, "Not listed"
     End If
     FocusList

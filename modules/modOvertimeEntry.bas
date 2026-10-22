@@ -369,6 +369,17 @@ Public Function BlankHomeUnits() As Variant
 End Function
 
 ' Department -> section title on the Blank Call Out Roster sheet
+' v27 (item 20, B12): the ONE display name of a unit - what people call it, the stored value unchanged (the combos,
+' the tables and the log keep "Material Handler" / "QC Derivatives"). The prints, the Desk's tiles, the call-out
+' pop-up's lines and the calendar groups read it.
+Public Function UnitDisplayName(ByVal unit As String) As String
+    Select Case Trim$(unit)
+        Case "Material Handler": UnitDisplayName = "Fumigation (Material Handler)"
+        Case "QC Derivatives": UnitDisplayName = "QC Lab (Derivatives)"
+        Case Else: UnitDisplayName = Trim$(unit)
+    End Select
+End Function
+
 Public Function DeptRosterTitle(ByVal d As String) As String
     Select Case d
         Case "Derivatives": DeptRosterTitle = "Derivatives Call Out Roster"

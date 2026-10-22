@@ -2742,7 +2742,7 @@ End Function
 ' ("" when none). The same walk as OpenAhead, every unit, stopped at the first open or NO TAKERS slot.
 Public Function NextOpenLine(ByVal nDays As Long) As String
     Dim d As Date, sh As String, unit As String
-    If NextOpenSlot(nDays, d, sh, unit) Then NextOpenLine = Format$(d, "ddd mmm d") & " " & sh & IIf(unit <> "", ", " & unit, "")
+    If NextOpenSlot(nDays, d, sh, unit) Then NextOpenLine = Format$(d, "ddd mmm d") & " " & sh & IIf(unit <> "", ", " & UnitDisplayName(unit), "")   ' v27 (item 20, B12)
 End Function
 
 ' v27 (item 15): the next uncovered shift (open, or NO TAKERS) within nDays as a date, shift and unit - the Desk's

@@ -100,11 +100,12 @@ Private Sub UserForm_Initialize()
         .Font.Size = 10
     End With
 
-    MakeLabel "lblHint", "Double-click a name = signed up.  PARTIAL HOURS = signed up for part of the shift.  " & _
-              "Select a name + AWARD for the winner(s).  Anyone ahead of the awarded person who didn't sign up is charged.", 10, 315, 450
+    ' v27 (item 20, B11): hints at 10 pt (every label floors at 10), the keys named (Space = signed up, A = award)
+    MakeLabel "lblHint", "Double-click or Space = signed up.  PARTIAL HOURS = part of the shift.  " & _
+              "Select a name + AWARD (or A) for the winner(s); anyone ahead who didn't sign up is charged.", 10, 315, 450
     C("lblHint").Font.Italic = True
-    C("lblHint").Font.Size = 8
-    C("lblHint").Height = 26
+    C("lblHint").Font.Size = 10
+    C("lblHint").Height = 28
     C("lblHint").WordWrap = True
 
     With btnSignedUp
@@ -134,7 +135,7 @@ Private Sub UserForm_Initialize()
         .Height = 46
         .WordWrap = True
         .Font.Bold = True
-        .Font.Size = 9
+        .Font.Size = 10
     End With
 
     With btnSubmit
@@ -148,21 +149,27 @@ Private Sub UserForm_Initialize()
     With mNoTakers
         .Caption = "NO TAKERS"
         .Left = 226: .Top = 436: .Width = 114: .Height = 38
-        .Font.Bold = True: .Font.Size = 9
+        .Font.Bold = True: .Font.Size = 10
         .Enabled = False
     End With
     Set mCancelReq = Me.Controls.Add("Forms.CommandButton.1", "cmdCancelReq", True)
     With mCancelReq
         .Caption = "CANCEL REQUEST"
         .Left = 346: .Top = 436: .Width = 114: .Height = 38
-        .Font.Bold = True: .Font.Size = 9
+        .Font.Bold = True: .Font.Size = 10
         .Enabled = False
     End With
 
     ' out of department: someone from another department signed a blank line
     MakeLabel "lblOutside", "Out of department (signed a blank line):", 10, 486, 450
     C("lblOutside").Font.Bold = True
-    C("lblOutside").Font.Size = 8.5
+    C("lblOutside").Font.Size = 10
+    ' v27 (item 20, B11): for a non-admin the greyed buttons say whose job they are (this label sits right under them)
+    If Not IsAdmin() Then
+        C("lblOutside").Caption = "No takers / award out of department / cancel request: an admin's job - ask " & PRIMARY_ADMIN_NAME & "."
+        C("lblOutside").Font.Bold = False
+        C("lblOutside").ForeColor = RGB(120, 60, 0)
+    End If
     MakeCombo "cmbOutside", 10, 502, 232
     Dim oh As Object                    ' v24.1: hours when the out-of-department person takes only part of the shift
     MakeLabel "lblOutHrs", "hrs", 248, 505, 18
@@ -185,13 +192,13 @@ Private Sub UserForm_Initialize()
     With mOutside
         .Caption = "AWARD OUT OF DEPT"
         .Left = 316: .Top = 499: .Width = 144: .Height = 26
-        .Font.Bold = True: .Font.Size = 8.5
+        .Font.Bold = True: .Font.Size = 10
         .Enabled = False
     End With
 
     MakeLabel "lblStatus", "", 10, 536, 450
-    C("lblStatus").Font.Size = 8
-    C("lblStatus").Height = 32
+    C("lblStatus").Font.Size = 10
+    C("lblStatus").Height = 40
     C("lblStatus").WordWrap = True
 
     LoadChoices
@@ -341,6 +348,18 @@ Private Sub RefreshList(ByVal keepIdx As Long)
             maxRank & " (" & Format$(maxHrs, "#,##0") & " hrs)" & vbLf & _
             "Charged (didn't sign up, ahead of #" & maxRank & "): " & nCh & " operator(s), " & HoursText(tot) & " hrs total" & coverTxt
     End If
+End Sub
+
+' v27 (item 20, B11): Space = signed up (on / off), A = award (on / off) for the selected name; the keys the
+' call-out pop-up taught (one press, one toggle)
+Private Sub lstEmployees_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    If Shift <> 0 Then Exit Sub
+    Select Case KeyCode
+        Case vbKeySpace
+            If btnSignedUp.Enabled Then KeyCode.Value = 0: ToggleSigned
+        Case vbKeyA
+            If btnPassed.Enabled Then KeyCode.Value = 0: btnPassed_Click
+    End Select
 End Sub
 
 Private Sub lstEmployees_DblClick(ByVal Cancel As MSForms.ReturnBoolean)

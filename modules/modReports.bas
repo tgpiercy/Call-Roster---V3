@@ -474,13 +474,17 @@ Public Sub FindPerson()
     If t = "" Then Exit Sub
     Dim rs As Worksheet: Set rs = RosterSheet()
     Dim r As Long, lastRow As Long: lastRow = RosterLastRow()
-    Dim hitRow As Long, nHits As Long, nm As String, firstNm As String
+    Dim hitRow As Long, nHits As Long, nm As String, firstNm As String, others As String
     For r = R_FIRST To lastRow
         nm = Trim$(SafeStr(rs.Cells(r, C_NAME).Value))
         If nm <> "" Then
             If InStr(1, nm, t, vbTextCompare) > 0 Then
                 nHits = nHits + 1
-                If hitRow = 0 Then hitRow = r: firstNm = nm
+                If hitRow = 0 Then
+                    hitRow = r: firstNm = nm
+                ElseIf nHits <= 6 Then
+                    others = others & IIf(others = "", "", ", ") & CalName(nm)     ' v27 (item 20, B16): the other matches, named
+                End If
             End If
         End If
     Next r
@@ -514,8 +518,12 @@ Public Sub FindPerson()
     Else
         txt = txt & ":   no home unit on the roster (column B)"
     End If
-    If nHits > 1 Then txt = txt & "   (" & nHits & " names match: the first is selected)"
+    If nHits > 1 Then txt = txt & "   (" & nHits & " names match - the first is selected; also: " & others & IIf(nHits > 7, ", ...", "") & ")"
     ShowBarText txt
+    ' v27 (item 20, B16): the status cell carries it too (its View line), so it stays on screen after the next click
+    On Error Resume Next
+    SetRosterStatus "found " & CalName(firstNm) & IIf(nHits > 1, " (+" & (nHits - 1) & ": " & others & ")", "")
+    On Error GoTo Oops
     Exit Sub
 Oops:
     ReportError "FindPerson"

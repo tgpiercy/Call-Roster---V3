@@ -296,6 +296,14 @@ def evaluate(row: dict) -> str:
     if suite == "fatblock":                      # v26.5.5: hours on the four shifts around the offer -> block|hours to next
         wb, htn = rules.fatigue_block_core(float(i1), float(i2), float(i3), float(i4))
         return fmt_num(wb) + "|" + fmt_num(htn)
+    if suite == "switchstop":                    # v27.1: 'mmm d|shift', none / same|sh2 / 'mmm d|sh2', the facts -> the stops or none
+        dtx, _, sh = (i1 + "|").partition("|")
+        sh = sh.rstrip("|")
+        a, _, b = (i2 + "|").partition("|")
+        b = b.rstrip("|")
+        out = rules.switch_stops_core("Ann", "Bob", dtx, sh, i2 != "none", a == "same", a, b, rules.switch_facts(i3))
+        out = out.replace("\n", ";").rstrip(";")
+        return out or "none"
     if suite == "postcap":                       # v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
         return fmt_num(rules.capped_posting_hours(float(i1), float(i2), i3 == "Y"))
     if suite == "fatigue":                       # v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max

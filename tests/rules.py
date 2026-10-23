@@ -1198,6 +1198,82 @@ def fatigue_block_core(h_prev_prev: float, h_prev: float, h_next1: float, h_next
     return worked_before, hours_to_next
 
 
+# ---- v27.1: the shift-switch hard stops as pure words (modShiftSwitch SwitchStopsCore; suite switchstop) ----
+SF_KEYS = ["bkoff", "gaveoff", "workoff", "bkworks", "workworks", "fat",
+           "p_bkworks", "p_gaveworks", "p_workworks", "p_bkoff", "p_workoff", "p_fat",
+           "s_bkoff", "s_bkworks", "s_bkoff2", "s_bkworks1", "s_offon", "s_workson"]     # = the SF_* positions 0..17
+SF_BOOKED = {"bkoff", "bkworks", "p_bkworks", "p_bkoff", "s_bkoff", "s_bkworks", "s_bkoff2", "s_bkworks1"}
+SF_ON = {"s_offon", "s_workson"}
+
+
+def switch_facts(spec: str) -> list[str]:
+    """modSelfTest.SwitchFacts: 'key=value;...' -> the 18 facts (a booked fact '+type', an 'on' fact '+')."""
+    f = [""] * len(SF_KEYS)
+    for part in spec.split(";") if spec else []:
+        k, _, v = part.partition("=")
+        i = SF_KEYS.index(k)                        # an unknown key fails the case
+        f[i] = "+" + v if k in SF_BOOKED else "+" if k in SF_ON else v
+    return f
+
+
+def _num(x: float) -> str:
+    return str(int(x)) if x == int(x) else str(x)
+
+
+def eligibility_text(off: str, works: str, d_txt: str, bk_off: str, gave_off: str, work_off: str,
+                     bk_works: str, work_works: str) -> str:
+    """modShiftSwitch.EligibilityText: booked off / already on a switch, for the one giving up and the one working."""
+    s = ""
+    if bk_off:
+        s += f"- {off} is booked off ({bk_off[1:]}) on {d_txt}\n"
+    if gave_off:
+        s += f"- {off} already switched off that day ({gave_off})\n"
+    if work_off:
+        s += f"- {off} is already working a switch that day ({work_off})\n"
+    if bk_works:
+        s += f"- {works} is booked off ({bk_works[1:]}) on {d_txt}\n"
+    if work_works:
+        s += f"- {works} is already working a switch that day ({work_works})\n"
+    return s
+
+
+def fatigue_stop_text(works: str, d_txt: str, shift: str, reason: str) -> str:
+    """modShiftSwitch.FatigueStopText: the 16 h stop from NotFreeReason's answer ('' = fine)."""
+    if shift == "":
+        return ""
+    if reason == "16 h rule":
+        return (f"- {works} would go past {_num(FATIGUE_MAX_HOURS)} h of work with the OT accepted around "
+                f"{d_txt} {shift.lower()} (the 16 h rule)\n")
+    if reason == "on OT":
+        return f"- {works} already has OT accepted on {d_txt} {shift.lower()}\n"
+    return ""
+
+
+def switch_stops_core(off: str, works: str, d_txt: str, shift: str, two_way: bool, same_day: bool,
+                      d2_txt: str, sh2: str, f: list[str]) -> str:
+    """modShiftSwitch.SwitchStopsCore: one-way = eligibility + the 16 h stop for the one working it; two-way on another
+    day = the same for the payback, roles swapped; a same-day sister swap = only bookings and switches that day."""
+    stops = eligibility_text(off, works, d_txt, *f[0:5]) + fatigue_stop_text(works, d_txt, shift, f[5])
+    if two_way:
+        if same_day:
+            stops = ""
+            if f[12]:
+                stops += f"- {off} is booked off ({f[12][1:]})\n"
+            if f[13]:
+                stops += f"- {works} is booked off ({f[13][1:]})\n"
+            if f[14]:
+                stops += f"- {off} can't work the {sh2.lower()} shift ({f[14][1:]})\n"
+            if f[15]:
+                stops += f"- {works} can't work the {shift.lower()} shift ({f[15][1:]})\n"
+            if f[16]:
+                stops += f"- {off} is already on a switch that day\n"
+            if f[17]:
+                stops += f"- {works} is already on a switch that day\n"
+        else:
+            stops += eligibility_text(works, off, d2_txt, *f[6:11]) + fatigue_stop_text(off, d2_txt, sh2, f[11])
+    return stops
+
+
 def capped_posting_hours(post_hours: float, max_hours: float, max_set: bool) -> float:
     """modPostings.CappedPostingHours: the hours a listed person is charged on - the posting's, or their 16 h rule
     maximum when the award pop-up worked one out and it is lower (0 = they could take none: not charged)."""

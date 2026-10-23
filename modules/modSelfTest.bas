@@ -232,6 +232,15 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
+        Case "switchstop"                          ' v27.1: "mmm d|shift", none / same|sh2 / "mmm d|sh2", the facts -> the stops (; between) or none
+            Dim ssDay As Variant, ssTwo As Variant, ssF() As String
+            ssDay = Split(i1 & "|", "|"): ssTwo = Split(i2 & "|", "|")
+            ssF = SwitchFacts(i3)
+            RunCase = SwitchStopsCore("Ann", "Bob", CStr(ssDay(0)), CStr(ssDay(1)), (i2 <> "none"), (ssTwo(0) = "same"), _
+                                      CStr(ssTwo(0)), CStr(ssTwo(1)), ssF)
+            RunCase = Replace(RunCase, vbNewLine, ";")
+            If Right$(RunCase, 1) = ";" Then RunCase = Left$(RunCase, Len(RunCase) - 1)
+            If RunCase = "" Then RunCase = "none"
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
         Case "fatigue"                             ' v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
@@ -370,6 +379,43 @@ Private Function RunCase(f() As String) As String
     Exit Function
 Oops:
     RunCase = "ERROR: " & Err.Description
+End Function
+
+' v27.1 (suite switchstop): "key=value;..." -> SwitchStopsCore's facts (modShiftSwitch SF_*). A booked key's value is the
+' booked type (the fact is "+" & it); an "on" key (s_offon / s_workson) any word; the others the value itself.
+Private Function SwitchFacts(ByVal spec As String) As String()
+    Dim f() As String: ReDim f(0 To SF_N)
+    Dim parts As Variant, i As Long, p As Long, k As String, v As String
+    If spec <> "" Then
+        parts = Split(spec, ";")
+        For i = 0 To UBound(parts)
+            p = InStr(parts(i), "=")
+            If p = 0 Then Err.Raise 5, , "switchstop fact without '=': " & parts(i)
+            k = Left$(parts(i), p - 1): v = Mid$(parts(i), p + 1)
+            Select Case k
+                Case "bkoff": f(SF_BKOFF) = "+" & v
+                Case "gaveoff": f(SF_GAVEOFF) = v
+                Case "workoff": f(SF_WORKOFF) = v
+                Case "bkworks": f(SF_BKWORKS) = "+" & v
+                Case "workworks": f(SF_WORKWORKS) = v
+                Case "fat": f(SF_FAT) = v
+                Case "p_bkworks": f(SF_P_BKWORKS) = "+" & v
+                Case "p_gaveworks": f(SF_P_GAVEWORKS) = v
+                Case "p_workworks": f(SF_P_WORKWORKS) = v
+                Case "p_bkoff": f(SF_P_BKOFF) = "+" & v
+                Case "p_workoff": f(SF_P_WORKOFF) = v
+                Case "p_fat": f(SF_P_FAT) = v
+                Case "s_bkoff": f(SF_S_BKOFF) = "+" & v
+                Case "s_bkworks": f(SF_S_BKWORKS) = "+" & v
+                Case "s_bkoff2": f(SF_S_BKOFF2) = "+" & v
+                Case "s_bkworks1": f(SF_S_BKWORKS1) = "+" & v
+                Case "s_offon": f(SF_S_OFFON) = "+"
+                Case "s_workson": f(SF_S_WORKSON) = "+"
+                Case Else: Err.Raise 5, , "switchstop: unknown fact " & k
+            End Select
+        Next i
+    End If
+    SwitchFacts = f
 End Function
 
 ' DAYS workers off on in1? in2 = "Holiday|year|observed" fixture or ""
@@ -1871,5 +1917,31 @@ Private Sub LoadCases5()
     AddCase "notfreeword,restricted-is-off,restricted,,,,,off"
     AddCase "notfreeword,vacation-is-off,Vac,,,,,off"
     AddCase "notfreeword,free,,,,,,free"
+    AddCase "switchstop,one-way-clean,Nov 2|Days,none,,,,none"
+    AddCase "switchstop,giver-booked,Nov 2|Days,none,bkoff=Vac,,,- Ann is booked off (Vac) on Nov 2"
+    AddCase "switchstop,giver-booked-type-blank,Nov 2|Days,none,bkoff=,,,- Ann is booked off () on Nov 2"
+    AddCase "switchstop,giver-already-gave-up,Nov 2|Days,none,gaveoff=SS-0003,,,- Ann already switched off that day (SS-0003)"
+    AddCase "switchstop,giver-working-a-switch,Nov 2|Days,none,workoff=SS-0004,,,- Ann is already working a switch that day (SS-0004)"
+    AddCase "switchstop,worker-booked-and-on-a-switch,Nov 2|Days,none,bkworks=Sick;workworks=SS-0005,,,- Bob is booked off (Sick) on Nov 2;- Bob is already working a switch that day (SS-0005)"
+    AddCase "switchstop,worker-16h,Nov 2|Days,none,fat=16 h rule,,,- Bob would go past 16 h of work with the OT accepted around Nov 2 days (the 16 h rule)"
+    AddCase "switchstop,worker-on-ot-nights,Nov 2|Nights,none,fat=on OT,,,- Bob already has OT accepted on Nov 2 nights"
+    AddCase "switchstop,worker-scheduled-is-only-a-warning,Nov 2|Days,none,fat=scheduled,,,none"
+    AddCase "switchstop,no-shift-named-no-16h-stop,Nov 2|,none,fat=16 h rule,,,none"
+    AddCase "switchstop,one-way-every-stop-in-order,Nov 2|Days,none,fat=on OT;workworks=SS-0003;bkworks=Vac;workoff=SS-0002;gaveoff=SS-0001;bkoff=Trn,,,- Ann is booked off (Trn) on Nov 2;- Ann already switched off that day (SS-0001);- Ann is already working a switch that day (SS-0002);- Bob is booked off (Vac) on Nov 2;- Bob is already working a switch that day (SS-0003);- Bob already has OT accepted on Nov 2 days"
+    AddCase "switchstop,payback-clean,Nov 2|Days,Nov 9|Nights,,,,none"
+    AddCase "switchstop,payback-worker-booked-that-day,Nov 2|Days,Nov 9|Nights,p_bkworks=Vac,,,- Bob is booked off (Vac) on Nov 9"
+    AddCase "switchstop,payback-worker-gave-up-that-day,Nov 2|Days,Nov 9|Nights,p_gaveworks=SS-0008,,,- Bob already switched off that day (SS-0008)"
+    AddCase "switchstop,payback-worker-on-a-switch,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0011,,,- Bob is already working a switch that day (SS-0011)"
+    AddCase "switchstop,payback-giver-booked,Nov 2|Days,Nov 9|Nights,p_bkoff=LV,,,- Ann is booked off (LV) on Nov 9"
+    AddCase "switchstop,payback-giver-on-a-switch,Nov 2|Days,Nov 9|Nights,p_workoff=SS-0009,,,- Ann is already working a switch that day (SS-0009)"
+    AddCase "switchstop,payback-giver-16h,Nov 2|Days,Nov 9|Nights,p_fat=16 h rule,,,- Ann would go past 16 h of work with the OT accepted around Nov 9 nights (the 16 h rule)"
+    AddCase "switchstop,switch-then-payback-in-order,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0010;fat=16 h rule;bkoff=Vac,,,- Ann is booked off (Vac) on Nov 2;- Bob would go past 16 h of work with the OT accepted around Nov 2 days (the 16 h rule);- Bob is already working a switch that day (SS-0010)"
+    AddCase "switchstop,one-way-ignores-payback-facts,Nov 2|Days,none,p_bkoff=Vac;s_offon=y,,,none"
+    AddCase "switchstop,same-day-clean,Nov 2|Days,same|Nights,,,,none"
+    AddCase "switchstop,same-day-sets-the-one-way-stops-aside,Nov 2|Days,same|Nights,bkoff=Vac;workoff=SS-0001;fat=16 h rule,,,none"
+    AddCase "switchstop,same-day-booked,Nov 2|Days,same|Nights,s_bkworks=Sick;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob is booked off (Sick)"
+    AddCase "switchstop,same-day-cant-work-the-other-shift,Nov 2|Days,same|Nights,s_bkoff2=Sick;s_bkworks1=Trn,,,- Ann can't work the nights shift (Sick);- Bob can't work the days shift (Trn)"
+    AddCase "switchstop,same-day-on-a-switch,Nov 2|Days,same|Nights,s_workson=y;s_offon=y,,,- Ann is already on a switch that day;- Bob is already on a switch that day"
+    AddCase "switchstop,same-day-every-stop-in-order,Nov 2|Nights,same|Days,s_workson=y;s_offon=y;s_bkworks1=A;s_bkoff2=B;s_bkworks=C;s_bkoff=D,,,- Ann is booked off (D);- Bob is booked off (C);- Ann can't work the days shift (B);- Bob can't work the nights shift (A);- Ann is already on a switch that day;- Bob is already on a switch that day"
 ' <<< CASES
 End Sub

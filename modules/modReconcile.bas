@@ -25,7 +25,7 @@ Option Explicit
 '  for that sheet's layout (not in the repo): a report-back question.
 ' ====================================================================
 
-Public Const RC_VERSION As String = "Reconcile v27 (Oct 22)"     ' stamped with the release at release prep (v27)
+Public Const RC_VERSION As String = "Reconcile v27.1 (Oct 22)"     ' stamped with the release at release prep (v27)
 Public Const RECON_SHEET As String = "Reconcile"
 Private Const RC_FIRST As Long = 9                   ' the first position row
 Private Const RC_POSITIONS As Long = 60              ' rows RC_FIRST .. RC_FIRST + 59

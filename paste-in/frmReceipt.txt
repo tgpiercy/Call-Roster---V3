@@ -1,5 +1,5 @@
 Option Explicit
-' @version v27 (Oct 22)
+' @version v27.1 (Oct 22)
 
 ' ================================================================
 ' RECEIPT (v27, item 7): the card after every save - what was recorded,

@@ -23,13 +23,16 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v27 (Oct 22)"
-Public Const EXPECTED_RELEASE As String = "v27"
+Public Const SYS_VERSION As String = "System v27.1 (Oct 22)"
+Public Const EXPECTED_RELEASE As String = "v27.1"
+' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
+' release with nothing new for them (v27.1 is the behaviour-free refactor)
+Public Const WHATS_NEW_RELEASE As String = "v27"
 ' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
 Public Const WHATS_NEW As String = "v27: the Desk shows what is waiting (tiles you can click: cover, award, paybacks, the members' file, This morning, Since you were last here) and a receipt card after every save says what was recorded, whose Total Hours moved (the cells are marked amber) and how to undo it.|" & _
                                    "The call-out pop-up keeps a draft (a crash loses minutes, not the session), says who is not listed and why, and covers its own calendar line; a second call-out for the same shift asks first; the calendar's menu fills a shift from the line.|" & _
                                    "New for admins: OT restrictions and the 48 h weekly warning, the Rules and Settings sheets, the period close with its hash, Withdraw an award / Edit a posting / Post all lines, the Holidays and minimum staffing pop-ups (nothing is typed into any sheet), the shift handover and the payback ledger. The members' file opens on the member."
-Private Const N_MODULES As Long = 30           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence
+Private Const N_MODULES As Long = 41           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v27"
 Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
@@ -37,8 +40,8 @@ Private Const OP_TABLE As String = "tblOpens"
 Private Const OP_N As Long = 7
 Private Const OPENS_KEEP_DAYS As Long = 90
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v27,frmNewPosting|v27,frmPostingEntry|v27,frmShiftSwitch|v27," & _
-                                        "frmTimeOff|v27,frmLeave|v27,frmSickCall|v27,frmConvert|v26.5.5,frmEmployee|v27,frmReceipt|v27,frmHistory|v27,frmTableEdit|v27"   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v27,frmNewPosting|v27.1,frmPostingEntry|v27,frmShiftSwitch|v27.1," & _
+                                        "frmTimeOff|v27.1,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v27.1,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
 
 Private mBackupWarned As Boolean
 Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time
@@ -86,6 +89,17 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     VerCheck "modOTLog", OTL_VERSION, warn, nOk               ' v24.3.1: live code (Void Entry, Add Adjustment, Rename), stamped at last
     VerCheck "modSmoke", SMO_VERSION, warn, nOk               ' v24.4: the Install panel's pop-up openers
     VerCheck "modDesk", DESK_VERSION, warn, nOk               ' v25.3: the second admin's Desk
+    VerCheck "modBoard", BOARD_VERSION, warn, nOk   ' v27.1: split out
+    VerCheck "modMinStaff", MINSTAFF_VERSION, warn, nOk ' v27.1: split out
+    VerCheck "modCalImport", CALIMP_VERSION, warn, nOk ' v27.1: split out
+    VerCheck "modNeeds", NEEDS_VERSION, warn, nOk   ' v27.1: split out
+    VerCheck "modCalMenus", CALMENU_VERSION, warn, nOk ' v27.1: split out
+    VerCheck "modDates", DATES_VERSION, warn, nOk   ' v27.1: split out
+    VerCheck "modFormer", FORMER_VERSION, warn, nOk ' v27.1: split out
+    VerCheck "modPlannedMoves", PLANMOVE_VERSION, warn, nOk ' v27.1: split out
+    VerCheck "modPostingSheet", PSHEET_VERSION, warn, nOk ' v27.1: split out
+    VerCheck "modPostingSync", PSYNC_VERSION, warn, nOk ' v27.1: split out
+    VerCheck "modPostingMail", PMAIL_VERSION, warn, nOk ' v27.1: split out
     info = "Modules: " & nOk & " of " & N_MODULES & " on " & EXPECTED_RELEASE & vbNewLine
     If nOk <> N_MODULES Then verOk = False
     If InStr(ThisWorkbookVersion(), THISWB_RELEASE) = 0 Then
@@ -756,13 +770,13 @@ Public Sub WhatsNewOnOpen()
     Dim nmObj As Name
     Set nmObj = ThisWorkbook.Names(WhatsNewName())
     If Not nmObj Is Nothing Then
-        If InStr(nmObj.RefersTo, EXPECTED_RELEASE) > 0 Then Exit Sub
+        If InStr(nmObj.RefersTo, WHATS_NEW_RELEASE) > 0 Then Exit Sub     ' v27.1: the news's release, not the install's
     End If
     ShowWhatsNew
     If nmObj Is Nothing Then
-        ThisWorkbook.Names.Add Name:=WhatsNewName(), RefersTo:="=""" & EXPECTED_RELEASE & """", Visible:=False
+        ThisWorkbook.Names.Add Name:=WhatsNewName(), RefersTo:="=""" & WHATS_NEW_RELEASE & """", Visible:=False
     Else
-        nmObj.RefersTo = "=""" & EXPECTED_RELEASE & """"
+        nmObj.RefersTo = "=""" & WHATS_NEW_RELEASE & """"
     End If
 End Sub
 
@@ -770,10 +784,10 @@ End Sub
 Public Sub ShowWhatsNew()
     On Error GoTo Oops
     Application.ScreenUpdating = True                ' Workbook_Open has it back on by then; belt and braces for an Alt+F8 run with it off
-    MsgBox "What's new in " & EXPECTED_RELEASE & ":" & vbNewLine & vbNewLine & _
+    MsgBox "What's new in " & WHATS_NEW_RELEASE & ":" & vbNewLine & vbNewLine & _
            "- " & Replace(WHATS_NEW, "|", vbNewLine & vbNewLine & "- ") & vbNewLine & vbNewLine & _
            "The Help tab (How do I ... on the Desk) has every job. This box shows once; Alt+F8 > ShowWhatsNew brings it back.", _
-           vbInformation, "Call Out Roster " & EXPECTED_RELEASE
+           vbInformation, "Call Out Roster " & WHATS_NEW_RELEASE
     Exit Sub
 Oops:
     ReportError "ShowWhatsNew"

@@ -1,5 +1,7 @@
 Attribute VB_Name = "modPostingMail"
 Option Explicit
+' v27.1 (the refactor, Oct 2026): the award email (Outlook draft, mailto fallback), from modPostings; moved unchanged (tests/movecheck.py proves it)
+Public Const PMAIL_VERSION As String = "Posting mail v27.1 (Oct 22)"
 
 ' ====================================================================
 '  EMAIL (Outlook draft - you review and click Send)

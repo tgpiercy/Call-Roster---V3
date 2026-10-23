@@ -22,7 +22,7 @@ Option Explicit
 '  row whose name is not tunable or whose value is not a number.
 ' ====================================================================
 
-Public Const RULES_VERSION As String = "Rules v27 (Oct 22)"
+Public Const RULES_VERSION As String = "Rules v27.1 (Oct 22)"
 Public Const RULES_SHEET As String = "Rules"
 Public Const RULES_TABLE As String = "tblRules"
 Public Const SETTINGS_SHEET As String = "Settings"

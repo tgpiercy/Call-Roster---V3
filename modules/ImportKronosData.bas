@@ -198,6 +198,95 @@ Public Function ReportKindCore(ByVal fromD As Date, ByVal toD As Date, ByVal yea
     If fromD <= yearFrom + KRONOS_YEAR_SLACK Then ReportKindCore = "cumulative" Else ReportKindCore = "range"
 End Function
 
+' v27.1: THE LEDGER RULE (PivotFromLedger, RebuildWorkedPeriods, WriteLedgerDay, RosterNameFor; mirrored in
+' tests/rules_kronos.py, cases in tests/cases-kronos.csv)
+' (review H3) a Kronos Totals snapshot from before this roster year is not this year's: 0 = none
+Private Function LedgerCumOf(ByVal cumThrough As Date, ByVal yearFrom As Date) As Date
+    If cumThrough < yearFrom Then LedgerCumOf = 0 Else LedgerCumOf = cumThrough
+End Function
+
+' The last day Worked (H) covers (suite kledger): the Totals' Through, then each next day the ledger holds, along the
+' UNBROKEN run (review M7 / N6: a missed morning stops both the hours and the data-through date there). daySerials =
+' the ledger's days as whole-day serials, ";"-joined (any order; only those after the Totals and in this year count).
+' 0 = no snapshot this year.
+Public Function LedgerRunCore(ByVal cumThrough As Date, ByVal yearFrom As Date, ByVal daySerials As String) As Date
+    cumThrough = LedgerCumOf(cumThrough, yearFrom)
+    LedgerRunCore = cumThrough
+    Dim days As Object: Set days = CreateObject("Scripting.Dictionary")
+    Dim parts As Variant: parts = Split(daySerials, ";")
+    Dim i As Long, k As Long
+    For i = 0 To UBound(parts)
+        If Trim$(CStr(parts(i))) <> "" Then
+            k = CLng(Val(CStr(parts(i))))
+            If CDbl(k) > CDbl(cumThrough) And CDbl(k) >= CDbl(yearFrom) Then days(k) = True
+        End If
+    Next i
+    Dim d As Date
+    If cumThrough > 0 Then
+        d = cumThrough + 1
+        Do While days.Exists(CLng(Int(CDbl(d))))
+            LedgerRunCore = d
+            d = d + 1
+        Loop
+    End If
+End Function
+
+' A ledger day counts toward Worked (H) when it is after the Totals' Through and inside the run (suite kledger)
+Public Function LedgerDayIn(ByVal d As Date, ByVal cumThrough As Date, ByVal runEnd As Date) As Boolean
+    LedgerDayIn = (d > cumThrough And d <= runEnd)
+End Function
+
+' One person's Worked (H) from the ledger: the snapshot's "code=h;code=h", then the run's days' "code=h;code=h", weighted
+' and rounded ONCE (WeightedTotal; the codes not counted are dropped) (suite kledger)
+Public Function LedgerPersonCore(ByVal snapSpec As String, ByVal daySpec As String) As Double
+    Dim s As String: s = snapSpec
+    If daySpec <> "" Then s = s & IIf(s = "", "", ";") & daySpec
+    Dim w As String: w = WeightedTotal(s, PREMIUM_CODES, PREMIUM_MULTIPLIERS)
+    Dim p As Long: p = InStr(w, "|")
+    If p > 0 Then w = Left$(w, p - 1)
+    LedgerPersonCore = Val(w)
+End Function
+
+' (review N4 / N5) a timecard edit (a Worked Changes "edit" row dated d) counts in Worked Periods when it is this year,
+' from the first one-day report (ledgerFrom, 0 = none yet) on, and day d was not RE-imported at or after the edit was
+' logged (reimportedAt = that day's newest "day" change row's When, Empty = never; editWhen = the edit row's When) -
+' that re-import already holds the edited figure (suite kedit)
+Public Function EditCountsCore(ByVal d As Date, ByVal yearFrom As Date, ByVal ledgerFrom As Date, _
+                               ByVal reimportedAt As Variant, ByVal editWhen As Variant) As Boolean
+    EditCountsCore = (d >= yearFrom And ledgerFrom > 0 And d >= ledgerFrom And Not DayReimportedAfter(reimportedAt, editWhen))
+End Function
+
+' (review N5 / R2) True when the day was RE-imported (reimportedAt, Empty = never) at or after the moment whenV (an edit
+' row's When): that re-import already holds the edited figure. A day first imported after the edit is not a re-import.
+Private Function DayReimportedAfter(ByVal reimportedAt As Variant, ByVal whenV As Variant) As Boolean
+    If IsEmpty(reimportedAt) Then Exit Function
+    If Not IsDate(whenV) Then Exit Function
+    DayReimportedAfter = (CDbl(reimportedAt) >= CDbl(CDate(whenV)))
+End Function
+
+' (review M2 / M7) a one-day report for day d replaces a ledger row (its Date rowDate, its Employee emp) when the row is
+' that day and is a roster person's (onRoster) or the quiet-day marker (a blank Employee); a Former person's row stays
+' (suite kday)
+Public Function LedgerDayDrop(ByVal rowDate As Variant, ByVal d As Date, ByVal emp As String, ByVal onRoster As Boolean) As Boolean
+    If Not IsDate(rowDate) Then Exit Function
+    If Int(CDbl(CDate(rowDate))) = Int(CDbl(d)) Then LedgerDayDrop = (emp = "" Or onRoster)
+End Function
+
+' (review M3 / N1) a report row's roster person: byNum = the roster name its Payroll # gives, byName = the one its name
+' gives ("" = none). "clash" = both found and they differ (nothing is taken for either), "number" = byNum, "name" =
+' byName, "none" = not a roster person (suite kname)
+Public Function RosterNameCore(ByVal byNum As String, ByVal byName As String) As String
+    If byNum <> "" And byName <> "" And StrComp(byNum, byName, vbTextCompare) <> 0 Then
+        RosterNameCore = "clash"
+    ElseIf byNum <> "" Then
+        RosterNameCore = "number"
+    ElseIf byName <> "" Then
+        RosterNameCore = "name"
+    Else
+        RosterNameCore = "none"
+    End If
+End Function
+
 ' v25: the by-heading rule on its own (D-I4): "" when 'Employee Name' and 'Grand Total' are both found
 ' on one heading row within the first 10 rows of src (a 2-D array of the sheet), else what is missing.
 Public Function KronosHeadingProblem(ByRef src As Variant, ByRef nameCol As Long, ByRef totCol As Long, _
@@ -998,13 +1087,17 @@ Private Function RosterNameFor(ByVal id As String, ByVal raw As String, ByVal na
     End If
     ' (review M3 / N1) the same rule as PayrollDecision: a number that the roster holds under ANOTHER name is a clash -
     ' nothing is taken for either, BOTH roster people keep the Worked they have, and the import names them
-    If byNum <> "" And byName <> "" And StrComp(byNum, byName, vbTextCompare) <> 0 Then
-        If Not mClashNames.Exists(byNum) Then mClashNames.Add byNum, True
-        If Not mClashNames.Exists(byName) Then mClashNames.Add byName, True
-        If InStr(mClashes, vbNewLine & "    " & raw & " ") = 0 Then mClashes = mClashes & vbNewLine & "    " & raw & " (its Payroll # is on the roster as " & byNum & ")"
-        Exit Function
-    End If
-    If byNum <> "" Then RosterNameFor = byNum Else RosterNameFor = byName
+    Select Case RosterNameCore(byNum, byName)
+        Case "clash"
+            If Not mClashNames.Exists(byNum) Then mClashNames.Add byNum, True
+            If Not mClashNames.Exists(byName) Then mClashNames.Add byName, True
+            If InStr(mClashes, vbNewLine & "    " & raw & " ") = 0 Then mClashes = mClashes & vbNewLine & "    " & raw & " (its Payroll # is on the roster as " & byNum & ")"
+            Exit Function
+        Case "number"
+            RosterNameFor = byNum
+        Case Else
+            RosterNameFor = byName
+    End Select
 End Function
 
 ' A report into the tables. A ONE-DAY report: that day's rows into the Worked Days ledger (a day already held is
@@ -1211,13 +1304,8 @@ Private Function WriteLedgerDay(ByVal d As Date, ByVal tot As Object, ByVal payO
     If IsArray(v) Then
         ReDim dropRow(1 To UBound(v, 1))
         For i = 1 To UBound(v, 1)
-            dayRow = False
-            If IsDate(v(i, 3)) Then
-                If Int(CDbl(CDate(v(i, 3)))) = Int(CDbl(d)) Then
-                    emp = Trim$(SafeStr(v(i, 2)))
-                    dayRow = (emp = "" Or rosterSet.Exists(emp))        ' (review M2 / M7): every roster row of the day, and the quiet-day marker
-                End If
-            End If
+            emp = Trim$(SafeStr(v(i, 2)))
+            dayRow = LedgerDayDrop(v(i, 3), d, emp, rosterSet.Exists(emp))   ' (review M2 / M7): every roster row of the day, and the quiet-day marker
             dropRow(i) = dayRow
             If dayRow Then
                 hadDay = True
@@ -1369,9 +1457,10 @@ End Function
 Public Function PivotFromLedger(ByRef through As Date) As Variant
     Dim cumThrough As Date: cumThrough = KronosCumThrough()
     Dim yearFrom As Date: yearFrom = RosterYearFrom()
-    If cumThrough < yearFrom Then cumThrough = 0              ' (review H3) a snapshot from before this roster year is not this year's
+    cumThrough = LedgerCumOf(cumThrough, yearFrom)            ' (review H3) a snapshot from before this roster year is not this year's
     through = cumThrough
-    Dim spec As Object: Set spec = CreateObject("Scripting.Dictionary"): spec.CompareMode = 1   ' name -> "code=h;code=h"
+    Dim spec As Object: Set spec = CreateObject("Scripting.Dictionary"): spec.CompareMode = 1   ' name -> the snapshot's "code=h;code=h" (its keys = the pivot's row order)
+    Dim dayOf As Object: Set dayOf = CreateObject("Scripting.Dictionary"): dayOf.CompareMode = 1   ' name -> the run's days' "code=h;code=h"
     Dim payOf As Object: Set payOf = CreateObject("Scripting.Dictionary"): payOf.CompareMode = 1
     Dim days As Object: Set days = CreateObject("Scripting.Dictionary")
     Dim v As Variant, i As Long, nm As String, d As Date
@@ -1392,26 +1481,23 @@ Public Function PivotFromLedger(ByRef through As Date) As Variant
     Dim lv As Variant: lv = TableRows(WorkedDaysTable(False))
     If IsArray(lv) Then
         For i = 1 To UBound(lv, 1)
-            If IsDate(lv(i, 3)) Then
-                If CDate(lv(i, 3)) > cumThrough And CDate(lv(i, 3)) >= yearFrom Then days(CLng(Int(CDbl(CDate(lv(i, 3)))))) = True
-            End If
+            If IsDate(lv(i, 3)) Then days(CLng(Int(CDbl(CDate(lv(i, 3)))))) = True      ' every day the ledger holds: LedgerRunCore keeps those after the Totals
         Next i
     End If
-    If cumThrough > 0 Then
-        d = cumThrough + 1
-        Do While days.Exists(CLng(Int(CDbl(d))))
-            through = d
-            d = d + 1
-        Loop
-    End If
+    Dim kk As Variant, serials As String
+    For Each kk In days.Keys
+        serials = serials & IIf(serials = "", "", ";") & CStr(kk)
+    Next kk
+    through = LedgerRunCore(cumThrough, yearFrom, serials)
     If IsArray(lv) And cumThrough > 0 Then
         For i = 1 To UBound(lv, 1)
             If IsDate(lv(i, 3)) Then
                 d = CDate(lv(i, 3))
-                If d > cumThrough And d <= through Then
+                If LedgerDayIn(d, cumThrough, through) Then
                     nm = Trim$(SafeStr(lv(i, 2)))
                     If nm <> "" Then
-                        spec(nm) = SafeStr(spec(nm)) & IIf(SafeStr(spec(nm)) = "", "", ";") & Trim$(SafeStr(lv(i, 4))) & "=" & Trim$(Str$(NumOr0(lv(i, 5))))
+                        If Not spec.Exists(nm) Then spec.Add nm, ""      ' a ledger-only person: a row of the pivot only with a day inside the run
+                        dayOf(nm) = SafeStr(dayOf(nm)) & IIf(SafeStr(dayOf(nm)) = "", "", ";") & Trim$(SafeStr(lv(i, 4))) & "=" & Trim$(Str$(NumOr0(lv(i, 5))))
                         If SafeStr(payOf(nm)) = "" Then payOf(nm) = SafeStr(lv(i, 1))
                     End If
                 End If
@@ -1420,14 +1506,13 @@ Public Function PivotFromLedger(ByRef through As Date) As Variant
     End If
     Dim out() As Variant: ReDim out(1 To spec.Count + 1, 1 To 3)
     out(1, 1) = "Payroll #": out(1, 2) = "Employee Name": out(1, 3) = "Grand Total"
-    Dim kk As Variant, n As Long, w As String, p As Long
+    Dim n As Long, ds As String
     n = 1
     For Each kk In spec.Keys
         n = n + 1
-        w = WeightedTotal(CStr(spec(kk)), PREMIUM_CODES, PREMIUM_MULTIPLIERS)
-        p = InStr(w, "|")
-        If p > 0 Then w = Left$(w, p - 1)
-        out(n, 1) = SafeStr(payOf(kk)): out(n, 2) = CStr(kk): out(n, 3) = Val(w)
+        ds = ""
+        If dayOf.Exists(kk) Then ds = CStr(dayOf(kk))
+        out(n, 1) = SafeStr(payOf(kk)): out(n, 2) = CStr(kk): out(n, 3) = LedgerPersonCore(CStr(spec(kk)), ds)
     Next kk
     PivotFromLedger = out
 End Function
@@ -1484,6 +1569,7 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
     End If
     ' (review M9) the edits a year-to-date report revealed belong to the period of the day they name
     v = TableRows(WorkedChangesTable(False))
+    Dim reAt As Variant
     If IsArray(v) Then
         For i = 1 To UBound(v, 1)
             nm = Trim$(SafeStr(v(i, 3)))
@@ -1491,7 +1577,10 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
                 d = CDate(v(i, 4))
                 ' (review N4 / N5) this year, from the first one-day report on, and not a day re-imported AFTER the edit was logged
                 ' (that re-import already holds the edited figure)
-                If rosterSet.Exists(nm) And d >= yearFrom And lf > 0 And d >= lf And Not DayReimportedAfter(dayStamp, d, v(i, 1)) Then
+                reAt = Empty
+                ck = CLng(Int(CDbl(d)))
+                If dayStamp.Exists(ck) Then reAt = dayStamp(ck)
+                If rosterSet.Exists(nm) And EditCountsCore(d, yearFrom, lf, reAt, v(i, 1)) Then
                     k = NameKey(nm)
                     If Not rosterOf.Exists(k) Then rosterOf.Add k, nm: mTxRaw(k) = nm: mTxPay(k) = SafeStr(v(i, 2))
                     d = CDate(v(i, 4))
@@ -1505,15 +1594,6 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
     End If
     RebuildWorkedPeriods = WriteWorkedPeriods(rosterOf, stamp)
     If lf > 0 Then RebuildWorkedPeriods = RebuildWorkedPeriods & " Exact from " & Format$(lf, "mmm d, yyyy") & " (the first one-day report); earlier periods are not available."
-End Function
-
-' (review N5 / R2) True when day d was RE-imported (a "day" change row) at or after the moment whenV (an edit row's When):
-' that re-import already holds the edited figure. A day first imported after the edit is not a re-import.
-Private Function DayReimportedAfter(ByVal dayStamp As Object, ByVal d As Date, ByVal whenV As Variant) As Boolean
-    Dim key As Long: key = CLng(Int(CDbl(d)))
-    If Not dayStamp.Exists(key) Then Exit Function
-    If Not IsDate(whenV) Then Exit Function
-    DayReimportedAfter = (CDbl(dayStamp(key)) >= CDbl(CDate(whenV)))
 End Function
 
 ' name -> "Refused|sum of the pay-period cells": what a Kronos import must leave untouched (RosterTotalsMap without Total,

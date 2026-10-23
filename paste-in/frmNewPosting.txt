@@ -50,8 +50,7 @@ End Function
 Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
                         ByVal W As Single, ByVal H As Single, Optional ByVal isNew As Boolean = True) As Object
     Dim o As Object
-    Set o = Me.Controls.Add(progId, "np_" & nm, True)
-    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set o = FormAddCtl(Me, progId, "np_" & nm, L, T, W, H)              ' v27.1: the shared builder (modUI); mNewCtls stays here
     If isNew Then mNewCtls.Add o
     Set AddCtl = o
 End Function
@@ -82,11 +81,7 @@ Private Function RowTop(ByVal rowNo As Long) As Single
 End Function
 
 Private Sub FillCombo(ByVal cb As Object, ByVal items As Variant)
-    Dim i As Long
-    cb.Clear
-    For i = LBound(items) To UBound(items)
-        cb.AddItem CStr(items(i))
-    Next i
+    FormFillCombo cb, items                                              ' v27.1: modUI (+ its IsArray guard; every call here passes an array)
 End Sub
 
 Private Function SmallBtn(ByVal nm As String, ByVal cap As String, ByVal L As Single) As Object

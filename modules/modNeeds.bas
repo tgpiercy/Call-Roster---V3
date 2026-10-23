@@ -202,340 +202,16 @@ Public Sub DrawNeeds()
     ReDim pr(1 To 50): ReDim lr(1 To 50): ReDim sr(1 To 50): ReDim br(1 To 50)
     Dim shortRows() As NARow, nShort As Long          ' v26: below minimum staffing
     ReDim shortRows(1 To 50)
-    Dim i As Long, j As Long, m As Long, cl As Date, sd As Date, d As Date, sh As Variant, rt As String
-    Dim nReady As Long, tier As Long, st As String, stC As Long, stF As Long, id As String, txt As String
-
-    ' A. postings still open
-    If IsArray(mPostV) Then
-        For i = 1 To UBound(mPostV, 1)
-            If SafeStr(mPostV(i, PS_STATUS)) = "Open" And UnitInGroup(SafeStr(mPostV(i, PS_UNIT)), grp) Then
-                id = SafeStr(mPostV(i, PS_ID))
-                cl = AsDate(mPostV(i, PS_CLOSES))
-                sd = AsDate(mPostV(i, PS_DATE))
-                If cl > 0 And PostingClosed(cl) Then          ' v25 review: the one closing test
-                    tier = 0: st = "READY TO AWARD": stC = thOpen(): stF = thOpenFill(): nReady = nReady + 1
-                ElseIf cl > 0 And Int(cl) = Date Then
-                    tier = 1: st = "Closes today " & POSTING_CLOSE_TIME: stC = thPosted(): stF = thPostedFill()
-                ElseIf cl > 0 Then
-                    tier = 2: st = "Open until " & Format$(cl, "ddd mmm d"): stC = thMuted(): stF = -1
-                Else
-                    tier = 3: st = "Open (no closing date)": stC = thMuted(): stF = -1
-                End If
-                txt = id & "  " & SafeStr(mPostV(i, PS_REASON)) & "   (" & SafeStr(mPostV(i, PS_HOURS)) & "h, " & _
-                      SafeStr(mPostV(i, PS_POS)) & " pos, " & SignedCount(plV, id) & " signed up)"
-                If Not CovHasSourceCached(id) Then
-                    txt = txt & "   - NOT ON CALENDAR"
-                    If tier > 0 Then stC = thOpen()
-                End If
-                NAAdd pr, nP, Format$(sd, "ddd mmm d"), SafeStr(mPostV(i, PS_SHIFT)), SafeStr(mPostV(i, PS_CREW)), _
-                      SafeStr(mPostV(i, PS_UNIT)), txt, TypeLong(ReasonType(SafeStr(mPostV(i, PS_REASON)))), st, _
-                      IIf(cl > 0, WhenText(cl), ""), "P:" & id, tier * 1000000# + CDbl(Int(cl)), thPosted(), stC, stF, _
-                      IIf(cl > 0, WhenColor(cl), thMuted())
-            End If
-        Next i
-        NASort pr, nP
-    End If
-
-    ' B. open lines in the window
-    Dim slots() As CalSlot, unit As String
-    For i = 0 To nDays - 1
-        d = Date + i
-        For Each sh In Array("Days", "Nights")
-            m = SlotsFor(d, CStr(sh), grp, slots, True)
-            For j = 1 To m
-                rt = UCase$(slots(j).RightText)
-                If slots(j).IsOpen Or rt Like "NO TAKERS*" Then
-                    unit = SlotUnit(slots(j).Key)
-                    NAAdd lr, nL, Format$(d, "ddd mmm d"), CStr(sh), IIf(sh = "Days", DaysCrew(d), NightsCrew(d)), unit, _
-                          slots(j).LeftText, TypeLong(slots(j).TypeCode), IIf(rt Like "NO TAKERS*", "NO TAKERS", "OPEN"), _
-                          WhenText(d), slots(j).Key & "|" & CLng(Int(d)) & "|" & sh, 0, thOpen(), thOpen(), thOpenFill(), WhenColor(d)
-                End If
-            Next j
-        Next sh
-    Next i
-
-    ' B2. below minimum staffing (v26): today .. today + nDays - 1, the group's units that have a minimum
-    StaffSweepBegin Date
-    Dim ms As Variant: ms = StaffShortList(Date, IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS), "")    ' the brief's 14 days, whatever the box's window; v26.5: every unit, whatever group is picked
-    If IsArray(ms) Then
-        For i = 1 To UBound(ms, 1)
-            d = CDate(CDbl(ms(i, 2)))
-            NAAdd shortRows, nShort, Format$(d, "ddd mmm d"), CStr(ms(i, 3)), IIf(CStr(ms(i, 3)) = "Days", DaysCrew(d), NightsCrew(d)), CStr(ms(i, 1)), _
-                  CStr(ms(i, 4)), "Staffing", CStr(ms(i, 5)), WhenText(d), "N:" & CStr(ms(i, 1)) & "|" & CLng(Int(d)) & "|" & CStr(ms(i, 3)), _
-                  CDbl(Int(d)), thOpen(), thOpen(), thOpenFill(), WhenColor(d)
-        Next i
-        NASort shortRows, nShort
-    End If
-
-    ' C. shift switch paybacks still owed (v26: oldest first; one owed longer than PAYBACK_WARN_DAYS
-    '    gets its age in the status, in red on amber)
-    Dim ow As Variant, owIds As Variant, swD As Date, swSh As String, swU As String, swOff As String, swWorks As String
-    Dim owDays As Long
-    On Error Resume Next
-    ow = OwedSwitches(owIds)
-    On Error GoTo Failed
-    If IsArray(owIds) Then
-        For i = LBound(owIds) To UBound(owIds)
-            id = CStr(owIds(i))
-            If SwitchInfo(id, swD, swSh, swU, swOff, swWorks) Then
-                If UnitInGroup(swU, grp) Then
-                    owDays = CLng(Int(Date) - Int(swD))
-                    st = OwedStatusText(owDays, PaybackWarnDays())
-                    If owDays > PaybackWarnDays() Then
-                        stC = thOpen(): stF = RGB(255, 236, 179)
-                    Else
-                        stC = TypeColor("SS"): stF = Tint(TypeColor("SS"), 0.85)
-                    End If
-                    NAAdd sr, nS, Format$(swD, "ddd mmm d"), swSh, IIf(swSh = "Days", DaysCrew(swD), NightsCrew(swD)), swU, _
-                          swOff & " owes " & swWorks & " a shift   (" & id & ")", "Shift switch", st, _
-                          WhenText(swD), "S:" & id, CDbl(Int(swD)), TypeColor("SS"), stC, stF, thMuted()
-                End If
-            End If
-        Next i
-        NASort sr, nS
-    End If
-
-    ' D. leave returning soon, and anything open-ended
-    Dim code As String, eD As Date, nOpenEnded As Long, empNm As String
-    If IsArray(mAbs) Then
-        For i = 1 To UBound(mAbs, 1)
-            If UCase$(SafeStr(mAbs(i, AB_STATUS))) <> "VOID" And IsDate(mAbs(i, AB_START)) Then
-                If UnitInGroup(SafeStr(mAbs(i, AB_UNIT)), grp) Then
-                    code = TypeCode(SafeStr(mAbs(i, AB_TYPE)))
-                    sd = CDate(mAbs(i, AB_START))
-                    st = ""
-                    If Not IsDate(mAbs(i, AB_END)) Then
-                        If Int(sd) <= Date + nDays - 1 Then
-                            st = "Open-ended - no return date": eD = sd: nOpenEnded = nOpenEnded + 1
-                        End If
-                    ElseIf IsLeaveCode(code) Then
-                        eD = CDate(mAbs(i, AB_END)) + 1
-                        If Int(eD) >= Date And Int(eD) <= Date + nDays - 1 Then st = "Returns " & Format$(eD, "ddd mmm d")
-                    End If
-                    If st <> "" Then
-                        empNm = SafeStr(mAbs(i, AB_EMP))
-                        NAAdd br, nB, Format$(sd, "ddd mmm d"), "", EmpCrewOf(empNm), SafeStr(mAbs(i, AB_UNIT)), _
-                              CalName(empNm), TypeLong(code), st, WhenText(eD), "B:" & SafeStr(mAbs(i, AB_ID)), _
-                              IIf(Left$(st, 4) = "Open", 0, 1000000#) + CDbl(Int(eD)), TypeColor(code), TypeColor(code), _
-                              Tint(TypeColor(code), 0.85), thMuted()
-                    End If
-                End If
-            End If
-        Next i
-        NASort br, nB
-    End If
-
-    ' E. weekend holidays still waiting for the weekday the plant gives off (v20)
-    Dim hr() As NARow, nH As Long, hv As Variant, hk As Variant, hd As Date, hLook As Long
-    ReDim hr(1 To 20)
-    hLook = nDays: If hLook < HOL_CONFIRM_DAYS Then hLook = HOL_CONFIRM_DAYS
-    hv = HolidaysToConfirm(Date, Date + hLook - 1)
-    If IsArray(hv) Then
-        For Each hk In hv
-            hd = DateSerial(CLng(Left$(hk, 4)), CLng(Mid$(hk, 6, 2)), CLng(Mid$(hk, 9, 2)))
-            NAAdd hr, nH, Format$(hd, "ddd mmm d"), "", "DAYS", "All units", Mid$(hk, 12), "Holiday", _
-                  "Set the weekday off", WhenText(hd), "H:" & Format$(hd, "yyyy-mm-dd"), CDbl(hd), _
-                  RGB(176, 0, 32), RGB(176, 0, 32), Tint(RGB(176, 0, 32), 0.88), thMuted()
-        Next hk
-    End If
-
-    ' H. imported vacation lines not yet booked (v22) - they don't keep people off call lists
-    Dim ir() As NARow, nI As Long, iv As Variant
-    ReDim ir(1 To 20)
-    On Error Resume Next
-    iv = ImportCandidates(Date, Date + IMPORT_WATCH_DAYS - 1)
-    On Error GoTo Failed
-    If IsArray(iv) Then
-        For i = 1 To UBound(iv, 1)
-            If UnitInGroup(SafeStr(iv(i, 4)), grp) Then
-                NAAdd ir, nI, Format$(Dt2(iv(i, 2)), "ddd mmm d"), SafeStr(iv(i, 3)), "", SafeStr(iv(i, 4)), _
-                      SafeStr(iv(i, 5)) & IIf(SafeStr(iv(i, 6)) = "", "   (no roster match)", IIf(SafeStr(iv(i, 6)) = "?", "   (several matches)", "   = " & SafeStr(iv(i, 6)))), _
-                      "Imported", "Not booked", WhenText(Dt2(iv(i, 2))), "I:" & SafeStr(iv(i, 1)), CDbl(Int(Dt2(iv(i, 2)))), _
-                      TypeColor("VAC"), thOpen(), thOpenFill(), WhenColor(Dt2(iv(i, 2)))
-            End If
-        Next i
-        NASort ir, nI
-    End If
-
-    ' G. members' file not published lately (M1)
-    Dim mr() As NARow, nM As Long, pubAt As Date, pubTxt As String
-    ReDim mr(1 To 2)
-    pubAt = MembersPublishedAt()
-    If pubAt = 0 Then
-        pubTxt = "never published - click Member View on the roster"
-    ElseIf Int(Date) - Int(pubAt) >= MembersStaleDays() Then
-        pubTxt = "last published " & Format$(pubAt, "ddd mmm d, h:mm AM/PM") & " (" & (Int(Date) - Int(pubAt)) & " days ago)"
-    End If
-    If pubTxt <> "" Then
-        NAAdd mr, nM, Format$(Date, "ddd mmm d"), "", "", "All units", "Members file: " & pubTxt, "Publish", _
-              "Publish again", "", "M:publish", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
-    End If
-
-    ' E. errors nobody has looked at yet (v24.2)
-    Dim er() As NARow, nE As Long, nErrLines As Long
-    ReDim er(1 To 2)
-    nErrLines = UnseenErrorCount()
-    If nErrLines > 0 Then
-        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
-              "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-    End If
-    ' v27 (item 24): call-out rows logged as Exception (a plant upset, nobody charged) in the last 30 days - for the superintendent
-    Dim xl As Variant: xl = LogRowsNow()
-    If IsArray(xl) Then
-        Dim xi As Long, nX As Long
-        For xi = 1 To UBound(xl, 1)
-            If UCase$(Trim$(SafeStr(xl(xi, L_OUTCOME)))) = "EXCEPTION" And UCase$(Trim$(SafeStr(xl(xi, L_STATUS)))) <> "VOID" And IsDate(xl(xi, L_DATE)) Then
-                If Int(CDate(xl(xi, L_DATE))) >= Int(Date) - 30 And nX < 12 Then
-                    nX = nX + 1
-                    NAAdd er, nE, Format$(CDate(xl(xi, L_DATE)), "ddd mmm d"), SafeStr(xl(xi, L_SHIFTLBL)), "", SafeStr(xl(xi, L_DEPT)), _
-                          "Exception (plant upset): " & SafeStr(xl(xi, L_REF)) & "  " & CalName(SafeStr(xl(xi, L_EMP))) & "  -  " & Left$(SafeStr(xl(xi, L_TASK)), 60), "Exception", _
-                          "Review", "", "Q:exception", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-                End If
-            End If
-        Next xi
-    End If
-    ' v27 (item 23): the open disputes, one line each (an admin settles one through CloseDispute)
-    Dim nDp As Long, dpTxt As String: dpTxt = OpenDisputesText(nDp)
-    If nDp > 0 Then
-        Dim dpLine As Variant
-        For Each dpLine In Split(dpTxt, vbNewLine)
-            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "Disputed: " & CStr(dpLine), "Dispute", _
-                  "Alt+F8 > CloseDispute", "", "Q:dispute", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-        Next dpLine
-    End If
-    ' v27 (item 21): the active OT restrictions, one line each (information: an admin ends one through EndRestriction)
-    Dim nRs As Long, rsTxt As String: rsTxt = ActiveRestrictionsText(nRs)
-    If nRs > 0 Then
-        Dim rsLine As Variant
-        For Each rsLine In Split(rsTxt, vbNewLine)
-            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "OT restricted: " & CStr(rsLine), "Restriction", _
-                  "Alt+F8 > EndRestriction", "", "Q:restriction", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-        Next rsLine
-    End If
-    ' v27 (item 9): receipt answers ("Was this right?") nobody has read yet (modReceipt)
-    Dim nFb As Long: nFb = UnseenFeedbackCount()
-    If nFb > 0 Then
-        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nFb & " receipt answer(s) not yet read", "Feedback", _
-              "Open the list", "", "F:feedback", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
-    End If
-
-    ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
-    Dim ur() As NARow, nU As Long, uv As Variant, uk As Variant
-    ReDim ur(1 To 20)
-    On Error Resume Next
-    uv = BlankHomeUnits()
-    On Error GoTo Failed
-    If IsArray(uv) Then
-        For Each uk In uv
-            NAAdd ur, nU, "", "", EmpCrewOf(CStr(uk)), "", CStr(uk), "Roster", "Home Unit blank", "", _
-                  "U:" & CStr(uk), 0, thMuted(), thOpen(), thOpenFill(), thMuted()
-        Next uk
-    End If
-
-    ' D2. v27 (item 25, 1.4): the DATA CHECK - roster details that look wrong (modPeople.DataCheckLines)
-    Dim dcR() As NARow, nDc As Long, dcV As Variant, dcL As Variant, dcP As Variant
-    ReDim dcR(1 To 20)
-    On Error Resume Next
-    dcV = DataCheckLines()
-    On Error GoTo Failed
-    If IsArray(dcV) Then
-        For Each dcL In dcV
-            dcP = Split(CStr(dcL) & vbTab, vbTab)
-            NAAdd dcR, nDc, "", "", EmpCrewOf(CStr(dcP(0))), "", CStr(dcP(0)) & ":  " & CStr(dcP(1)), "Roster", "Data check", "", _
-                  "U:" & CStr(dcP(0)), 0, thMuted(), thPosted(), -1, thMuted()
-        Next dcL
-    End If
-
-    ' V. unit moves entered ahead of time (v24.3): waiting for their date, or due and not applied
-    Dim vr() As NARow, nV As Long, pmv As Variant, pmD As Date, pmDue As Boolean, pmWho As String
-    ReDim vr(1 To 10)
-    On Error Resume Next
-    pmv = PlannedRows()
-    On Error GoTo Failed
-    If IsArray(pmv) Then
-        For i = 1 To UBound(pmv, 1)
-            pmD = Dt2(pmv(i, PM_FROM))
-            pmDue = (Int(pmD) <= Date)                  ' a date that can't be read (0) shows as a problem too
-            pmWho = SafeStr(pmv(i, PM_EMP))
-            NAAdd vr, nV, IIf(pmD = 0, "?", Format$(pmD, "ddd mmm d")), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
-                  CalName(pmWho) & "   " & HomeUnitCached(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
-                  SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmD = 0, "Date can't be read", IIf(pmDue, "DUE - not applied", "Planned")), _
-                  IIf(pmD = 0, "", WhenText(pmD)), "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), _
-                  IIf(pmDue, thOpen(), thMuted()), IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
-        Next i
-        NASort vr, nV
-    End If
-
-    ' T. attendance (v22.1): sick / personal days at or over the limit, by home unit
-    Dim tr() As NARow, nT As Long, rn As Variant, ast As AttendanceStatus, lvl As Long, hu As String, nmT As String
-    ReDim tr(1 To 20)
-    On Error Resume Next
-    rn = RosterNames()
-    If IsArray(rn) Then
-        BeginAttendanceBatch
-        For i = LBound(rn) To UBound(rn)
-            nmT = CStr(rn(i))
-            hu = HomeUnitCached(nmT)
-            If hu = "" Or UnitInGroup(hu, grp) Then
-                If AttendanceFor(nmT, Date, ast) Then
-                    lvl = AttendanceLevel(ast)
-                    If lvl > 0 Then
-                        NAAdd tr, nT, IIf(ast.LastSick > 0, Format$(ast.LastSick, "ddd mmm d"), ""), "", EmpCrewOf(nmT), hu, _
-                              CalName(nmT) & "   " & ast.SickUsed & " sick / " & ast.PersonalUsed & " personal, " & ast.Occurrences & " occ.", _
-                              "Attendance", AttendanceStatusText(ast), _
-                              IIf(ast.WaitUntil > 0, "until " & Format$(ast.WaitUntil, "mmm d, yyyy"), ""), _
-                              "T:" & nmT, CDbl(-lvl * 1000 - ast.Combined), TypeColor("SIC"), _
-                              IIf(lvl = 2, thOpen(), thPosted()), IIf(lvl = 2, thOpenFill(), thPostedFill()), thMuted()
-                    End If
-                End If
-            End If
-        Next i
-        EndAttendanceBatch
-        NASort tr, nT
-    End If
-    On Error GoTo Failed
+    Dim nReady As Long                                ' v27.1: the lists the steps fill (and two counts) live here
+    Dim hr() As NARow, nH As Long, hLook As Long
+    Dim ir() As NARow, nI As Long, mr() As NARow, nM As Long, er() As NARow, nE As Long
+    Dim ur() As NARow, nU As Long, dcR() As NARow, nDc As Long, vr() As NARow, nV As Long
+    Dim tr() As NARow, nT As Long
+    NAGatherWork grp, nDays, plV, pr, nP, nReady, lr, nL, shortRows, nShort, sr, nS, br, nB, hr, nH, hLook
+    NAGatherAdmin grp, ir, nI, mr, nM, er, nE, ur, nU, dcR, nDc, vr, nV, tr, nT
 
     tA = Timer                                      ' gathered
-    ' ---- draw ----
-    ws.Rows("1:3000").Delete
-    With ws.Cells.Font
-        .Name = CAL_FONT
-        .Size = 9
-    End With
-    ws.Cells.Interior.Color = vbWhite
-    ws.Columns(1).ColumnWidth = 1.5
-    ws.Columns(2).ColumnWidth = 13
-    ws.Columns(3).ColumnWidth = 8
-    ws.Columns(4).ColumnWidth = 7
-    ws.Columns(5).ColumnWidth = 17
-    ws.Columns(6).ColumnWidth = 46
-    ws.Columns(7).ColumnWidth = 16
-    ws.Columns(8).ColumnWidth = 26
-    ws.Columns(9).ColumnWidth = 13
-    ws.Columns(10).ColumnWidth = 2
-    ws.Range(ws.Columns(NA_KEY), ws.Columns(NA_KEY + 12)).Hidden = True
-
-    ws.Rows(1).RowHeight = 38
-    ws.Range("A1:J1").Interior.Color = thBand()
-    With ws.Range("B1:E1")
-        .Merge
-        .Value = "NEEDS ATTENTION"
-        .Font.Name = CAL_FONT_B: .Font.Size = 15: .Font.Color = vbWhite
-        .VerticalAlignment = xlCenter
-    End With
-    ws.Rows(2).RowHeight = 22
-    With ws.Range("B2:I2")
-        .Merge
-        .Value = grp & "   " & ChrW(183) & "   " & Format$(Date, "ddd mmm d") & " to " & Format$(Date + nDays - 1, "ddd mmm d") & _
-                 "   " & ChrW(183) & "   updated " & Format$(Now, "h:mm AM/PM") & "   " & ChrW(183) & "   double-click any row for options" & _
-                 IIf(RolloverNote() <> "", "   " & ChrW(183) & "   " & RolloverNote(), "")
-        .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
-        .VerticalAlignment = xlCenter
-    End With
-    ws.Rows(3).RowHeight = 8
-    ws.Rows(4).RowHeight = 30
-    ws.Rows(5).RowHeight = 16
-    ws.Rows(6).RowHeight = 12
+    NADrawHead ws, grp, nDays                       ' v27.1: the sheet wiped, the columns, rows 1-6
 
     Dim r As Long: r = 7
     Dim rowP As Long, rowL As Long, rowS As Long, rowB As Long
@@ -653,6 +329,356 @@ Done:
     Application.EnableEvents = evWas
     Application.ScreenUpdating = True
     mDrawing = False
+End Sub
+
+' v27.1: DrawNeeds' steps. No handler of their own: an error rises to DrawNeeds' Failed, which restores
+' everything. Called only while that handler is active. The lists and counts are DrawNeeds' own (ByRef).
+Private Sub NAGatherWork(ByVal grp As String, ByVal nDays As Long, ByRef plV As Variant, _
+                         ByRef pr() As NARow, ByRef nP As Long, ByRef nReady As Long, _
+                         ByRef lr() As NARow, ByRef nL As Long, ByRef shortRows() As NARow, ByRef nShort As Long, _
+                         ByRef sr() As NARow, ByRef nS As Long, ByRef br() As NARow, ByRef nB As Long, _
+                         ByRef hr() As NARow, ByRef nH As Long, ByRef hLook As Long)
+    Dim i As Long, j As Long, m As Long, cl As Date, sd As Date, d As Date, sh As Variant, rt As String
+    Dim tier As Long, st As String, stC As Long, stF As Long, id As String, txt As String
+
+    ' A. postings still open
+    If IsArray(mPostV) Then
+        For i = 1 To UBound(mPostV, 1)
+            If SafeStr(mPostV(i, PS_STATUS)) = "Open" And UnitInGroup(SafeStr(mPostV(i, PS_UNIT)), grp) Then
+                id = SafeStr(mPostV(i, PS_ID))
+                cl = AsDate(mPostV(i, PS_CLOSES))
+                sd = AsDate(mPostV(i, PS_DATE))
+                If cl > 0 And PostingClosed(cl) Then          ' v25 review: the one closing test
+                    tier = 0: st = "READY TO AWARD": stC = thOpen(): stF = thOpenFill(): nReady = nReady + 1
+                ElseIf cl > 0 And Int(cl) = Date Then
+                    tier = 1: st = "Closes today " & POSTING_CLOSE_TIME: stC = thPosted(): stF = thPostedFill()
+                ElseIf cl > 0 Then
+                    tier = 2: st = "Open until " & Format$(cl, "ddd mmm d"): stC = thMuted(): stF = -1
+                Else
+                    tier = 3: st = "Open (no closing date)": stC = thMuted(): stF = -1
+                End If
+                txt = id & "  " & SafeStr(mPostV(i, PS_REASON)) & "   (" & SafeStr(mPostV(i, PS_HOURS)) & "h, " & _
+                      SafeStr(mPostV(i, PS_POS)) & " pos, " & SignedCount(plV, id) & " signed up)"
+                If Not CovHasSourceCached(id) Then
+                    txt = txt & "   - NOT ON CALENDAR"
+                    If tier > 0 Then stC = thOpen()
+                End If
+                NAAdd pr, nP, Format$(sd, "ddd mmm d"), SafeStr(mPostV(i, PS_SHIFT)), SafeStr(mPostV(i, PS_CREW)), _
+                      SafeStr(mPostV(i, PS_UNIT)), txt, TypeLong(ReasonType(SafeStr(mPostV(i, PS_REASON)))), st, _
+                      IIf(cl > 0, WhenText(cl), ""), "P:" & id, tier * 1000000# + CDbl(Int(cl)), thPosted(), stC, stF, _
+                      IIf(cl > 0, WhenColor(cl), thMuted())
+            End If
+        Next i
+        NASort pr, nP
+    End If
+
+    ' B. open lines in the window
+    Dim slots() As CalSlot, unit As String
+    For i = 0 To nDays - 1
+        d = Date + i
+        For Each sh In Array("Days", "Nights")
+            m = SlotsFor(d, CStr(sh), grp, slots, True)
+            For j = 1 To m
+                rt = UCase$(slots(j).RightText)
+                If slots(j).IsOpen Or rt Like "NO TAKERS*" Then
+                    unit = SlotUnit(slots(j).Key)
+                    NAAdd lr, nL, Format$(d, "ddd mmm d"), CStr(sh), IIf(sh = "Days", DaysCrew(d), NightsCrew(d)), unit, _
+                          slots(j).LeftText, TypeLong(slots(j).TypeCode), IIf(rt Like "NO TAKERS*", "NO TAKERS", "OPEN"), _
+                          WhenText(d), slots(j).Key & "|" & CLng(Int(d)) & "|" & sh, 0, thOpen(), thOpen(), thOpenFill(), WhenColor(d)
+                End If
+            Next j
+        Next sh
+    Next i
+
+    ' B2. below minimum staffing (v26): today .. today + nDays - 1, the group's units that have a minimum
+    StaffSweepBegin Date
+    Dim ms As Variant: ms = StaffShortList(Date, IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS), "")    ' the brief's 14 days, whatever the box's window; v26.5: every unit, whatever group is picked
+    If IsArray(ms) Then
+        For i = 1 To UBound(ms, 1)
+            d = CDate(CDbl(ms(i, 2)))
+            NAAdd shortRows, nShort, Format$(d, "ddd mmm d"), CStr(ms(i, 3)), IIf(CStr(ms(i, 3)) = "Days", DaysCrew(d), NightsCrew(d)), CStr(ms(i, 1)), _
+                  CStr(ms(i, 4)), "Staffing", CStr(ms(i, 5)), WhenText(d), "N:" & CStr(ms(i, 1)) & "|" & CLng(Int(d)) & "|" & CStr(ms(i, 3)), _
+                  CDbl(Int(d)), thOpen(), thOpen(), thOpenFill(), WhenColor(d)
+        Next i
+        NASort shortRows, nShort
+    End If
+
+    ' C. shift switch paybacks still owed (v26: oldest first; one owed longer than PAYBACK_WARN_DAYS
+    '    gets its age in the status, in red on amber)
+    Dim ow As Variant, owIds As Variant, swD As Date, swSh As String, swU As String, swOff As String, swWorks As String
+    Dim owDays As Long
+    On Error Resume Next
+    ow = OwedSwitches(owIds)
+    On Error GoTo 0
+    If IsArray(owIds) Then
+        For i = LBound(owIds) To UBound(owIds)
+            id = CStr(owIds(i))
+            If SwitchInfo(id, swD, swSh, swU, swOff, swWorks) Then
+                If UnitInGroup(swU, grp) Then
+                    owDays = CLng(Int(Date) - Int(swD))
+                    st = OwedStatusText(owDays, PaybackWarnDays())
+                    If owDays > PaybackWarnDays() Then
+                        stC = thOpen(): stF = RGB(255, 236, 179)
+                    Else
+                        stC = TypeColor("SS"): stF = Tint(TypeColor("SS"), 0.85)
+                    End If
+                    NAAdd sr, nS, Format$(swD, "ddd mmm d"), swSh, IIf(swSh = "Days", DaysCrew(swD), NightsCrew(swD)), swU, _
+                          swOff & " owes " & swWorks & " a shift   (" & id & ")", "Shift switch", st, _
+                          WhenText(swD), "S:" & id, CDbl(Int(swD)), TypeColor("SS"), stC, stF, thMuted()
+                End If
+            End If
+        Next i
+        NASort sr, nS
+    End If
+
+    ' D. leave returning soon, and anything open-ended
+    Dim code As String, eD As Date, nOpenEnded As Long, empNm As String
+    If IsArray(mAbs) Then
+        For i = 1 To UBound(mAbs, 1)
+            If UCase$(SafeStr(mAbs(i, AB_STATUS))) <> "VOID" And IsDate(mAbs(i, AB_START)) Then
+                If UnitInGroup(SafeStr(mAbs(i, AB_UNIT)), grp) Then
+                    code = TypeCode(SafeStr(mAbs(i, AB_TYPE)))
+                    sd = CDate(mAbs(i, AB_START))
+                    st = ""
+                    If Not IsDate(mAbs(i, AB_END)) Then
+                        If Int(sd) <= Date + nDays - 1 Then
+                            st = "Open-ended - no return date": eD = sd: nOpenEnded = nOpenEnded + 1
+                        End If
+                    ElseIf IsLeaveCode(code) Then
+                        eD = CDate(mAbs(i, AB_END)) + 1
+                        If Int(eD) >= Date And Int(eD) <= Date + nDays - 1 Then st = "Returns " & Format$(eD, "ddd mmm d")
+                    End If
+                    If st <> "" Then
+                        empNm = SafeStr(mAbs(i, AB_EMP))
+                        NAAdd br, nB, Format$(sd, "ddd mmm d"), "", EmpCrewOf(empNm), SafeStr(mAbs(i, AB_UNIT)), _
+                              CalName(empNm), TypeLong(code), st, WhenText(eD), "B:" & SafeStr(mAbs(i, AB_ID)), _
+                              IIf(Left$(st, 4) = "Open", 0, 1000000#) + CDbl(Int(eD)), TypeColor(code), TypeColor(code), _
+                              Tint(TypeColor(code), 0.85), thMuted()
+                    End If
+                End If
+            End If
+        Next i
+        NASort br, nB
+    End If
+
+    ' E. weekend holidays still waiting for the weekday the plant gives off (v20)
+    Dim hv As Variant, hk As Variant, hd As Date
+    ReDim hr(1 To 20)
+    hLook = nDays: If hLook < HOL_CONFIRM_DAYS Then hLook = HOL_CONFIRM_DAYS
+    hv = HolidaysToConfirm(Date, Date + hLook - 1)
+    If IsArray(hv) Then
+        For Each hk In hv
+            hd = DateSerial(CLng(Left$(hk, 4)), CLng(Mid$(hk, 6, 2)), CLng(Mid$(hk, 9, 2)))
+            NAAdd hr, nH, Format$(hd, "ddd mmm d"), "", "DAYS", "All units", Mid$(hk, 12), "Holiday", _
+                  "Set the weekday off", WhenText(hd), "H:" & Format$(hd, "yyyy-mm-dd"), CDbl(hd), _
+                  RGB(176, 0, 32), RGB(176, 0, 32), Tint(RGB(176, 0, 32), 0.88), thMuted()
+        Next hk
+    End If
+End Sub
+
+Private Sub NAGatherAdmin(ByVal grp As String, ByRef ir() As NARow, ByRef nI As Long, _
+                          ByRef mr() As NARow, ByRef nM As Long, ByRef er() As NARow, ByRef nE As Long, _
+                          ByRef ur() As NARow, ByRef nU As Long, ByRef dcR() As NARow, ByRef nDc As Long, _
+                          ByRef vr() As NARow, ByRef nV As Long, ByRef tr() As NARow, ByRef nT As Long)
+    Dim i As Long
+    ' H. imported vacation lines not yet booked (v22) - they don't keep people off call lists
+    Dim iv As Variant
+    ReDim ir(1 To 20)
+    On Error Resume Next
+    iv = ImportCandidates(Date, Date + IMPORT_WATCH_DAYS - 1)
+    On Error GoTo 0
+    If IsArray(iv) Then
+        For i = 1 To UBound(iv, 1)
+            If UnitInGroup(SafeStr(iv(i, 4)), grp) Then
+                NAAdd ir, nI, Format$(Dt2(iv(i, 2)), "ddd mmm d"), SafeStr(iv(i, 3)), "", SafeStr(iv(i, 4)), _
+                      SafeStr(iv(i, 5)) & IIf(SafeStr(iv(i, 6)) = "", "   (no roster match)", IIf(SafeStr(iv(i, 6)) = "?", "   (several matches)", "   = " & SafeStr(iv(i, 6)))), _
+                      "Imported", "Not booked", WhenText(Dt2(iv(i, 2))), "I:" & SafeStr(iv(i, 1)), CDbl(Int(Dt2(iv(i, 2)))), _
+                      TypeColor("VAC"), thOpen(), thOpenFill(), WhenColor(Dt2(iv(i, 2)))
+            End If
+        Next i
+        NASort ir, nI
+    End If
+
+    ' G. members' file not published lately (M1)
+    Dim pubAt As Date, pubTxt As String
+    ReDim mr(1 To 2)
+    pubAt = MembersPublishedAt()
+    If pubAt = 0 Then
+        pubTxt = "never published - click Member View on the roster"
+    ElseIf Int(Date) - Int(pubAt) >= MembersStaleDays() Then
+        pubTxt = "last published " & Format$(pubAt, "ddd mmm d, h:mm AM/PM") & " (" & (Int(Date) - Int(pubAt)) & " days ago)"
+    End If
+    If pubTxt <> "" Then
+        NAAdd mr, nM, Format$(Date, "ddd mmm d"), "", "", "All units", "Members file: " & pubTxt, "Publish", _
+              "Publish again", "", "M:publish", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
+    End If
+
+    ' E. errors nobody has looked at yet (v24.2)
+    Dim nErrLines As Long
+    ReDim er(1 To 2)
+    nErrLines = UnseenErrorCount()
+    If nErrLines > 0 Then
+        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
+              "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+    End If
+    ' v27 (item 24): call-out rows logged as Exception (a plant upset, nobody charged) in the last 30 days - for the superintendent
+    Dim xl As Variant: xl = LogRowsNow()
+    If IsArray(xl) Then
+        Dim xi As Long, nX As Long
+        For xi = 1 To UBound(xl, 1)
+            If UCase$(Trim$(SafeStr(xl(xi, L_OUTCOME)))) = "EXCEPTION" And UCase$(Trim$(SafeStr(xl(xi, L_STATUS)))) <> "VOID" And IsDate(xl(xi, L_DATE)) Then
+                If Int(CDate(xl(xi, L_DATE))) >= Int(Date) - 30 And nX < 12 Then
+                    nX = nX + 1
+                    NAAdd er, nE, Format$(CDate(xl(xi, L_DATE)), "ddd mmm d"), SafeStr(xl(xi, L_SHIFTLBL)), "", SafeStr(xl(xi, L_DEPT)), _
+                          "Exception (plant upset): " & SafeStr(xl(xi, L_REF)) & "  " & CalName(SafeStr(xl(xi, L_EMP))) & "  -  " & Left$(SafeStr(xl(xi, L_TASK)), 60), "Exception", _
+                          "Review", "", "Q:exception", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+                End If
+            End If
+        Next xi
+    End If
+    ' v27 (item 23): the open disputes, one line each (an admin settles one through CloseDispute)
+    Dim nDp As Long, dpTxt As String: dpTxt = OpenDisputesText(nDp)
+    If nDp > 0 Then
+        Dim dpLine As Variant
+        For Each dpLine In Split(dpTxt, vbNewLine)
+            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "Disputed: " & CStr(dpLine), "Dispute", _
+                  "Alt+F8 > CloseDispute", "", "Q:dispute", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+        Next dpLine
+    End If
+    ' v27 (item 21): the active OT restrictions, one line each (information: an admin ends one through EndRestriction)
+    Dim nRs As Long, rsTxt As String: rsTxt = ActiveRestrictionsText(nRs)
+    If nRs > 0 Then
+        Dim rsLine As Variant
+        For Each rsLine In Split(rsTxt, vbNewLine)
+            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "OT restricted: " & CStr(rsLine), "Restriction", _
+                  "Alt+F8 > EndRestriction", "", "Q:restriction", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
+        Next rsLine
+    End If
+    ' v27 (item 9): receipt answers ("Was this right?") nobody has read yet (modReceipt)
+    Dim nFb As Long: nFb = UnseenFeedbackCount()
+    If nFb > 0 Then
+        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nFb & " receipt answer(s) not yet read", "Feedback", _
+              "Open the list", "", "F:feedback", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
+    End If
+
+    ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
+    Dim uv As Variant, uk As Variant
+    ReDim ur(1 To 20)
+    On Error Resume Next
+    uv = BlankHomeUnits()
+    On Error GoTo 0
+    If IsArray(uv) Then
+        For Each uk In uv
+            NAAdd ur, nU, "", "", EmpCrewOf(CStr(uk)), "", CStr(uk), "Roster", "Home Unit blank", "", _
+                  "U:" & CStr(uk), 0, thMuted(), thOpen(), thOpenFill(), thMuted()
+        Next uk
+    End If
+
+    ' D2. v27 (item 25, 1.4): the DATA CHECK - roster details that look wrong (modPeople.DataCheckLines)
+    Dim dcV As Variant, dcL As Variant, dcP As Variant
+    ReDim dcR(1 To 20)
+    On Error Resume Next
+    dcV = DataCheckLines()
+    On Error GoTo 0
+    If IsArray(dcV) Then
+        For Each dcL In dcV
+            dcP = Split(CStr(dcL) & vbTab, vbTab)
+            NAAdd dcR, nDc, "", "", EmpCrewOf(CStr(dcP(0))), "", CStr(dcP(0)) & ":  " & CStr(dcP(1)), "Roster", "Data check", "", _
+                  "U:" & CStr(dcP(0)), 0, thMuted(), thPosted(), -1, thMuted()
+        Next dcL
+    End If
+
+    ' V. unit moves entered ahead of time (v24.3): waiting for their date, or due and not applied
+    Dim pmv As Variant, pmD As Date, pmDue As Boolean, pmWho As String
+    ReDim vr(1 To 10)
+    On Error Resume Next
+    pmv = PlannedRows()
+    On Error GoTo 0
+    If IsArray(pmv) Then
+        For i = 1 To UBound(pmv, 1)
+            pmD = Dt2(pmv(i, PM_FROM))
+            pmDue = (Int(pmD) <= Date)                  ' a date that can't be read (0) shows as a problem too
+            pmWho = SafeStr(pmv(i, PM_EMP))
+            NAAdd vr, nV, IIf(pmD = 0, "?", Format$(pmD, "ddd mmm d")), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
+                  CalName(pmWho) & "   " & HomeUnitCached(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
+                  SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmD = 0, "Date can't be read", IIf(pmDue, "DUE - not applied", "Planned")), _
+                  IIf(pmD = 0, "", WhenText(pmD)), "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), _
+                  IIf(pmDue, thOpen(), thMuted()), IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
+        Next i
+        NASort vr, nV
+    End If
+
+    ' T. attendance (v22.1): sick / personal days at or over the limit, by home unit
+    Dim rn As Variant, ast As AttendanceStatus, lvl As Long, hu As String, nmT As String
+    ReDim tr(1 To 20)
+    On Error Resume Next
+    rn = RosterNames()
+    If IsArray(rn) Then
+        BeginAttendanceBatch
+        For i = LBound(rn) To UBound(rn)
+            nmT = CStr(rn(i))
+            hu = HomeUnitCached(nmT)
+            If hu = "" Or UnitInGroup(hu, grp) Then
+                If AttendanceFor(nmT, Date, ast) Then
+                    lvl = AttendanceLevel(ast)
+                    If lvl > 0 Then
+                        NAAdd tr, nT, IIf(ast.LastSick > 0, Format$(ast.LastSick, "ddd mmm d"), ""), "", EmpCrewOf(nmT), hu, _
+                              CalName(nmT) & "   " & ast.SickUsed & " sick / " & ast.PersonalUsed & " personal, " & ast.Occurrences & " occ.", _
+                              "Attendance", AttendanceStatusText(ast), _
+                              IIf(ast.WaitUntil > 0, "until " & Format$(ast.WaitUntil, "mmm d, yyyy"), ""), _
+                              "T:" & nmT, CDbl(-lvl * 1000 - ast.Combined), TypeColor("SIC"), _
+                              IIf(lvl = 2, thOpen(), thPosted()), IIf(lvl = 2, thOpenFill(), thPostedFill()), thMuted()
+                    End If
+                End If
+            End If
+        Next i
+        EndAttendanceBatch
+        NASort tr, nT
+    End If
+    On Error GoTo 0
+End Sub
+
+Private Sub NADrawHead(ByVal ws As Worksheet, ByVal grp As String, ByVal nDays As Long)
+    ' ---- draw ----
+    ws.Rows("1:3000").Delete
+    With ws.Cells.Font
+        .Name = CAL_FONT
+        .Size = 9
+    End With
+    ws.Cells.Interior.Color = vbWhite
+    ws.Columns(1).ColumnWidth = 1.5
+    ws.Columns(2).ColumnWidth = 13
+    ws.Columns(3).ColumnWidth = 8
+    ws.Columns(4).ColumnWidth = 7
+    ws.Columns(5).ColumnWidth = 17
+    ws.Columns(6).ColumnWidth = 46
+    ws.Columns(7).ColumnWidth = 16
+    ws.Columns(8).ColumnWidth = 26
+    ws.Columns(9).ColumnWidth = 13
+    ws.Columns(10).ColumnWidth = 2
+    ws.Range(ws.Columns(NA_KEY), ws.Columns(NA_KEY + 12)).Hidden = True
+
+    ws.Rows(1).RowHeight = 38
+    ws.Range("A1:J1").Interior.Color = thBand()
+    With ws.Range("B1:E1")
+        .Merge
+        .Value = "NEEDS ATTENTION"
+        .Font.Name = CAL_FONT_B: .Font.Size = 15: .Font.Color = vbWhite
+        .VerticalAlignment = xlCenter
+    End With
+    ws.Rows(2).RowHeight = 22
+    With ws.Range("B2:I2")
+        .Merge
+        .Value = grp & "   " & ChrW(183) & "   " & Format$(Date, "ddd mmm d") & " to " & Format$(Date + nDays - 1, "ddd mmm d") & _
+                 "   " & ChrW(183) & "   updated " & Format$(Now, "h:mm AM/PM") & "   " & ChrW(183) & "   double-click any row for options" & _
+                 IIf(RolloverNote() <> "", "   " & ChrW(183) & "   " & RolloverNote(), "")
+        .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
+        .VerticalAlignment = xlCenter
+    End With
+    ws.Rows(3).RowHeight = 8
+    ws.Rows(4).RowHeight = 30
+    ws.Rows(5).RowHeight = 16
+    ws.Rows(6).RowHeight = 12
 End Sub
 
 

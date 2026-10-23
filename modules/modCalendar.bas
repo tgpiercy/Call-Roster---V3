@@ -2376,7 +2376,7 @@ Public Sub DrawCalendar()
     Dim drawnFrom As String: drawnFrom = SafeStr(mp.Range("Z7").Value)
     ' v25.1.2: draw-time measurement, one Timer reading per phase (kept in CalMap Z13 / Z14, shown in F3)
     Dim t0 As Double, tA As Double, tB As Double, tC As Double, tD As Double, tE As Double, tF As Double, tG As Double
-    Dim nLines As Long, shortTxt As String, nShortD As Long   ' v26: the date's short shifts (minimum staffing)
+    Dim nLines As Long                              ' the lines drawn, counted by CalDrawWeeks (for Z14)
     t0 = Timer
     mTimeSlots = 0: mTimeNotes = 0
 
@@ -2397,6 +2397,71 @@ Public Sub DrawCalendar()
     StaffSweepBegin Date                            ' v26: the minimums and the names per unit, once per draw
     tA = Timer                                      ' caches loaded
 
+    CalDrawWipe ws, mp                              ' v27.1: the grid and the click map wiped
+    tB = Timer                                      ' grid wiped
+
+    Dim r As Long
+    CalDrawHeader ws, mp, r                         ' v27.1: rows 1-4; r = the first week row
+    tC = Timer                                      ' header rows written
+    mTimeSlots = 0: mTimeNotes = 0                  ' the weeks' share starts here
+
+    CalDrawWeeks ws, mp, m0, grp, r, nLines         ' v27.1: the weeks; r moves past the last one
+    tD = Timer                                      ' weeks written
+    Dim wkSlots As Double, wkNotes As Double
+    wkSlots = mTimeSlots: wkNotes = mTimeNotes      ' the weeks' share (OpenAhead's SlotsFor calls count under controls)
+
+    CalDrawPage ws, mp, r                           ' v27.1: the page setup and the window (Resume Next inside)
+    On Error GoTo Failed
+    tE = Timer                                      ' page set up
+
+    BuildCalControls ws, m0, grp
+    tF = Timer                                      ' controls rebuilt
+    mp.Range("Z8").Value = drawnFrom
+    mp.Range("Z10").Value = "'" & DrawContext()
+    mp.Range("Z12").Value = "'" & RosterSig()
+    ' v25.1.2: the breakdown (the before numbers for the v25.2 rewrite); F3 says the total
+    tG = Timer
+    mp.Range("Z13").Value = "'" & Format$(Secs(t0, tG), "0.0")
+    mp.Range("Z14").Value = "'" & "Calendar " & Format$(m0, "mmmm yyyy") & " (" & grp & ", " & nLines & " lines): drawn in " & _
+        Format$(Secs(t0, tG), "0.0") & " s = caches " & Format$(Secs(t0, tA), "0.0") & ", wipe " & Format$(Secs(tA, tB), "0.0") & _
+        ", header " & Format$(Secs(tB, tC), "0.0") & ", weeks " & Format$(Secs(tC, tD), "0.0") & " (slots " & Format$(wkSlots, "0.0") & _
+        ", notes " & Format$(wkNotes, "0.0") & ", cells " & Format$(Secs(tC, tD) - wkSlots - wkNotes, "0.0") & "), page " & _
+        Format$(Secs(tD, tE), "0.0") & ", controls " & Format$(Secs(tE, tF), "0.0") & "  [" & CAL_VERSION & "]"
+    ws.Range("F3").Value = CalHintText()
+    GoTo Done
+
+Failed:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description & " (error " & Err.Number & ")"
+    Resume AfterFail                      ' leave the handler so the clean-up below can't be stopped by a 2nd error
+AfterFail:
+    On Error Resume Next
+    tG = 0                                ' v25.1.2 re-review: no after-draw figure on a failed draw
+    LogError "DrawCalendar", en, em       ' v24.3.1: the box below was the only record
+    UnlockSheet ws
+    ws.Cells(3, 6).Value = "Calendar couldn't finish drawing: " & em & "  - click This month to retry."
+    ws.Cells(3, 6).Font.Color = thOpen()
+    BuildCalControls ws, m0, grp          ' never leave the sheet without its buttons
+    Application.ScreenUpdating = True
+    MsgBox "The calendar couldn't finish drawing:" & vbNewLine & vbNewLine & em & vbNewLine & vbNewLine & _
+           "Send a screenshot of this message.  (" & CAL_VERSION & ")", vbExclamation, "Calendar"
+Done:
+    On Error Resume Next
+    Application.DisplayAlerts = True
+    ProtectSheet ws
+    ProtectSheet mp                                 ' v25.1
+    Application.Calculation = calcWas
+    Application.EnableEvents = evWas
+    Application.ScreenUpdating = True
+    If tG > 0 Then                                  ' v25.1.2 (review): the relock + recalculation after the draw, felt but outside "drawn in"
+        MapWrite "Z14", "'" & SafeStr(mp.Range("Z14").Value) & "; then relock + recalc " & Format$(Secs(tG, Timer), "0.0")
+    End If
+    mDrawing = False
+End Sub
+
+' v27.1: DrawCalendar's steps. No handler of their own: an error rises to DrawCalendar's Failed, which
+' restores everything. Called only while that handler is active.
+Private Sub CalDrawWipe(ByVal ws As Worksheet, ByVal mp As Worksheet)
     ' ---- wipe the grid and the click map (controls are rebuilt at the end) ----
     ws.Rows("3:1000").Delete
     ws.Range("A1:P2").UnMerge
@@ -2412,8 +2477,10 @@ Public Sub DrawCalendar()
         ws.Columns(2 + k).ColumnWidth = COL_W
     Next k
     ws.Columns(16).ColumnWidth = 1
-    tB = Timer                                      ' grid wiped
+End Sub
 
+Private Sub CalDrawHeader(ByVal ws As Worksheet, ByVal mp As Worksheet, ByRef r As Long)
+    Dim k As Long
     ' ---- row 1: title band (controls sit on it) ----
     ws.Rows(1).RowHeight = 38
     ws.Range("A1:P1").Interior.Color = thBand()
@@ -2456,7 +2523,7 @@ Public Sub DrawCalendar()
     mp.Range("Z4").Value = 3                         ' rows 3..Z4 are screen-only (hidden when printing)
 
     ' ---- row 4: weekday header ----
-    Dim r As Long: r = 4
+    r = 4
     ws.Rows(r).RowHeight = 20
     ws.Cells(r, 1).Interior.Color = thHead()
     Dim dn As Variant: dn = Array("SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY")
@@ -2470,9 +2537,12 @@ Public Sub DrawCalendar()
         End With
     Next k
     r = r + 1
-    tC = Timer                                      ' header rows written
-    mTimeSlots = 0: mTimeNotes = 0                  ' the weeks' share starts here
+End Sub
 
+Private Sub CalDrawWeeks(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal m0 As Date, ByVal grp As String, _
+                         ByRef r As Long, ByRef nLines As Long)
+    Dim k As Long, i As Long
+    Dim shortTxt As String, nShortD As Long          ' v26: the date's short shifts (minimum staffing)
     ' ---- weeks ----
     ' v25.2 (item 3): each week block is built in two arrays (the texts for B:O and the click-map keys) and
     ' written with ONE .Value each; the formats go on by class (one Union per class per block) instead of
@@ -2668,10 +2738,11 @@ Public Sub DrawCalendar()
     With ws.Range(ws.Cells(r, 1), ws.Cells(r, 15)).Borders(xlEdgeTop)
         .LineStyle = xlContinuous: .Weight = xlThick: .Color = thBand()
     End With
-    tD = Timer                                      ' weeks written
-    Dim wkSlots As Double, wkNotes As Double
-    wkSlots = mTimeSlots: wkNotes = mTimeNotes      ' the weeks' share (OpenAhead's SlotsFor calls count under controls)
+End Sub
 
+' the page setup and the window: everything under On Error Resume Next, as it was inline (the caller's
+' On Error GoTo Failed comes back when this returns)
+Private Sub CalDrawPage(ByVal ws As Worksheet, ByVal mp As Worksheet, ByVal r As Long)
     ' ---- page ----
     On Error Resume Next
     ' v25.2 (item 2): the same page setup every draw cost 0.6 s of 4.6. The fixed properties are set once per
@@ -2713,52 +2784,7 @@ Public Sub DrawCalendar()
             .FreezePanes = True
         End With
     End If
-    On Error GoTo Failed
-    tE = Timer                                      ' page set up
-
-    BuildCalControls ws, m0, grp
-    tF = Timer                                      ' controls rebuilt
-    mp.Range("Z8").Value = drawnFrom
-    mp.Range("Z10").Value = "'" & DrawContext()
-    mp.Range("Z12").Value = "'" & RosterSig()
-    ' v25.1.2: the breakdown (the before numbers for the v25.2 rewrite); F3 says the total
-    tG = Timer
-    mp.Range("Z13").Value = "'" & Format$(Secs(t0, tG), "0.0")
-    mp.Range("Z14").Value = "'" & "Calendar " & Format$(m0, "mmmm yyyy") & " (" & grp & ", " & nLines & " lines): drawn in " & _
-        Format$(Secs(t0, tG), "0.0") & " s = caches " & Format$(Secs(t0, tA), "0.0") & ", wipe " & Format$(Secs(tA, tB), "0.0") & _
-        ", header " & Format$(Secs(tB, tC), "0.0") & ", weeks " & Format$(Secs(tC, tD), "0.0") & " (slots " & Format$(wkSlots, "0.0") & _
-        ", notes " & Format$(wkNotes, "0.0") & ", cells " & Format$(Secs(tC, tD) - wkSlots - wkNotes, "0.0") & "), page " & _
-        Format$(Secs(tD, tE), "0.0") & ", controls " & Format$(Secs(tE, tF), "0.0") & "  [" & CAL_VERSION & "]"
-    ws.Range("F3").Value = CalHintText()
-    GoTo Done
-
-Failed:
-    Dim en As Long: en = Err.Number
-    Dim em As String: em = Err.Description & " (error " & Err.Number & ")"
-    Resume AfterFail                      ' leave the handler so the clean-up below can't be stopped by a 2nd error
-AfterFail:
-    On Error Resume Next
-    tG = 0                                ' v25.1.2 re-review: no after-draw figure on a failed draw
-    LogError "DrawCalendar", en, em       ' v24.3.1: the box below was the only record
-    UnlockSheet ws
-    ws.Cells(3, 6).Value = "Calendar couldn't finish drawing: " & em & "  - click This month to retry."
-    ws.Cells(3, 6).Font.Color = thOpen()
-    BuildCalControls ws, m0, grp          ' never leave the sheet without its buttons
-    Application.ScreenUpdating = True
-    MsgBox "The calendar couldn't finish drawing:" & vbNewLine & vbNewLine & em & vbNewLine & vbNewLine & _
-           "Send a screenshot of this message.  (" & CAL_VERSION & ")", vbExclamation, "Calendar"
-Done:
-    On Error Resume Next
-    Application.DisplayAlerts = True
-    ProtectSheet ws
-    ProtectSheet mp                                 ' v25.1
-    Application.Calculation = calcWas
-    Application.EnableEvents = evWas
-    Application.ScreenUpdating = True
-    If tG > 0 Then                                  ' v25.1.2 (review): the relock + recalculation after the draw, felt but outside "drawn in"
-        MapWrite "Z14", "'" & SafeStr(mp.Range("Z14").Value) & "; then relock + recalc " & Format$(Secs(tG, Timer), "0.0")
-    End If
-    mDrawing = False
+    On Error GoTo 0                                 ' v27.1: ends this step's Resume Next (DrawCalendar's GoTo Failed follows)
 End Sub
 
 ' lines on a date/shift that still need someone (OPEN or no takers)

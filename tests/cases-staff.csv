@@ -1,0 +1,21 @@
+suite,case,in1,in2,in3,in4,in5,expected
+staffcount,all-on-none-off,S;S;S,,2,,,3|0|0|ok
+staffcount,one-booked-off,S;SA;S,,3,,,3|1|0|SHORT 2/3
+staffcount,off-and-covered,S;SA;S,Joe D,3,,,3|1|1|ok
+staffcount,not-on-shift-ignored,S;-;-,,1,,,1|0|0|ok
+staffcount,empty-token-not-on-shift,S;;S,,3,,,2|0|0|SHORT 2/3
+staffcount,switch-giver-off-ss-line-covers,S;SW,Bob K,2,,,2|1|1|ok
+staffcount,ncn-posted-notakers-add-nobody,SA;S,ncn;Posted P-0012;NO TAKERS,2,,,2|1|0|SHORT 1/2
+staffcount,multi-name-line-counts-each,S;S,Ann B / Cal D;Eve F,2,,,2|0|3|ok
+staffcount,two-half-partials-one-person,SA;S,Joe D 6h / Sam K 6h,2,,,2|1|1|ok
+staffcount,partial-rounds-up,SA;S,Joe D 4h,2,,,2|1|1|ok
+staffcount,partial-plus-whole,SA;SA;S,Joe D 9h / Sam K,3,,,3|2|2|ok
+staffcount,twelve-h-is-whole,S,Ann B 12h,2,,,1|0|1|ok
+staffcount,dst-thirteen-h-is-whole,S,Ann B 13h,3,,,1|0|1|SHORT 2/3
+staffcount,uppercase-h-partial,S,Joe D 6H,2,,,1|0|1|ok
+staffcount,name-ending-in-h,S,Joe Smith,2,,,1|0|1|ok
+staffcount,hours-without-a-name-whole,S,6h,2,,,1|0|1|ok
+staffcount,zero-hours-part-whole,S,Joe D 0h,2,,,1|0|1|ok
+staffcount,edge-two-partial-lines-round-each,SA;S,Joe D 6h;Sam K 6h,2,,,2|1|2|ok
+staffcount,edge-empty-part-counts-one,S,Ann B /  / Cal D,5,,,1|0|3|SHORT 4/5
+staffcount,nobody-holds-a-code,,,1,,,0|0|0|SHORT 0/1

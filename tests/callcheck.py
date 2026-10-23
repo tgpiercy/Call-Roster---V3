@@ -40,6 +40,14 @@ Checks, per project (master = modules/ + paste-in/, members = member/):
             v27.5 refactor splits)                                    (v27)
   DEADPUB   a Public procedure with parameters that nothing in the project
             names (an Alt+F8 macro has none, so it is never flagged)  (v27)
+  DUPPUBLIC the same Public name (procedure, variable, Const, Type, Enum,
+            Declare) in two standard modules of one project ("Ambiguous name
+            detected" wherever it is called unqualified)              (v27.1)
+  QUALREF   Module.Name in code where that standard module has no Name, or
+            holds it Private ("Method or data member not found"): a call
+            left pointing at the module a procedure moved out of      (v27.1)
+            (MACROSTR, v27.1: also a "modX.Name" string whose module does
+            not exist)
 
 It is a text scan, not a compiler. Anything it can't parse with confidence
 it skips, so a clean run is good evidence, not proof.
@@ -514,8 +522,12 @@ def check_project(files: list[Path], label: str) -> int:
     for m in mods:
         for mm in re.finditer(r'"([A-Za-z_]\w*)\.([A-Za-z_]\w*)"', texts[m.name.lower()]):
             mod_l, proc_l = mm.group(1).lower(), mm.group(2).lower()
-            if mod_l not in std_mods or proc_l in ("bas", "txt", "cls", "frm", "xlsm", "xlsx"):
-                continue                               # "Scripting.Dictionary", "WScript.Shell", a form's handler label, a file name
+            if proc_l in ("bas", "txt", "cls", "frm", "xlsm", "xlsx"):
+                continue                               # a file name
+            if mod_l not in std_mods:
+                if re.match(r"^mod[a-z]", mod_l) and mod_l not in modnames:       # v27.1: a module that isn't there
+                    say("MACROSTR", m, mm.group(0), f"there is no module {mm.group(1)} in this project")
+                continue                               # "Scripting.Dictionary", "WScript.Shell", a form's handler label
             tgt = by_mod[mod_l].get(proc_l)
             if tgt is None:
                 say("MACROSTR", m, mm.group(0), f"{mm.group(1)} has no procedure {mm.group(2)}")
@@ -554,6 +566,33 @@ def check_project(files: list[Path], label: str) -> int:
                     break
             if not used:
                 say("DEADPUB", m, p.name, "a Public procedure nothing calls: Private, or delete it")
+    # ---- DUPPUBLIC (v27.1): one Public name in two standard modules ----
+    owners: dict[str, list[str]] = {}
+    for m in mods:
+        if m.is_class or m.path.suffix.lower() != ".bas":
+            continue
+        for nm_ in m.public_names:
+            owners.setdefault(nm_, []).append(m.name)
+    for nm_, where in sorted(owners.items()):
+        if len(where) > 1:
+            first = next(x for x in mods if x.name == where[0])
+            say("DUPPUBLIC", first, nm_, f"Public in {len(where)} modules ({', '.join(sorted(where))}): Ambiguous name")
+    # ---- QUALREF (v27.1): Module.Name in code must name a member that module has and shows ----
+    std_by = {x.name.lower(): x for x in mods if not x.is_class and x.path.suffix.lower() == ".bas"}
+    for m in mods:
+        for p in by_mod[m.name.lower()].values():
+            stmts, _ = proc_statements(m, p)
+            for st in stmts:
+                code = re.sub(r'"(?:[^"]|"")*"', '""', st)
+                for mm in re.finditer(r"(?<![\w.!])([A-Za-z_]\w*)\.([A-Za-z_]\w*)", code):
+                    tgt = std_by.get(mm.group(1).lower())
+                    if tgt is None or mm.group(1).lower() == mm.group(2).lower():
+                        continue
+                    mem = mm.group(2).lower()
+                    if mem not in tgt.module_names:
+                        say("QUALREF", m, p.name, f"{mm.group(0)}: {tgt.name} has no {mm.group(2)} (moved?)")
+                    elif mem not in tgt.public_names and tgt is not m:
+                        say("QUALREF", m, p.name, f"{mm.group(0)}: {mm.group(2)} is Private to {tgt.name}")
     # ---- RESTORE verdicts: a restore in a procedure this one calls (any depth) counts ----
     def restores(key, what, seen):
         if key in seen:

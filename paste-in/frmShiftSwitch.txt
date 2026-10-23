@@ -199,7 +199,7 @@ Private Function PickedDate(ByRef d As Date) As Boolean
     PickedDate = FormPickedDate(mDate, d)           ' v27.1: modUI (= ParseShiftDate(mDate.Text, d), the same parser)
 End Function
 
-' v25: the one parser (modPeople.ParseTypedDate); this wrapper keeps the form's call sites
+' v25: the one parser (modDates.ParseTypedDate); this wrapper keeps the form's call sites
 Private Function ParseShiftDate(ByVal t As String, ByRef d As Date) As Boolean
     ParseShiftDate = ParseTypedDate(t, d)
 End Function

@@ -7,7 +7,7 @@ Option Explicit
 '  Setup "holidays" lists the Holidays table (the weekday a weekend
 '  holiday is observed on, one box); Setup "minstaff" lists the Min Staff
 '  table (Minimum and Note, two boxes). Pick a row, change it, Save; the
-'  writes go through modHolidays.SetObservedOn / modCalendar.SetMinStaff.
+'  writes go through modHolidays.SetObservedOn / modMinStaff.SetMinStaff.
 '  Close saves the file once and shows one receipt for every change.
 '  Every control is built in code below (new form: Insert > UserForm,
 '  name it frmTableEdit, paste this).

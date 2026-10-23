@@ -19,8 +19,8 @@ Option Explicit
 '
 ' Two boxes ask to print (the call-out roster, the Board): answer No. The Board also saves its
 ' PDF beside the calendars, as it always does.
-' Text that carries a clock - "Drawn ...", "printed ...", "updated ...", "N days old / ago" -
-' has its digits masked before hashing; on the Desk every digit is masked (its counts move with
+' Text that carries a clock - "Drawn ...", "printed ...", "updated ...", "N days old / ago" - and a
+' release stamp ("Calendar v27 (Oct 22)") has its digits masked before hashing; on the Desk every digit is masked (its counts move with
 ' each open: "since you were last here"). A macro's module name is dropped before hashing (it is
 ' MEANT to change: modCalendar.BoardPrint -> modBoard.BoardPrint; callcheck's MACROSTR proves the
 ' new name resolves). It calls only Public procedures that keep their names through the split, so
@@ -152,7 +152,7 @@ End Sub
 Private Function CellText(ByVal cl As Range, ByVal maskAll As Boolean) As String
     Dim s As String, t As String, e As Variant
     On Error Resume Next                           ' never raises: a property a cell can't give is read as blank, the same on both runs
-    t = CStr(cl.Value2)
+    t = MaskStamp(CStr(cl.Value2))
     If maskAll Or IsClockText(t) Then t = MaskDigits(t)
     s = t & "~" & cl.Interior.Color & "~" & cl.Interior.Pattern & "~" & cl.Font.Color & "~" & cl.Font.Bold & "~" & cl.Font.Italic & _
         "~" & cl.Font.Size & "~" & cl.Font.Name & "~" & cl.NumberFormat & "~" & cl.HorizontalAlignment & "~" & cl.VerticalAlignment & _
@@ -175,7 +175,7 @@ Private Function ShapeText(ByVal shp As Shape, ByVal maskAll As Boolean) As Stri
     If fv Then s = s & ";fill=" & shp.Fill.ForeColor.RGB
     s = s & ";line=" & shp.Line.Visible & "/" & shp.Line.ForeColor.RGB
     t = ""
-    t = shp.TextFrame2.TextRange.Text
+    t = MaskStamp(shp.TextFrame2.TextRange.Text)
     If maskAll Or IsClockText(t) Then t = MaskDigits(t)
     s = s & ";text=" & t
     s = s & ";font=" & shp.TextFrame2.TextRange.Font.Size & "/" & shp.TextFrame2.TextRange.Font.Fill.ForeColor.RGB & "/" & shp.TextFrame2.TextRange.Font.Bold
@@ -191,6 +191,14 @@ Private Function IsClockText(ByVal t As String) As Boolean
     Dim l As String: l = LCase$(t)
     IsClockText = (InStr(l, "drawn") > 0 Or InStr(l, "printed") > 0 Or InStr(l, "updated") > 0 Or _
                    InStr(l, " days old") > 0 Or InStr(l, " days ago") > 0 Or InStr(l, " day ago") > 0)
+End Function
+
+' A release stamp drawn on a sheet ("Calendar v27 (Oct 22)" in the Calendar's row 3, "Desk v27.1 (Oct 22)" in the
+' Desk's I1) changes with every release by design: "<release> (Mon d)" reads "vX (date)" on both runs (review V5)
+Private Function MaskStamp(ByVal t As String) As String
+    Dim p As Long: p = InStr(t, " " & EXPECTED_RELEASE & " (")
+    If p > 0 Then t = MaskDigits(Replace(t, " " & EXPECTED_RELEASE & " (", " vX ("))
+    MaskStamp = t
 End Function
 
 Private Function MaskDigits(ByVal t As String) As String

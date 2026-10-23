@@ -12,7 +12,7 @@ Public Const BOARD_VERSION As String = "Board v27.1 (Oct 22)"
 ' red). Drawn from SlotsFor over the caches on the output-only Board sheet,
 ' saved as a PDF beside the month calendars, then "print as well?".
 ' Supervisors and admins. Reads only; writes the Board sheet. (BOARD_SHEET / BOARD_DAYS
-' are declared at the module head: a Const after a procedure does not compile.)
+' are Public Consts at the head of modCalendar; v27.1: this section moved here unchanged.)
 Public Sub BoardPrint()
     On Error GoTo Oops
     If Not IsSupervisor() Then

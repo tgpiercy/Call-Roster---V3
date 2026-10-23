@@ -13,6 +13,10 @@ Option Explicit
 '     signed up, then SUBMIT AWARD / NO TAKERS / CANCEL REQUEST
 '     (charging rules are with ComputeAward below).
 '  4. An Outlook email opens to the awarded operator(s), cc supervisors.
+'
+'  v27.1 (the refactor, moved unchanged): the printed posting sheet is in modPostingSheet, a person joining or
+'  leaving an open posting's list (and the posting records, reopen) in modPostingSync, the award email in
+'  modPostingMail. The settings, the Types and the column constants stay here.
 ' ====================================================================
 
 ' ---------------- configuration ----------------

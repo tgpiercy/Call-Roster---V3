@@ -41,6 +41,12 @@ Option Explicit
 '  tblPlannedMoves; lists for shifts on or after the date already treat
 '  the person as moved (UnitCodeOn, called by LoadEligible); the first
 '  admin open on or after the date applies it through SaveUnitMove.
+'
+'  v27.1 (the refactor, moved unchanged): the typed-date parser is in modDates, the Former sheet with
+'  RemoveEmployee / BringBack in modFormer, the planned unit moves (PlannedCodeCore, PlannedListHours,
+'  SavePlannedMove, ApplyDuePlannedMoves ...) in modPlannedMoves. This module keeps the crew history, the
+'  pop-up's other jobs, the shared write-session pieces (QuietOn / QuietOff / AfterPeopleChange / mBusy) and the
+'  data check.
 ' ====================================================================
 
 Public Const PPL_VERSION As String = "People v27.1 (Oct 22)"

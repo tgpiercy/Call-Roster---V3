@@ -493,7 +493,7 @@ End Sub
 
 ' v24: someone moved to the Former sheet during the closing year has no roster
 ' row at the rollover. Their final figures were kept when they were removed
-' (modPeople.RemoveEmployee) and go on the Year End sheet with everyone else's.
+' (modFormer.RemoveEmployee) and go on the Year End sheet with everyone else's.
 Private Sub AppendYearEndFormer(ByVal y As Long)
     Dim fin() As Variant, n As Long, k As Long
     n = FormerFinals(y, fin)

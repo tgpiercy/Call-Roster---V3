@@ -15,6 +15,11 @@ Option Explicit
 '            yellow = days, blue = nights, Print / PDF. Never typed into.
 '
 '  Privacy: STD, parental and LOA always show as "Leave" on the calendar.
+'
+'  v27.1 (the refactor, moved unchanged): the two-week board is in modBoard, minimum staffing in modMinStaff,
+'  the old-calendar import in modCalImport, the Needs Attention tab in modNeeds, the line menus in
+'  modCalMenus. This module keeps the tables, who works when, the slots, the writes, the calendar sheet and its
+'  drawing (DrawCalendar and its steps), the line details, change tracking, the theme and the event routing.
 ' ====================================================================
 
 Public Const AB_SHEET As String = "Absences"

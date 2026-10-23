@@ -986,7 +986,7 @@ Public Sub FormFillCombo(ByVal cb As Object, ByVal items As Variant)
     Next i
 End Sub
 
-' the date typed in a form's date box, through the one parser (modPeople.ParseTypedDate)
+' the date typed in a form's date box, through the one parser (modDates.ParseTypedDate)
 Public Function FormPickedDate(ByVal tb As Object, ByRef d As Date) As Boolean
     FormPickedDate = ParseTypedDate(tb.Text, d)
 End Function

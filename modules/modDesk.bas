@@ -52,6 +52,7 @@ Private Const GAP As Double = 8
 Private Const COLGAP As Double = 12                 ' v27: between the three band columns
 Private Const PILL_H As Double = 20                 ' v27: the header's three pills
 Private mGuideCounted As Boolean                 ' v27 (item 27): the first days strip counted this session
+Private mPreview As Boolean                      ' v27.1: an admin is looking at the supervisor Desk (DeskPreview; this session only - gone on reopen)
 
 ' ---- colours (the mock-up's) ----
 Private Function dkNavy() As Long
@@ -170,10 +171,12 @@ Public Sub DrawDesk()
     Else
         kTxt = "Kronos data through " & Format$(dt, "ddd mmm d")
     End If
+    ' v27.1: the admin layout unless an admin is previewing the supervisor Desk (DeskPreview) - the three choices below read it
+    Dim asAdmin As Boolean: asAdmin = gAdminUnlocked And Not mPreview
     ' the remedy belongs to whoever may run it: an admin imports, a supervisor asks (B5)
-    If kOld Then kTxt = kTxt & IIf(gAdminUnlocked, " - import it", " - ask " & PRIMARY_ADMIN_NAME & " to import it")
+    If kOld Then kTxt = kTxt & IIf(asAdmin, " - import it", " - ask " & PRIMARY_ADMIN_NAME & " to import it")
     Dim kMac As String                             ' v27 (item 2): a report in KRONOS_PATH the roster has not read = one click imports it (admin)
-    If gAdminUnlocked Then
+    If asAdmin Then
         Dim nNewK As Long: nNewK = KronosNewFileCount()
         If nNewK > 0 Then
             kTxt = nNewK & " new Kronos report" & IIf(nNewK = 1, "", "s") & " - click to import"
@@ -204,9 +207,11 @@ Public Sub DrawDesk()
     xx = DeskPill(ws, "dk_pill_today", Format$(Date, "ddd mmm d") & " - " & DaysCrew(Date) & " on days, " & NightsCrew(Date) & " on nights", xx, yy, False)
     xx = DeskPill(ws, "dk_pill_period", "Pay period " & Format$(ps, "mmm d") & " - " & Format$(ps + 13, "mmm d"), xx, yy, False)
     xx = DeskPill(ws, "dk_pill_kronos", kTxt, xx, yy, kOld, kMac)
+    ' v27.1: the preview says so, after the other pills (nothing else moves)
+    If mPreview And gAdminUnlocked Then xx = DeskPill(ws, "dk_pill_preview", "PREVIEW: a supervisor's Desk", xx, yy, True, "modDesk.DeskPreview")
 
     ' ---- the layout: the admin Desk (every job) or the supervisor Desk (a supervisor's jobs) ----
-    Dim sup As Boolean: sup = Not gAdminUnlocked
+    Dim sup As Boolean: sup = Not asAdmin
 
     ' ---- TODAY: the tiles, each the count, the next thing, the verb. v27 (item 2): an admin's sit in rows of three
     '      under the three band columns (cover, award, owed / members' file, this morning); a supervisor's in one row ----
@@ -342,6 +347,12 @@ Public Sub DrawDesk()
     yy = yy + BTN_H + 10
     DeskLink ws, "dk_lnk_roster", "Full roster  >", "modDesk.DeskRoster", x0, yy, 140
     If Not sup Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", x0 + 150, yy, 260
+    ' v27.1: an admin can look at the supervisor Desk and come back (the same macro both ways)
+    If asAdmin Then
+        DeskLink ws, "dk_lnk_preview", "See the supervisor Desk  >", "modDesk.DeskPreview", x0 + 420, yy, 200
+    ElseIf mPreview And gAdminUnlocked Then
+        DeskLink ws, "dk_lnk_preview", "<  Back to my Desk", "modDesk.DeskPreview", x0 + 150, yy, 200
+    End If
     yy = yy + 26
     DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yy
     ws.Shapes("dk_lbl_keys").Width = 440
@@ -662,6 +673,26 @@ Public Sub DeskShowAll()
     Exit Sub
 Oops:
     ReportError "DeskShowAll"
+End Sub
+
+' v27.1 (Graeme, Oct 22): an admin sees the Desk a supervisor on SUPERVISOR_USERS lands on, and comes back with the same
+' link. This session only (a module flag: gone when the file reopens). The buttons work as normal - they are the
+' supervisor's jobs, which an admin may do anyway; the red PREVIEW pill says which Desk it is. Nothing a supervisor sees
+' changes. Turning it ON needs an admin; turning it off never asks.
+Public Sub DeskPreview()
+    On Error GoTo Oops
+    If Not mPreview Then
+        If Not RequireAdmin() Then Exit Sub
+        If Not gAdminUnlocked Then
+            MsgBox "The preview is for the admin Desk: open the Desk in the admin view first.", vbInformation, "Desk"
+            Exit Sub
+        End If
+    End If
+    mPreview = Not mPreview
+    DrawDesk
+    Exit Sub
+Oops:
+    ReportError "DeskPreview"
 End Sub
 
 ' Called from ThisWorkbook's SheetActivate: the Desk is refreshed every time anyone looks at it (its figures

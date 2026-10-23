@@ -155,7 +155,7 @@ End Function
 ' One sweep's caches (the start of DrawCalendar / DrawNeeds): the minimums, the names per unit, and the
 ' "busy" names - anyone with an absence row on file or on a switch dated near the window. The off / switch
 ' lookups scan whole tables per name, so they run only for those (review: the sweep's cost).
-Private Sub StaffSweepBegin(ByVal d0 As Date)
+Public Sub StaffSweepBegin(ByVal d0 As Date)
     Set mStaffMin = MinStaffMap()
     Set mStaffNames = CreateObject("Scripting.Dictionary")
     mStaffNames.CompareMode = 1
@@ -178,7 +178,7 @@ Private Sub StaffSweepBegin(ByVal d0 As Date)
     Next kk
 End Sub
 
-Private Function MinStaffCount() As Long
+Public Function MinStaffCount() As Long
     If mStaffMin Is Nothing Then Exit Function
     MinStaffCount = mStaffMin.Count
 End Function
@@ -310,7 +310,7 @@ End Function
 
 ' Every short unit / shift from d0 for nDays inside a group, for Needs Attention: a 2-D array
 ' (1..n, 1..5) = unit, date serial, shift, "staffed 1 of 2 (3 on, 2 off, 0 covered)", "SHORT 1/2"; Empty = none
-Private Function StaffShortList(ByVal d0 As Date, ByVal nDays As Long, ByVal groupName As String) As Variant
+Public Function StaffShortList(ByVal d0 As Date, ByVal nDays As Long, ByVal groupName As String) As Variant
     If mStaffMin Is Nothing Then StaffSweepBegin d0
     If mStaffMin.Count = 0 Then Exit Function
     Dim mine As Boolean

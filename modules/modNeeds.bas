@@ -811,8 +811,8 @@ Private Sub BuildNAControls(ByVal ws As Worksheet, ByVal grp As String, ByVal nD
     Next i
     CalDrop ws, "na_unit", ws.Range("F1")
     CalDrop ws, "na_range", ws.Range("G1")
-    CalBtn ws, "na_refresh", "Refresh", "modCalendar.NARefresh", ws.Range("H1"), thNav()
-    CalBtn ws, "na_cal", "Calendar", "modCalendar.NAGoCalendar", ws.Range("I1"), thGreen()
+    CalBtn ws, "na_refresh", "Refresh", "modNeeds.NARefresh", ws.Range("H1"), thNav()
+    CalBtn ws, "na_cal", "Calendar", "modNeeds.NAGoCalendar", ws.Range("I1"), thGreen()
 
     Dim dd As Object, g As Variant, idx As Long, rg As Variant
     Set dd = Nothing
@@ -825,7 +825,7 @@ Private Sub BuildNAControls(ByVal ws As Worksheet, ByVal grp As String, ByVal nD
         Next i
         If idx = 0 Then idx = UBound(g) + 1
         dd.ListIndex = idx
-        dd.OnAction = "modCalendar.NAUnitChanged"
+        dd.OnAction = "modNeeds.NAUnitChanged"
     End If
     Set dd = Nothing
     Set dd = ws.DropDowns("na_range")
@@ -837,7 +837,7 @@ Private Sub BuildNAControls(ByVal ws As Worksheet, ByVal grp As String, ByVal nD
             If rg(i) = nDays Then idx = i + 1
         Next i
         dd.ListIndex = idx
-        dd.OnAction = "modCalendar.NARangeChanged"
+        dd.OnAction = "modNeeds.NARangeChanged"
     End If
 End Sub
 

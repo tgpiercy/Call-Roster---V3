@@ -35,17 +35,11 @@ Private Const LIST_W As Long = 540
 
 Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
                         ByVal W As Single, ByVal H As Single) As Object
-    Dim o As Object
-    Set o = Me.Controls.Add(progId, "te_" & nm, True)
-    o.Left = L: o.Top = T: o.Width = W: o.Height = H
-    Set AddCtl = o
+    Set AddCtl = FormAddCtl(Me, progId, "te_" & nm, L, T, W, H)          ' v27.1: the shared builder (modUI)
 End Function
 
 Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single) As Object
-    Dim o As Object
-    Set o = AddCtl("Forms.Label.1", nm, L, T, W, 16)
-    o.Caption = cap
-    Set AddLabel = o
+    Set AddLabel = FormAddLabel(Me, "te_" & nm, cap, L, T, W, 16)        ' this form's labels are 16 high (modUI)
 End Function
 
 Private Sub UserForm_Initialize()

@@ -527,7 +527,7 @@ End Function
 ' syncPostings (v24.3.1): take them off the new unit's open posting lists and put
 ' them back on the old unit's lists made while the move was waiting. False when
 ' the person is being removed from the roster (the "left" marks cover that).
-Private Function CancelPlannedCore(ByVal id As String, ByVal reason As String, ByRef didTxt As String, _
+Public Function CancelPlannedCore(ByVal id As String, ByVal reason As String, ByRef didTxt As String, _
                                    Optional ByVal syncPostings As Boolean = True) As Boolean
     Dim v As Variant, i As Long
     i = PlannedRowById(id, v)

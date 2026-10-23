@@ -103,7 +103,7 @@ Private mHist As Variant            ' the table's rows (Empty = no rows)
 Private mIdx As Object              ' employee -> Collection of row numbers in mHist
 Private mHistLoaded As Boolean
 Private mTestMode As Boolean        ' SelfTest feeds mHist from memory
-Private mBusy As Boolean            ' our own writes to the roster fire change events
+Public mBusy As Boolean            ' our own writes to the roster fire change events
 
 
 ' ====================================================================
@@ -899,7 +899,7 @@ Private Function TableOn(ByVal sheetName As String, ByVal tableName As String) A
     On Error GoTo 0
 End Function
 
-Private Function BodyOf(ByVal lo As ListObject) As Variant
+Public Function BodyOf(ByVal lo As ListObject) As Variant
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function
     If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Function
@@ -908,7 +908,7 @@ End Function
 
 ' Application state for the people macros: captured before the error handler
 ' is set, restored on every exit path
-Private Sub QuietOn(ByRef evWas As Boolean, ByRef scrWas As Boolean, ByRef calcWas As Long)
+Public Sub QuietOn(ByRef evWas As Boolean, ByRef scrWas As Boolean, ByRef calcWas As Long)
     evWas = Application.EnableEvents
     scrWas = Application.ScreenUpdating
     calcWas = Application.Calculation
@@ -917,7 +917,7 @@ Private Sub QuietOn(ByRef evWas As Boolean, ByRef scrWas As Boolean, ByRef calcW
     Application.EnableCancelKey = xlErrorHandler    ' restored by QuietOff
 End Sub
 
-Private Sub QuietOff(ByVal evWas As Boolean, ByVal scrWas As Boolean, ByVal calcWas As Long)
+Public Sub QuietOff(ByVal evWas As Boolean, ByVal scrWas As Boolean, ByVal calcWas As Long)
     On Error Resume Next                            ' never raises
     Application.EnableCancelKey = xlInterrupt
     Application.Calculation = calcWas
@@ -926,7 +926,7 @@ Private Sub QuietOff(ByVal evWas As Boolean, ByVal scrWas As Boolean, ByVal calc
     mBusy = False
 End Sub
 
-Private Sub AfterPeopleChange()
+Public Sub AfterPeopleChange()
     On Error Resume Next                            ' never raises
     ResetCrewCache
     ResetPlanCache                          ' v24.3
@@ -945,7 +945,7 @@ End Sub
 ' row above, the values, and the same formulas every other row has. Events
 ' must be off and the caller handles errors. codes(0..7) = the unit codes in
 ' roster column order (L:S). Returns the row number.
-Private Function AddRosterRow(ByVal ws As Worksheet, ByVal nm As String, ByVal crewTxt As String, ByVal homeUnit As String, _
+Public Function AddRosterRow(ByVal ws As Worksheet, ByVal nm As String, ByVal crewTxt As String, ByVal homeUnit As String, _
                               ByVal seniority As Variant, ByRef codes() As String, ByVal phone As String, _
                               ByVal email As String, Optional ByVal payrollNo As String = "") As Long
     ' payrollNo (v24.2): Bring back passes the number kept on the Former sheet; a new hire's is filled by the next Kronos import

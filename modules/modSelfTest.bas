@@ -232,7 +232,7 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop", "kledger", "kedit", "kday", "kname"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines)
+        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines)
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -394,7 +394,7 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             If i3 <> "" Then
                 klP = Split(i3, ";")
                 For klK = 0 To UBound(klP)
-                    klSer = klSer & IIf(klSer = "", "", ";") & CStr(CLng(ParseD(CStr(klP(klK)))))
+                    If klP(klK) <> "" Then klSer = klSer & IIf(klSer = "", "", ";") & CStr(CLng(ParseD(CStr(klP(klK)))))
                 Next klK
             End If
             klEnd = LedgerRunCore(klCum, ParseD(i2), klSer)
@@ -404,7 +404,9 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
                     klP = Split(i5, ";")
                     For klK = 0 To UBound(klP)
                         klC = InStr(klP(klK), ":")
-                        If LedgerDayIn(ParseD(Left$(klP(klK), klC - 1)), klCum, klEnd) Then klDays = klDays & IIf(klDays = "", "", ";") & Mid$(klP(klK), klC + 1)
+                        If klC > 0 Then
+                            If LedgerDayIn(ParseD(Left$(klP(klK), klC - 1)), klCum, klEnd) Then klDays = klDays & IIf(klDays = "", "", ";") & Mid$(klP(klK), klC + 1)
+                        End If
                     Next klK
                 End If
             End If
@@ -432,6 +434,14 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             RunCaseV271 = IIf(LedgerDayDrop(kdRow, ParseD(i2), i3, (i4 = "Y")), "drop", "keep")
         Case "kname"                               ' v27.1: roster name by Payroll #, by name -> clash / number / name / none
             RunCaseV271 = RosterNameCore(i1, i2)
+        Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
+            Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String
+            If i1 <> "" Then scP = Split(i1, ";")
+            If i2 <> "" Then scT = Split(i2, ";")
+            StaffCountsCore scP, scT, scS, scO, scC
+            scX = StaffShort(scS, scO, scC, CLng(Val(i3)))
+            If scX = "" Then scX = "ok"
+            RunCaseV271 = scS & "|" & scO & "|" & scC & "|" & scX
     End Select
 End Function
 
@@ -2036,5 +2046,25 @@ Private Sub LoadCases5()
     AddCase "kname,both-agree-any-case,Ann Lee,ann lee,,,,number"
     AddCase "kname,clash,Ann Lee,Bob Ray,,,,clash"
     AddCase "kname,neither,,,,,,none"
+    AddCase "staffcount,all-on-none-off,S;S;S,,2,,,3|0|0|ok"
+    AddCase "staffcount,one-booked-off,S;SA;S,,3,,,3|1|0|SHORT 2/3"
+    AddCase "staffcount,off-and-covered,S;SA;S,Joe D,3,,,3|1|1|ok"
+    AddCase "staffcount,not-on-shift-ignored,S;-;-,,1,,,1|0|0|ok"
+    AddCase "staffcount,empty-token-not-on-shift,S;;S,,3,,,2|0|0|SHORT 2/3"
+    AddCase "staffcount,switch-giver-off-ss-line-covers,S;SW,Bob K,2,,,2|1|1|ok"
+    AddCase "staffcount,ncn-posted-notakers-add-nobody,SA;S,ncn;Posted P-0012;NO TAKERS,2,,,2|1|0|SHORT 1/2"
+    AddCase "staffcount,multi-name-line-counts-each,S;S,Ann B / Cal D;Eve F,2,,,2|0|3|ok"
+    AddCase "staffcount,two-half-partials-one-person,SA;S,Joe D 6h / Sam K 6h,2,,,2|1|1|ok"
+    AddCase "staffcount,partial-rounds-up,SA;S,Joe D 4h,2,,,2|1|1|ok"
+    AddCase "staffcount,partial-plus-whole,SA;SA;S,Joe D 9h / Sam K,3,,,3|2|2|ok"
+    AddCase "staffcount,twelve-h-is-whole,S,Ann B 12h,2,,,1|0|1|ok"
+    AddCase "staffcount,dst-thirteen-h-is-whole,S,Ann B 13h,3,,,1|0|1|SHORT 2/3"
+    AddCase "staffcount,uppercase-h-partial,S,Joe D 6H,2,,,1|0|1|ok"
+    AddCase "staffcount,name-ending-in-h,S,Joe Smith,2,,,1|0|1|ok"
+    AddCase "staffcount,hours-without-a-name-whole,S,6h,2,,,1|0|1|ok"
+    AddCase "staffcount,zero-hours-part-whole,S,Joe D 0h,2,,,1|0|1|ok"
+    AddCase "staffcount,edge-two-partial-lines-round-each,SA;S,Joe D 6h;Sam K 6h,2,,,2|1|2|ok"
+    AddCase "staffcount,edge-empty-part-counts-one,S,Ann B /  / Cal D,5,,,1|0|3|SHORT 4/5"
+    AddCase "staffcount,nobody-holds-a-code,,,1,,,0|0|0|SHORT 0/1"
 ' <<< CASES
 End Sub

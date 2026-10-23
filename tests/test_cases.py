@@ -345,6 +345,11 @@ def evaluate(row: dict) -> str:
         return "drop" if rules.ledger_day_drop(date_value(i1), d(i2), i3, i4 == "Y") else "keep"
     if suite == "kname":                         # v27.1: roster name by Payroll #, by name -> clash / number / name / none
         return rules.roster_name(i1, i2)
+    if suite == "staffcount":                    # v27.1: people tokens ;, Covered-by texts ;, minimum -> scheduled|off|covered|ok / SHORT
+        people = i1.split(";") if i1 != "" else []
+        texts = i2.split(";") if i2 != "" else []
+        s, o, c = rules.staff_counts_core(people, texts)
+        return f"{s}|{o}|{c}|{rules.staff_short(s, o, c, int(i3 or 0)) or 'ok'}"
     if suite == "switchstop":                    # v27.1: 'mmm d|shift', none / same|sh2 / 'mmm d|sh2', the facts -> the stops or none
         dtx, _, sh = (i1 + "|").partition("|")
         sh = sh.rstrip("|")

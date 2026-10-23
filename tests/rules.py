@@ -2050,3 +2050,60 @@ def roster_name(by_num: str, by_name: str) -> str:
     if by_name != "":
         return "name"
     return "none"
+
+
+# ---- v27.1: the staffing counts as a pure core (modMinStaff.StaffCountsCore; suite staffcount) ----
+_NUMERIC = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eEdD][+-]?\d+)?$")
+_VAL = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?")
+
+
+def vb_trim(s: str) -> str:
+    """Trim$: spaces only."""
+    return s.strip(" ")
+
+
+def vb_isnumeric(s: str) -> bool:
+    """IsNumeric for the text CoveredCount gives it: a run with no spaces between the last space and the final h.
+    Plain decimal numbers only (hex, currency and thousands forms are out of scope; the cases avoid them)."""
+    return bool(_NUMERIC.match(s))
+
+
+def vb_val(s: str) -> float:
+    """Val on a text with no spaces: the leading number, 0 when none."""
+    m = _VAL.match(s)
+    return float(m.group(0)) if m else 0.0
+
+
+def covered_count(rt: str) -> int:
+    """modMinStaff.CoveredCount: one person per " / " part; a part ending in "Nh" with 0 < N < 12 counts N / 12 of a
+    person; the sum rounded up, at least 1."""
+    total = 0.0
+    for raw in rt.split(" / "):
+        part = vb_trim(raw)
+        hrs = 0.0
+        if part[-1:].lower() == "h":
+            p = part.rfind(" ") + 1                         # InStrRev, 1-based (0 = no space)
+            if p > 0 and vb_isnumeric(part[p:len(part) - 1]):   # Mid$(part, p + 1, Len(part) - p - 1)
+                hrs = vb_val(part[p:])                          # Val(Mid$(part, p + 1))
+        if 0 < hrs < USUAL_SHIFT_HOURS:
+            total += hrs / USUAL_SHIFT_HOURS
+        else:
+            total += 1
+    return max(1, math.ceil(total))                         # CLng(-Int(-total)), at least 1
+
+
+def staff_counts_core(people: list[str], right_texts: list[str]) -> tuple[int, int, int]:
+    """modMinStaff.StaffCountsCore."""
+    scheduled = off = covered = 0
+    for tok in people:
+        if "S" in tok:
+            scheduled += 1
+            if "A" in tok or "W" in tok:
+                off += 1
+    for raw in right_texts:
+        rt = vb_trim(raw)
+        if rt != "":
+            up = rt.upper()
+            if not (up.startswith("NO TAKERS") or up.startswith("POSTED") or up == "NCN"):
+                covered += covered_count(rt)
+    return scheduled, off, covered

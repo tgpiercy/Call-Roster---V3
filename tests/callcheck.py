@@ -67,7 +67,7 @@ INTRINSIC = {"long", "integer", "string", "double", "single", "boolean", "date",
 ASSIGN = r"(?:^\s*|\bThen\s+|\bElse\s+)(?:Set\s+)?{name}\s*=(?!=)"
 PROC_MAX_LINES = 300
 EXTERNAL_ENTRY = {"modsmoke"}     # v27: the Install panel (Roster Updater.xlsm, another project) runs these through Application.Run
-KNOWN_LONG = {"drawcalendar", "drawneeds"}      # v27 (item 30): the refactor splits these (v27.1: SyncKronosData done, 286 lines)
+KNOWN_LONG: set[str] = set()      # v27.1: empty - SyncKronosData, DrawCalendar and DrawNeeds are in named steps; every procedure is held to 300 lines
 
 
 def swallowers(mod: Module) -> list[str]:

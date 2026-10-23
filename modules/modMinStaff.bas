@@ -212,7 +212,9 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
     scheduled = 0: off = 0: covered = 0
     Dim names As Variant: names = StaffNames(unit, d)
     Dim i As Long, nm As String, onShift As Boolean, fb As String, busy As Boolean
+    Dim people As Variant, tokens() As String           ' v27.1: one token per name for StaffCountsCore
     If IsArray(names) Then
+        ReDim tokens(LBound(names) To UBound(names))
         For i = LBound(names) To UBound(names)
             nm = CStr(names(i))
             fb = ""                                         ' the roster crew as the fallback (no cell scan in CrewOn)
@@ -222,27 +224,58 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
             ' (review) the one WORKING a switch is not added here: every switch has its own S/S calendar line, which
             ' counts them below as a covered line; adding them here too counted every switch twice
             If onShift Then
-                scheduled = scheduled + 1
+                tokens(i) = "S"
                 If busy Then
                     If OffForStaffing(nm, d, shiftLbl) Then
-                        off = off + 1
+                        tokens(i) = "SA"
                     ElseIf SwitchOffOn(nm, d, shiftLbl) <> "" Then
-                        off = off + 1
+                        tokens(i) = "SW"
                     End If
                 End If
             End If
         Next i
+        people = tokens
     End If
-    Dim slots() As CalSlot, n As Long, rt As String
+    Dim slots() As CalSlot, n As Long, rts() As String, texts As Variant
     n = SlotsFor(d, shiftLbl, unit, slots, True)
-    For i = 1 To n
-        rt = Trim$(slots(i).RightText)
-        If rt <> "" Then
-            ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each; a
-            ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of a 12 h shift, rounded up
-            If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then covered = covered + CoveredCount(rt)
-        End If
-    Next i
+    If n > 0 Then
+        ReDim rts(1 To n)
+        For i = 1 To n
+            rts(i) = Trim$(slots(i).RightText)
+        Next i
+        texts = rts
+    End If
+    StaffCountsCore people, texts, scheduled, off, covered
+End Sub
+
+' v27.1 (R4): PURE (SelfTest "staffcount") - the counts behind one unit / date / shift from what StaffCounts gathered.
+' people = one token per code-holder: "S" on the shift by rotation, "SA" also booked off or sick for it, "SW" also
+' gave it up in a switch ("" = not on the shift). rightTexts = the Covered-by texts of the unit's lines on that
+' shift. Not an array = none. scheduled = the tokens with S; off = those with A or W, once each; covered = the people
+' each text stands for (CoveredCount), NO TAKERS / POSTED / NCN and a blank text adding nobody.
+Public Sub StaffCountsCore(ByRef people As Variant, ByRef rightTexts As Variant, _
+                           ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long)
+    scheduled = 0: off = 0: covered = 0
+    Dim i As Long, tok As String, rt As String
+    If IsArray(people) Then
+        For i = LBound(people) To UBound(people)
+            tok = CStr(people(i))
+            If InStr(tok, "S") > 0 Then
+                scheduled = scheduled + 1
+                If InStr(tok, "A") > 0 Or InStr(tok, "W") > 0 Then off = off + 1
+            End If
+        Next i
+    End If
+    If IsArray(rightTexts) Then
+        For i = LBound(rightTexts) To UBound(rightTexts)
+            rt = Trim$(CStr(rightTexts(i)))
+            If rt <> "" Then
+                ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each; a
+                ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of a 12 h shift, rounded up
+                If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then covered = covered + CoveredCount(rt)
+            End If
+        Next i
+    End If
 End Sub
 
 ' v26 (re-review): how many people a covered-by text stands for: one per " / " part; a part ending in "Nh"

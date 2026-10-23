@@ -77,8 +77,14 @@ def main() -> int:
         # v27.1: the test-only snapshot module rides along OUTSIDE modules/ (the Install panel reads modules\, paste-in\
         # and member\ only), so a practice copy can take the before / after snapshot; it is never installed
         snap = ROOT / "tests" / "snapshot" / "modSnapshot.bas"
+        extras = []
         if snap.is_file():
-            z.writestr(top + "test-only/modSnapshot.bas", snap.read_bytes())
+            data = snap.read_bytes()
+            if b"\n" in data.replace(b"\r\n", b""):
+                raise SystemExit("tests/snapshot/modSnapshot.bas: not CRLF")
+            data.decode("ascii")
+            z.writestr(top + "test-only/modSnapshot.bas", data)
+            extras.append(("test-only/modSnapshot.bas", data))
         describe = subprocess.run(["git", "describe", "--tags", "--always", "--dirty"], cwd=ROOT,
                                   capture_output=True, text=True, check=True).stdout.strip()
         stamp = f"\n\n---\nBuilt from `{describe}` by tests/build_zip.py.\n"      # v25 (T11): the note names the commit it came from
@@ -90,6 +96,8 @@ def main() -> int:
         for fp in files:
             data = (ROOT / fp).read_bytes()
             manifest.append(f"{fp.replace(chr(92), '/')} | {hashlib.sha256(data).hexdigest()} | {len(data)}")
+        for fp, data in extras:
+            manifest.append(f"{fp} | {hashlib.sha256(data).hexdigest()} | {len(data)}")
         z.writestr(top + "manifest.txt", ("\r\n".join(manifest) + "\r\n").encode("ascii"))
     print(f"{out.relative_to(ROOT)}: {len(files)} code files + INSTALL.md" + (" + install-steps.txt" if steps else ""))
     for p in files:

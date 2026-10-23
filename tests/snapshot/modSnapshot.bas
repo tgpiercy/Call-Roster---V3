@@ -3,7 +3,8 @@ Option Explicit
 ' ====================================================================
 '  TEST-ONLY - THE v27.1 REFACTOR PROOF. NEVER SHIPS. NEVER ON THE REAL ROSTER.
 ' ====================================================================
-' It lives in tests/snapshot/, not modules/: build_zip never packs it and SystemCheck never counts it.
+' It lives in tests/snapshot/, not modules/: build_zip packs it as test-only/ (outside modules\, so the Install panel
+' never installs it) and SystemCheck never counts it.
 '
 ' TakeSnapshot draws the pages a supervisor sees and writes, for each one, a hash of every row
 ' (each cell's value, fill, font colour, bold, italic, size, number format, alignment, wrap,

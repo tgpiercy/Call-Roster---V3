@@ -1,4 +1,24 @@
-# Paste this into a fresh session to carry on (updated Oct 22, 2026: v27 is TAGGED, PUSHED and ZIPPED - dist/Callout_Roster_v27.zip; NOT installed yet; the Kronos section-0 re-import is still OWED)
+# Paste this into a fresh session to carry on (updated Oct 22, 2026, late: **v27.1 the behaviour-free refactor is BUILT and reviewed on main, NOT tagged / zipped / pushed - waiting for Graeme's OK**; see "v27.1" below. The older block under it is the v27 hand-off.)
+
+```
+v27.1 STATE (Oct 22, 2026): read docs/v27.1-report-back.md (the plan, the maps, Graeme's eight decisions), the
+CHANGELOG's v27.1 entry, docs/INSTALL-v27.1.md and briefs/steps-v27.1.txt. All code is on main (local, not pushed):
+11 new modules split out of modCalendar / modPeople / modPostings by tests/splitmodule.py and proved by
+tests/movecheck.py; pure cores SwitchStopsCore, the Kronos ledger cores, StaffCountsCore; SyncKronosData / DrawCalendar
+/ DrawNeeds in steps (callcheck KNOWN_LONG empty); shared form helpers in modUI (10 forms re-pasted); the admin Desk
+preview; stamps v27.1, N_MODULES 41, WHATS_NEW_RELEASE v27 (no box re-shown). 962 cases / 106 suites, pytest 1017,
+SmokeTest 22. Five read-only Opus reviews + a re-review of the release prep (see the CHANGELOG). The builders' branches
+v271/b1-calendar, b1-wave2, b2-people, b3-postings, b4-kronos, b5-forms are merged (their worktrees under
+.claude/worktrees can be cleaned up).
+
+NEXT: Graeme's OK (and his What's New choice) -> `git tag -a v27.1`, `py -3.14 tests/build_zip.py v27.1 v27`, push
+main + v27.1 from his Terminal panel. Then his Phase 5 on a practice copy: modSnapshot (zip's test-only/) imported on
+v27, TakeSnapshot, install v27.1, TakeSnapshot + CompareSnapshots (IDENTICAL but the one dk_lnk_preview line),
+SystemCheck 41 of 41, SelfTest 962, SmokeTest 22, IntegrityCheck; then the real roster. v27.5 = the alpha fixes +
+the three gaps found while reading (the same-day swap's 16 h stop - ask Graeme first; the missed-morning double count
+in Worked Periods; the staffing count's partial-line rounding / empty " / " part), built ON v27.1 (a v27 zip cannot
+go over v27.1).
+```
 
 ```
 Read CLAUDE.md in C:\Users\Graeme\Claude.code\callout-roster first (the numbering rule, the three gating levels, the

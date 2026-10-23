@@ -9,7 +9,7 @@ Needs **v27 installed**. Nothing to do by hand before the panel this time: the R
 ## Before the install, on the practice copy only (the proof that nothing changed)
 1. Desk > Practice on a copy (on v27). In the copy: Alt+F11, File > Import File > `test-only/modSnapshot.bas` from this folder (outside `modules/`, so the panel never installs it), Ctrl+S.
 2. Alt+F8 > `TakeSnapshot` > Yes. Answer **No** to the two print questions (the call-out roster, the Board). It writes `snapshot-v27.txt` beside the copy (hashes only - no names, no phones).
-3. Install v27.1 on THAT copy through the panel (below). Its group 4 has the compare row: TakeSnapshot again, then CompareSnapshots. Expect **IDENTICAL** except one item, the admin Desk's new "See the supervisor Desk" link. Do both snapshots the same day, with nothing logged in between.
+3. Install v27.1 on THAT copy through the panel (below). Group 4's FIRST row is the compare: TakeSnapshot again, then CompareSnapshots, before anything else is done in the copy. Expect **IDENTICAL** except one item, the admin Desk's new "See the supervisor Desk" link. Do both snapshots the same day, with nothing logged in between. On this rehearsal copy, Skip "Make a practice copy" (it is itself a copy) and run SmokeTest in it after the compare.
 4. On the real roster: no snapshot. Skip that row.
 
 ## The panel
@@ -29,6 +29,7 @@ By hand instead: in the VBA editor **replace modCalendar, modPeople and modPosti
 
 ## Known, on purpose
 - Three internal helpers now appear in Alt+F8's macro list (`AfterPeopleChange`, `LoadCache`, `LoadPostCache`). Running one by hand writes no data (it reloads a cache, or marks the calendar and the members' file to redraw / republish).
+- The members' file shows the master's release in its version sentence ("v27.1 (Core v27.1 ...)") after the next publish; display only. SystemCheck's "Errors this release" restarts at 0.
 - **The only way back to v27 is the backup copy.** The install never removes a module, so a v27 zip cannot go over v27.1. From now on every release is built on v27.1 or later.
 - Gaps found while reading, kept as they are for v27.5 (your decision): a same-day sister swap does not run the 16 h stop; a missed Kronos morning that arrives after the year-to-date report counts twice in Worked Periods (Worked H is right); the staffing count rounds two partial lines up separately and counts an empty " / " part.
 

@@ -948,3 +948,45 @@ Public Sub KeyDesk()
 Oops:
     ReportError "KeyDesk"
 End Sub
+
+' --------------------------------------------------------------------
+'  SHARED FORM HELPERS (v27.1): the control builders the ten code-built
+'  forms used to copy. A form keeps a one-line Private wrapper that adds
+'  its own name prefix ("cv_", "sc_" ...) - or, in the four forms that
+'  file controls into groups, the bookkeeping - so no call site changes.
+'  The bodies are the forms' copies with Me -> frm, property writes in
+'  the same order. The two designer forms keep their own helpers.
+' --------------------------------------------------------------------
+
+' a control on frm named ctlName (the full name, prefix included), placed and sized
+Public Function FormAddCtl(ByVal frm As Object, ByVal progId As String, ByVal ctlName As String, ByVal L As Single, _
+                           ByVal T As Single, ByVal W As Single, ByVal H As Single) As Object
+    Dim o As Object
+    Set o = frm.Controls.Add(progId, ctlName, True)
+    o.Left = L: o.Top = T: o.Width = W: o.Height = H
+    Set FormAddCtl = o
+End Function
+
+' a label on frm: FormAddCtl at height H (15 in most forms, 16 in frmHistory / frmTableEdit), then its caption
+Public Function FormAddLabel(ByVal frm As Object, ByVal ctlName As String, ByVal cap As String, ByVal L As Single, _
+                             ByVal T As Single, ByVal W As Single, Optional ByVal H As Single = 15) As Object
+    Dim o As Object
+    Set o = FormAddCtl(frm, "Forms.Label.1", ctlName, L, T, W, H)
+    o.Caption = cap
+    Set FormAddLabel = o
+End Function
+
+' a combo (or list) box emptied and filled with items, each as text; anything but an array leaves it empty
+Public Sub FormFillCombo(ByVal cb As Object, ByVal items As Variant)
+    Dim i As Long
+    cb.Clear
+    If Not IsArray(items) Then Exit Sub
+    For i = LBound(items) To UBound(items)
+        cb.AddItem CStr(items(i))
+    Next i
+End Sub
+
+' the date typed in a form's date box, through the one parser (modPeople.ParseTypedDate)
+Public Function FormPickedDate(ByVal tb As Object, ByRef d As Date) As Boolean
+    FormPickedDate = ParseTypedDate(tb.Text, d)
+End Function

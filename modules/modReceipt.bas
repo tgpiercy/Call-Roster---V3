@@ -176,7 +176,7 @@ Public Sub MarkChangedTotals()
     Dim refTxt As String: refTxt = FirstRefIn(gReceipt.Recorded)
     If refTxt = "" Then refTxt = FirstRefIn(gReceipt.Title)
     If refTxt = "" Then refTxt = "this save"
-    Dim stampTxt As String: stampTxt = Format$(Now, "h:mm AM/PM")
+    Dim markTime As String: markTime = Format$(Now, "h:mm AM/PM")     ' v27.1: markTime (stampTxt would hide modCalendar.StampTxt)
     Dim names As Variant: names = RangeTo2D(ws.Range(ws.Cells(R_FIRST, C_NAME), ws.Cells(lastRow, C_NAME)))   ' a one-person roster is still 2-D
     Application.EnableEvents = False
     UnlockSheet ws
@@ -192,7 +192,7 @@ Public Sub MarkChangedTotals()
                     If MarkableCell(ws.Cells(R_FIRST + i - 1, C_TOTAL)) Then
                         If Not .Comment Is Nothing Then .Comment.Delete
                         On Error Resume Next                 ' (re-review L2) a threaded comment (Range.Comment is Nothing for it) makes AddComment raise: skip the cell, go on
-                        .AddComment MARK_TAG & parts(0) & ", " & IIf(Left$(parts(1), 1) = "-", "", "+") & parts(1) & " from " & refTxt & " (" & stampTxt & ")"
+                        .AddComment MARK_TAG & parts(0) & ", " & IIf(Left$(parts(1), 1) = "-", "", "+") & parts(1) & " from " & refTxt & " (" & markTime & ")"
                         Dim added As Boolean: added = (Err.Number = 0)
                         Err.Clear
                         On Error GoTo Quiet

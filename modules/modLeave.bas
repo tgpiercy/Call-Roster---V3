@@ -619,7 +619,7 @@ End Sub
 
 ' Imported vacation lines dated today or later that aren't booked yet.
 ' 2-D (rows x 6): line id, date, shift, unit, text as imported, matched roster name ("" / "?" ambiguous)
-Public Function ImportCandidates(ByVal fromDate As Date, ByVal toDate As Date) As Variant
+Public Function ImportCandidates(ByVal fromDate As Date, ByVal untilDate As Date) As Variant     ' v27.1: untilDate (toDate would hide modPostings.ToDate)
     Dim v As Variant: v = CovTableData()
     If Not IsArray(v) Then Exit Function
     Dim names As Variant: names = RosterNames()
@@ -629,7 +629,7 @@ Public Function ImportCandidates(ByVal fromDate As Date, ByVal toDate As Date) A
         If Left$(SafeStr(v(i, CV_SOURCE)), 6) = "Import" And UCase$(SafeStr(v(i, CV_STATUS))) <> "VOID" And _
            UCase$(SafeStr(v(i, CV_TYPE))) = "VAC" And SafeStr(v(i, CV_ABS)) = "" And IsDate(v(i, CV_DATE)) Then
             d = Int(CDate(v(i, CV_DATE)))
-            If d >= Int(fromDate) And d <= Int(toDate) Then
+            If d >= Int(fromDate) And d <= Int(untilDate) Then
                 n = n + 1
                 out(n, 1) = SafeStr(v(i, CV_ID))
                 out(n, 2) = d

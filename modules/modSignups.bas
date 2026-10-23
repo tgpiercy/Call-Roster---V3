@@ -132,11 +132,11 @@ End Function
 ' is then not suspect. A PC clock more than 10 min off the file server's flags every sign-up: a known limit.
 Public Function SignupSuspect(ByVal stamp As Date, ByVal fileTime As Date, Optional ByVal acrossClockChange As Boolean = False) As Boolean
     If stamp = 0 Or fileTime = 0 Then Exit Function
-    Dim secs As Double: secs = Round((fileTime - stamp) * 86400#)
+    Dim gapSecs As Double: gapSecs = Round((fileTime - stamp) * 86400#)     ' v27.1: gapSecs (secs would hide modCalendar.Secs)
     If acrossClockChange Then
-        If Abs(secs - 3600) <= SIGNUP_STAMP_SLACK_MIN * 60 Then Exit Function
+        If Abs(gapSecs - 3600) <= SIGNUP_STAMP_SLACK_MIN * 60 Then Exit Function
     End If
-    SignupSuspect = (secs > SIGNUP_STAMP_SLACK_MIN * 60)
+    SignupSuspect = (gapSecs > SIGNUP_STAMP_SLACK_MIN * 60)
 End Function
 
 ' True when a clock change lies between the two times: the change happens at 2 AM the morning after a change night

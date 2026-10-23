@@ -44,7 +44,7 @@ Public Function EmailFor(ByVal empName As String) As String
     Next r
 End Function
 
-Private Sub EmailAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, ByVal awardNames As String, _
+Public Sub EmailAward(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, ByVal awardNames As String, _
                        Optional ByVal outName As String = "")
     Dim toList As String, missing As String, em As String, i As Long
     For i = 1 To n

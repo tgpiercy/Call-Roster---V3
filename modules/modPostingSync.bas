@@ -370,7 +370,7 @@ Public Function HasActiveLogRows(ByVal id As String) As Boolean
     Next i
 End Function
 
-Private Sub UpdatePostingRecords(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
+Public Sub UpdatePostingRecords(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long, _
                                  ByVal newStatus As String, ByVal awardNames As String)
     Dim ws As Worksheet: Set ws = ThisWorkbook.Worksheets(POSTINGS_SHEET)
     Dim lo As ListObject: Set lo = GetTable(PT_TABLE)

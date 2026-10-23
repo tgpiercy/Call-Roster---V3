@@ -834,14 +834,14 @@ End Function
 ' ====================================================================
 '  READ
 ' ====================================================================
-Private Function GetTable(ByVal nm As String) As ListObject
+Public Function GetTable(ByVal nm As String) As ListObject
     If Not SheetExists(POSTINGS_SHEET) Then Exit Function
     On Error Resume Next
     Set GetTable = ThisWorkbook.Worksheets(POSTINGS_SHEET).ListObjects(nm)
     On Error GoTo 0
 End Function
 
-Private Function ToDate(ByVal x As Variant) As Date
+Public Function ToDate(ByVal x As Variant) As Date
     If IsDate(x) Then
         ToDate = CDate(x)
     ElseIf IsNumeric(x) And Not IsEmpty(x) Then
@@ -921,7 +921,7 @@ End Function
 ' The Result cell of a list row can carry "Exempt - ..." on its own or after
 ' the result ("Signed up | Exempt - moved Jan 12"), so marking an exempt
 ' person signed up or awarded never loses the exemption.
-Private Sub SplitExempt(ByRef result As String, ByRef exemptNote As String)
+Public Sub SplitExempt(ByRef result As String, ByRef exemptNote As String)
     Dim p As Long: p = InStr(1, result, EXEMPT_TAG, vbTextCompare)
     exemptNote = ""
     If p = 0 Then Exit Sub
@@ -2001,7 +2001,7 @@ End Function
 ' ====================================================================
 '  TABLE APPEND (Postings sheet)
 ' ====================================================================
-Private Function AppendRows(ByVal lo As ListObject, data As Variant, ByVal nCols As Long) As Boolean
+Public Function AppendRows(ByVal lo As ListObject, data As Variant, ByVal nCols As Long) As Boolean
     If lo Is Nothing Then Exit Function
     Dim n As Long: n = UBound(data, 1)
     Dim ws As Worksheet: Set ws = lo.Parent

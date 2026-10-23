@@ -4,7 +4,7 @@ Option Explicit
 ' ====================================================================
 '  THE OVERTIME POSTING SHEET  (output only - redrawn every time)
 ' ====================================================================
-Private Function PostingSheet() As Worksheet
+Public Function PostingSheet() As Worksheet
     If Not SheetExists(POSTING_SHEET) Then
         Dim ws As Worksheet
         UnlockStructure                                 ' v25: structure protection
@@ -24,7 +24,7 @@ Public Sub ResetPostingSheet()
     Application.ScreenUpdating = True
 End Sub
 
-Private Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long)
+Public Sub RenderPostingSheet(ByVal ws As Worksheet, ByRef p As PostRec, ByRef lst() As PListRec, ByVal n As Long)
     Const NAVY_C As Long = 6567966        ' RGB(30, 56, 100)
     Dim lightFill As Long: lightFill = RGB(242, 245, 249)
     Dim greyTxt As Long: greyTxt = RGB(90, 90, 90)

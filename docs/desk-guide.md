@@ -33,5 +33,7 @@ You see the **Desk** and the tabs every supervisor sees (OT Roster, Calendar, Po
 ## If you need the full roster tools (admin Desk)
 Click **Show everything (primary admin tools)** under the help row. The full bar and every tab appear for this session. **< Desk** on the bar brings the Desk back. Nothing is saved differently either way. On a supervisor's Desk, **Full roster >** goes to the roster and the Desk tab brings you back.
 
+**See the supervisor Desk >** (v27.1, admin) sits beside Show everything: the Desk redraws as a supervisor on the list sees it, with a red **PREVIEW: a supervisor's Desk** pill in the header. The buttons work as normal (they are a supervisor's jobs, which an admin may do anyway). **< Back to my Desk** (or the red pill) returns. The preview is for this session only: it is gone when the file reopens. A supervisor never sees the link.
+
 ## If a red "This didn't finish" box appears
 Click OK, then **Something went wrong** on the Desk: the email it opens has the details. Whatever was done before the error is still in the file.

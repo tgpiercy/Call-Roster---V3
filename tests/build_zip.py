@@ -74,6 +74,11 @@ def main() -> int:
                 raise SystemExit(f"{p}: not CRLF")
             data.decode("ascii")
             z.writestr(top + p.replace("\\", "/"), data)
+        # v27.1: the test-only snapshot module rides along OUTSIDE modules/ (the Install panel reads modules\, paste-in\
+        # and member\ only), so a practice copy can take the before / after snapshot; it is never installed
+        snap = ROOT / "tests" / "snapshot" / "modSnapshot.bas"
+        if snap.is_file():
+            z.writestr(top + "test-only/modSnapshot.bas", snap.read_bytes())
         describe = subprocess.run(["git", "describe", "--tags", "--always", "--dirty"], cwd=ROOT,
                                   capture_output=True, text=True, check=True).stdout.strip()
         stamp = f"\n\n---\nBuilt from `{describe}` by tests/build_zip.py.\n"      # v25 (T11): the note names the commit it came from

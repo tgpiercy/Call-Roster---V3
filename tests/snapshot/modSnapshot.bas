@@ -142,10 +142,15 @@ Private Sub SnapSheet(ByVal ws As Worksheet, ByVal label As String, ByVal maskAl
         s = s & "|" & ws.Columns(c).ColumnWidth & IIf(ws.Columns(c).Hidden, "x", "")
     Next c
     AddItem label & "|columns", s
-    Dim shp As Shape, i As Long
+    ' keyed by the shape's name (a repeated name gets " #2", " #3" ...), so one shape added in the middle - the Desk's
+    ' new preview link - is one "only in" line, not every shape after it
+    Dim shp As Shape, seen As Object, nm As String
+    Set seen = CreateObject("Scripting.Dictionary")
     For Each shp In ws.Shapes
-        i = i + 1
-        AddItem label & "|shape " & shp.Name & " #" & i, ShapeText(shp, maskAll)
+        nm = shp.Name
+        seen(nm) = seen(nm) + 1
+        If seen(nm) > 1 Then nm = nm & " #" & seen(nm)
+        AddItem label & "|shape " & nm, ShapeText(shp, maskAll)
     Next shp
 End Sub
 

@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v27 (Oct 22, 2026).
+Current as of v27.1 (Oct 22, 2026).
 
 ## 1. Before you start
 
@@ -71,6 +71,8 @@ Do the steps in this order. Skip a step only when the INSTALL note has nothing f
 |---|---|
 | Compile stops on a line | Note the line and the message. Do not use the file until it compiles. Go back to your backup if the roster is needed. |
 | A module shows twice, such as `modCalendar1` | You imported without removing first. Remove the copy with the number. |
+| Compile says "Ambiguous name detected" after importing a v27.1 module (v27.1) | The old, bigger module is still in: v27.1 moved code out of modCalendar, modPeople and modPostings into 11 new modules. Replace the three old modules first (step 3), then import the new ones (step 4). |
+| You want to go back to v27 after v27.1 (v27.1) | Use the backup copy taken before the install. An older release's zip cannot be installed over v27.1: the install never removes a module, so the 11 new ones would stay beside the old big modules and the compile would refuse it. |
 | A one-time macro says "Saving is blocked" | See section 11. |
 
 ### One-time macros you may be asked to run
@@ -153,7 +155,7 @@ After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)"
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v27: 877 cases in 100 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v27.1: 962 cases in 106 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|

@@ -1,0 +1,20 @@
+# Groups 3 and 4 of install-steps.txt for v27.1 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
+# VERSION / EXPECT / MEMBER / FORMS header, and fills {CASES} {SUITES} {MODULES} {STEPS} from the code).
+# member/ unchanged: no template step. ThisWorkbook unchanged. No new form, no ApplyRosterLayout (no bar button moved).
+# The swap replaces the changed modules and IMPORTS the 11 new ones (modBoard, modMinStaff, modCalImport, modNeeds,
+# modCalMenus, modDates, modFormer, modPlannedMoves, modPostingSheet, modPostingSync, modPostingMail) and re-pastes
+# the ten code-built forms.
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+
+[3. Run once]
+macro   | System check (expect {MODULES} of {MODULES} on v27.1, ThisWorkbook v27, frmOvertimeEntry and frmPostingEntry v27, the other ten forms v27.1; on the practice copy it also lists modSnapshot as a leftover - expected) | SystemCheckOK
+macro   | Self test (expect {CASES} passed, {SUITES} suites)                 | SelfTestOK
+
+[4. Checks]
+macro   | Make a practice copy (red PRACTICE COPY banner; leave it for the next rows) | MakePracticeCopy | confirm
+manual  | Smoke test in the COPY ({STEPS} steps)                            | In the practice copy: Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, {STEPS} steps, the same steps as v27. CLOSE THE COPY WITHOUT SAVING and come back. Click Done.
+manual  | The snapshot compare (ONLY on the practice copy you snapshotted on v27 - Skip it on the real roster) | On the copy where TakeSnapshot ran before this install: Alt+F8 > TakeSnapshot > Yes (answer No to the two print questions), then Alt+F8 > CompareSnapshots. Expect IDENTICAL except ONE item: "only in snapshot-v27.1.txt: Desk|shape dk_lnk_preview" (the new admin link). Any other line: send the box and snapshot-compare.txt. Click Done (or Fail with the lines).
+manual  | Each re-pasted form opens                                        | Open each once and Cancel / close: Someone called in sick, Fill a shift now's time off (Book time off), Leave, Shift switch or payback, Post a shift (New Posting), Employee (ADMIN > Employee, then a double-click on a roster row), Employee history, the Holidays / minimum staffing pop-up, Convert (Needs Attention's imported lines, if any). Nothing looks different from v27. A receipt card after one save in the COPY. Click Done.
+manual  | The Desk preview both ways                                        | On the admin Desk: See the supervisor Desk > - the Desk redraws as a supervisor's (four tiles in one row, the supervisor's buttons) with a red PREVIEW pill; < Back to my Desk returns. Log in as (or ask) a supervisor: their Desk has no such link and looks as it did on v27. Click Done.
+manual  | The Calendar's and Needs Attention's buttons                      | Open the Calendar: click Needs attention >, the Board, and (admin) Import Old Cal > Cancel; on Needs Attention: Refresh, Calendar, change the unit and the range. None says "Cannot run the macro". Click Done.
+macro   | Integrity check (expect the same lines as before the install; no PROBLEM) | IntegrityCheck

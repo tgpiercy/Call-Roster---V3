@@ -1,36 +1,17 @@
-"""Known-answer tests for the Kronos ledger rule's pure cores (v27.1).
-
-cases-kronos.csv has the same columns and conventions as cases.csv (suite,case,in1..in5,expected; no comma inside a
-field; lists use ';'; dates yyyy-mm-dd; stamps yyyy-mm-dd-hh-nn as modSelfTest.ParseStampMin reads them; 'none' = a
-date of 0). Integration folds the rows into cases.csv / modSelfTest; until then they run here against rules_kronos.py.
-
-Suites:
-  kledger  cum Through|none, roster year's first day, the ledger's days (;), the snapshot 'code=h;...', the ledger
-           rows 'yyyy-mm-dd:code=h;...' (ONE person) -> 'run end|H' (run end yyyy-mm-dd or none; H = that person's
-           Worked, '-' = no row in the pivot). Composed as PivotFromLedger composes LedgerRunCore, LedgerDayIn and
-           LedgerPersonCore: the snapshot is read only when there is one this year, and a person is a row of the pivot
-           only with a snapshot row or a day inside the run.
-  kedit    the edit's date, the year's first day, the first one-day report|none, the day's newest re-import stamp|none,
-           the edit row's When stamp (or 'notadate') -> counts / skip (EditCountsCore)
-  kday     the ledger row's date (or a stamp, or 'notadate'), the report's day, the row's Employee, on the roster Y|N
-           -> drop / keep (LedgerDayDrop)
-  kname    the roster name the Payroll # gives, the one the name gives -> clash / number / name / none (RosterNameCore)
-"""
+"""The Kronos ledger rule's pure cores (v27.1, ImportKronosData.bas): every kledger / kedit / kday / kname case in
+cases.csv carries a note saying how its answer was read from the VBA, and the VBA cores keep the parameters the mirror
+(rules.py) and SelfTest compose. The cases themselves run in test_cases.py with every other suite."""
 from __future__ import annotations
 
 import csv
 import re
-from datetime import date, datetime
 from pathlib import Path
 
-import pytest
-
-import rules_kronos as rk
-
-CASES = Path(__file__).with_name("cases-kronos.csv")
+CASES = Path(__file__).with_name("cases.csv")
 VBA = Path(__file__).resolve().parents[1] / "modules" / "ImportKronosData.bas"
+SUITES = ("kledger", "kedit", "kday", "kname")
 
-# How each expected answer was derived from the VBA (ImportKronosData.bas, v27.1 commit 1). OT = CA OVERTIME x 1.75,
+# How each expected answer was derived from the VBA (ImportKronosData.bas, v27.1). OT = CA OVERTIME x 1.75,
 # LIEU ST x 1, DBLTIME not a roster code; rounding = RoundHalfUp once per person.
 NOTES = {
     "kledger:unbroken-run": "run 11,12,13 after the Oct 10 Through -> ends Oct 13; (100+4+4+4) x 1.75 = 196",
@@ -76,7 +57,7 @@ NOTES = {
     "kname:neither": "both '' -> none (RosterNameFor returns '')",
 }
 
-# The VBA cores and their parameter names, as declared (a drift guard: the mirror's docstrings name these)
+# The VBA cores and their parameter names, as declared (a drift guard)
 VBA_CORES = {
     "LedgerRunCore": ["cumThrough", "yearFrom", "daySerials"],
     "LedgerDayIn": ["d", "cumThrough", "runEnd"],
@@ -87,84 +68,11 @@ VBA_CORES = {
 }
 
 
-def d(s: str) -> date:
-    return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
-
-
-def d_or_none(s: str) -> date | None:
-    return None if s == "none" else d(s)
-
-
-def stamp(s: str) -> datetime:
-    """yyyy-mm-dd-hh-nn (modSelfTest.ParseStampMin)."""
-    return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]), int(s[14:16]))
-
-
-def date_value(s: str):
-    """A cell's value: 'notadate' as text, a stamp as a date and time, else a date."""
-    if s == "notadate":
-        return s
-    return stamp(s) if len(s) >= 16 else d(s)
-
-
-def load_cases() -> list[dict]:
+def test_every_kronos_case_has_a_note():
     with CASES.open(newline="") as f:
-        rows = list(csv.DictReader(f))
-    assert rows, "cases-kronos.csv is empty"
-    return rows
-
-
-def case_ledger(i1: str, i2: str, i3: str, i4: str, i5: str) -> str:
-    """kledger, composed as PivotFromLedger composes the cores (see the module docstring)."""
-    cum, year_from = d_or_none(i1), d(i2)
-    serials = ";".join(str(rk.serial(d(x))) for x in i3.split(";") if x)
-    run_end = rk.ledger_run(cum, year_from, serials)
-    cum_adj = rk.ledger_cum_of(cum, year_from)
-    snap = i4 if cum_adj is not None else ""            # the snapshot is read only when there is one this year
-    pieces = []
-    if cum_adj is not None:
-        for item in i5.split(";"):
-            if item:
-                day_txt, piece = item.split(":", 1)
-                if rk.ledger_day_in(d(day_txt), cum_adj, run_end):
-                    pieces.append(piece)
-    end_txt = run_end.isoformat() if run_end is not None else "none"
-    if snap == "" and not pieces:
-        return f"{end_txt}|-"                             # no snapshot row and no day inside the run: no pivot row
-    h = rk.ledger_person(snap, ";".join(pieces))
-    return f"{end_txt}|{int(h) if float(h).is_integer() else h}"
-
-
-def evaluate(row: dict) -> str:
-    suite = row["suite"]
-    i1, i2, i3, i4, i5 = (row[k] for k in ("in1", "in2", "in3", "in4", "in5"))
-    if suite == "kledger":
-        return case_ledger(i1, i2, i3, i4, i5)
-    if suite == "kedit":
-        re_at = None if i4 == "none" else stamp(i4)
-        return "counts" if rk.edit_counts(d(i1), d(i2), d_or_none(i3), re_at, date_value(i5)) else "skip"
-    if suite == "kday":
-        return "drop" if rk.ledger_day_drop(date_value(i1), d(i2), i3, i4 == "Y") else "keep"
-    if suite == "kname":
-        return rk.roster_name(i1, i2)
-    raise ValueError(f"unknown suite {suite}")
-
-
-@pytest.mark.parametrize("row", load_cases(), ids=lambda r: f"{r['suite']}:{r['case']}")
-def test_case(row):
-    assert evaluate(row) == row["expected"], f"{row['suite']} {row['case']}: {row}"
-
-
-def test_every_case_has_a_note_and_names_are_unique():
-    keys = [f"{r['suite']}:{r['case']}" for r in load_cases()]
+        keys = [f"{r['suite']}:{r['case']}" for r in csv.DictReader(f) if r["suite"] in SUITES]
     assert len(keys) == len(set(keys)), "duplicate case names"
     assert set(keys) == set(NOTES), f"cases without a note: {set(keys) - set(NOTES)}; notes without a case: {set(NOTES) - set(keys)}"
-
-
-def test_no_comma_inside_a_field():
-    with CASES.open(newline="") as f:
-        for line in f.read().splitlines():
-            assert line.count(",") == 7, line
 
 
 def test_vba_cores_exist_with_these_parameters():

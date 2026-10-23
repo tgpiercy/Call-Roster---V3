@@ -107,6 +107,46 @@ def charged_text(lst: list[rules.Listed]) -> str:
     return ";".join(f"{p.rank}={fmt_num(p.charged)}" for p in sorted(lst, key=lambda p: p.rank))
 
 
+def d_or_none(s: str) -> date | None:
+    """'none' = a VBA date of 0 (v27.1, the Kronos suites)."""
+    return None if s == "none" else d(s)
+
+
+def kstamp(s: str) -> datetime:
+    """yyyy-mm-dd-hh-nn (modSelfTest.ParseStampMin)."""
+    return datetime(int(s[0:4]), int(s[5:7]), int(s[8:10]), int(s[11:13]), int(s[14:16]))
+
+
+def date_value(s: str):
+    """A cell's value: 'notadate' as text, a stamp as a date and time, else a date."""
+    if s == "notadate":
+        return s
+    return kstamp(s) if len(s) >= 16 else d(s)
+
+
+def case_ledger(i1: str, i2: str, i3: str, i4: str, i5: str) -> str:
+    """kledger, composed as PivotFromLedger composes LedgerRunCore, LedgerDayIn and LedgerPersonCore: the snapshot is
+    read only when there is one this year; a person is a row of the pivot only with a snapshot row or a day inside the
+    run ('-' = no row)."""
+    cum, year_from = d_or_none(i1), d(i2)
+    serials = ";".join(str(rules.serial(d(x))) for x in i3.split(";") if x)
+    run_end = rules.ledger_run(cum, year_from, serials)
+    cum_adj = rules.ledger_cum_of(cum, year_from)
+    snap = i4 if cum_adj is not None else ""
+    pieces = []
+    if cum_adj is not None:
+        for item in i5.split(";"):
+            if item:
+                day_txt, piece = item.split(":", 1)
+                if rules.ledger_day_in(d(day_txt), cum_adj, run_end):
+                    pieces.append(piece)
+    end_txt = run_end.isoformat() if run_end is not None else "none"
+    if snap == "" and not pieces:
+        return f"{end_txt}|-"
+    h = rules.ledger_person(snap, ";".join(pieces))
+    return f"{end_txt}|{int(h) if float(h).is_integer() else h}"
+
+
 def evaluate(row: dict) -> str:
     """One case -> the actual answer as text (same formats as modSelfTest)."""
     suite = row["suite"]
@@ -296,6 +336,15 @@ def evaluate(row: dict) -> str:
     if suite == "fatblock":                      # v26.5.5: hours on the four shifts around the offer -> block|hours to next
         wb, htn = rules.fatigue_block_core(float(i1), float(i2), float(i3), float(i4))
         return fmt_num(wb) + "|" + fmt_num(htn)
+    if suite == "kledger":                       # v27.1: cum Through|none, year from, ledger days ;, snapshot spec, the person's rows -> run end|H
+        return case_ledger(i1, i2, i3, i4, i5)
+    if suite == "kedit":                         # v27.1: edit day, year from, ledger from|none, re-import stamp|none, edit When -> counts / skip
+        re_at = None if i4 == "none" else kstamp(i4)
+        return "counts" if rules.edit_counts(d(i1), d(i2), d_or_none(i3), re_at, date_value(i5)) else "skip"
+    if suite == "kday":                          # v27.1: row date, the report's day, Employee, on the roster Y/N -> drop / keep
+        return "drop" if rules.ledger_day_drop(date_value(i1), d(i2), i3, i4 == "Y") else "keep"
+    if suite == "kname":                         # v27.1: roster name by Payroll #, by name -> clash / number / name / none
+        return rules.roster_name(i1, i2)
     if suite == "switchstop":                    # v27.1: 'mmm d|shift', none / same|sh2 / 'mmm d|sh2', the facts -> the stops or none
         dtx, _, sh = (i1 + "|").partition("|")
         sh = sh.rstrip("|")

@@ -903,3 +903,42 @@ switchstop,same-day-booked,Nov 2|Days,same|Nights,s_bkworks=Sick;s_bkoff=Vac,,,-
 switchstop,same-day-cant-work-the-other-shift,Nov 2|Days,same|Nights,s_bkoff2=Sick;s_bkworks1=Trn,,,- Ann can't work the nights shift (Sick);- Bob can't work the days shift (Trn)
 switchstop,same-day-on-a-switch,Nov 2|Days,same|Nights,s_workson=y;s_offon=y,,,- Ann is already on a switch that day;- Bob is already on a switch that day
 switchstop,same-day-every-stop-in-order,Nov 2|Nights,same|Days,s_workson=y;s_offon=y;s_bkworks1=A;s_bkoff2=B;s_bkworks=C;s_bkoff=D,,,- Ann is booked off (D);- Bob is booked off (C);- Ann can't work the days shift (B);- Bob can't work the nights shift (A);- Ann is already on a switch that day;- Bob is already on a switch that day
+kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
+kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
+kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182
+kledger,first-day-missing,2026-10-10,2025-12-28,2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-12:CA OVERTIME=4,2026-10-10|175
+kledger,quiet-day-keeps-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|189
+kledger,no-ledger-days,2026-10-10,2025-12-28,,CA OVERTIME=8,,2026-10-10|14
+kledger,no-cumulative-yet,none,2025-12-28,2026-10-11,,2026-10-11:CA OVERTIME=4,none|-
+kledger,cumulative-from-last-year,2025-12-20,2025-12-28,2025-12-28;2025-12-29,CA OVERTIME=300,2025-12-28:CA OVERTIME=4,none|-
+kledger,cumulative-on-the-years-first-day,2025-12-28,2025-12-28,2025-12-29,CA OVERTIME=10,2025-12-29:CA OVERTIME=2,2025-12-29|21
+kledger,days-inside-the-totals-not-added,2026-10-10,2025-12-28,2026-10-09;2026-10-10;2026-10-11,CA OVERTIME=100,2026-10-09:CA OVERTIME=12;2026-10-10:CA OVERTIME=12;2026-10-11:CA OVERTIME=4,2026-10-11|182
+kledger,only-in-the-ledger,2026-10-10,2025-12-28,2026-10-11,,2026-10-11:CA OVERTIME=2,2026-10-11|4
+kledger,ledger-only-after-a-gap-gets-no-row,2026-10-10,2025-12-28,2026-10-12;2026-10-13,,2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-10|-
+kledger,rounded-once-not-per-day,2026-10-10,2025-12-28,2026-10-11,CA OVERTIME=0.2,2026-10-11:CA OVERTIME=0.2,2026-10-11|1
+kledger,other-code-not-counted,2026-10-10,2025-12-28,2026-10-11,CA OVERTIME=10;CA DBLTIME=12,2026-10-11:CA LIEU ST=3,2026-10-11|21
+kledger,reversal-in-a-day,2026-10-10,2025-12-28,2026-10-11,CA OVERTIME=100,2026-10-11:CA OVERTIME=-4,2026-10-11|168
+kedit,inside-the-ledger,2026-10-05,2025-12-28,2026-10-01,none,2026-10-17-08-00,counts
+kedit,on-the-ledger-start-day,2026-10-01,2025-12-28,2026-10-01,none,2026-10-17-08-00,counts
+kedit,on-the-years-first-day,2025-12-28,2025-12-28,2025-12-28,none,2026-01-05-08-00,counts
+kedit,before-the-ledger-start,2026-09-20,2025-12-28,2026-10-01,none,2026-10-17-08-00,skip
+kedit,no-ledger-yet,2026-10-05,2025-12-28,none,none,2026-10-17-08-00,skip
+kedit,last-years-edit-after-rollover,2025-12-20,2025-12-28,2025-12-10,none,2026-01-05-08-00,skip
+kedit,day-reimported-after-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,2026-10-17-08-00,skip
+kedit,day-reimported-the-same-minute,2026-10-05,2025-12-28,2026-10-01,2026-10-17-08-00,2026-10-17-08-00,skip
+kedit,day-reimported-before-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-16-07-00,2026-10-17-08-00,counts
+kedit,edit-when-not-a-date,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,notadate,counts
+kedit,pins-the-missed-morning,2026-10-10,2025-12-28,2026-10-01,none,2026-10-11-08-00,counts
+kday,same-day-roster-row-replaced,2026-10-11,2026-10-11,Ann Lee,Y,,drop
+kday,same-day-quiet-marker-replaced,2026-10-11,2026-10-11,,N,,drop
+kday,same-day-former-person-kept,2026-10-11,2026-10-11,Old Name,N,,keep
+kday,other-day-kept,2026-10-12,2026-10-11,Ann Lee,Y,,keep
+kday,other-day-quiet-marker-kept,2026-10-12,2026-10-11,,N,,keep
+kday,row-date-not-a-date-kept,notadate,2026-10-11,Ann Lee,Y,,keep
+kday,row-date-with-a-time-same-day,2026-10-11-15-30,2026-10-11,Ann Lee,Y,,drop
+kname,number-only,Ann Lee,,,,,number
+kname,name-only,,Ann Lee,,,,name
+kname,both-agree-exactly,Ann Lee,Ann Lee,,,,number
+kname,both-agree-any-case,Ann Lee,ann lee,,,,number
+kname,clash,Ann Lee,Bob Ray,,,,clash
+kname,neither,,,,,,none

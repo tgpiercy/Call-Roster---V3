@@ -232,15 +232,8 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop"                          ' v27.1: "mmm d|shift", none / same|sh2 / "mmm d|sh2", the facts -> the stops (; between) or none
-            Dim ssDay As Variant, ssTwo As Variant, ssF() As String
-            ssDay = Split(i1 & "|", "|"): ssTwo = Split(i2 & "|", "|")
-            ssF = SwitchFacts(i3)
-            RunCase = SwitchStopsCore("Ann", "Bob", CStr(ssDay(0)), CStr(ssDay(1)), (i2 <> "none"), (ssTwo(0) = "same"), _
-                                      CStr(ssTwo(0)), CStr(ssTwo(1)), ssF)
-            RunCase = Replace(RunCase, vbNewLine, ";")
-            If Right$(RunCase, 1) = ";" Then RunCase = Left$(RunCase, Len(RunCase) - 1)
-            If RunCase = "" Then RunCase = "none"
+        Case "switchstop", "kledger", "kedit", "kday", "kname"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines)
+            RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
         Case "fatigue"                             ' v26.5.5: worked before, hours offered, hours to the next work -> ok / 16 h rule | the max
@@ -379,6 +372,67 @@ Private Function RunCase(f() As String) As String
     Exit Function
 Oops:
     RunCase = "ERROR: " & Err.Description
+End Function
+
+' v27.1: the refactor's pure cores - the shift-switch stops and the Kronos ledger rule (no handler: an error reaches
+' RunCase's, which reports it as the case's answer)
+Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2 As String, ByVal i3 As String, _
+                             ByVal i4 As String, ByVal i5 As String) As String
+    Select Case suite
+        Case "switchstop"                          ' v27.1: "mmm d|shift", none / same|sh2 / "mmm d|sh2", the facts -> the stops (; between) or none
+            Dim ssDay As Variant, ssTwo As Variant, ssF() As String
+            ssDay = Split(i1 & "|", "|"): ssTwo = Split(i2 & "|", "|")
+            ssF = SwitchFacts(i3)
+            RunCaseV271 = SwitchStopsCore("Ann", "Bob", CStr(ssDay(0)), CStr(ssDay(1)), (i2 <> "none"), (ssTwo(0) = "same"), _
+                                      CStr(ssTwo(0)), CStr(ssTwo(1)), ssF)
+            RunCaseV271 = Replace(RunCaseV271, vbNewLine, ";")
+            If Right$(RunCaseV271, 1) = ";" Then RunCaseV271 = Left$(RunCaseV271, Len(RunCaseV271) - 1)
+            If RunCaseV271 = "" Then RunCaseV271 = "none"
+        Case "kledger"                             ' v27.1: cum Through|none, year from, ledger days ;, snapshot spec, the person's rows -> run end|H (- = no pivot row)
+            Dim klCum As Date, klEnd As Date, klSer As String, klSnap As String, klDays As String, klP As Variant, klK As Long, klC As Long
+            If i1 <> "none" Then klCum = ParseD(i1)
+            If i3 <> "" Then
+                klP = Split(i3, ";")
+                For klK = 0 To UBound(klP)
+                    klSer = klSer & IIf(klSer = "", "", ";") & CStr(CLng(ParseD(CStr(klP(klK)))))
+                Next klK
+            End If
+            klEnd = LedgerRunCore(klCum, ParseD(i2), klSer)
+            If klEnd > 0 Then                      ' composed as PivotFromLedger composes it: the snapshot only with one this year
+                klSnap = i4
+                If i5 <> "" Then
+                    klP = Split(i5, ";")
+                    For klK = 0 To UBound(klP)
+                        klC = InStr(klP(klK), ":")
+                        If LedgerDayIn(ParseD(Left$(klP(klK), klC - 1)), klCum, klEnd) Then klDays = klDays & IIf(klDays = "", "", ";") & Mid$(klP(klK), klC + 1)
+                    Next klK
+                End If
+            End If
+            If klEnd > 0 Then RunCaseV271 = FmtD(klEnd) Else RunCaseV271 = "none"
+            If klSnap = "" And klDays = "" Then
+                RunCaseV271 = RunCaseV271 & "|-"
+            Else
+                RunCaseV271 = RunCaseV271 & "|" & NumText(LedgerPersonCore(klSnap, klDays))
+            End If
+        Case "kedit"                               ' v27.1: edit day, year from, ledger from|none, re-import stamp|none, edit When|notadate -> counts / skip
+            Dim keLf As Date, keRe As Variant, keWhen As Variant
+            If i3 <> "none" Then keLf = ParseD(i3)
+            If i4 <> "none" Then keRe = ParseStampMin(i4)
+            If i5 = "notadate" Then keWhen = i5 Else keWhen = ParseStampMin(i5)
+            RunCaseV271 = IIf(EditCountsCore(ParseD(i1), ParseD(i2), keLf, keRe, keWhen), "counts", "skip")
+        Case "kday"                                ' v27.1: row date (or a stamp, or notadate), the report's day, Employee, on the roster Y/N -> drop / keep
+            Dim kdRow As Variant
+            If i1 = "notadate" Then
+                kdRow = i1
+            ElseIf Len(i1) >= 16 Then
+                kdRow = ParseStampMin(i1)
+            Else
+                kdRow = ParseD(i1)
+            End If
+            RunCaseV271 = IIf(LedgerDayDrop(kdRow, ParseD(i2), i3, (i4 = "Y")), "drop", "keep")
+        Case "kname"                               ' v27.1: roster name by Payroll #, by name -> clash / number / name / none
+            RunCaseV271 = RosterNameCore(i1, i2)
+    End Select
 End Function
 
 ' v27.1 (suite switchstop): "key=value;..." -> SwitchStopsCore's facts (modShiftSwitch SF_*). A booked key's value is the
@@ -1943,5 +1997,44 @@ Private Sub LoadCases5()
     AddCase "switchstop,same-day-cant-work-the-other-shift,Nov 2|Days,same|Nights,s_bkoff2=Sick;s_bkworks1=Trn,,,- Ann can't work the nights shift (Sick);- Bob can't work the days shift (Trn)"
     AddCase "switchstop,same-day-on-a-switch,Nov 2|Days,same|Nights,s_workson=y;s_offon=y,,,- Ann is already on a switch that day;- Bob is already on a switch that day"
     AddCase "switchstop,same-day-every-stop-in-order,Nov 2|Nights,same|Days,s_workson=y;s_offon=y;s_bkworks1=A;s_bkoff2=B;s_bkworks=C;s_bkoff=D,,,- Ann is booked off (D);- Bob is booked off (C);- Ann can't work the days shift (B);- Bob can't work the nights shift (A);- Ann is already on a switch that day;- Bob is already on a switch that day"
+    AddCase "kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
+    AddCase "kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
+    AddCase "kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182"
+    AddCase "kledger,first-day-missing,2026-10-10,2025-12-28,2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-12:CA OVERTIME=4,2026-10-10|175"
+    AddCase "kledger,quiet-day-keeps-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|189"
+    AddCase "kledger,no-ledger-days,2026-10-10,2025-12-28,,CA OVERTIME=8,,2026-10-10|14"
+    AddCase "kledger,no-cumulative-yet,none,2025-12-28,2026-10-11,,2026-10-11:CA OVERTIME=4,none|-"
+    AddCase "kledger,cumulative-from-last-year,2025-12-20,2025-12-28,2025-12-28;2025-12-29,CA OVERTIME=300,2025-12-28:CA OVERTIME=4,none|-"
+    AddCase "kledger,cumulative-on-the-years-first-day,2025-12-28,2025-12-28,2025-12-29,CA OVERTIME=10,2025-12-29:CA OVERTIME=2,2025-12-29|21"
+    AddCase "kledger,days-inside-the-totals-not-added,2026-10-10,2025-12-28,2026-10-09;2026-10-10;2026-10-11,CA OVERTIME=100,2026-10-09:CA OVERTIME=12;2026-10-10:CA OVERTIME=12;2026-10-11:CA OVERTIME=4,2026-10-11|182"
+    AddCase "kledger,only-in-the-ledger,2026-10-10,2025-12-28,2026-10-11,,2026-10-11:CA OVERTIME=2,2026-10-11|4"
+    AddCase "kledger,ledger-only-after-a-gap-gets-no-row,2026-10-10,2025-12-28,2026-10-12;2026-10-13,,2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-10|-"
+    AddCase "kledger,rounded-once-not-per-day,2026-10-10,2025-12-28,2026-10-11,CA OVERTIME=0.2,2026-10-11:CA OVERTIME=0.2,2026-10-11|1"
+    AddCase "kledger,other-code-not-counted,2026-10-10,2025-12-28,2026-10-11,CA OVERTIME=10;CA DBLTIME=12,2026-10-11:CA LIEU ST=3,2026-10-11|21"
+    AddCase "kledger,reversal-in-a-day,2026-10-10,2025-12-28,2026-10-11,CA OVERTIME=100,2026-10-11:CA OVERTIME=-4,2026-10-11|168"
+    AddCase "kedit,inside-the-ledger,2026-10-05,2025-12-28,2026-10-01,none,2026-10-17-08-00,counts"
+    AddCase "kedit,on-the-ledger-start-day,2026-10-01,2025-12-28,2026-10-01,none,2026-10-17-08-00,counts"
+    AddCase "kedit,on-the-years-first-day,2025-12-28,2025-12-28,2025-12-28,none,2026-01-05-08-00,counts"
+    AddCase "kedit,before-the-ledger-start,2026-09-20,2025-12-28,2026-10-01,none,2026-10-17-08-00,skip"
+    AddCase "kedit,no-ledger-yet,2026-10-05,2025-12-28,none,none,2026-10-17-08-00,skip"
+    AddCase "kedit,last-years-edit-after-rollover,2025-12-20,2025-12-28,2025-12-10,none,2026-01-05-08-00,skip"
+    AddCase "kedit,day-reimported-after-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,2026-10-17-08-00,skip"
+    AddCase "kedit,day-reimported-the-same-minute,2026-10-05,2025-12-28,2026-10-01,2026-10-17-08-00,2026-10-17-08-00,skip"
+    AddCase "kedit,day-reimported-before-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-16-07-00,2026-10-17-08-00,counts"
+    AddCase "kedit,edit-when-not-a-date,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,notadate,counts"
+    AddCase "kedit,pins-the-missed-morning,2026-10-10,2025-12-28,2026-10-01,none,2026-10-11-08-00,counts"
+    AddCase "kday,same-day-roster-row-replaced,2026-10-11,2026-10-11,Ann Lee,Y,,drop"
+    AddCase "kday,same-day-quiet-marker-replaced,2026-10-11,2026-10-11,,N,,drop"
+    AddCase "kday,same-day-former-person-kept,2026-10-11,2026-10-11,Old Name,N,,keep"
+    AddCase "kday,other-day-kept,2026-10-12,2026-10-11,Ann Lee,Y,,keep"
+    AddCase "kday,other-day-quiet-marker-kept,2026-10-12,2026-10-11,,N,,keep"
+    AddCase "kday,row-date-not-a-date-kept,notadate,2026-10-11,Ann Lee,Y,,keep"
+    AddCase "kday,row-date-with-a-time-same-day,2026-10-11-15-30,2026-10-11,Ann Lee,Y,,drop"
+    AddCase "kname,number-only,Ann Lee,,,,,number"
+    AddCase "kname,name-only,,Ann Lee,,,,name"
+    AddCase "kname,both-agree-exactly,Ann Lee,Ann Lee,,,,number"
+    AddCase "kname,both-agree-any-case,Ann Lee,ann lee,,,,number"
+    AddCase "kname,clash,Ann Lee,Bob Ray,,,,clash"
+    AddCase "kname,neither,,,,,,none"
 ' <<< CASES
 End Sub

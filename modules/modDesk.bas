@@ -690,6 +690,7 @@ Public Sub DeskPreview()
     End If
     mPreview = Not mPreview
     DrawDesk
+    If ActiveSheet.Name <> DESK_SHEET Then ShowDeskSheet       ' (review V3) run from Alt+F8 elsewhere: show the Desk it changed
     Exit Sub
 Oops:
     ReportError "DeskPreview"

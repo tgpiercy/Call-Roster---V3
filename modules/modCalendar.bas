@@ -26,18 +26,18 @@ Public Const MS_CALLNOTE As Long = 5          ' v27 (review of item 25, M2): the
 Public Const BOARD_SHEET As String = "Board"        ' v26: the two-week board (BoardPrint), output only
 Public Const BOARD_DAYS As Long = 14                 ' v26: today .. today + 13
 Private Const MAP_SHEET As String = "CalMap"
-Private Const FULL_SHIFT As Double = 12
+Public Const FULL_SHIFT As Double = 12
 Public Const CAL_VERSION As String = "Calendar v27 (Oct 22)"
 ' v25.1.2: draw-time measurement (the v25.2 plan's step 1): seconds spent inside SlotsFor during the current
 ' draw, read by DrawCalendar / DrawNeeds for their breakdown lines (v25.5: the notes share is always 0 - no
 ' hover notes are made; the figure stays in the line so the numbers read the same)
-Private mTimeSlots As Double
+Public mTimeSlots As Double
 Private mTimeNotes As Double
 Private mHomeMap As Object               ' v25.2 (item 4): name -> Home Unit, filled by LoadCache
 Public Const NA_SHEET As String = "Needs Attention"
-Private Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
-Private Const CAL_FONT As String = "Segoe UI"
-Private Const CAL_FONT_B As String = "Segoe UI Semibold"
+Public Const NA_KEY As Long = 26           ' hidden key column on the Needs Attention tab
+Public Const CAL_FONT As String = "Segoe UI"
+Public Const CAL_FONT_B As String = "Segoe UI Semibold"
 Private Const COL_W As Double = 22          ' width of each half of a day
 Private Const CAL_HINT_ROW_H As Double = 40 ' v25.5: row 3 holds the hint or a clicked line's details, wrapped (was 28)
 
@@ -91,32 +91,16 @@ Public gCalPostDate As Date
 Public gCalPostShift As String
 
 ' calendar menu / redraw state
-Private mPostV As Variant           ' tblPostings snapshot for the details text and the attention box
-Private mStaffMin As Object         ' v26: "unit|Days" -> minimum, read once per sweep (StaffSweepBegin)
-Private mStaffNames As Object       ' v26: unit (or unit|date) -> the names holding a code, one LoadEligible each per sweep
-Private mStaffPerDate As Boolean    ' v26: a planned unit move inside the window: the names are per unit AND date
-Private mStaffBusy As Object        ' v26: names with any absence row or a switch near the window - the only ones the off / switch lookups run for
-Private mMenuKey As String          ' line (or "P:P-0001") the double-click menu is for
-Private mDrawing As Boolean
+Public mPostV As Variant           ' tblPostings snapshot for the details text and the attention box
+Public mDrawing As Boolean
 Private mPublicDraw As Boolean      ' v26.5: True while the calendar is drawn as members may see it (the printed month: CalPrintPdf)
 Private mEventsSeen As Boolean      ' True once ThisWorkbook's tab-switch / change events have fired
 Private mDetailStamp As String      ' v25.5: the change counter + draw context the caches were loaded under for a click's details
-Private Const MENU_NAME As String = "CalLineMenu"
 
-' one row on the Needs Attention tab
-Private Type NARow
-    Cell(0 To 7) As String
-    Key As String
-    SortKey As Double
-    Accent As Long
-    StatusCol As Long
-    StatusFill As Long
-    WhenCol As Long
-End Type
 
 ' cache for one operation (tables + roster shifts)
-Private mAbs As Variant
-Private mCov As Variant
+Public mAbs As Variant
+Public mCov As Variant
 Private mRst As Variant                 ' v27 (item 21): the Restrictions table (Empty when none)
 Public Const RS_ID As Long = 1          ' v27 (item 21): tblRestrictions - RS-nnnn, Employee, From, To (blank = open), Reason, Status, Entered By, Entered At, Void Note
 Public Const RS_EMP As Long = 2
@@ -128,7 +112,7 @@ Public Const RS_USER As Long = 7
 Public Const RS_STAMP As Long = 8
 Public Const RS_VOIDNOTE As Long = 9
 Public Const RS_N As Long = 9
-Private mShiftMap As Object
+Public mShiftMap As Object
 Private mOt As Object               ' v26.5.5 (item 9): "name|yyyymmdd|D/N" -> OT hours accepted / awarded (non-void log rows)
 Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the tables are never read
 
@@ -260,7 +244,7 @@ End Function
 
 ' Number picker that works with long prompts (Application.InputBox is
 ' limited to 255 characters). Returns -1 if cancelled / not valid.
-Private Function AskNumber(ByVal prompt As String, ByVal title As String, ByVal dflt As Long, _
+Public Function AskNumber(ByVal prompt As String, ByVal title As String, ByVal dflt As Long, _
                            ByVal lo As Long, ByVal hi As Long) As Long
     If Len(prompt) > 1000 Then prompt = Left$(prompt, 990) & vbNewLine & "..."
     Dim s As String: s = Trim$(VBA.InputBox(prompt, title, CStr(dflt)))
@@ -274,11 +258,11 @@ Private Function AskNumber(ByVal prompt As String, ByVal title As String, ByVal 
     AskNumber = CLng(s)
 End Function
 
-Private Function Clip(ByVal s As String, ByVal n As Long) As String
+Public Function Clip(ByVal s As String, ByVal n As Long) As String
     If Len(s) > n Then Clip = Left$(s, n - 1) & "~" Else Clip = s
 End Function
 
-Private Function HrsTag(ByVal h As Variant) As String
+Public Function HrsTag(ByVal h As Variant) As String
     If IsNumeric(h) And Not IsEmpty(h) Then
         If CDbl(h) > 0 And CDbl(h) < FULL_SHIFT Then HrsTag = " " & CDbl(h) & "h"
     End If
@@ -427,7 +411,7 @@ Private Function GetOrMakeTable(ByVal sh As String, ByVal tn As String, ByVal cr
     Set GetOrMakeTable = lo
 End Function
 
-Private Function TableData(ByVal lo As ListObject) As Variant
+Public Function TableData(ByVal lo As ListObject) As Variant
     If lo Is Nothing Then Exit Function
     If lo.DataBodyRange Is Nothing Then Exit Function
     If Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then Exit Function
@@ -439,7 +423,7 @@ Public Function AbsTableData() As Variant
     AbsTableData = TableData(AbsTable())
 End Function
 
-Private Function NextId(ByVal lo As ListObject, ByVal prefix As String) As String
+Public Function NextId(ByVal lo As ListObject, ByVal prefix As String) As String
     Dim v As Variant: v = TableData(lo)
     Dim i As Long, k As Long, mx As Long, s As String
     If IsArray(v) Then
@@ -454,7 +438,7 @@ Private Function NextId(ByVal lo As ListObject, ByVal prefix As String) As Strin
     NextId = prefix & "-" & Format$(mx + 1, "0000")
 End Function
 
-Private Function AppendTo(ByVal lo As ListObject, ByVal data As Variant, ByVal nCols As Long) As Boolean
+Public Function AppendTo(ByVal lo As ListObject, ByVal data As Variant, ByVal nCols As Long) As Boolean
     Dim n As Long: n = UBound(data, 1)
     Dim ws As Worksheet: Set ws = lo.Parent
     Dim cnt As Long: cnt = lo.ListRows.Count
@@ -478,7 +462,7 @@ Fail:
 End Function
 
 ' row number (in the table body) of an ID, 0 if not found
-Private Function RowOf(ByVal v As Variant, ByVal id As String) As Long
+Public Function RowOf(ByVal v As Variant, ByVal id As String) As Long
     Dim i As Long
     If Not IsArray(v) Then Exit Function
     For i = 1 To UBound(v, 1)
@@ -509,7 +493,7 @@ Public Sub RefreshCalCache()
     LoadCache
 End Sub
 
-Private Sub LoadCache()
+Public Sub LoadCache()
     If mTestMode Then Exit Sub
     mAbs = TableData(AbsTable())
     mCov = TableData(CovTable())
@@ -537,7 +521,7 @@ End Sub
 
 ' v25.2 (item 4, C7): the Home Unit from the cache LoadCache filled (HomeUnitOf in modLeave scans the roster
 ' cell by cell: Needs Attention called it per name and per planned move); a name not on the roster asks HomeUnitOf
-Private Function HomeUnitCached(ByVal emp As String) As String
+Public Function HomeUnitCached(ByVal emp As String) As String
     If mHomeMap Is Nothing Then LoadCache
     If Not mHomeMap Is Nothing Then
         If mHomeMap.Exists(Trim$(emp)) Then HomeUnitCached = mHomeMap(Trim$(emp)): Exit Function
@@ -559,7 +543,7 @@ Public Function EmpShiftOn(ByVal empName As String, ByVal d As Date) As String
     If EmpShiftOn = "?" Then EmpShiftOn = "Days" ' unknown crew: show on Days so it's never hidden
 End Function
 
-Private Function AbsActiveOn(ByVal r As Long, ByVal d As Date) As Boolean
+Public Function AbsActiveOn(ByVal r As Long, ByVal d As Date) As Boolean
     If UCase$(SafeStr(mAbs(r, AB_STATUS))) = "VOID" Then Exit Function
     If Not IsDate(mAbs(r, AB_START)) Then Exit Function
     If Int(CDate(mAbs(r, AB_START))) > Int(d) Then Exit Function
@@ -1237,7 +1221,7 @@ End Function
 
 ' Which shift an absence row shows on: sick calls on their booked shift (v22),
 ' everything else on the crew's scheduled shift that day
-Private Function AbsenceOnShift(ByVal r As Long, ByVal d As Date, ByVal shiftLbl As String) As Boolean
+Public Function AbsenceOnShift(ByVal r As Long, ByVal d As Date, ByVal shiftLbl As String) As Boolean
     If UCase$(SafeStr(mAbs(r, AB_TYPE))) = "SIC" And UBound(mAbs, 2) >= AB_SHIFT Then
         If SafeStr(mAbs(r, AB_SHIFT)) <> "" Then
             AbsenceOnShift = (StrComp(SafeStr(mAbs(r, AB_SHIFT)), shiftLbl, vbTextCompare) = 0)
@@ -1511,7 +1495,7 @@ Public Function SaveNeed(ByVal unit As String, ByVal needText As String, ByVal t
     SaveNeed = nRows
 End Function
 
-Private Sub FormatCovDates(ByVal lo As ListObject)
+Public Sub FormatCovDates(ByVal lo As ListObject)
     On Error Resume Next                            ' never raises
     UnlockSheet lo.Parent
     lo.ListColumns(CV_DATE).DataBodyRange.NumberFormat = "ddd mmm d, yyyy"
@@ -2016,7 +2000,7 @@ Public Sub CalSheetChanged(ByVal Sh As Object)
     End Select
 End Sub
 
-Private Function DrawContext() As String
+Public Function DrawContext() As String
     DrawContext = Format$(Date, "yyyymmdd") & "|" & CAL_VERSION
 End Function
 
@@ -2051,7 +2035,7 @@ Yes:
     CalStale = True
 End Function
 
-Private Function NAStale() As Boolean
+Public Function NAStale() As Boolean
     On Error GoTo Yes
     Dim mp As Worksheet: Set mp = MapSheet()
     If SafeStr(mp.Range("Z9").Value) <> SafeStr(mp.Range("Z7").Value) Then GoTo Yes
@@ -2072,7 +2056,7 @@ Private Function CalHintText() As String
 End Function
 
 ' v25.1.2: seconds between two Timer readings (Timer restarts at midnight)
-Private Function Secs(ByVal t0 As Double, ByVal t1 As Double) As Double
+Public Function Secs(ByVal t0 As Double, ByVal t1 As Double) As Double
     Secs = t1 - t0
     If Secs < 0 Then Secs = Secs + 86400
 End Function
@@ -2174,7 +2158,7 @@ Public Function CoverageHasSource(ByVal source As String) As Boolean
     Next i
 End Function
 
-Private Function CalendarSheet() As Worksheet
+Public Function CalendarSheet() As Worksheet
     If Not SheetExists(CAL_SHEET) Then
         Dim ws As Worksheet
         UnlockStructure                                 ' v25: structure protection
@@ -2195,7 +2179,7 @@ Private Function CalendarSheet() As Worksheet
     SetTabColor CalendarSheet, thGreen()            ' v25.1: a structure change under v25's tab protection
 End Function
 
-Private Function MapSheet() As Worksheet
+Public Function MapSheet() As Worksheet
     Set MapSheet = ThisWorkbook.Worksheets(MAP_SHEET)
 End Function
 
@@ -2204,7 +2188,7 @@ End Function
 ' written between UnlockSheet / ProtectSheet; the map now is too (DrawCalendar unlocks it for the whole
 ' draw). The map is relocked whatever happened and the error re-raised after (v25.1 review: MarkCalDirty,
 ' CalOnOpen and DrawNeeds never reach ReportError, so nothing else would relock it).
-Private Sub MapWrite(ByVal addr As String, ByVal v As Variant)
+Public Sub MapWrite(ByVal addr As String, ByVal v As Variant)
     Dim mp As Worksheet: Set mp = MapSheet()
     Dim en As Long, em As String
     UnlockSheet mp
@@ -2225,18 +2209,18 @@ Public Function CalDirtyStamp() As String
     CalDirtyStamp = SafeStr(MapSheet().Range("Z7").Value)
 End Function
 
-Private Function CalMonth() As Date
+Public Function CalMonth() As Date
     Dim v As Variant: v = MapSheet().Range("Z1").Value
     If IsDate(v) Then CalMonth = DateSerial(Year(v), Month(v), 1) Else CalMonth = DateSerial(Year(Date), Month(Date), 1)
 End Function
 
-Private Function CalGroup() As String
+Public Function CalGroup() As String
     CalGroup = SafeStr(MapSheet().Range("Z2").Value)
     If CalGroup = "" Then CalGroup = CalGroupNames()(0)
 End Function
 
 ' the one unit of a calendar group, or "" when it holds several
-Private Function SingleUnitOf(ByVal grp As String) As String
+Public Function SingleUnitOf(ByVal grp As String) As String
     Dim g As Variant, i As Long, parts As Variant
     g = CalGroups()
     For i = 0 To UBound(g)
@@ -2313,16 +2297,16 @@ End Sub
 ' ====================================================================
 '  THEME  - every calendar / needs-attention colour is set here
 ' ====================================================================
-Private Function thBand() As Long          ' title band, borders around each day
+Public Function thBand() As Long          ' title band, borders around each day
     thBand = RGB(38, 50, 56)
 End Function
-Private Function thHead() As Long          ' weekday header, section bars
+Public Function thHead() As Long          ' weekday header, section bars
     thHead = RGB(55, 71, 79)
 End Function
-Private Function thNav() As Long           ' month / navigation buttons
+Public Function thNav() As Long           ' month / navigation buttons
     thNav = RGB(84, 110, 122)
 End Function
-Private Function thGreen() As Long         ' print / post / primary actions
+Public Function thGreen() As Long         ' print / post / primary actions
     thGreen = RGB(46, 125, 50)
 End Function
 Private Function thDayFill() As Long
@@ -2343,7 +2327,7 @@ End Function
 Private Function thNightText() As Long
     thNightText = RGB(40, 53, 147)
 End Function
-Private Function thToday() As Long
+Public Function thToday() As Long
     thToday = RGB(255, 213, 79)
 End Function
 Private Function thWeekend() As Long
@@ -2352,30 +2336,30 @@ End Function
 Private Function thOutFill() As Long       ' days outside the month
     thOutFill = RGB(245, 245, 245)
 End Function
-Private Function thGrid() As Long
+Public Function thGrid() As Long
     thGrid = RGB(207, 216, 220)
 End Function
-Private Function thOpen() As Long          ' OPEN / no takers
+Public Function thOpen() As Long          ' OPEN / no takers
     thOpen = RGB(183, 28, 28)
 End Function
-Private Function thOpenFill() As Long
+Public Function thOpenFill() As Long
     thOpenFill = RGB(255, 205, 210)
 End Function
-Private Function thPosted() As Long        ' POSTED - waiting for sign-ups
+Public Function thPosted() As Long        ' POSTED - waiting for sign-ups
     thPosted = RGB(191, 54, 12)
 End Function
-Private Function thPostedFill() As Long
+Public Function thPostedFill() As Long
     thPostedFill = RGB(255, 224, 178)
 End Function
 Private Function thInk() As Long           ' normal text / covered names
     thInk = RGB(33, 33, 33)
 End Function
-Private Function thMuted() As Long
+Public Function thMuted() As Long
     thMuted = RGB(117, 117, 117)
 End Function
 
 ' a colour mixed toward white (f = 0.85 -> very light tint)
-Private Function Tint(ByVal col As Long, ByVal f As Double) As Long
+Public Function Tint(ByVal col As Long, ByVal f As Double) As Long
     Dim rr As Long, gg As Long, bb As Long
     rr = col Mod 256: gg = (col \ 256) Mod 256: bb = (col \ 65536) Mod 256
     Tint = RGB(rr + (255 - rr) * f, gg + (255 - gg) * f, bb + (255 - bb) * f)
@@ -2822,7 +2806,7 @@ Private Sub DateRich(ByVal a As Range, ByVal b As Range, ByVal numLen As Long, B
 End Sub
 
 ' v25.2 (item 3): a range grown by Union (Nothing to start with)
-Private Sub AddToRange(ByRef rg As Range, ByVal part As Range)
+Public Sub AddToRange(ByRef rg As Range, ByVal part As Range)
     If rg Is Nothing Then Set rg = part Else Set rg = Union(rg, part)
 End Sub
 
@@ -2910,13 +2894,13 @@ Private Sub BuildCalControls(ByVal ws As Worksheet, ByVal m0 As Date, ByVal grp 
     ' row 1:  [Needs attention]  < Sep | [October 2026 v] | Nov > | This month   [unit v]   Print / PDF
     Dim nOpen As Long: nOpen = OpenAhead(grp, 14)
     CalBtn ws, "cal_adm_na", IIf(nOpen > 0, nOpen & " need cover  >", "Needs attention  >"), _
-           "modCalendar.ShowNeedsAttention", ws.Range("D1:E1"), IIf(nOpen > 0, thOpen(), thNav())
+           "modNeeds.ShowNeedsAttention", ws.Range("D1:E1"), IIf(nOpen > 0, thOpen(), thNav())
     CalBtn ws, "cal_prev", "<  " & Format$(DateAdd("m", -1, m0), "mmm"), "modCalendar.CalPrev", ws.Range("F1"), thNav()
     CalDrop ws, "cal_month", ws.Range("G1:H1")
     CalBtn ws, "cal_next", Format$(DateAdd("m", 1, m0), "mmm") & "  >", "modCalendar.CalNext", ws.Range("I1"), thNav()
     CalBtn ws, "cal_today", "This month", "modCalendar.CalToday", ws.Range("J1"), thNav()
     CalDrop ws, "cal_unit", ws.Range("L1:M1")
-    CalBtn ws, "cal_sup_board", "Board", "modCalendar.BoardPrint", ws.Range("K1"), thGreen()     ' v26: the two-week board (cal_sup_: supervisors and admins see it)
+    CalBtn ws, "cal_sup_board", "Board", "modBoard.BoardPrint", ws.Range("K1"), thGreen()     ' v26: the two-week board (cal_sup_: supervisors and admins see it)
     CalBtn ws, "cal_pdf", "Print / PDF", "modCalendar.CalPrintPdf", ws.Range("N1:O1"), thGreen()
 
     ' month list: January last year .. December next year
@@ -2952,7 +2936,7 @@ Private Sub BuildCalControls(ByVal ws As Worksheet, ByVal m0 As Date, ByVal grp 
     CalBtn ws, "cal_adm_post", "Post Line", "modCalendar.CalPostLine", ws.Range("B3"), thGreen()
     CalBtn ws, "cal_adm_set", "Set Coverage", "modCalendar.CalSetCoverage", ws.Range("C3"), RGB(230, 81, 0)
     CalBtn ws, "cal_adm_book", "Book Time Off", "modCalendar.ShowTimeOffForm", ws.Range("D3"), TypeColor("VAC")
-    CalBtn ws, "cal_adm_imp", "Import Old Cal", "modCalendar.ImportUnitCalendar", ws.Range("E3"), RGB(120, 144, 156)
+    CalBtn ws, "cal_adm_imp", "Import Old Cal", "modCalImport.ImportUnitCalendar", ws.Range("E3"), RGB(120, 144, 156)
     For i = ws.Shapes.Count To 1 Step -1
         If Left$(ws.Shapes(i).Name, 8) = "cal_adm_" Then ws.Shapes(i).Visible = IIf(gAdminUnlocked, msoTrue, msoFalse)
         If Left$(ws.Shapes(i).Name, 8) = "cal_sup_" Then ws.Shapes(i).Visible = IIf(gAdminUnlocked Or IsSupervisor(), msoTrue, msoFalse)   ' v26 review
@@ -3038,7 +3022,7 @@ Public Function ReadyToAwardOldest() As Date
 End Function
 
 ' button centred in its cell(s), fixed height so the text never clips
-Private Sub CalBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
+Public Sub CalBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As String, ByVal mac As String, _
                    ByVal cel As Range, ByVal col As Long)
     Dim h As Double: h = cel.Height - 10
     If h > 24 Then h = 24
@@ -3070,7 +3054,7 @@ Private Sub CalBtn(ByVal ws As Worksheet, ByVal nm As String, ByVal cap As Strin
 End Sub
 
 ' drop-down centred in its cell(s)
-Private Sub CalDrop(ByVal ws As Worksheet, ByVal nm As String, ByVal cel As Range)
+Public Sub CalDrop(ByVal ws As Worksheet, ByVal nm As String, ByVal cel As Range)
     Dim dd As Object
     Set dd = ws.DropDowns.Add(cel.Left + 4, cel.Top + (cel.Height - 20) / 2, cel.Width - 8, 20)
     dd.Name = nm
@@ -3087,7 +3071,7 @@ Oops:
     ReportError "CalSetCoverage"
 End Sub
 
-Private Sub CalSetCoverageKey(ByVal keyTxt As String)
+Public Sub CalSetCoverageKey(ByVal keyTxt As String)
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
     If Left$(keyTxt, 2) <> "A:" And Left$(keyTxt, 2) <> "C:" Then MsgBox "Click a line on the calendar (who's off / the need), then Set Coverage." & vbNewLine & "For an empty spot, double-click it instead.", vbInformation, "Call Out Roster": Exit Sub
@@ -3155,7 +3139,7 @@ End Sub
 ' word that would stop Member View is refused here, with the word named. When the line came from
 ' a posting that is still Open, the posting's Reason changes with it (the members' file carries
 ' both); a closed posting's Reason is no longer published and is left alone.
-Private Sub CalEditTextKey(ByVal keyTxt As String)
+Public Sub CalEditTextKey(ByVal keyTxt As String)
     Const TTL As String = "Change the text"
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
@@ -3278,7 +3262,7 @@ End Sub
 ' v24.3.2 (review): "Change the Reason of posting" on a line or a Needs Attention entry. For a
 ' posting whose words are not on a need line of its own (placed on a time-off line, filled an
 ' existing line, or not on the calendar), where Change the text of this line can't reach them.
-Private Sub CalEditReasonId(ByVal id As String)
+Public Sub CalEditReasonId(ByVal id As String)
     Const TTL As String = "Change the Reason"
     If Not RequireAdmin() Then Exit Sub
     If Not RequireWritable() Then Exit Sub
@@ -3379,7 +3363,7 @@ Oops:
     ReportError "CalPostLine"
 End Sub
 
-Private Sub CalPostKey(ByVal keyTxt As String)
+Public Sub CalPostKey(ByVal keyTxt As String)
     If Not RequireSupervisor() Then Exit Sub            ' v27 (item 15): posting a shift is a supervisor's job (v25.5); was RequireAdmin
     If Not RequireWritable() Then Exit Sub
     If Not PostingTablesReady() Then Exit Sub
@@ -3517,563 +3501,6 @@ Oops:
     DrawCalendar                                ' back to the supervisors' draw (it never raises)
 End Sub
 
-' ====================================================================
-'  THE TWO-WEEK BOARD (v26, kit item 3)
-' ====================================================================
-' Today .. today + 13, one page per calendar group (the named groups; "All
-' units" would repeat them), landscape: one row per date with the crews on,
-' the Days lines and the Nights lines as the calendar shows them (OPEN in
-' red). Drawn from SlotsFor over the caches on the output-only Board sheet,
-' saved as a PDF beside the month calendars, then "print as well?".
-' Supervisors and admins. Reads only; writes the Board sheet. (BOARD_SHEET / BOARD_DAYS
-' are declared at the module head: a Const after a procedure does not compile.)
-Public Sub BoardPrint()
-    On Error GoTo Oops
-    If Not IsSupervisor() Then
-        MsgBox "The board is printed by a supervisor or an admin.", vbInformation, "Board"
-        Exit Sub
-    End If
-    Dim ws As Worksheet
-    Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
-    Dim evWas As Boolean: evWas = Application.EnableEvents
-    Dim calcWas As Long: calcWas = Application.Calculation
-    Application.ScreenUpdating = False
-    Application.EnableEvents = False
-    Application.Calculation = xlCalculationManual
-    On Error GoTo Failed
-    Set ws = BoardSheet()                           ' review: made with the screen and events off (no flash, no CalActivated)
-    LoadCache
-    LoadPostCache
-    SetSheetVisible ws, xlSheetVisible
-    UnlockSheet ws
-    ws.Cells.Clear
-    On Error Resume Next
-    ws.ResetAllPageBreaks
-    On Error GoTo Failed
-    With ws.Cells.Font
-        .Name = CAL_FONT: .Size = 9
-    End With
-    ws.Columns(1).ColumnWidth = 15
-    ws.Columns(2).ColumnWidth = 15
-    ws.Columns(3).ColumnWidth = 58
-    ws.Columns(4).ColumnWidth = 58
-
-    Dim d0 As Date: d0 = Date
-    Dim g As Variant, parts As Variant, grp As String, r As Long, dd As Long, d As Date, nOpenAll As Long
-    Dim slots() As CalSlot, n As Long, i As Long, txtD As String, txtN As String, openD As Boolean, openN As Boolean
-    Dim firstRow As Long, lastGroupStart As Long
-    r = 1
-    For Each g In CalGroups()
-        parts = Split(g, "|")
-        If parts(1) <> "*" Then
-            grp = CStr(parts(0))
-            If r > 1 Then
-                On Error Resume Next
-                ws.Rows(r).PageBreak = xlPageBreakManual      ' one page per group
-                On Error GoTo Failed
-            End If
-            lastGroupStart = r
-            With ws.Cells(r, 1)
-                .Value = UCase$(grp) & "  -  BOARD  " & Format$(d0, "ddd mmm d") & " to " & Format$(d0 + BOARD_DAYS - 1, "ddd mmm d")
-                .Font.Name = CAL_FONT_B: .Font.Size = 14: .Font.Color = thHead()
-            End With
-            r = r + 1
-            ws.Cells(r, 1).Value = "Drawn " & Format$(Now, "ddd mmm d, yyyy h:mm AM/PM") & ".  OPEN = nobody covers it yet; NCN = no coverage needed; " & _
-                                   "POSTED = waiting for sign-ups.  The calendar tab has the details and the options.  " & TrustStrip()   ' v26.5.5 (5.2)
-            ws.Cells(r, 1).Font.Size = 8: ws.Cells(r, 1).Font.Italic = True: ws.Cells(r, 1).Font.Color = thMuted()
-            r = r + 1
-            ws.Range(ws.Cells(r, 1), ws.Cells(r, 4)).Value = Array("Date", "Crews on", "DAYS  7 AM - 7 PM", "NIGHTS  7 PM - 7 AM")
-            With ws.Range(ws.Cells(r, 1), ws.Cells(r, 4))
-                .Font.Name = CAL_FONT_B: .Font.Color = vbWhite: .Interior.Color = thHead()
-                .VerticalAlignment = xlCenter: .IndentLevel = 1
-            End With
-            ws.Rows(r).RowHeight = 18
-            r = r + 1
-            firstRow = r
-            For dd = 0 To BOARD_DAYS - 1
-                d = d0 + dd
-                n = SlotsFor(d, "Days", grp, slots, True)
-                txtD = BoardLines(slots, n, openD)
-                n = SlotsFor(d, "Nights", grp, slots, True)
-                txtN = BoardLines(slots, n, openN)
-                ws.Cells(r, 1).NumberFormat = "@"
-                ws.Cells(r, 1).Value = Format$(d, "ddd mmm d") & IIf(HolidayLabel(d) <> "", vbLf & HolidayLabel(d), "")
-                ws.Cells(r, 2).Value = DaysCrew(d) & " days" & vbLf & NightsCrew(d) & " nights"
-                ws.Cells(r, 3).Value = IIf(txtD = "", "-", txtD)
-                ws.Cells(r, 4).Value = IIf(txtN = "", "-", txtN)
-                If openD Then ws.Cells(r, 3).Font.Color = thOpen(): ws.Cells(r, 3).Font.Name = CAL_FONT_B: nOpenAll = nOpenAll + 1
-                If openN Then ws.Cells(r, 4).Font.Color = thOpen(): ws.Cells(r, 4).Font.Name = CAL_FONT_B: nOpenAll = nOpenAll + 1
-                If dd = 0 Then ws.Range(ws.Cells(r, 1), ws.Cells(r, 4)).Interior.Color = thToday()
-                If Weekday(d) = vbSaturday Or Weekday(d) = vbSunday Then ws.Cells(r, 1).Font.Color = thMuted()
-                r = r + 1
-            Next dd
-            With ws.Range(ws.Cells(firstRow, 1), ws.Cells(r - 1, 4))
-                .WrapText = True: .VerticalAlignment = xlTop: .IndentLevel = 1
-                .Borders(xlInsideHorizontal).Color = thGrid(): .Borders(xlEdgeBottom).Color = thGrid()
-            End With
-            ws.Range(ws.Rows(firstRow), ws.Rows(r - 1)).AutoFit
-            r = r + 1
-        End If
-    Next g
-    If lastGroupStart = 0 Then ws.Cells(1, 1).Value = "No calendar groups are set up (CalGroups in modCalendar)."
-
-    On Error Resume Next
-    Application.PrintCommunication = False
-    With ws.PageSetup
-        .PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(r, 4)).Address
-        .PrintTitleRows = ""
-        .Orientation = xlLandscape
-        .Zoom = False
-        .FitToPagesWide = 1
-        .FitToPagesTall = False
-        .CenterHorizontally = True
-        .LeftMargin = Application.InchesToPoints(0.3)
-        .RightMargin = Application.InchesToPoints(0.3)
-        .TopMargin = Application.InchesToPoints(0.4)
-        .BottomMargin = Application.InchesToPoints(0.4)
-        .PrintGridlines = False
-    End With
-    Application.PrintCommunication = True
-    On Error GoTo Failed
-    ProtectSheet ws
-    ws.Activate
-    ReleaseStatusBar
-    ActiveWindow.DisplayGridlines = False
-    Application.Calculation = calcWas
-    Application.EnableEvents = evWas
-    Application.ScreenUpdating = scrWas
-
-    ' the PDF beside the month calendars, then the printer
-    Dim folder As String, subF As String, fName As String, msg As String
-    folder = EnsureSlash(ReportFolder())
-    If FolderExists(folder) Then
-        subF = folder & "Calendars" & Application.PathSeparator
-        If Not FolderExists(subF) Then
-            On Error Resume Next
-            MkDir subF
-            On Error GoTo Failed
-        End If
-        If FolderExists(subF) Then folder = subF
-    Else
-        folder = EnsureSlash(ThisWorkbook.Path)
-    End If
-    fName = "Board " & Format$(d0, "yyyy-mm-dd") & ".pdf"
-    On Error Resume Next
-    ws.ExportAsFixedFormat Type:=xlTypePDF, Filename:=folder & fName, Quality:=xlQualityStandard, _
-        IncludeDocProperties:=False, IgnorePrintAreas:=False, OpenAfterPublish:=False
-    If Err.Number <> 0 Then msg = "PDF NOT saved: " & Err.Description Else msg = "PDF saved: " & folder & fName
-    Err.Clear
-    On Error GoTo Failed
-    If MsgBox(msg & vbNewLine & vbNewLine & "The board is on the '" & BOARD_SHEET & "' tab: " & _
-              "one page per unit group, " & BOARD_DAYS & " days, " & nOpenAll & " shift(s) with an open line." & vbNewLine & vbNewLine & _
-              "Print it as well?", vbYesNo + vbQuestion, "Board") = vbYes Then
-        On Error Resume Next
-        ws.PrintOut Copies:=1
-        If Err.Number <> 0 Then MsgBox "NOT printed: " & Err.Description, vbExclamation, "Board"
-        Err.Clear
-        On Error GoTo Failed
-    End If
-    Exit Sub
-Failed:
-    Dim em As String: em = Err.Description
-    LogError "BoardPrint", Err.Number, em
-    On Error Resume Next
-    If Not ws Is Nothing Then ProtectSheet ws
-    Application.Calculation = calcWas
-    Application.EnableEvents = evWas
-    Application.ScreenUpdating = scrWas
-    MsgBox "The board couldn't be drawn: " & em, vbExclamation, "Board"
-    Exit Sub
-Oops:
-    ReportError "BoardPrint"
-End Sub
-
-' One shift's lines as the board shows them, one per line: "Smith P (Vac)  -  Jones K", "... - OPEN",
-' "... - NO TAKERS", "... - POSTED P-0012", "... - NCN". anyOpen = an OPEN or NO TAKERS line among them.
-Private Function BoardLines(ByRef slots() As CalSlot, ByVal n As Long, ByRef anyOpen As Boolean) As String
-    Dim i As Long, t As String, rt As String, lt As String
-    anyOpen = False
-    For i = 1 To n
-        rt = slots(i).RightText
-        If rt = "" Then
-            rt = "OPEN": anyOpen = True
-        ElseIf UCase$(rt) Like "NO TAKERS*" Then
-            rt = "NO TAKERS": anyOpen = True
-        End If
-        ' (review, D-M1) the board hangs where members read it: a sick call or a personal day prints as "Off"
-        ' (PublicLeft, as the members' file), and a line whose free text names a kind of leave is not printed as written
-        lt = PublicLeft(slots(i).LeftText, slots(i).TypeCode)
-        If LeaveWordsIn(lt) <> "" Then lt = "(a line the board can't show as written - see the calendar)"
-        If LeaveWordsIn(rt) <> "" Then rt = "(see the calendar)"
-        t = t & IIf(t = "", "", vbLf) & lt & "  -  " & rt
-    Next i
-    BoardLines = t
-End Function
-
-' The Board sheet, made on first use (output only; protected; shown when drawn)
-Private Function BoardSheet() As Worksheet
-    If Not SheetExists(BOARD_SHEET) Then
-        Dim was As Object: Set was = ActiveSheet
-        Dim ws As Worksheet
-        UnlockStructure
-        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-        ws.Name = BOARD_SHEET
-        RelockStructure
-        SetTabColor ws, thHead()
-        On Error Resume Next
-        If Not was Is Nothing Then was.Activate
-        On Error GoTo 0
-    End If
-    Set BoardSheet = ThisWorkbook.Worksheets(BOARD_SHEET)
-End Function
-
-
-' ====================================================================
-'  MINIMUM STAFFING (v26, kit item 2; the numbers from Graeme, Oct 18)
-' ====================================================================
-' The Min Staff sheet (admin-typed: Unit, Shift, Minimum, Note) holds the
-' plant's minimums. For today .. today + 13 a unit's shift is SHORT when
-'   staffed = scheduled - off + covered  <  minimum
-' scheduled = the people on the crew that is on that shift holding a code
-' in the unit (LoadEligible as of the date, CrewOn / CrewShiftOn: a DAYS
-' crew off on a plant holiday is not scheduled); off = booked off or sick
-' on that shift (OffForStaffing) or off in a switch; covered = the coverage
-' lines a named person covers - a switch's own S/S line counts its worker
-' (OPEN, NO TAKERS, POSTED and NCN add nobody). Shown on the calendar's
-' date cell and in Needs Attention. Reads only; no rule changes.
-
-' PURE (SelfTest "minstaff"): "" (fine, or no minimum) / "SHORT staffed/minimum"
-Public Function StaffShort(ByVal scheduled As Long, ByVal off As Long, ByVal covered As Long, ByVal minimum As Long) As String
-    If minimum <= 0 Then Exit Function
-    Dim staffed As Long: staffed = scheduled - off + covered
-    If staffed < minimum Then StaffShort = "SHORT " & staffed & "/" & minimum
-End Function
-
-' The plant's minimums on first use (Graeme, Oct 18, 2026): unit, days, nights (0 = none), note
-Private Function MinStaffDefaults() As Variant
-    MinStaffDefaults = Array( _
-        Array("Phosphine", 2, 2, "1 per train (train 1 + train 2); the roster cannot tell the trains apart, so 2 is the check"), _
-        Array("Derivatives", 3, 3, ""), _
-        Array("Cypure", 1, 1, ""), _
-        Array("Material Handler", 1, 1, "fumigation"), _
-        Array("QC Derivatives", 1, 1, "the QC lab; blank the Nights minimum if the lab runs no nights"), _
-        Array("QC Gases", 1, 0, "1 on days and 1 on afternoons; the roster has no afternoon shift, so only days are checked"), _
-        Array("Utilities", 1, 0, "days only"), _
-        Array("SBP", 1, 0, "days only"))
-End Function
-
-' The settings table, made on first use with the defaults (an admin corrects the Minimum cells)
-Public Function MinStaffTable(Optional ByVal create As Boolean = False) As ListObject
-    Dim ws As Worksheet, lo As ListObject
-    If SheetExists(MINSTAFF_SHEET) Then
-        Set ws = ThisWorkbook.Worksheets(MINSTAFF_SHEET)
-        On Error Resume Next
-        Set lo = ws.ListObjects(MINSTAFF_TABLE)
-        On Error GoTo 0
-    End If
-    If lo Is Nothing And create Then
-        If ws Is Nothing Then
-            Dim was As Object: Set was = ActiveSheet
-            Dim evWas As Boolean: evWas = Application.EnableEvents
-            Dim em As String, en As Long
-            Application.EnableEvents = False                 ' review: made at open - no SheetActivate for the Add and the Activate back
-            On Error GoTo AddFailed
-            UnlockStructure
-            Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
-            ws.Name = MINSTAFF_SHEET
-            RelockStructure
-            SetTabColor ws, RGB(176, 0, 32)
-            On Error Resume Next
-            If Not was Is Nothing Then was.Activate
-            On Error GoTo 0
-            Application.EnableEvents = evWas
-        End If
-        UnlockSheet ws
-        Dim defs As Variant: defs = MinStaffDefaults()
-        Dim n As Long: n = 2 * (UBound(defs) - LBound(defs) + 1)
-        Dim rows() As Variant: ReDim rows(1 To n, 1 To 4)
-        Dim i As Long, k As Long, row As Variant
-        For i = LBound(defs) To UBound(defs)
-            row = defs(i)
-            k = k + 1: rows(k, 1) = row(0): rows(k, 2) = "Days": rows(k, 4) = row(3)
-            If CLng(row(1)) > 0 Then rows(k, 3) = CLng(row(1))
-            k = k + 1: rows(k, 1) = row(0): rows(k, 2) = "Nights": rows(k, 4) = row(3)
-            If CLng(row(2)) > 0 Then rows(k, 3) = CLng(row(2))
-        Next i
-        ws.Range("A1").Resize(1, 4).Value = Array("Unit", "Shift", "Minimum", "Note")
-        ws.Range("A2").Resize(n, 4).Value = rows
-        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(n + 1, 4), , xlYes)
-        lo.Name = MINSTAFF_TABLE
-        lo.TableStyle = "TableStyleMedium3"
-        ws.Columns(1).ColumnWidth = 18: ws.Columns(2).ColumnWidth = 8: ws.Columns(3).ColumnWidth = 10: ws.Columns(4).ColumnWidth = 90
-        ws.Range("A" & (n + 3)).Value = "Minimum operators per unit and shift (admin). Blank = no minimum on that shift. The calendar's date cells and " & _
-                                        "Needs Attention flag a shift below its minimum for the next " & BOARD_DAYS & " days. Change them through the admin Desk's Holidays / minimum staffing."
-        ws.Range("A" & (n + 3)).Font.Italic = True: ws.Range("A" & (n + 3)).Font.Size = 8.5
-        LockMinStaffCells gAdminUnlocked
-        ProtectSheet ws
-        If gDeskMode Then SetSheetVisible ws, xlSheetVeryHidden      ' review: an admin's Desk view hides the admin sheets (ApplyViewCore ran before)
-    End If
-    Set MinStaffTable = lo
-    Exit Function
-AddFailed:                                           ' re-review: events back on whatever failed, then the error goes up
-    en = Err.Number: em = Err.Description
-    On Error Resume Next
-    Application.EnableEvents = evWas
-    RelockStructure
-    Err.Raise en, , em
-End Function
-
-' v26 (R4): the cells an admin may type into on the Min Staff sheet - Minimum and Note; v27 (item 33): none (adminView unused).
-' Called by ApplyViewCore (the sheet is re-protected by ProtectAll after it) and at the table's making.
-Public Sub LockMinStaffCells(ByVal adminView As Boolean)
-    Dim lo As ListObject: Set lo = MinStaffTable(False)
-    If lo Is Nothing Then Exit Sub
-    Dim ws As Worksheet: Set ws = lo.Parent
-    UnlockSheet ws
-    ws.Cells.Locked = True                          ' v27 (item 33): every cell - the Min Staff pop-up writes Minimum and Note (SetMinStaff)
-    ProtectSheet ws
-End Sub
-
-' "unit|Days" -> minimum (only > 0), from the table; empty when the sheet isn't made yet
-Public Function MinStaffMap() As Object
-    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
-    d.CompareMode = 1
-    Set MinStaffMap = d
-    Dim lo As ListObject: Set lo = MinStaffTable(False)
-    If lo Is Nothing Then Exit Function
-    If lo.DataBodyRange Is Nothing Then Exit Function
-    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
-    Dim i As Long, u As String, sh As String, m As Long
-    For i = 1 To UBound(v, 1)
-        u = Trim$(SafeStr(v(i, 1))): sh = Trim$(SafeStr(v(i, 2)))
-        m = CLng(NumOr0(v(i, 3)))
-        If u <> "" And m > 0 Then
-            If UCase$(Left$(sh, 1)) = "N" Then sh = "Nights" Else sh = "Days"
-            d(u & "|" & sh) = m
-        End If
-    Next i
-End Function
-
-' v27 (item 25, 1.4): the admin-typed CALL-OUT NOTE on the Min Staff sheet for a unit and shift ("" when none) - the
-' 5th column (review M2: the Note column holds the minimums' own explanations, "days only" ..., which were never
-' meant for the call-out pop-up). The pop-up shows it at LOAD. Never raises.
-Public Function MinStaffNote(ByVal unit As String, ByVal shiftLbl As String) As String
-    On Error Resume Next                            ' never raises
-    Dim lo As ListObject: Set lo = MinStaffTable(False)
-    If lo Is Nothing Then Exit Function
-    If lo.DataBodyRange Is Nothing Then Exit Function
-    Dim v As Variant: v = RangeTo2D(lo.DataBodyRange)
-    If UBound(v, 2) < MS_CALLNOTE Then Exit Function      ' an older table: no call-out note yet
-    Dim i As Long, sh As String, want As String
-    want = IIf(IsNightShift(shiftLbl), "N", "D")
-    For i = 1 To UBound(v, 1)
-        If StrComp(Trim$(SafeStr(v(i, 1))), Trim$(unit), vbTextCompare) = 0 Then
-            sh = UCase$(Left$(Trim$(SafeStr(v(i, 2))), 1))
-            If sh <> "N" Then sh = "D"
-            If sh = want And Trim$(SafeStr(v(i, MS_CALLNOTE))) <> "" Then MinStaffNote = Trim$(SafeStr(v(i, MS_CALLNOTE))): Exit Function
-        End If
-    Next i
-End Function
-
-' One sweep's caches (the start of DrawCalendar / DrawNeeds): the minimums, the names per unit, and the
-' "busy" names - anyone with an absence row on file or on a switch dated near the window. The off / switch
-' lookups scan whole tables per name, so they run only for those (review: the sweep's cost).
-Private Sub StaffSweepBegin(ByVal d0 As Date)
-    Set mStaffMin = MinStaffMap()
-    Set mStaffNames = CreateObject("Scripting.Dictionary")
-    mStaffNames.CompareMode = 1
-    mStaffPerDate = PlannedWithin(d0, d0 + BOARD_DAYS - 1)
-    Set mStaffBusy = CreateObject("Scripting.Dictionary")
-    mStaffBusy.CompareMode = 1
-    If mShiftMap Is Nothing Then LoadCache
-    Dim i As Long, nm As String, kk As Variant
-    If IsArray(mAbs) Then
-        For i = 1 To UBound(mAbs, 1)
-            If UCase$(SafeStr(mAbs(i, AB_STATUS))) <> "VOID" Then
-                nm = Trim$(SafeStr(mAbs(i, AB_EMP)))
-                If nm <> "" Then mStaffBusy(nm) = True
-            End If
-        Next i
-    End If
-    Dim sw As Object: Set sw = SwitchNamesBetween(d0 - 1, d0 + BOARD_DAYS)
-    For Each kk In sw.Keys
-        mStaffBusy(CStr(kk)) = True
-    Next kk
-End Sub
-
-Private Function MinStaffCount() As Long
-    If mStaffMin Is Nothing Then Exit Function
-    MinStaffCount = mStaffMin.Count
-End Function
-
-' Everyone holding a code in the unit (any grade, any crew; a planned move counts from its date), as names
-Private Function StaffNames(ByVal unit As String, ByVal d As Date) As Variant
-    If mStaffNames Is Nothing Then StaffSweepBegin Date
-    Dim key As String: key = unit & IIf(mStaffPerDate, "|" & CLng(Int(d)), "")
-    If mStaffNames.Exists(key) Then StaffNames = mStaffNames(key): Exit Function
-    Dim recs() As EmpRec, n As Long, i As Long, names() As String
-    If mStaffPerDate Then
-        n = LoadEligible(unit, "ALL", recs, 999, True, d)
-    Else
-        n = LoadEligible(unit, "ALL", recs, 999, True)
-    End If
-    If n > 0 Then
-        ReDim names(1 To n)
-        For i = 1 To n
-            names(i) = recs(i).EmpName
-        Next i
-        mStaffNames(key) = names
-        StaffNames = names
-    Else
-        mStaffNames(key) = Empty
-    End If
-End Function
-
-' The counts behind one unit / date / shift (reads the caches only; switch reads batched by the caller)
-Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, _
-                        ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long)
-    scheduled = 0: off = 0: covered = 0
-    Dim names As Variant: names = StaffNames(unit, d)
-    Dim i As Long, nm As String, onShift As Boolean, fb As String, busy As Boolean
-    If IsArray(names) Then
-        For i = LBound(names) To UBound(names)
-            nm = CStr(names(i))
-            fb = ""                                         ' the roster crew as the fallback (no cell scan in CrewOn)
-            If mShiftMap.Exists(nm) Then fb = CStr(mShiftMap(nm))
-            onShift = (CrewShiftOn(CrewOn(nm, d, fb), d) = shiftLbl)
-            If mStaffBusy Is Nothing Then busy = True Else busy = mStaffBusy.Exists(nm)    ' re-review: a sweep that failed half-way
-            ' (review) the one WORKING a switch is not added here: every switch has its own S/S calendar line, which
-            ' counts them below as a covered line; adding them here too counted every switch twice
-            If onShift Then
-                scheduled = scheduled + 1
-                If busy Then
-                    If OffForStaffing(nm, d, shiftLbl) Then
-                        off = off + 1
-                    ElseIf SwitchOffOn(nm, d, shiftLbl) <> "" Then
-                        off = off + 1
-                    End If
-                End If
-            End If
-        Next i
-    End If
-    Dim slots() As CalSlot, n As Long, rt As String
-    n = SlotsFor(d, shiftLbl, unit, slots, True)
-    For i = 1 To n
-        rt = Trim$(slots(i).RightText)
-        If rt <> "" Then
-            ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each; a
-            ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of a 12 h shift, rounded up
-            If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then covered = covered + CoveredCount(rt)
-        End If
-    Next i
-End Sub
-
-' v26 (re-review): how many people a covered-by text stands for: one per " / " part; a part ending in "Nh"
-' (a partial award) counts N / 12 of a person; the sum rounded up, at least 1
-Private Function CoveredCount(ByVal rt As String) As Long
-    Dim parts As Variant: parts = Split(rt, " / ")
-    Dim i As Long, part As String, p As Long, hrs As Double, total As Double
-    For i = LBound(parts) To UBound(parts)
-        part = Trim$(CStr(parts(i)))
-        hrs = 0
-        If LCase$(Right$(part, 1)) = "h" Then
-            p = InStrRev(part, " ")
-            If p > 0 Then
-                If IsNumeric(Mid$(part, p + 1, Len(part) - p - 1)) Then hrs = Val(Mid$(part, p + 1))
-            End If
-        End If
-        If hrs > 0 And hrs < USUAL_SHIFT_HOURS Then total = total + hrs / USUAL_SHIFT_HOURS Else total = total + 1
-    Next i
-    CoveredCount = CLng(-Int(-total))
-    If CoveredCount < 1 Then CoveredCount = 1
-End Function
-
-' v26 (review): booked off or sick FOR THIS SHIFT, as the calendar draws it - a sick call sits on the shift it
-' was booked for only; the 24 h window after it is an overtime-list rule (AbsentForShift), not a day off work
-Private Function OffForStaffing(ByVal nm As String, ByVal d As Date, ByVal shiftLbl As String) As Boolean
-    If Not IsArray(mAbs) Then Exit Function
-    Dim r As Long
-    For r = 1 To UBound(mAbs, 1)
-        If StrComp(Trim$(SafeStr(mAbs(r, AB_EMP))), nm, vbTextCompare) = 0 Then
-            If AbsActiveOn(r, d) Then
-                If AbsenceOnShift(r, d, shiftLbl) Then OffForStaffing = True: Exit Function
-            End If
-        End If
-    Next r
-End Function
-
-' The short shifts of one date inside a calendar group, for the date cell:
-' "Days: Phosphine 1/2, Cypure 0/1   Nights: Derivatives 2/3" ("" = none, or no minimums)
-Public Function StaffShortText(ByVal d As Date, ByVal groupName As String, Optional ByRef nShort As Long) As String
-    nShort = 0
-    If mStaffMin Is Nothing Then StaffSweepBegin Date
-    If mStaffMin.Count = 0 Then Exit Function
-    Dim mine As Boolean
-    If Not SwitchBatchActive() Then BeginSwitchBatch: mine = True
-    On Error GoTo Done
-    Dim sh As Variant, kk As Variant, u As String, s As Long, o As Long, c As Long, t As String, part As String
-    For Each sh In Array("Days", "Nights")
-        part = ""
-        For Each kk In mStaffMin.Keys
-            If Right$(CStr(kk), Len(CStr(sh)) + 1) = "|" & CStr(sh) Then
-                u = Left$(CStr(kk), Len(CStr(kk)) - Len(CStr(sh)) - 1)
-                If UnitInGroup(u, groupName) Then
-                    StaffCounts u, d, CStr(sh), s, o, c
-                    t = StaffShort(s, o, c, CLng(mStaffMin(kk)))
-                    If t <> "" Then part = part & IIf(part = "", "", ", ") & u & " " & Mid$(t, 7): nShort = nShort + 1
-                End If
-            End If
-        Next kk
-        If part <> "" Then StaffShortText = StaffShortText & IIf(StaffShortText = "", "", "   ") & CStr(sh) & ": " & part
-    Next sh
-Done:
-    If mine Then EndSwitchBatch
-    If Err.Number <> 0 Then Err.Raise Err.Number, , Err.Description
-End Function
-
-' Every short unit / shift from d0 for nDays inside a group, for Needs Attention: a 2-D array
-' (1..n, 1..5) = unit, date serial, shift, "staffed 1 of 2 (3 on, 2 off, 0 covered)", "SHORT 1/2"; Empty = none
-Private Function StaffShortList(ByVal d0 As Date, ByVal nDays As Long, ByVal groupName As String) As Variant
-    If mStaffMin Is Nothing Then StaffSweepBegin d0
-    If mStaffMin.Count = 0 Then Exit Function
-    Dim mine As Boolean
-    If Not SwitchBatchActive() Then BeginSwitchBatch: mine = True
-    On Error GoTo Done
-    Dim out() As Variant, n As Long, cap As Long: cap = 2 * nDays * mStaffMin.Count + 1
-    ReDim out(1 To cap, 1 To 5)
-    Dim dd As Long, d As Date, kk As Variant, u As String, sh As String, s As Long, o As Long, c As Long, t As String
-    For dd = 0 To nDays - 1
-        d = d0 + dd
-        For Each kk In mStaffMin.Keys
-            u = Left$(CStr(kk), InStr(CStr(kk), "|") - 1)
-            sh = Mid$(CStr(kk), InStr(CStr(kk), "|") + 1)
-            If UnitInGroup(u, groupName) Then
-                StaffCounts u, d, sh, s, o, c
-                t = StaffShort(s, o, c, CLng(mStaffMin(kk)))
-                If t <> "" Then
-                    n = n + 1
-                    out(n, 1) = u: out(n, 2) = CDbl(Int(d)): out(n, 3) = sh
-                    out(n, 4) = "staffed " & (s - o + c) & " of " & CLng(mStaffMin(kk)) & "  (" & s & " on, " & o & " off, " & c & " covered)"
-                    out(n, 5) = t
-                End If
-            End If
-        Next kk
-    Next dd
-    If n > 0 Then
-        Dim res() As Variant, i As Long, j As Long
-        ReDim res(1 To n, 1 To 5)
-        For i = 1 To n
-            For j = 1 To 5
-                res(i, j) = out(i, j)
-            Next j
-        Next i
-        StaffShortList = res
-    End If
-Done:
-    If mine Then EndSwitchBatch
-    If Err.Number <> 0 Then Err.Raise Err.Number, , Err.Description
-End Function
-
 Public Sub ShowTimeOffForm()
     On Error GoTo Oops
     If Not RequireAdmin() Then Exit Sub
@@ -4088,238 +3515,9 @@ Oops:
 End Sub
 
 ' ====================================================================
-'  ONE-TIME IMPORT of an old monthly calendar workbook
-' ====================================================================
-Public Sub ImportUnitCalendar()
-    On Error GoTo Oops
-    If Not RequireAdmin() Then Exit Sub
-    If Not RequireWritable() Then Exit Sub
-
-    ' which unit
-    Dim units As Variant: units = DeptList()
-    Dim msg As String, i As Long
-    For i = 0 To UBound(units)
-        msg = msg & (i + 1) & ")  " & units(i) & vbNewLine
-    Next i
-    Dim pick As Long
-    pick = AskNumber("Import an old calendar workbook into which unit?" & vbNewLine & vbNewLine & msg & vbNewLine & _
-                     "(For the combined Phosphine / Derivatives calendar pick either - both show on that calendar.)", _
-                     "Import calendar", 1, 1, UBound(units) + 1)
-    If pick < 1 Then Exit Sub
-    Dim unit As String: unit = units(pick - 1)
-
-    Dim dIn As Variant
-    dIn = Application.InputBox("Import entries from this date on:", "Import calendar", _
-                               DateText(DateSerial(Year(Date), Month(Date), 1)), Type:=2)
-    If VarType(dIn) = vbBoolean Then Exit Sub
-    Dim dFrom As Date                              ' v25: the one parser
-    If Not ParseTypedDate(CStr(dIn), dFrom) Then MsgBox "Not a date (e.g. Oct 1).", vbExclamation, "Call Out Roster": Exit Sub
-
-    Dim f As Variant
-    f = Application.GetOpenFilename("Excel files (*.xlsx;*.xlsm;*.xls),*.xlsx;*.xlsm;*.xls", , "Pick the " & unit & " calendar workbook")
-    If VarType(f) = vbBoolean Then Exit Sub
-
-    Dim lo As ListObject: Set lo = CovTable(True)
-    Dim src As String: src = "Import " & Format$(Date, "yyyy-mm-dd")
-
-    ' already imported for this unit / period? (avoid doubles)
-    Dim ov As Variant: ov = TableData(lo)
-    Dim prior As Long, j As Long
-    If IsArray(ov) Then
-        For j = 1 To UBound(ov, 1)
-            If Left$(SafeStr(ov(j, CV_SOURCE)), 6) = "Import" And UCase$(SafeStr(ov(j, CV_STATUS))) <> "VOID" And _
-               StrComp(SafeStr(ov(j, CV_UNIT)), unit, vbTextCompare) = 0 Then
-                If IsDate(ov(j, CV_DATE)) Then
-                    If CDate(ov(j, CV_DATE)) >= dFrom Then prior = prior + 1
-                End If
-            End If
-        Next j
-    End If
-    If prior > 0 Then
-        Select Case MsgBox(prior & " imported lines already exist for " & unit & " from " & Format$(dFrom, "mmm d") & "." & vbNewLine & vbNewLine & _
-                           "Yes = remove those and import again" & vbNewLine & "No = keep them and add these too" & vbNewLine & _
-                           "Cancel = stop", vbYesNoCancel + vbExclamation, "Import calendar")
-            Case vbCancel: Exit Sub
-            Case vbYes
-                UnlockSheet lo.Parent
-                For j = 1 To UBound(ov, 1)
-                    If Left$(SafeStr(ov(j, CV_SOURCE)), 6) = "Import" And UCase$(SafeStr(ov(j, CV_STATUS))) <> "VOID" And _
-                       StrComp(SafeStr(ov(j, CV_UNIT)), unit, vbTextCompare) = 0 Then
-                        If IsDate(ov(j, CV_DATE)) Then
-                            If CDate(ov(j, CV_DATE)) >= dFrom Then lo.DataBodyRange.Cells(j, CV_STATUS).Value = "VOID"
-                        End If
-                    End If
-                Next j
-                ProtectSheet lo.Parent
-        End Select
-    End If
-
-    Application.ScreenUpdating = False
-    Dim wb As Workbook
-    On Error Resume Next
-    Set wb = Workbooks.Open(Filename:=f, ReadOnly:=True, UpdateLinks:=0)
-    On Error GoTo Oops
-    If wb Is Nothing Then Application.ScreenUpdating = True: MsgBox "Couldn't open that file.", vbCritical, "Call Out Roster": Exit Sub
-
-    Dim buf() As Variant: ReDim buf(1 To 5000, 1 To CV_N)
-    Dim n As Long, sh As Worksheet, nSheets As Long
-    For Each sh In wb.Worksheets
-        n = ParseMonthSheet(sh, unit, dFrom, src, buf, n)
-        nSheets = nSheets + 1
-    Next sh
-    wb.Close SaveChanges:=False
-    Application.ScreenUpdating = True
-
-    If n = 0 Then MsgBox "No entries found on or after " & Format$(dFrom, "mmm d, yyyy") & ".", vbInformation, "Call Out Roster": Exit Sub
-    If MsgBox("Found " & n & " calendar lines for " & unit & " from " & Format$(dFrom, "mmm d, yyyy") & "." & vbNewLine & vbNewLine & _
-              "They come in as written (e.g. 'Paul M 3rd' -> 'posted') and show on the calendar." & vbNewLine & _
-              "They don't remove anyone from call lists until you convert them (Convert imports button) or book the time off." & vbNewLine & vbNewLine & _
-              "Import them?", vbOKCancel + vbQuestion, "Import calendar") <> vbOK Then Exit Sub
-
-    Dim base As Long: base = CLng(Val(Mid$(NextId(lo, "CV"), 4)))
-    Dim data() As Variant: ReDim data(1 To n, 1 To CV_N)
-    Dim r As Long, c As Long, user As String, stamp As Date
-    user = CurrentUser(): stamp = Now
-    For r = 1 To n
-        For c = 1 To CV_N
-            data(r, c) = buf(r, c)
-        Next c
-        data(r, CV_ID) = "CV-" & Format$(base + r - 1, "0000")
-        data(r, CV_USER) = user
-        data(r, CV_STAMP) = stamp
-    Next r
-    If Not AppendTo(lo, data, CV_N) Then Exit Sub
-    FormatCovDates lo
-    SaveIfWritable
-    MsgBox n & " lines imported for " & unit & ".", vbInformation, "Call Out Roster"
-    RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "ImportUnitCalendar"
-End Sub
-
-' Reads one month tab: finds the SUNDAY..SATURDAY header, date rows, and
-' the slot rows under each date (yellow = days, other fill = nights).
-Private Function ParseMonthSheet(ByVal sh As Worksheet, ByVal unit As String, ByVal dFrom As Date, _
-                                 ByVal src As String, ByRef buf() As Variant, ByVal n As Long) As Long
-    ParseMonthSheet = n
-    Dim hdrRow As Long, sunCol As Long, r As Long, c As Long
-    For r = 1 To 10
-        For c = 1 To 20
-            If UCase$(Trim$(SafeStr(sh.Cells(r, c).Value))) = "SUNDAY" Then hdrRow = r: sunCol = c: Exit For
-        Next c
-        If hdrRow > 0 Then Exit For
-    Next r
-    If hdrRow = 0 Then Exit Function
-
-    Dim dayCol(0 To 6) As Long, k As Long
-    For k = 0 To 6
-        dayCol(k) = sunCol + 2 * k
-    Next k
-
-    ' the month: a real date near the top (B1 / A1). The day cells only
-    ' hold day numbers (=H4+1 ...), so dates are month + day number.
-    Dim mStart As Date, found As Boolean, v As Variant
-    For r = 1 To hdrRow
-        For c = 1 To 8
-            v = sh.Cells(r, c).Value2
-            If Not IsError(v) Then
-                If VarType(v) = vbDouble Then
-                    If v > 40000 And v < 80000 Then mStart = DateSerial(Year(CDate(v)), Month(CDate(v)), 1): found = True
-                End If
-            End If
-            If found Then Exit For
-        Next c
-        If found Then Exit For
-    Next r
-    If Not found Then Exit Function
-    Dim mDays As Long: mDays = Day(DateSerial(Year(mStart), Month(mStart) + 1, 0))
-    Dim lastRow As Long: lastRow = sh.UsedRange.Row + sh.UsedRange.Rows.Count
-    If lastRow > 200 Then lastRow = 200
-
-    ' date rows = any day column holding a date serial
-    Dim isDateRow() As Boolean: ReDim isDateRow(1 To lastRow + 1)
-    For r = hdrRow + 1 To lastRow
-        For k = 0 To 6
-            If DayNum(sh.Cells(r, dayCol(k)), mDays) > 0 Then isDateRow(r) = True: Exit For
-        Next k
-    Next r
-
-    Dim cur(0 To 6) As Variant, rowD As Long, lt As String, rt As String, shiftLbl As String, colr As Long
-    For r = hdrRow + 1 To lastRow
-        If isDateRow(r) Then
-            For k = 0 To 6
-                If DayNum(sh.Cells(r, dayCol(k)), mDays) > 0 Then
-                    cur(k) = DateSerial(Year(mStart), Month(mStart), DayNum(sh.Cells(r, dayCol(k)), mDays))
-                Else
-                    cur(k) = Empty
-                End If
-            Next k
-        Else
-            For k = 0 To 6
-                If Not IsEmpty(cur(k)) Then
-                    lt = Trim$(SafeStr(sh.Cells(r, dayCol(k)).Value))
-                    rt = Trim$(SafeStr(sh.Cells(r, dayCol(k) + 1).Value))
-                    If (lt <> "" Or rt <> "") And cur(k) >= dFrom Then
-                        colr = sh.Cells(r, dayCol(k)).Interior.Color
-                        If sh.Cells(r, dayCol(k)).Interior.ColorIndex = xlNone Then colr = sh.Cells(r, dayCol(k) + 1).Interior.Color
-                        If colr = RGB(255, 255, 0) Then
-                            shiftLbl = "Days"
-                        ElseIf sh.Cells(r, dayCol(k)).Interior.ColorIndex = xlNone Or colr = RGB(255, 255, 255) Then
-                            shiftLbl = "Days"
-                        Else
-                            shiftLbl = "Nights"
-                        End If
-                        n = n + 1
-                        If n > UBound(buf, 1) Then n = n - 1: ParseMonthSheet = n: Exit Function
-                        buf(n, CV_DATE) = Int(CDate(cur(k)))
-                        buf(n, CV_SHIFT) = shiftLbl
-                        buf(n, CV_UNIT) = unit
-                        buf(n, CV_NEED) = IIf(lt = "", "(blank)", lt)
-                        buf(n, CV_TYPE) = GuessType(lt & " " & rt)
-                        If LCase$(rt) Like "posted*" Then rt = "POSTED" & Mid$(rt, 7)
-                        buf(n, CV_BY) = rt
-                        buf(n, CV_SOURCE) = src
-                        buf(n, CV_STATUS) = "Active"
-                        buf(n, CV_NOTE) = sh.Name
-                    End If
-                End If
-            Next k
-        End If
-    Next r
-    ParseMonthSheet = n
-End Function
-
-' Day-of-month held in a calendar date cell (1..mDays), 0 if none.
-' Accepts a plain day number or a real date.
-Private Function DayNum(ByVal c As Range, ByVal mDays As Long) As Long
-    Dim v As Variant: v = c.Value2
-    If IsError(v) Then Exit Function
-    If VarType(v) <> vbDouble Then Exit Function
-    If v <> Int(v) Then Exit Function
-    If v > 40000 Then v = Day(CDate(v))
-    If v >= 1 And v <= mDays Then DayNum = CLng(v)
-End Function
-
-Private Function GuessType(ByVal t As String) As String
-    t = UCase$(t)
-    If InStr(t, "S/S") > 0 Or InStr(t, " SS") > 0 Then
-        GuessType = "SS"
-    ElseIf InStr(t, "PHA") > 0 Then
-        GuessType = "PHA"
-    ElseIf InStr(t, "TRAIN") > 0 Then
-        GuessType = "TRN"
-    ElseIf InStr(t, "OPERATOR") > 0 Or InStr(t, " OP") > 0 Or InStr(t, "EXTRA") > 0 Or InStr(t, "FLOATER") > 0 Then
-        GuessType = "SUP"
-    Else
-        GuessType = "VAC"
-    End If
-End Function
-
-' ====================================================================
 '  LINE DETAILS  (a click's details in row 3 + Details in the menu)
 ' ====================================================================
-Private Sub LoadPostCache()
+Public Sub LoadPostCache()
     mPostV = Empty
     On Error Resume Next                            ' never raises
     Dim ws As Worksheet, lo As ListObject
@@ -4333,11 +3531,11 @@ Private Sub LoadPostCache()
     Next ws
 End Sub
 
-Private Function PostRow(ByVal id As String) As Long
+Public Function PostRow(ByVal id As String) As Long
     If IsArray(mPostV) Then PostRow = RowOf(mPostV, id)
 End Function
 
-Private Function AsDate(ByVal x As Variant) As Date
+Public Function AsDate(ByVal x As Variant) As Date
     If IsDate(x) Then AsDate = CDate(x)
 End Function
 
@@ -4356,7 +3554,7 @@ Public Function TypeLong(ByVal code As String) As String      ' v27 (item 25): P
     End Select
 End Function
 
-Private Function StampTxt(ByVal who As Variant, ByVal stamp As Variant) As String
+Public Function StampTxt(ByVal who As Variant, ByVal stamp As Variant) As String
     StampTxt = Trim$(SafeStr(who))
     If IsDate(stamp) Then StampTxt = StampTxt & " on " & Format$(stamp, "mmm d, h:mm AM/PM")
 End Function
@@ -4425,7 +3623,7 @@ End Function
 
 ' Everything known about one calendar line. keyTxt = "A:AB-0001|serial|Days".
 ' Leave types only ever show as "Leave"; their notes are never shown.
-Private Function LineDetails(ByVal keyTxt As String, Optional ByVal useCache As Boolean = False) As String
+Public Function LineDetails(ByVal keyTxt As String, Optional ByVal useCache As Boolean = False) As String
     On Error GoTo Quit
     If Not useCache Then LoadCache: LoadPostCache
     Dim parts As Variant: parts = Split(keyTxt, "|")
@@ -4487,7 +3685,7 @@ Quit:
     LineDetails = s
 End Function
 
-Private Function PostingDetails(ByVal id As String) As String
+Public Function PostingDetails(ByVal id As String) As String
     LoadPostCache
     Dim r As Long: r = PostRow(id)
     If r = 0 Then PostingDetails = "Posting " & id & " wasn't found.": Exit Function
@@ -4501,7 +3699,7 @@ End Function
 ' (v25.5: AddNote, the hover note on a cell, is gone - bundle items 0 and 1; a click shows the details in row 3)
 
 ' the line's left / right text, straight from the data
-Private Function SlotTexts(ByVal keyTxt As String, ByRef lt As String, ByRef rt As String) As Boolean
+Public Function SlotTexts(ByVal keyTxt As String, ByRef lt As String, ByRef rt As String) As Boolean
     Dim parts As Variant: parts = Split(keyTxt, "|")
     If UBound(parts) < 2 Then Exit Function
     Dim slots() As CalSlot, n As Long, i As Long
@@ -4517,7 +3715,7 @@ Private Function SlotTexts(ByVal keyTxt As String, ByRef lt As String, ByRef rt 
 End Function
 
 ' P-#### behind a line (if a posting covers it)
-Private Function PostIdOfLine(ByVal keyTxt As String) As String
+Public Function PostIdOfLine(ByVal keyTxt As String) As String
     Dim parts As Variant: parts = Split(keyTxt, "|")
     If UBound(parts) < 2 Then Exit Function
     If Not IsArray(mCov) Then Exit Function
@@ -4538,141 +3736,8 @@ Private Function PostIdOfLine(ByVal keyTxt As String) As String
     Next c
 End Function
 
-' ====================================================================
-'  NEEDS ATTENTION TAB  (admin only - double-click any row for options)
-' ====================================================================
-Private Function NeedsSheet() As Worksheet
-    If Not SheetExists(NA_SHEET) Then
-        Dim ws As Worksheet
-        Dim cs As Worksheet: Set cs = CalendarSheet()  ' v25.1 review: before the unlock (its SetTabColor relocks the tabs)
-        UnlockStructure                                 ' v25: structure protection
-        Set ws = ThisWorkbook.Worksheets.Add(After:=cs)
-        ws.Name = NA_SHEET
-        RelockStructure
-    End If
-    Set NeedsSheet = ThisWorkbook.Worksheets(NA_SHEET)
-    SetTabColor NeedsSheet, thOpen()                ' v25.1
-End Function
-
-Public Sub ShowNeedsAttention()
-    On Error GoTo Oops
-    If Not RequireAdmin() Then Exit Sub
-    CalendarSheet
-    Dim ws As Worksheet: Set ws = NeedsSheet()
-    SetSheetVisible ws, xlSheetVisible
-    ws.Activate                          ' the tab-switch check runs here (ThisWorkbook)
-    If NAStale() Then DrawNeeds
-    Exit Sub
-Oops:
-    ReportError "ShowNeedsAttention"
-End Sub
-
-Private Function NAGroup() As String
-    NAGroup = SafeStr(MapSheet().Range("Z5").Value)
-    If NAGroup = "" Then NAGroup = "All units"
-End Function
-
-Private Function NADays() As Long
-    NADays = CLng(Val(MapSheet().Range("Z6").Value))
-    If NADays <= 0 Then NADays = 14
-End Function
-
-Private Function NARanges() As Variant
-    NARanges = Array(7, 14, 28, 56)
-End Function
-
-Public Sub NAUnitChanged()
-    On Error GoTo Oops
-    Dim dd As Object
-    On Error Resume Next
-    Set dd = NeedsSheet().DropDowns("na_unit")
-    On Error GoTo Oops
-    If dd Is Nothing Then Exit Sub
-    If dd.ListIndex < 1 Then Exit Sub
-    MapWrite "Z5", dd.List(dd.ListIndex)
-    DrawNeeds
-    Exit Sub
-Oops:
-    ReportError "NAUnitChanged"
-End Sub
-
-Public Sub NARangeChanged()
-    On Error GoTo Oops
-    Dim dd As Object
-    On Error Resume Next
-    Set dd = NeedsSheet().DropDowns("na_range")
-    On Error GoTo Oops
-    If dd Is Nothing Then Exit Sub
-    If dd.ListIndex < 1 Then Exit Sub
-    MapWrite "Z6", NARanges()(dd.ListIndex - 1)
-    DrawNeeds
-    Exit Sub
-Oops:
-    ReportError "NARangeChanged"
-End Sub
-
-Public Sub NARefresh()
-    On Error GoTo Oops
-    DrawNeeds
-    Exit Sub
-Oops:
-    ReportError "NARefresh"
-End Sub
-
-Public Sub NAGoCalendar()
-    On Error GoTo Oops
-    ShowCalendar
-    Exit Sub
-Oops:
-    ReportError "NAGoCalendar"
-End Sub
-
-' "Today", "Tomorrow", "in 5 days", "3 days ago"
-Private Function WhenText(ByVal d As Date) As String
-    Dim n As Long: n = Int(d) - Int(Date)
-    Select Case n
-        Case 0: WhenText = "Today"
-        Case 1: WhenText = "Tomorrow"
-        Case -1: WhenText = "Yesterday"
-        Case Is > 1: WhenText = "in " & n & " days"
-        Case Else: WhenText = -n & " days ago"
-    End Select
-End Function
-
-Private Function WhenColor(ByVal d As Date) As Long
-    Select Case Int(d) - Int(Date)
-        Case Is <= 0: WhenColor = thOpen()
-        Case 1: WhenColor = thPosted()
-        Case Else: WhenColor = thMuted()
-    End Select
-End Function
-
-' tblPostingList snapshot (for "n signed up")
-Private Function PostListData() As Variant
-    On Error Resume Next                            ' never raises
-    Dim ws As Worksheet, lo As ListObject
-    For Each ws In ThisWorkbook.Worksheets
-        Set lo = Nothing
-        Set lo = ws.ListObjects(PL_TABLE)
-        If Not lo Is Nothing Then
-            PostListData = TableData(lo)
-            Exit Function
-        End If
-    Next ws
-End Function
-
-Private Function SignedCount(ByVal plV As Variant, ByVal id As String) As Long
-    If Not IsArray(plV) Then Exit Function
-    Dim i As Long
-    For i = 1 To UBound(plV, 1)
-        If StrComp(SafeStr(plV(i, PL_ID)), id, vbTextCompare) = 0 Then
-            If UCase$(SafeStr(plV(i, PL_SIGNED))) = "YES" Then SignedCount = SignedCount + 1
-        End If
-    Next i
-End Function
-
 ' unit behind a calendar line key
-Private Function SlotUnit(ByVal keyTxt As String) As String
+Public Function SlotUnit(ByVal keyTxt As String) As String
     Dim slotKey As String: slotKey = Split(keyTxt, "|")(0)
     Dim r As Long
     If Left$(slotKey, 2) = "A:" Then
@@ -4683,519 +3748,8 @@ Private Function SlotUnit(ByVal keyTxt As String) As String
         If r > 0 Then SlotUnit = SafeStr(mCov(r, CV_UNIT))
     End If
 End Function
-
-Private Sub NAAdd(ByRef recs() As NARow, ByRef n As Long, ByVal c0 As String, ByVal c1 As String, ByVal c2 As String, _
-                  ByVal c3 As String, ByVal c4 As String, ByVal c5 As String, ByVal c6 As String, ByVal c7 As String, _
-                  ByVal keyTxt As String, ByVal sortKey As Double, ByVal accent As Long, ByVal stCol As Long, _
-                  ByVal stFill As Long, ByVal whenCol As Long)
-    n = n + 1
-    If n > UBound(recs) Then ReDim Preserve recs(1 To n + 50)
-    With recs(n)
-        .Cell(0) = c0: .Cell(1) = c1: .Cell(2) = c2: .Cell(3) = c3
-        .Cell(4) = c4: .Cell(5) = c5: .Cell(6) = c6: .Cell(7) = c7
-        .Key = keyTxt
-        .SortKey = sortKey
-        .Accent = accent
-        .StatusCol = stCol
-        .StatusFill = stFill
-        .WhenCol = whenCol
-    End With
-End Sub
-
-Private Sub NASort(ByRef recs() As NARow, ByVal n As Long)
-    Dim i As Long, j As Long, t As NARow
-    For i = 2 To n
-        t = recs(i)
-        j = i - 1
-        Do While j >= 1
-            If recs(j).SortKey <= t.SortKey Then Exit Do
-            recs(j + 1) = recs(j)
-            j = j - 1
-        Loop
-        recs(j + 1) = t
-    Next i
-End Sub
-
-Public Sub DrawNeeds()
-    Dim ws As Worksheet: Set ws = NeedsSheet()
-    Dim grp As String: grp = NAGroup()
-    Dim nDays As Long: nDays = NADays()
-    Dim drawnFrom As String: drawnFrom = SafeStr(MapSheet().Range("Z7").Value)
-    Dim t0 As Double, tA As Double, tB As Double, tC As Double    ' v25.1.2: draw-time measurement (CalMap Z15)
-    t0 = Timer
-    mTimeSlots = 0
-    mDrawing = True
-    Dim evWas As Boolean: evWas = Application.EnableEvents
-    Dim calcWas As Long: calcWas = Application.Calculation
-    Application.EnableEvents = False
-    Application.Calculation = xlCalculationManual
-    Application.ScreenUpdating = False
-    On Error GoTo Failed
-    UnlockSheet ws
-    LoadCache
-    LoadPostCache
-    Dim plV As Variant: plV = PostListData()
-
-    ' ---- gather ----
-    Dim pr() As NARow, nP As Long, lr() As NARow, nL As Long, sr() As NARow, nS As Long, br() As NARow, nB As Long
-    ReDim pr(1 To 50): ReDim lr(1 To 50): ReDim sr(1 To 50): ReDim br(1 To 50)
-    Dim shortRows() As NARow, nShort As Long          ' v26: below minimum staffing
-    ReDim shortRows(1 To 50)
-    Dim i As Long, j As Long, m As Long, cl As Date, sd As Date, d As Date, sh As Variant, rt As String
-    Dim nReady As Long, tier As Long, st As String, stC As Long, stF As Long, id As String, txt As String
-
-    ' A. postings still open
-    If IsArray(mPostV) Then
-        For i = 1 To UBound(mPostV, 1)
-            If SafeStr(mPostV(i, PS_STATUS)) = "Open" And UnitInGroup(SafeStr(mPostV(i, PS_UNIT)), grp) Then
-                id = SafeStr(mPostV(i, PS_ID))
-                cl = AsDate(mPostV(i, PS_CLOSES))
-                sd = AsDate(mPostV(i, PS_DATE))
-                If cl > 0 And PostingClosed(cl) Then          ' v25 review: the one closing test
-                    tier = 0: st = "READY TO AWARD": stC = thOpen(): stF = thOpenFill(): nReady = nReady + 1
-                ElseIf cl > 0 And Int(cl) = Date Then
-                    tier = 1: st = "Closes today " & POSTING_CLOSE_TIME: stC = thPosted(): stF = thPostedFill()
-                ElseIf cl > 0 Then
-                    tier = 2: st = "Open until " & Format$(cl, "ddd mmm d"): stC = thMuted(): stF = -1
-                Else
-                    tier = 3: st = "Open (no closing date)": stC = thMuted(): stF = -1
-                End If
-                txt = id & "  " & SafeStr(mPostV(i, PS_REASON)) & "   (" & SafeStr(mPostV(i, PS_HOURS)) & "h, " & _
-                      SafeStr(mPostV(i, PS_POS)) & " pos, " & SignedCount(plV, id) & " signed up)"
-                If Not CovHasSourceCached(id) Then
-                    txt = txt & "   - NOT ON CALENDAR"
-                    If tier > 0 Then stC = thOpen()
-                End If
-                NAAdd pr, nP, Format$(sd, "ddd mmm d"), SafeStr(mPostV(i, PS_SHIFT)), SafeStr(mPostV(i, PS_CREW)), _
-                      SafeStr(mPostV(i, PS_UNIT)), txt, TypeLong(ReasonType(SafeStr(mPostV(i, PS_REASON)))), st, _
-                      IIf(cl > 0, WhenText(cl), ""), "P:" & id, tier * 1000000# + CDbl(Int(cl)), thPosted(), stC, stF, _
-                      IIf(cl > 0, WhenColor(cl), thMuted())
-            End If
-        Next i
-        NASort pr, nP
-    End If
-
-    ' B. open lines in the window
-    Dim slots() As CalSlot, unit As String
-    For i = 0 To nDays - 1
-        d = Date + i
-        For Each sh In Array("Days", "Nights")
-            m = SlotsFor(d, CStr(sh), grp, slots, True)
-            For j = 1 To m
-                rt = UCase$(slots(j).RightText)
-                If slots(j).IsOpen Or rt Like "NO TAKERS*" Then
-                    unit = SlotUnit(slots(j).Key)
-                    NAAdd lr, nL, Format$(d, "ddd mmm d"), CStr(sh), IIf(sh = "Days", DaysCrew(d), NightsCrew(d)), unit, _
-                          slots(j).LeftText, TypeLong(slots(j).TypeCode), IIf(rt Like "NO TAKERS*", "NO TAKERS", "OPEN"), _
-                          WhenText(d), slots(j).Key & "|" & CLng(Int(d)) & "|" & sh, 0, thOpen(), thOpen(), thOpenFill(), WhenColor(d)
-                End If
-            Next j
-        Next sh
-    Next i
-
-    ' B2. below minimum staffing (v26): today .. today + nDays - 1, the group's units that have a minimum
-    StaffSweepBegin Date
-    Dim ms As Variant: ms = StaffShortList(Date, IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS), "")    ' the brief's 14 days, whatever the box's window; v26.5: every unit, whatever group is picked
-    If IsArray(ms) Then
-        For i = 1 To UBound(ms, 1)
-            d = CDate(CDbl(ms(i, 2)))
-            NAAdd shortRows, nShort, Format$(d, "ddd mmm d"), CStr(ms(i, 3)), IIf(CStr(ms(i, 3)) = "Days", DaysCrew(d), NightsCrew(d)), CStr(ms(i, 1)), _
-                  CStr(ms(i, 4)), "Staffing", CStr(ms(i, 5)), WhenText(d), "N:" & CStr(ms(i, 1)) & "|" & CLng(Int(d)) & "|" & CStr(ms(i, 3)), _
-                  CDbl(Int(d)), thOpen(), thOpen(), thOpenFill(), WhenColor(d)
-        Next i
-        NASort shortRows, nShort
-    End If
-
-    ' C. shift switch paybacks still owed (v26: oldest first; one owed longer than PAYBACK_WARN_DAYS
-    '    gets its age in the status, in red on amber)
-    Dim ow As Variant, owIds As Variant, swD As Date, swSh As String, swU As String, swOff As String, swWorks As String
-    Dim owDays As Long
-    On Error Resume Next
-    ow = OwedSwitches(owIds)
-    On Error GoTo Failed
-    If IsArray(owIds) Then
-        For i = LBound(owIds) To UBound(owIds)
-            id = CStr(owIds(i))
-            If SwitchInfo(id, swD, swSh, swU, swOff, swWorks) Then
-                If UnitInGroup(swU, grp) Then
-                    owDays = CLng(Int(Date) - Int(swD))
-                    st = OwedStatusText(owDays, PaybackWarnDays())
-                    If owDays > PaybackWarnDays() Then
-                        stC = thOpen(): stF = RGB(255, 236, 179)
-                    Else
-                        stC = TypeColor("SS"): stF = Tint(TypeColor("SS"), 0.85)
-                    End If
-                    NAAdd sr, nS, Format$(swD, "ddd mmm d"), swSh, IIf(swSh = "Days", DaysCrew(swD), NightsCrew(swD)), swU, _
-                          swOff & " owes " & swWorks & " a shift   (" & id & ")", "Shift switch", st, _
-                          WhenText(swD), "S:" & id, CDbl(Int(swD)), TypeColor("SS"), stC, stF, thMuted()
-                End If
-            End If
-        Next i
-        NASort sr, nS
-    End If
-
-    ' D. leave returning soon, and anything open-ended
-    Dim code As String, eD As Date, nOpenEnded As Long, empNm As String
-    If IsArray(mAbs) Then
-        For i = 1 To UBound(mAbs, 1)
-            If UCase$(SafeStr(mAbs(i, AB_STATUS))) <> "VOID" And IsDate(mAbs(i, AB_START)) Then
-                If UnitInGroup(SafeStr(mAbs(i, AB_UNIT)), grp) Then
-                    code = TypeCode(SafeStr(mAbs(i, AB_TYPE)))
-                    sd = CDate(mAbs(i, AB_START))
-                    st = ""
-                    If Not IsDate(mAbs(i, AB_END)) Then
-                        If Int(sd) <= Date + nDays - 1 Then
-                            st = "Open-ended - no return date": eD = sd: nOpenEnded = nOpenEnded + 1
-                        End If
-                    ElseIf IsLeaveCode(code) Then
-                        eD = CDate(mAbs(i, AB_END)) + 1
-                        If Int(eD) >= Date And Int(eD) <= Date + nDays - 1 Then st = "Returns " & Format$(eD, "ddd mmm d")
-                    End If
-                    If st <> "" Then
-                        empNm = SafeStr(mAbs(i, AB_EMP))
-                        NAAdd br, nB, Format$(sd, "ddd mmm d"), "", EmpCrewOf(empNm), SafeStr(mAbs(i, AB_UNIT)), _
-                              CalName(empNm), TypeLong(code), st, WhenText(eD), "B:" & SafeStr(mAbs(i, AB_ID)), _
-                              IIf(Left$(st, 4) = "Open", 0, 1000000#) + CDbl(Int(eD)), TypeColor(code), TypeColor(code), _
-                              Tint(TypeColor(code), 0.85), thMuted()
-                    End If
-                End If
-            End If
-        Next i
-        NASort br, nB
-    End If
-
-    ' E. weekend holidays still waiting for the weekday the plant gives off (v20)
-    Dim hr() As NARow, nH As Long, hv As Variant, hk As Variant, hd As Date, hLook As Long
-    ReDim hr(1 To 20)
-    hLook = nDays: If hLook < HOL_CONFIRM_DAYS Then hLook = HOL_CONFIRM_DAYS
-    hv = HolidaysToConfirm(Date, Date + hLook - 1)
-    If IsArray(hv) Then
-        For Each hk In hv
-            hd = DateSerial(CLng(Left$(hk, 4)), CLng(Mid$(hk, 6, 2)), CLng(Mid$(hk, 9, 2)))
-            NAAdd hr, nH, Format$(hd, "ddd mmm d"), "", "DAYS", "All units", Mid$(hk, 12), "Holiday", _
-                  "Set the weekday off", WhenText(hd), "H:" & Format$(hd, "yyyy-mm-dd"), CDbl(hd), _
-                  RGB(176, 0, 32), RGB(176, 0, 32), Tint(RGB(176, 0, 32), 0.88), thMuted()
-        Next hk
-    End If
-
-    ' H. imported vacation lines not yet booked (v22) - they don't keep people off call lists
-    Dim ir() As NARow, nI As Long, iv As Variant
-    ReDim ir(1 To 20)
-    On Error Resume Next
-    iv = ImportCandidates(Date, Date + IMPORT_WATCH_DAYS - 1)
-    On Error GoTo Failed
-    If IsArray(iv) Then
-        For i = 1 To UBound(iv, 1)
-            If UnitInGroup(SafeStr(iv(i, 4)), grp) Then
-                NAAdd ir, nI, Format$(Dt2(iv(i, 2)), "ddd mmm d"), SafeStr(iv(i, 3)), "", SafeStr(iv(i, 4)), _
-                      SafeStr(iv(i, 5)) & IIf(SafeStr(iv(i, 6)) = "", "   (no roster match)", IIf(SafeStr(iv(i, 6)) = "?", "   (several matches)", "   = " & SafeStr(iv(i, 6)))), _
-                      "Imported", "Not booked", WhenText(Dt2(iv(i, 2))), "I:" & SafeStr(iv(i, 1)), CDbl(Int(Dt2(iv(i, 2)))), _
-                      TypeColor("VAC"), thOpen(), thOpenFill(), WhenColor(Dt2(iv(i, 2)))
-            End If
-        Next i
-        NASort ir, nI
-    End If
-
-    ' G. members' file not published lately (M1)
-    Dim mr() As NARow, nM As Long, pubAt As Date, pubTxt As String
-    ReDim mr(1 To 2)
-    pubAt = MembersPublishedAt()
-    If pubAt = 0 Then
-        pubTxt = "never published - click Member View on the roster"
-    ElseIf Int(Date) - Int(pubAt) >= MembersStaleDays() Then
-        pubTxt = "last published " & Format$(pubAt, "ddd mmm d, h:mm AM/PM") & " (" & (Int(Date) - Int(pubAt)) & " days ago)"
-    End If
-    If pubTxt <> "" Then
-        NAAdd mr, nM, Format$(Date, "ddd mmm d"), "", "", "All units", "Members file: " & pubTxt, "Publish", _
-              "Publish again", "", "M:publish", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
-    End If
-
-    ' E. errors nobody has looked at yet (v24.2)
-    Dim er() As NARow, nE As Long, nErrLines As Long
-    ReDim er(1 To 2)
-    nErrLines = UnseenErrorCount()
-    If nErrLines > 0 Then
-        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nErrLines & " new line(s) in the Error Log", "Error", _
-              "Open the log", "", "X:errors", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-    End If
-    ' v27 (item 24): call-out rows logged as Exception (a plant upset, nobody charged) in the last 30 days - for the superintendent
-    Dim xl As Variant: xl = LogRowsNow()
-    If IsArray(xl) Then
-        Dim xi As Long, nX As Long
-        For xi = 1 To UBound(xl, 1)
-            If UCase$(Trim$(SafeStr(xl(xi, L_OUTCOME)))) = "EXCEPTION" And UCase$(Trim$(SafeStr(xl(xi, L_STATUS)))) <> "VOID" And IsDate(xl(xi, L_DATE)) Then
-                If Int(CDate(xl(xi, L_DATE))) >= Int(Date) - 30 And nX < 12 Then
-                    nX = nX + 1
-                    NAAdd er, nE, Format$(CDate(xl(xi, L_DATE)), "ddd mmm d"), SafeStr(xl(xi, L_SHIFTLBL)), "", SafeStr(xl(xi, L_DEPT)), _
-                          "Exception (plant upset): " & SafeStr(xl(xi, L_REF)) & "  " & CalName(SafeStr(xl(xi, L_EMP))) & "  -  " & Left$(SafeStr(xl(xi, L_TASK)), 60), "Exception", _
-                          "Review", "", "Q:exception", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-                End If
-            End If
-        Next xi
-    End If
-    ' v27 (item 23): the open disputes, one line each (an admin settles one through CloseDispute)
-    Dim nDp As Long, dpTxt As String: dpTxt = OpenDisputesText(nDp)
-    If nDp > 0 Then
-        Dim dpLine As Variant
-        For Each dpLine In Split(dpTxt, vbNewLine)
-            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "Disputed: " & CStr(dpLine), "Dispute", _
-                  "Alt+F8 > CloseDispute", "", "Q:dispute", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-        Next dpLine
-    End If
-    ' v27 (item 21): the active OT restrictions, one line each (information: an admin ends one through EndRestriction)
-    Dim nRs As Long, rsTxt As String: rsTxt = ActiveRestrictionsText(nRs)
-    If nRs > 0 Then
-        Dim rsLine As Variant
-        For Each rsLine In Split(rsTxt, vbNewLine)
-            NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", "OT restricted: " & CStr(rsLine), "Restriction", _
-                  "Alt+F8 > EndRestriction", "", "Q:restriction", 0, RGB(176, 0, 32), thOpen(), thOpenFill(), thMuted()
-        Next rsLine
-    End If
-    ' v27 (item 9): receipt answers ("Was this right?") nobody has read yet (modReceipt)
-    Dim nFb As Long: nFb = UnseenFeedbackCount()
-    If nFb > 0 Then
-        NAAdd er, nE, Format$(Date, "ddd mmm d"), "", "", "All units", nFb & " receipt answer(s) not yet read", "Feedback", _
-              "Open the list", "", "F:feedback", 0, thPosted(), thOpen(), thOpenFill(), thMuted()
-    End If
-
-    ' F. people with no Home Unit (v21) - Graeme fills these in on the roster
-    Dim ur() As NARow, nU As Long, uv As Variant, uk As Variant
-    ReDim ur(1 To 20)
-    On Error Resume Next
-    uv = BlankHomeUnits()
-    On Error GoTo Failed
-    If IsArray(uv) Then
-        For Each uk In uv
-            NAAdd ur, nU, "", "", EmpCrewOf(CStr(uk)), "", CStr(uk), "Roster", "Home Unit blank", "", _
-                  "U:" & CStr(uk), 0, thMuted(), thOpen(), thOpenFill(), thMuted()
-        Next uk
-    End If
-
-    ' D2. v27 (item 25, 1.4): the DATA CHECK - roster details that look wrong (modPeople.DataCheckLines)
-    Dim dcR() As NARow, nDc As Long, dcV As Variant, dcL As Variant, dcP As Variant
-    ReDim dcR(1 To 20)
-    On Error Resume Next
-    dcV = DataCheckLines()
-    On Error GoTo Failed
-    If IsArray(dcV) Then
-        For Each dcL In dcV
-            dcP = Split(CStr(dcL) & vbTab, vbTab)
-            NAAdd dcR, nDc, "", "", EmpCrewOf(CStr(dcP(0))), "", CStr(dcP(0)) & ":  " & CStr(dcP(1)), "Roster", "Data check", "", _
-                  "U:" & CStr(dcP(0)), 0, thMuted(), thPosted(), -1, thMuted()
-        Next dcL
-    End If
-
-    ' V. unit moves entered ahead of time (v24.3): waiting for their date, or due and not applied
-    Dim vr() As NARow, nV As Long, pmv As Variant, pmD As Date, pmDue As Boolean, pmWho As String
-    ReDim vr(1 To 10)
-    On Error Resume Next
-    pmv = PlannedRows()
-    On Error GoTo Failed
-    If IsArray(pmv) Then
-        For i = 1 To UBound(pmv, 1)
-            pmD = Dt2(pmv(i, PM_FROM))
-            pmDue = (Int(pmD) <= Date)                  ' a date that can't be read (0) shows as a problem too
-            pmWho = SafeStr(pmv(i, PM_EMP))
-            NAAdd vr, nV, IIf(pmD = 0, "?", Format$(pmD, "ddd mmm d")), "", SafeStr(pmv(i, PM_CREW)), SafeStr(pmv(i, PM_UNIT)), _
-                  CalName(pmWho) & "   " & HomeUnitCached(pmWho) & " -> " & SafeStr(pmv(i, PM_UNIT)) & " (" & SafeStr(pmv(i, PM_CODE)) & ")   " & _
-                  SafeStr(pmv(i, PM_ID)), "Unit move", IIf(pmD = 0, "Date can't be read", IIf(pmDue, "DUE - not applied", "Planned")), _
-                  IIf(pmD = 0, "", WhenText(pmD)), "V:" & SafeStr(pmv(i, PM_ID)), CDbl(Int(pmD)), thMuted(), _
-                  IIf(pmDue, thOpen(), thMuted()), IIf(pmDue, thOpenFill(), -1), WhenColor(pmD)
-        Next i
-        NASort vr, nV
-    End If
-
-    ' T. attendance (v22.1): sick / personal days at or over the limit, by home unit
-    Dim tr() As NARow, nT As Long, rn As Variant, ast As AttendanceStatus, lvl As Long, hu As String, nmT As String
-    ReDim tr(1 To 20)
-    On Error Resume Next
-    rn = RosterNames()
-    If IsArray(rn) Then
-        BeginAttendanceBatch
-        For i = LBound(rn) To UBound(rn)
-            nmT = CStr(rn(i))
-            hu = HomeUnitCached(nmT)
-            If hu = "" Or UnitInGroup(hu, grp) Then
-                If AttendanceFor(nmT, Date, ast) Then
-                    lvl = AttendanceLevel(ast)
-                    If lvl > 0 Then
-                        NAAdd tr, nT, IIf(ast.LastSick > 0, Format$(ast.LastSick, "ddd mmm d"), ""), "", EmpCrewOf(nmT), hu, _
-                              CalName(nmT) & "   " & ast.SickUsed & " sick / " & ast.PersonalUsed & " personal, " & ast.Occurrences & " occ.", _
-                              "Attendance", AttendanceStatusText(ast), _
-                              IIf(ast.WaitUntil > 0, "until " & Format$(ast.WaitUntil, "mmm d, yyyy"), ""), _
-                              "T:" & nmT, CDbl(-lvl * 1000 - ast.Combined), TypeColor("SIC"), _
-                              IIf(lvl = 2, thOpen(), thPosted()), IIf(lvl = 2, thOpenFill(), thPostedFill()), thMuted()
-                    End If
-                End If
-            End If
-        Next i
-        EndAttendanceBatch
-        NASort tr, nT
-    End If
-    On Error GoTo Failed
-
-    tA = Timer                                      ' gathered
-    ' ---- draw ----
-    ws.Rows("1:3000").Delete
-    With ws.Cells.Font
-        .Name = CAL_FONT
-        .Size = 9
-    End With
-    ws.Cells.Interior.Color = vbWhite
-    ws.Columns(1).ColumnWidth = 1.5
-    ws.Columns(2).ColumnWidth = 13
-    ws.Columns(3).ColumnWidth = 8
-    ws.Columns(4).ColumnWidth = 7
-    ws.Columns(5).ColumnWidth = 17
-    ws.Columns(6).ColumnWidth = 46
-    ws.Columns(7).ColumnWidth = 16
-    ws.Columns(8).ColumnWidth = 26
-    ws.Columns(9).ColumnWidth = 13
-    ws.Columns(10).ColumnWidth = 2
-    ws.Range(ws.Columns(NA_KEY), ws.Columns(NA_KEY + 12)).Hidden = True
-
-    ws.Rows(1).RowHeight = 38
-    ws.Range("A1:J1").Interior.Color = thBand()
-    With ws.Range("B1:E1")
-        .Merge
-        .Value = "NEEDS ATTENTION"
-        .Font.Name = CAL_FONT_B: .Font.Size = 15: .Font.Color = vbWhite
-        .VerticalAlignment = xlCenter
-    End With
-    ws.Rows(2).RowHeight = 22
-    With ws.Range("B2:I2")
-        .Merge
-        .Value = grp & "   " & ChrW(183) & "   " & Format$(Date, "ddd mmm d") & " to " & Format$(Date + nDays - 1, "ddd mmm d") & _
-                 "   " & ChrW(183) & "   updated " & Format$(Now, "h:mm AM/PM") & "   " & ChrW(183) & "   double-click any row for options" & _
-                 IIf(RolloverNote() <> "", "   " & ChrW(183) & "   " & RolloverNote(), "")
-        .Font.Size = 8.5: .Font.Italic = True: .Font.Color = thMuted()
-        .VerticalAlignment = xlCenter
-    End With
-    ws.Rows(3).RowHeight = 8
-    ws.Rows(4).RowHeight = 30
-    ws.Rows(5).RowHeight = 16
-    ws.Rows(6).RowHeight = 12
-
-    Dim r As Long: r = 7
-    Dim rowP As Long, rowL As Long, rowS As Long, rowB As Long
-    rowL = r
-    r = NASection(ws, r, "OPEN LINES  -  need cover in the next " & nDays & " days", nL, thOpen(), _
-                  Array("Date", "Shift", "Crew", "Unit", "Who's off / need", "Type", "Status", "When"))
-    r = NARows(ws, r, lr, nL, "Nothing open - every line in the window is covered, posted or NCN.")
-    If nShort > 0 Or MinStaffCount() > 0 Then       ' v26: only once the Min Staff sheet holds a minimum
-        r = NASection(ws, r, "BELOW MINIMUM STAFFING  -  every unit, next " & IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS) & " days (double-click for the calendar on that date)", nShort, thOpen(), _
-                      Array("Shift date", "Shift", "Crew", "Unit", "Staffed", "Type", "Status", "When"))
-        r = NARows(ws, r, shortRows, nShort, "Every unit with a minimum is at or above it.")
-    End If
-    rowP = r
-    r = NASection(ws, r, "POSTINGS  -  open postings, oldest closing first", nP, thPosted(), _
-                  Array("Shift date", "Shift", "Crew", "Unit", "Posting", "Type", "Status", "Closes"))
-    r = NARows(ws, r, pr, nP, "No open postings.")
-    rowS = r
-    r = NASection(ws, r, "SHIFT SWITCH PAYBACKS OWED  -  oldest first; over " & PaybackWarnDays() & " days in amber", nS, TypeColor("SS"), _
-                  Array("Switch date", "Shift", "Crew", "Unit", "Owed", "Type", "Status", "When"))
-    r = NARows(ws, r, sr, nS, "No paybacks owed.")
-    rowB = r
-    r = NASection(ws, r, "LEAVE  -  returning soon or open-ended", nB, TypeColor("LOA"), _
-                  Array("Started", "", "Crew", "Unit", "Who", "Type", "Status", "When"))
-    r = NARows(ws, r, br, nB, "Nobody returning from leave in the window, and nothing open-ended.")
-    If nH > 0 Then
-        r = NASection(ws, r, "HOLIDAYS TO CONFIRM  -  weekend holiday, weekday off not entered (next " & hLook & " days)", _
-                      nH, RGB(176, 0, 32), Array("Holiday date", "", "Crew", "Unit", "Holiday", "Type", "Status", "When"))
-        r = NARows(ws, r, hr, nH, "")
-    End If
-    If nU > 0 Then
-        r = NASection(ws, r, "HOME UNIT NOT SET  -  double-click a name: the Employee pop-up opens on Edit, pick the home unit there", _
-                      nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
-        r = NARows(ws, r, ur, nU, "")
-    End If
-    If nDc > 0 Then                                 ' v27 (item 25)
-        r = NASection(ws, r, "DATA CHECK  -  roster details that look wrong (double-click: the roster row; Employee > Edit fixes it)", _
-                      nDc, thMuted(), Array("", "", "Crew", "", "Who and what", "Type", "Status", ""))
-        r = NARows(ws, r, dcR, nDc, "")
-    End If
-    If nE > 0 Then
-        r = NASection(ws, r, "ERRORS  -  something didn't finish (double-click to open the Error Log)", _
-                      nE, RGB(176, 0, 32), Array("Today", "", "", "", "What", "Type", "Status", ""))
-        r = NARows(ws, r, er, nE, "")
-    End If
-    If nM > 0 Then
-        r = NASection(ws, r, "MEMBERS FILE  -  what the union sees is out of date (double-click to publish)", _
-                      nM, thPosted(), Array("Today", "", "", "", "Members file", "Type", "Status", ""))
-        r = NARows(ws, r, mr, nM, "")
-    End If
-    If nI > 0 Then
-        r = NASection(ws, r, "IMPORTED, NOT BOOKED  -  old-calendar vacations that don't keep people off call lists yet (double-click to convert)", _
-                      nI, TypeColor("VAC"), Array("Date", "Shift", "", "Unit", "As imported", "Type", "Status", "When"))
-        r = NARows(ws, r, ir, nI, "")
-    End If
-    If nV > 0 Then
-        r = NASection(ws, r, "PLANNED UNIT MOVES  -  applied when an admin opens the file on or after the date (double-click to cancel)", _
-                      nV, thMuted(), Array("Effective", "", "New crew", "New unit", "Who", "Type", "Status", "When"))
-        r = NARows(ws, r, vr, nV, "")
-    End If
-    If nT > 0 Then
-        r = NASection(ws, r, "ATTENDANCE  -  sick / personal days at or over the limit (double-click for the Attendance sheet)", _
-                      nT, TypeColor("SIC"), Array("Last sick", "", "Crew", "Home unit", "Who", "Type", "Status", "Until"))
-        r = NARows(ws, r, tr, nT, "")
-    End If
-
-    tB = Timer                                      ' rows drawn
-    ' ---- summary tiles (double-click one to jump to its list) ----
-    NATile ws, 2, 3, nL, "OPEN LINES", thOpen(), rowL
-    NATile ws, 4, 5, nReady, "READY TO AWARD", thPosted(), rowP
-    NATile ws, 6, 6, nP, "OPEN POSTINGS", TypeColor("VAC"), rowP
-    NATile ws, 7, 7, nS, "PAYBACKS OWED", TypeColor("SS"), rowS
-    NATile ws, 8, 9, nB, "LEAVE TO WATCH", TypeColor("LOA"), rowB
-
-    BuildNAControls ws, grp, nDays
-
-    On Error Resume Next
-    If ActiveSheet Is ws Then
-        With ActiveWindow
-            .DisplayGridlines = False
-            .DisplayHeadings = False
-            .FreezePanes = False
-            .ScrollRow = 1
-            .SplitColumn = 0
-            .SplitRow = 2
-            .FreezePanes = True
-        End With
-    End If
-    On Error GoTo Failed
-    MapWrite "Z9", drawnFrom                        ' v25.1: through the pair
-    MapWrite "Z11", "'" & DrawContext()
-    tC = Timer                                      ' v25.1.2: tiles drawn
-    MapWrite "Z15", "'" & "Needs Attention " & grp & ", " & nDays & " days (" & (nP + nL + nS + nB + nH + nU + nE + nM + nI + nV + nT) & " rows): drawn in " & _
-        Format$(Secs(t0, tC), "0.0") & " s = gather " & Format$(Secs(t0, tA), "0.0") & " (slots " & Format$(mTimeSlots, "0.0") & _
-        "), rows " & Format$(Secs(tA, tB), "0.0") & ", tiles " & Format$(Secs(tB, tC), "0.0") & "  [" & CAL_VERSION & "]"
-    GoTo Done
-
-Failed:
-    Dim en As Long: en = Err.Number
-    Dim em As String: em = Err.Description & " (error " & Err.Number & ")"
-    Resume AfterFail
-AfterFail:
-    On Error Resume Next
-    LogError "DrawNeeds", en, em          ' v24.3.1
-    UnlockSheet ws
-    ws.Cells(3, 2).Value = "Couldn't finish: " & em
-    ws.Cells(3, 2).Font.Color = thOpen()
-    BuildNAControls ws, grp, nDays
-    Application.ScreenUpdating = True
-    MsgBox "The Needs Attention tab couldn't finish drawing:" & vbNewLine & vbNewLine & em & vbNewLine & vbNewLine & _
-           "Send a screenshot of this message.  (" & CAL_VERSION & ")", vbExclamation, "Needs Attention"
-Done:
-    On Error Resume Next
-    ProtectSheet ws
-    Application.Calculation = calcWas
-    Application.EnableEvents = evWas
-    Application.ScreenUpdating = True
-    mDrawing = False
-End Sub
-
 ' a live calendar line came from this source (uses the cached Coverage table)
-Private Function CovHasSourceCached(ByVal source As String) As Boolean
+Public Function CovHasSourceCached(ByVal source As String) As Boolean
     If Not IsArray(mCov) Then Exit Function
     Dim c As Long
     For c = 1 To UBound(mCov, 1)
@@ -5205,362 +3759,8 @@ Private Function CovHasSourceCached(ByVal source As String) As Boolean
         End If
     Next c
 End Function
-
-Private Function EmpCrewOf(ByVal empName As String) As String
-    If mShiftMap Is Nothing Then Exit Function
-    If mShiftMap.Exists(Trim$(empName)) Then EmpCrewOf = CrewOn(empName, Date, CStr(mShiftMap(Trim$(empName))))   ' v24: today's crew
-End Function
-
-' coloured bar + column headings; returns the first row for data
-Private Function NASection(ByVal ws As Worksheet, ByVal r As Long, ByVal title As String, ByVal n As Long, _
-                           ByVal accent As Long, ByVal heads As Variant) As Long
-    ws.Rows(r).RowHeight = 24
-    ws.Range(ws.Cells(r, 1), ws.Cells(r, 9)).Interior.Color = accent
-    With ws.Cells(r, 2)
-        .Value = title & "     " & n
-        .Font.Name = CAL_FONT_B: .Font.Size = 10.5: .Font.Color = vbWhite
-        .VerticalAlignment = xlCenter
-    End With
-    Dim i As Long
-    ws.Rows(r + 1).RowHeight = 18
-    For i = 0 To 7
-        With ws.Cells(r + 1, 2 + i)
-            .Value = heads(i)
-            .Font.Name = CAL_FONT_B: .Font.Size = 8: .Font.Color = thMuted()
-            .Interior.Color = RGB(245, 247, 248)
-            .VerticalAlignment = xlCenter
-            .IndentLevel = 1
-        End With
-    Next i
-    ws.Cells(r + 1, 1).Interior.Color = RGB(245, 247, 248)
-    With ws.Range(ws.Cells(r + 1, 1), ws.Cells(r + 1, 9)).Borders(xlEdgeBottom)
-        .LineStyle = xlContinuous: .Weight = xlThin: .Color = thGrid()
-    End With
-    NASection = r + 2
-End Function
-
-' the rows of one section (zebra, status pill); returns the next free row
-Private Function NARows(ByVal ws As Worksheet, ByVal r As Long, ByRef recs() As NARow, ByVal n As Long, _
-                        ByVal emptyMsg As String) As Long
-    Dim i As Long, c As Long
-    If n = 0 Then
-        ws.Rows(r).RowHeight = 20
-        With ws.Cells(r, 2)
-            .Value = emptyMsg
-            .Font.Italic = True: .Font.Color = thGreen()
-            .VerticalAlignment = xlCenter: .IndentLevel = 1
-        End With
-        ws.Rows(r + 1).RowHeight = 14
-        NARows = r + 2
-        Exit Function
-    End If
-    ' v25.2 (item 4): the section's rows as ONE array write and its formats by class (Union), as the Calendar's
-    ' weeks (item 3); the row-by-row writer it replaced was kept one release for SmokeTest's compare step (gone in v25.5)
-    Dim vals() As Variant: ReDim vals(1 To n, 1 To 8)
-    Dim keyV() As Variant: ReDim keyV(1 To n, 1 To 1)
-    Dim rgAlt As Range, whenMuted As Range, whenBold As Range
-    Dim accents As Object: Set accents = CreateObject("Scripting.Dictionary")     ' accent colour -> column A cells
-    Dim stCols As Object: Set stCols = CreateObject("Scripting.Dictionary")       ' status font colour -> column H cells
-    Dim stFills As Object: Set stFills = CreateObject("Scripting.Dictionary")     ' status fill -> column H cells
-    Dim whenCols As Object: Set whenCols = CreateObject("Scripting.Dictionary")   ' "when" font colour -> column I cells
-    Dim rowAt As Long, key As Variant
-    For i = 1 To n
-        rowAt = r + i - 1
-        For c = 0 To 7
-            vals(i, c + 1) = "'" & recs(i).Cell(c)
-        Next c
-        keyV(i, 1) = recs(i).Key
-        If i Mod 2 = 0 Then AddToRange rgAlt, ws.Range(ws.Cells(rowAt, 2), ws.Cells(rowAt, 9))
-        DictAddRange accents, recs(i).Accent, ws.Cells(rowAt, 1)
-        DictAddRange stCols, recs(i).StatusCol, ws.Cells(rowAt, 8)
-        If recs(i).StatusFill >= 0 Then DictAddRange stFills, recs(i).StatusFill, ws.Cells(rowAt, 8)
-        DictAddRange whenCols, recs(i).WhenCol, ws.Cells(rowAt, 9)
-        If recs(i).WhenCol = thMuted() Then AddToRange whenMuted, ws.Cells(rowAt, 9) Else AddToRange whenBold, ws.Cells(rowAt, 9)
-    Next i
-    Dim blk As Range: Set blk = ws.Range(ws.Cells(r, 2), ws.Cells(r + n - 1, 9))
-    blk.Value = vals
-    ws.Range(ws.Cells(r, NA_KEY), ws.Cells(r + n - 1, NA_KEY)).Value = keyV
-    ws.Range(ws.Rows(r), ws.Rows(r + n - 1)).RowHeight = 20
-    With blk
-        .VerticalAlignment = xlCenter: .IndentLevel = 1: .ShrinkToFit = True
-    End With
-    If Not rgAlt Is Nothing Then rgAlt.Interior.Color = RGB(250, 250, 251)
-    For Each key In accents.Keys
-        accents(key).Interior.Color = CLng(key)
-    Next key
-    ws.Range(ws.Cells(r, 6), ws.Cells(r + n - 1, 6)).Font.Name = CAL_FONT_B
-    ws.Range(ws.Cells(r, 8), ws.Cells(r + n - 1, 8)).Font.Name = CAL_FONT_B
-    For Each key In stCols.Keys
-        stCols(key).Font.Color = CLng(key)
-    Next key
-    For Each key In stFills.Keys
-        stFills(key).Interior.Color = CLng(key)
-    Next key
-    For Each key In whenCols.Keys
-        whenCols(key).Font.Color = CLng(key)
-    Next key
-    If Not whenMuted Is Nothing Then whenMuted.Font.Name = CAL_FONT
-    If Not whenBold Is Nothing Then whenBold.Font.Name = CAL_FONT_B
-    ' each row's bottom edge: the block's inside lines plus its bottom edge
-    With ws.Range(ws.Cells(r, 1), ws.Cells(r + n - 1, 9))
-        If n > 1 Then
-            With .Borders(xlInsideHorizontal)
-                .LineStyle = xlContinuous: .Weight = xlHairline: .Color = thGrid()
-            End With
-        End If
-        With .Borders(xlEdgeBottom)
-            .LineStyle = xlContinuous: .Weight = xlHairline: .Color = thGrid()
-        End With
-    End With
-    ' v25.5 (bundle item 1, Graeme Oct 17): no hover notes - the row already shows what the note carried
-    r = r + n
-    ws.Rows(r).RowHeight = 14
-    NARows = r + 1
-End Function
-
-' v25.2 (item 4): a range per key grown by Union (the key is a colour)
-Private Sub DictAddRange(ByVal dict As Object, ByVal key As Long, ByVal part As Range)
-    If dict.Exists(key) Then Set dict(key) = Union(dict(key), part) Else dict.Add key, part
-End Sub
-
-' summary tile over columns c1..c2, rows 4-5
-Private Sub NATile(ByVal ws As Worksheet, ByVal c1 As Long, ByVal c2 As Long, ByVal n As Long, ByVal cap As String, _
-                   ByVal col As Long, ByVal jumpRow As Long)
-    With ws.Range(ws.Cells(4, c1), ws.Cells(4, c2))
-        .Merge
-        .Value = n
-        .Font.Name = CAL_FONT_B: .Font.Size = 20: .Font.Color = IIf(n > 0, col, RGB(176, 190, 197))
-        .HorizontalAlignment = xlLeft: .VerticalAlignment = xlBottom: .IndentLevel = 1
-    End With
-    With ws.Range(ws.Cells(5, c1), ws.Cells(5, c2))
-        .Merge
-        .Value = cap
-        .Font.Name = CAL_FONT_B: .Font.Size = 7.5: .Font.Color = thMuted()
-        .HorizontalAlignment = xlLeft: .VerticalAlignment = xlTop: .IndentLevel = 1
-    End With
-    With ws.Range(ws.Cells(4, c1), ws.Cells(5, c2))
-        .Interior.Color = Tint(col, 0.9)
-        With .Borders(xlEdgeLeft)
-            .LineStyle = xlContinuous: .Weight = xlThick: .Color = col
-        End With
-        With .Borders(xlEdgeRight)
-            .LineStyle = xlContinuous: .Weight = xlThick: .Color = vbWhite
-        End With
-    End With
-    ' jump key for this tile (hidden columns to the right of the key column)
-    ws.Cells(4, NA_KEY + c1).Value = "J:" & jumpRow
-    ws.Cells(5, NA_KEY + c1).Value = "J:" & jumpRow
-End Sub
-
-Private Sub BuildNAControls(ByVal ws As Worksheet, ByVal grp As String, ByVal nDays As Long)
-    On Error Resume Next                            ' never raises
-    UnlockSheet ws
-    Dim i As Long
-    For i = ws.Shapes.Count To 1 Step -1
-        If Left$(ws.Shapes(i).Name, 3) = "na_" Then ws.Shapes(i).Delete
-    Next i
-    CalDrop ws, "na_unit", ws.Range("F1")
-    CalDrop ws, "na_range", ws.Range("G1")
-    CalBtn ws, "na_refresh", "Refresh", "modCalendar.NARefresh", ws.Range("H1"), thNav()
-    CalBtn ws, "na_cal", "Calendar", "modCalendar.NAGoCalendar", ws.Range("I1"), thGreen()
-
-    Dim dd As Object, g As Variant, idx As Long, rg As Variant
-    Set dd = Nothing
-    Set dd = ws.DropDowns("na_unit")
-    If Not dd Is Nothing Then
-        g = CalGroupNames()
-        For i = 0 To UBound(g)
-            dd.AddItem g(i)
-            If StrComp(g(i), grp, vbTextCompare) = 0 Then idx = i + 1
-        Next i
-        If idx = 0 Then idx = UBound(g) + 1
-        dd.ListIndex = idx
-        dd.OnAction = "modCalendar.NAUnitChanged"
-    End If
-    Set dd = Nothing
-    Set dd = ws.DropDowns("na_range")
-    If Not dd Is Nothing Then
-        rg = NARanges()
-        idx = 2
-        For i = 0 To UBound(rg)
-            dd.AddItem "Next " & rg(i) & " days"
-            If rg(i) = nDays Then idx = i + 1
-        Next i
-        dd.ListIndex = idx
-        dd.OnAction = "modCalendar.NARangeChanged"
-    End If
-End Sub
-
-' ====================================================================
-'  MENUS  (double-click / right-click on the Calendar or Needs Attention)
-'  Keys:  A:AB-0001|serial|Days   a time-off line
-'         C:CV-0001|serial|Days   a need / coverage line
-'         E:NEW|serial|Days       an empty spot under a date
-'         D:DAY|serial|           a date header
-'         P:P-0001                a posting
-'         S:SS-0001               a shift switch owed a payback
-'         B:AB-0001               a time-off booking
-' ====================================================================
-Public Sub CalDoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
-    On Error Resume Next
-    If Target.Worksheet.Name <> CAL_SHEET Then Exit Sub
-    Cancel = True                                  ' never "this cell is protected"
-    Dim keyTxt As String: keyTxt = SafeStr(MapSheet().Range(Target.Cells(1, 1).Address).Value)
-    On Error GoTo 0
-    If keyTxt <> "" Then ShowLineMenu keyTxt
-End Sub
-
-Public Sub CalRightClick(ByVal Target As Range, ByRef Cancel As Boolean)
-    On Error Resume Next
-    If Target.Worksheet.Name <> CAL_SHEET Then Exit Sub
-    Dim keyTxt As String: keyTxt = SafeStr(MapSheet().Range(Target.Cells(1, 1).Address).Value)
-    On Error GoTo 0
-    If keyTxt = "" Then Exit Sub                  ' ordinary right-click elsewhere
-    Cancel = True
-    ShowLineMenu keyTxt
-End Sub
-
-Private Function NAKeyAt(ByVal Target As Range) As String
-    On Error Resume Next                            ' never raises
-    Dim ws As Worksheet: Set ws = Target.Worksheet
-    Dim r As Long: r = Target.Cells(1, 1).Row
-    If r = 4 Or r = 5 Then
-        ' summary tiles: find the tile's first column
-        Dim c As Long
-        For c = Target.Cells(1, 1).Column To 2 Step -1
-            If SafeStr(ws.Cells(r, NA_KEY + c).Value) <> "" Then NAKeyAt = SafeStr(ws.Cells(r, NA_KEY + c).Value): Exit Function
-        Next c
-    End If
-    NAKeyAt = SafeStr(ws.Cells(r, NA_KEY).Value)
-End Function
-
-Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
-    Cancel = True
-    Dim keyTxt As String: keyTxt = NAKeyAt(Target)
-    If keyTxt = "" Or Left$(keyTxt, 2) = "Q:" Then Exit Sub      ' (review L17) Q: lines are for reading
-    If Left$(keyTxt, 2) = "J:" Then
-        On Error Resume Next                            ' never raises
-        Application.Goto Target.Worksheet.Cells(CLng(Mid$(keyTxt, 3)), 1), True
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "H:" Then              ' holiday to confirm: open its row on the Holidays sheet
-        GoToHoliday DateSerial(CLng(Mid$(keyTxt, 3, 4)), CLng(Mid$(keyTxt, 8, 2)), CLng(Mid$(keyTxt, 11, 2)))
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "U:" Then              ' v21: Home Unit blank - jump to that cell on the roster
-        GoToHomeUnit Mid$(keyTxt, 3)
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "M:" Then              ' M1: publish the members' file
-        If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "X:" Then              ' v24.2: errors - open the Error Log
-        ShowErrorLog
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "F:" Then              ' v27 (item 9): the receipt answers - open the Feedback sheet
-        ShowFeedback
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "V:" Then              ' v24.3: a planned unit move - cancel it, or apply it when due
-        PlannedMoveMenu Mid$(keyTxt, 3)
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "I:" Then              ' v22: imported line - open the convert pop-up
-        ShowConvertForm
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "T:" Then              ' v22.1: attendance - open the sheet
-        ShowAttendance
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "N:" Then              ' v26: below minimum staffing - the calendar on that date and group
-        CalShowDate NADateInKey(keyTxt), NAUnitInKey(keyTxt)
-        Exit Sub
-    End If
-    ShowLineMenu keyTxt
-End Sub
-
-' v26: the date serial in a "N:<unit>|<serial>|<shift>" key (0 when it can't be read)
-Private Function NADateInKey(ByVal keyTxt As String) As Date
-    Dim parts As Variant: parts = Split(keyTxt, "|")
-    If UBound(parts) >= 1 Then
-        If IsNumeric(parts(1)) Then NADateInKey = CDate(CDbl(parts(1)))
-    End If
-End Function
-
-' v26: the unit in a "N:<unit>|<serial>|<shift>" key ("" when none)
-Private Function NAUnitInKey(ByVal keyTxt As String) As String
-    Dim parts As Variant: parts = Split(keyTxt, "|")
-    If Len(CStr(parts(0))) > 2 Then NAUnitInKey = Mid$(CStr(parts(0)), 3)
-End Function
-
-' v26: the Calendar opened on the month that holds d (today's month when d is 0) and, when a unit is
-' given, on a group that holds the unit; drawn once (the draw stamp Z8 is cleared when the month or the
-' group moved, so CalStale is True - review: a month change alone never made it stale)
-Public Sub CalShowDate(ByVal d As Date, Optional ByVal unit As String = "")
-    On Error GoTo Oops
-    If d = 0 Then d = Date
-    CalendarSheet
-    Dim m0 As Date: m0 = DateSerial(Year(d), Month(d), 1)
-    Dim moved As Boolean: moved = (CalMonth() <> m0)
-    MapWrite "Z1", m0
-    If unit <> "" Then
-        If Not UnitInGroup(unit, CalGroup()) Then MapWrite "Z2", GroupOfUnit(unit): moved = True
-    End If
-    If moved Then MapWrite "Z8", "moved"              ' never equal to the Z7 counter (re-review: "" equals a never-marked map)
-    ShowCalendar
-    Exit Sub
-Oops:
-    ReportError "CalShowDate"
-End Sub
-
-Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
-    Dim keyTxt As String: keyTxt = NAKeyAt(Target)
-    If keyTxt = "" Or Left$(keyTxt, 2) = "J:" Or Left$(keyTxt, 2) = "Q:" Then Exit Sub
-    Cancel = True
-    If Left$(keyTxt, 2) = "H:" Then
-        GoToHoliday DateSerial(CLng(Mid$(keyTxt, 3, 4)), CLng(Mid$(keyTxt, 8, 2)), CLng(Mid$(keyTxt, 11, 2)))
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "U:" Then
-        GoToHomeUnit Mid$(keyTxt, 3)
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "M:" Then
-        If MsgBox("Publish the members' file now?", vbYesNo + vbQuestion, "Member View") = vbYes Then PublishMemberView
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "X:" Then
-        ShowErrorLog
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "F:" Then
-        ShowFeedback
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "V:" Then
-        PlannedMoveMenu Mid$(keyTxt, 3)
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "I:" Then
-        ShowConvertForm
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "T:" Then
-        ShowAttendance
-        Exit Sub
-    End If
-    If Left$(keyTxt, 2) = "N:" Then              ' v26
-        CalShowDate NADateInKey(keyTxt), NAUnitInKey(keyTxt)
-        Exit Sub
-    End If
-    ShowLineMenu keyTxt
-End Sub
-
 ' a Variant that may be a date serial or a date -> Date (0 if neither)
-Private Function Dt2(ByVal x As Variant) As Date
+Public Function Dt2(ByVal x As Variant) As Date
     If IsDate(x) Then
         Dt2 = CDate(x)
     ElseIf IsNumeric(x) And Not IsEmpty(x) Then
@@ -5568,604 +3768,17 @@ Private Function Dt2(ByVal x As Variant) As Date
     End If
 End Function
 
-Private Function KeyDate(ByVal keyTxt As String) As Date
+Public Function KeyDate(ByVal keyTxt As String) As Date
     Dim p As Variant: p = Split(keyTxt, "|")
     If UBound(p) >= 1 Then
         If IsNumeric(p(1)) Then KeyDate = CDate(CLng(p(1)))
     End If
 End Function
 
-Private Function KeyShift(ByVal keyTxt As String) As String
+Public Function KeyShift(ByVal keyTxt As String) As String
     Dim p As Variant: p = Split(keyTxt, "|")
     If UBound(p) >= 2 Then KeyShift = CStr(p(2))
 End Function
-
-Private Sub ShowLineMenu(ByVal keyTxt As String)
-    mMenuKey = keyTxt
-    LoadCache
-    LoadPostCache
-    Dim kind As String: kind = Left$(keyTxt, 2)
-
-    Dim title As String, lt As String, rt As String, postId As String, d As Date, sh As String
-    Dim caps() As String, macs() As String, grpBreak() As Boolean, n As Long
-    ReDim caps(1 To 16): ReDim macs(1 To 16): ReDim grpBreak(1 To 16)
-    d = KeyDate(keyTxt)
-    sh = KeyShift(keyTxt)
-
-    ' v27 (item 15, B2): a supervisor on an OPEN line (nobody on it yet) gets the jobs that are theirs since v25.5 -
-    ' fill it now (a call-out), post it, award the posting on it; anything else, and everyone else, sees the details
-    If Not gAdminUnlocked Then
-        If IsSupervisor() And (kind = "A:" Or kind = "C:") Then
-            If SlotTexts(keyTxt, lt, rt) Then
-                If rt = "" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) Like "NO TAKERS*" Then
-                    title = Format$(d, "ddd mmm d") & " " & sh & "  -  " & Clip(lt, 34)
-                    postId = PostIdOfLine(keyTxt)
-                    AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-                    ' (review) a POSTED line's posting is still open: the award fills it, not a call-out beside it
-                    If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True
-                    If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", False
-                    If postId <> "" Then
-                        If PostRow(postId) > 0 Then
-                            If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", (UCase$(rt) Like "POSTED*")   ' (re-review B8) the first job on a POSTED line
-                        End If
-                    End If
-                    GoTo ShowIt
-                End If
-            End If
-        End If
-        If kind = "E:" Or kind = "D:" Then CalMenuDayDetails Else CalMenuDetails
-        Exit Sub
-    End If
-
-    Select Case kind
-        Case "A:", "C:"
-            If Not SlotTexts(keyTxt, lt, rt) Then
-                MsgBox "That line has changed - redrawing.", vbInformation, "Calendar"
-                RefreshCalendar
-                Exit Sub
-            End If
-            title = Format$(d, "ddd mmm d") & " " & sh & "  -  " & Clip(lt, 34)
-            postId = PostIdOfLine(keyTxt)
-            AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-            If rt = "" Or UCase$(rt) Like "NO TAKERS*" Then AddChoice caps, macs, grpBreak, n, "Fill this shift now (call-out)...", "CalMenuCallout", True   ' v27 (item 15): the call-out from an open or NO TAKERS line, pre-filled (a covered or POSTED line: no)
-            If Not (UCase$(rt) Like "POSTED*") Then AddChoice caps, macs, grpBreak, n, "Post this line...", "CalMenuPost", False
-            AddChoice caps, macs, grpBreak, n, "Set coverage...", "CalMenuSetCoverage", (UCase$(rt) Like "POSTED*")
-            If kind = "C:" Then AddChoice caps, macs, grpBreak, n, "Change the text of this line...", "CalMenuEditText", False
-            If postId <> "" Then
-                If PostRow(postId) > 0 Then
-                    If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then
-                        AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", True
-                        AddChoice caps, macs, grpBreak, n, "Change the Reason of posting " & postId & "...", "CalMenuEditReason", False
-                    End If
-                End If
-                AddChoice caps, macs, grpBreak, n, "View posting " & postId, "CalMenuViewPosting", False
-            End If
-            If kind = "A:" Then
-                AddChoice caps, macs, grpBreak, n, "Change end date of this time off...", "CalMenuEndDate", True
-                AddChoice caps, macs, grpBreak, n, "Void this time off...", "CalMenuVoid", False
-            End If
-            AddChoice caps, macs, grpBreak, n, "Post support on this shift...", "CalMenuPostSupport", True
-            AddChoice caps, macs, grpBreak, n, "Add another need on this shift...", "CalMenuAddNeed", False
-            If ActiveSheet.Name = NA_SHEET Then AddChoice caps, macs, grpBreak, n, "Show on the calendar", "CalMenuGoto", True
-
-        Case "E:"
-            title = Format$(d, "ddd mmm d") & " " & sh & "  (" & IIf(sh = "Days", DaysCrew(d), NightsCrew(d)) & " Shift)"
-            AddChoice caps, macs, grpBreak, n, "Post unit operator support...", "CalMenuPostSupport", False
-            AddChoice caps, macs, grpBreak, n, "Post PHA coverage...", "CalMenuPostPHA", False
-            AddChoice caps, macs, grpBreak, n, "Add a need (no posting yet)...", "CalMenuAddNeed", True
-            AddChoice caps, macs, grpBreak, n, "Book time off from this date...", "CalMenuBookFrom", False
-            AddChoice caps, macs, grpBreak, n, "What's on this day", "CalMenuDayDetails", True
-
-        Case "D:"
-            title = Format$(d, "dddd mmm d") & "  (Days " & DaysCrew(d) & ", Nights " & NightsCrew(d) & ")"
-            AddChoice caps, macs, grpBreak, n, "Post support - Days...", "CalMenuPostSupportD", False
-            AddChoice caps, macs, grpBreak, n, "Post support - Nights...", "CalMenuPostSupportN", False
-            AddChoice caps, macs, grpBreak, n, "Add a need (no posting yet)...", "CalMenuAddNeed", True
-            AddChoice caps, macs, grpBreak, n, "Book time off from this date...", "CalMenuBookFrom", False
-            AddChoice caps, macs, grpBreak, n, "What's on this day", "CalMenuDayDetails", True
-
-        Case "P:"
-            postId = Mid$(keyTxt, 3)
-            title = "Posting " & postId
-            AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-            If PostRow(postId) > 0 Then
-                If SafeStr(mPostV(PostRow(postId), PS_STATUS)) = "Open" Then
-                    AddChoice caps, macs, grpBreak, n, "Award posting " & postId & "...", "CalMenuAward", True
-                    AddChoice caps, macs, grpBreak, n, "Change the Reason of posting " & postId & "...", "CalMenuEditReason", False
-                End If
-            End If
-            AddChoice caps, macs, grpBreak, n, "View posting " & postId, "CalMenuViewPosting", False
-            If Not CovHasSourceCached(postId) Then
-                AddChoice caps, macs, grpBreak, n, "Put on the calendar...", "CalMenuLinkPosting", True
-            End If
-
-        Case "S:"
-            title = "Shift switch " & Mid$(keyTxt, 3)
-            AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-            AddChoice caps, macs, grpBreak, n, "Log the payback (Shift Switch)...", "CalMenuSwitch", True
-
-        Case "B:"
-            title = "Time off " & Mid$(keyTxt, 3)
-            AddChoice caps, macs, grpBreak, n, "Details...", "CalMenuDetails", False
-            If MenuAbsIsLeave() Then AddChoice caps, macs, grpBreak, n, "Return from leave now (top-up)...", "CalMenuLeaveReturn", True
-            AddChoice caps, macs, grpBreak, n, "Change end date...", "CalMenuEndDate", Not MenuAbsIsLeave()
-            AddChoice caps, macs, grpBreak, n, "Void this time off...", "CalMenuVoid", False
-
-        Case Else
-            Exit Sub
-    End Select
-
-ShowIt:
-    ' pop-up menu at the mouse
-    Dim cb As Object, ctl As Object, i As Long
-    On Error Resume Next
-    Application.CommandBars(MENU_NAME).Delete
-    On Error GoTo Fallback
-    Set cb = Application.CommandBars.Add(Name:=MENU_NAME, Position:=5, Temporary:=True)   ' 5 = msoBarPopup
-    Set ctl = cb.Controls.Add(Type:=1, Temporary:=True)                                    ' 1 = msoControlButton
-    ctl.Caption = title
-    ctl.Enabled = False
-    For i = 1 To n
-        Set ctl = cb.Controls.Add(Type:=1, Temporary:=True)
-        ctl.Caption = caps(i)
-        ctl.OnAction = "'" & Replace(ThisWorkbook.Name, "'", "''") & "'!" & macs(i)
-        ctl.BeginGroup = (i = 1) Or grpBreak(i)
-    Next i
-    cb.ShowPopup
-    Exit Sub
-
-Fallback:
-    ' no pop-up menus (Mac / restricted Excel) - numbered list instead
-    Dim msg As String, pick As Long
-    msg = title & vbNewLine & vbNewLine
-    For i = 1 To n
-        msg = msg & i & ")  " & caps(i) & vbNewLine
-    Next i
-    pick = AskNumber(msg & vbNewLine & "Type the number:", "Calendar", 1, 1, n)
-    If pick >= 1 Then Application.Run "'" & Replace(ThisWorkbook.Name, "'", "''") & "'!" & macs(pick)
-End Sub
-
-Private Sub AddChoice(ByRef caps() As String, ByRef macs() As String, ByRef grpBreak() As Boolean, _
-                      ByRef n As Long, ByVal cap As String, ByVal mac As String, ByVal newGroup As Boolean)
-    n = n + 1
-    caps(n) = cap
-    macs(n) = mac
-    grpBreak(n) = newGroup
-End Sub
-
-Private Function MenuPostId() As String
-    If Left$(mMenuKey, 2) = "P:" Then
-        MenuPostId = Mid$(mMenuKey, 3)
-    Else
-        LoadCache
-        MenuPostId = PostIdOfLine(mMenuKey)
-    End If
-End Function
-
-Private Function MenuAbsId() As String
-    If Left$(mMenuKey, 2) = "A:" Or Left$(mMenuKey, 2) = "B:" Then MenuAbsId = Mid$(Split(mMenuKey, "|")(0), 3)
-End Function
-
-' unit for a new posting / need started from the menu
-Private Function MenuUnit() As String
-    If Left$(mMenuKey, 2) = "A:" Or Left$(mMenuKey, 2) = "C:" Then
-        LoadCache
-        MenuUnit = SlotUnit(mMenuKey)
-    Else
-        MenuUnit = SingleUnitOf(CalGroup())
-    End If
-End Function
-
-Public Sub CalMenuDetails()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    If mMenuKey = "" Then Exit Sub
-    Dim t As String
-    Select Case Left$(mMenuKey, 2)
-        Case "P:": t = PostingDetails(Mid$(mMenuKey, 3))
-        Case "S:": t = SwitchDetails(Mid$(mMenuKey, 3))
-        Case "B:": t = BookingDetails(Mid$(mMenuKey, 3))
-        Case Else: t = LineDetails(mMenuKey)
-    End Select
-    If t = "" Then t = "No details found - try Refresh."
-    MsgBox Replace(t, vbLf, vbNewLine), vbInformation, "Details"
-    Exit Sub
-Oops:
-    ReportError "CalMenuDetails"
-End Sub
-
-Public Sub CalMenuDayDetails()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim d As Date: d = KeyDate(mMenuKey)
-    If d = 0 Then Exit Sub
-    Dim grp As String: grp = CalGroup()
-    Dim t As String, sh As Variant, slots() As CalSlot, n As Long, i As Long, rt As String
-    t = Format$(d, "dddd mmm d") & "  -  " & grp
-    For Each sh In Array("Days", "Nights")
-        n = SlotsFor(d, CStr(sh), grp, slots)
-        t = t & vbNewLine & vbNewLine & UCase$(sh) & "  (" & IIf(sh = "Days", DaysCrew(d), NightsCrew(d)) & " Shift)"
-        If n = 0 Then t = t & vbNewLine & "   nothing booked"
-        For i = 1 To n
-            rt = slots(i).RightText
-            If rt = "" Then rt = "OPEN"
-            t = t & vbNewLine & "   " & slots(i).LeftText & "   ->   " & rt
-        Next i
-    Next sh
-    MsgBox t, vbInformation, "Calendar"
-    Exit Sub
-Oops:
-    ReportError "CalMenuDayDetails"
-End Sub
-
-Private Function SwitchDetails(ByVal id As String) As String
-    Dim d As Date, sh As String, u As String, offN As String, worksN As String
-    If Not SwitchInfo(id, d, sh, u, offN, worksN) Then SwitchDetails = "Shift switch " & id & " wasn't found.": Exit Function
-    SwitchDetails = "Shift switch " & id & vbLf & _
-                    worksN & " worked " & Format$(d, "ddd mmm d") & " " & sh & " (" & u & ") for " & offN & "." & vbLf & _
-                    "Payback still owed: " & offN & " works a shift for " & worksN & "." & vbLf & vbLf & _
-                    "Log it in Shift Switch - pick this switch in the owed list."
-End Function
-
-Private Function BookingDetails(ByVal id As String) As String
-    LoadCache
-    Dim r As Long: r = RowOf(mAbs, id)
-    If r = 0 Then BookingDetails = "Time off " & id & " wasn't found.": Exit Function
-    Dim code As String: code = TypeCode(SafeStr(mAbs(r, AB_TYPE)))
-    Dim t As String
-    t = CalName(SafeStr(mAbs(r, AB_EMP))) & "  -  " & TypeLong(code) & "  (" & SafeStr(mAbs(r, AB_UNIT)) & ")" & vbLf & _
-        "From " & Format$(mAbs(r, AB_START), "ddd mmm d, yyyy") & " to " & _
-        IIf(IsDate(mAbs(r, AB_END)), Format$(mAbs(r, AB_END), "ddd mmm d, yyyy"), "open-ended (no return date)")
-    If HrsTag(mAbs(r, AB_HOURS)) <> "" Then t = t & vbLf & "Off" & HrsTag(mAbs(r, AB_HOURS)) & " per shift"
-    If Not IsLeaveCode(code) And code <> "SIC" And SafeStr(mAbs(r, AB_NOTE)) <> "" Then t = t & vbLf & "Note: " & SafeStr(mAbs(r, AB_NOTE))
-    t = t & vbLf & "Booked by " & StampTxt(mAbs(r, AB_USER), mAbs(r, AB_STAMP)) & "  [" & id & "]"
-    BookingDetails = t
-End Function
-
-Public Sub CalMenuPost()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    CalPostKey mMenuKey
-    Exit Sub
-Oops:
-    ReportError "CalMenuPost"
-End Sub
-
-' v27 (item 15, B2): "Fill this shift now" from a calendar line - the call-out pop-up pre-filled with the line's unit,
-' date, shift and hours (a partial absence's hours; else the shift's usual, the DST night's 13 / 11), and the line's
-' key so the acceptance covers THIS line without a question (item 10). Everyone who may log a call-out may use it.
-Public Sub CalMenuCallout()
-    On Error GoTo Oops
-    If mMenuKey = "" Then Exit Sub
-    If Not RequireWritable() Then Exit Sub
-    If LogTable() Is Nothing Then Exit Sub
-    Dim kind As String: kind = Left$(mMenuKey, 2)
-    If kind <> "A:" And kind <> "C:" Then Exit Sub
-    LoadCache
-    Dim d As Date: d = KeyDate(mMenuKey)
-    Dim sh As String: sh = KeyShift(mMenuKey)
-    Dim unit As String: unit = SlotUnit(mMenuKey)
-    If d = 0 Or sh = "" Then MsgBox "That line has changed - redrawing.", vbInformation, "Calendar": RefreshCalendar: Exit Sub
-    If unit = "" Then unit = SingleUnitOf(CalGroup())
-    Dim hrs As Double: hrs = DefaultShiftHours(d, IsNightShift(sh), USUAL_SHIFT_HOURS)
-    Dim slotKey As String: slotKey = Split(mMenuKey, "|")(0)
-    Dim r As Long
-    If kind = "A:" Then
-        r = RowOf(mAbs, Mid$(slotKey, 3))
-        If r > 0 Then
-            If NumOr0(mAbs(r, AB_HOURS)) > 0 And NumOr0(mAbs(r, AB_HOURS)) < hrs Then hrs = NumOr0(mAbs(r, AB_HOURS))   ' a partial-day absence: its hours
-        End If
-    Else
-        r = RowOf(mCov, Mid$(slotKey, 3))                 ' (review L7) a need line's own hours, as CalPostKey reads them
-        If r > 0 Then
-            If NumOr0(mCov(r, CV_HOURS)) > 0 And NumOr0(mCov(r, CV_HOURS)) < hrs Then hrs = NumOr0(mCov(r, CV_HOURS))
-        End If
-    End If
-    Load frmOvertimeEntry
-    frmOvertimeEntry.Prefill unit, d, sh, "Calendar line", hrs, slotKey
-    frmOvertimeEntry.Show
-    RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "CalMenuCallout"
-End Sub
-
-Public Sub CalMenuSetCoverage()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    CalSetCoverageKey mMenuKey
-    Exit Sub
-Oops:
-    ReportError "CalMenuSetCoverage"
-End Sub
-
-' v24.3.2: the words on a need line (the Reason a posting wrote, or a typed need)
-Public Sub CalMenuEditText()
-    On Error GoTo Oops
-    CalEditTextKey mMenuKey
-    Exit Sub
-Oops:
-    ReportError "CalMenuEditText"
-End Sub
-
-' v24.3.2: an open posting's Reason, from its line or its Needs Attention entry
-Public Sub CalMenuEditReason()
-    On Error GoTo Oops
-    Dim id As String: id = MenuPostId()
-    If id = "" Then Exit Sub
-    CalEditReasonId id
-    Exit Sub
-Oops:
-    ReportError "CalMenuEditReason"
-End Sub
-
-Public Sub CalMenuPostSupport()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    PostNewLine "Unit Operator Support", KeyShift(mMenuKey)
-    Exit Sub
-Oops:
-    ReportError "CalMenuPostSupport"
-End Sub
-
-Public Sub CalMenuPostPHA()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    PostNewLine "PHA", KeyShift(mMenuKey)
-    Exit Sub
-Oops:
-    ReportError "CalMenuPostPHA"
-End Sub
-
-Public Sub CalMenuPostSupportD()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    PostNewLine "Unit Operator Support", "Days"
-    Exit Sub
-Oops:
-    ReportError "CalMenuPostSupportD"
-End Sub
-
-Public Sub CalMenuPostSupportN()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    PostNewLine "Unit Operator Support", "Nights"
-    Exit Sub
-Oops:
-    ReportError "CalMenuPostSupportN"
-End Sub
-
-' New Posting for a NEW calendar line (support / PHA with nobody off)
-Private Sub PostNewLine(ByVal reason As String, ByVal shiftLbl As String)
-    If Not RequireAdmin() Then Exit Sub
-    If Not RequireWritable() Then Exit Sub
-    If Not PostingTablesReady() Then Exit Sub
-    If LogTable() Is Nothing Then Exit Sub
-    Dim d As Date: d = KeyDate(mMenuKey)
-    If d = 0 Then Exit Sub
-    If shiftLbl = "" Then shiftLbl = "Days"
-    If Int(d) < Int(Date) Then
-        If MsgBox("That date has passed. Post it anyway?", vbYesNo + vbQuestion, "Post") = vbNo Then Exit Sub
-    End If
-    gCalPostKey = "NEW"
-    gCalPostDate = d
-    gCalPostShift = shiftLbl
-    frmNewPosting.Prefill MenuUnit(), d, shiftLbl, reason, FULL_SHIFT, Format$(d, "ddd mmm d") & " " & shiftLbl & ": " & reason
-    frmNewPosting.Show
-    gCalPostKey = ""
-    RefreshCalendar
-End Sub
-
-Public Sub CalMenuAddNeed()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim sh As String: sh = KeyShift(mMenuKey)
-    If sh = "" Then sh = "Both"
-    OpenTimeOff True, KeyDate(mMenuKey), sh
-    Exit Sub
-Oops:
-    ReportError "CalMenuAddNeed"
-End Sub
-
-Public Sub CalMenuBookFrom()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    OpenTimeOff False, KeyDate(mMenuKey), ""
-    Exit Sub
-Oops:
-    ReportError "CalMenuBookFrom"
-End Sub
-
-' Book Time Off, already filled in with the date / shift / unit
-Private Sub OpenTimeOff(ByVal needMode As Boolean, ByVal d As Date, ByVal shiftLbl As String)
-    If Not RequireAdmin() Then Exit Sub
-    If Not RequireWritable() Then Exit Sub
-    If AbsTable(True) Is Nothing Then Exit Sub
-    If CovTable(True) Is Nothing Then Exit Sub
-    Dim unit As String: unit = MenuUnit()
-    Load frmTimeOff
-    On Error Resume Next
-    With frmTimeOff
-        If needMode Then .Controls("to_optN").Value = True
-        If d > 0 Then
-            .Controls("to_txtStart").Text = Format$(d, "mm/dd/yyyy")
-            If needMode Then .Controls("to_txtEnd").Text = Format$(d, "mm/dd/yyyy")
-        End If
-        If needMode And shiftLbl <> "" Then .Controls("to_cboShift").Value = shiftLbl
-        If unit <> "" Then .Controls("to_cboUnit").Value = unit
-    End With
-    On Error GoTo 0
-    frmTimeOff.Show
-    RefreshCalendar
-End Sub
-
-Public Sub CalMenuViewPosting()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim id As String: id = MenuPostId()
-    If id = "" Then Exit Sub
-    If Not RequireAdmin() Then Exit Sub
-    Dim rep As String
-    If Not PostingOutput(id, True, False, False, rep) Then MsgBox "Couldn't show posting " & id & ". " & rep, vbExclamation, "Call Out Roster"
-    Exit Sub
-Oops:
-    ReportError "CalMenuViewPosting"
-End Sub
-
-' Award pop-up with this posting already picked - just click LOAD
-Public Sub CalMenuAward()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim id As String: id = MenuPostId()
-    If id = "" Then Exit Sub
-    If Not RequireSupervisor() Then Exit Sub            ' v27 (item 15): awarding to the list is a supervisor's job (v25.5; the pop-up greys the admin buttons); was RequireAdmin
-    If Not RequireWritable() Then Exit Sub
-    If LogTable() Is Nothing Then Exit Sub
-    If Not PostingTablesReady() Then Exit Sub
-    Dim ids As Variant, ch As Variant, i As Long, idx As Long
-    idx = -1
-    ch = OpenPostingChoices(ids)
-    If IsArray(ids) Then
-        For i = LBound(ids) To UBound(ids)
-            If StrComp(CStr(ids(i)), id, vbTextCompare) = 0 Then idx = i - LBound(ids)
-        Next i
-    End If
-    Load frmPostingEntry
-    If idx >= 0 Then
-        On Error Resume Next
-        frmPostingEntry.Controls("cmbPosting").ListIndex = idx
-        On Error GoTo 0
-    End If
-    frmPostingEntry.Show
-    RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "CalMenuAward"
-End Sub
-
-' A posting that never made it onto the calendar: pick its line now
-Public Sub CalMenuLinkPosting()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim id As String: id = MenuPostId()
-    If id = "" Then Exit Sub
-    If Not RequireAdmin() Then Exit Sub
-    If Not RequireWritable() Then Exit Sub
-    Dim p As PostRec, lst() As PListRec
-    LoadPosting id, p, lst
-    If p.ID = "" Then MsgBox "Posting " & id & " wasn't found.", vbExclamation, "Call Out Roster": Exit Sub
-    LoadPostCache
-    Dim byTxt As String, r As Long, aw As Variant, i As Long
-    Select Case p.Status
-        Case "Open": byTxt = "POSTED " & p.ID
-        Case "Cancelled": byTxt = "NCN"
-        Case "No takers": byTxt = "No takers"
-        Case Else
-            r = PostRow(p.ID)
-            If r > 0 Then
-                aw = Split(Replace(SafeStr(mPostV(r, PS_AWARDTO)), " (out of dept)", ""), ";")
-                For i = 0 To UBound(aw)
-                    If Trim$(aw(i)) <> "" Then byTxt = byTxt & IIf(byTxt = "", "", " / ") & CalName(Trim$(aw(i)))
-                Next i
-            End If
-            If byTxt = "" Then byTxt = "POSTED " & p.ID
-    End Select
-    Dim t As String
-    t = CalendarPlace(p.ShiftDate, p.ShiftLbl, p.Unit, "Posting " & p.ID & " - which calendar line does it cover?", _
-                      byTxt, p.Hours, p.ID, ReasonType(p.Reason), p.Reason, IsSupportReason(p.Reason))
-    If t <> "" Then
-        SaveIfWritable
-        MsgBox p.ID & " is on the calendar: " & t, vbInformation, "Calendar"
-    End If
-    RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "CalMenuLinkPosting"
-End Sub
-
-Public Sub CalMenuEndDate()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim id As String: id = MenuAbsId()
-    If id = "" Then Exit Sub
-    If SetAbsenceEnd(id) Then RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "CalMenuEndDate"
-End Sub
-
-' v22: is the booking under the menu a leave (so "Return from leave" applies)?
-Private Function MenuAbsIsLeave() As Boolean
-    Dim id As String: id = MenuAbsId()
-    If id = "" Then Exit Function
-    Dim r As Long: r = RowOf(mAbs, id)
-    If r > 0 Then
-        MenuAbsIsLeave = IsLeaveCode(SafeStr(mAbs(r, AB_TYPE)))
-        If MenuAbsIsLeave And UBound(mAbs, 2) >= AB_GROUP Then
-            If LeaveToppedUp(SafeStr(mAbs(r, AB_GROUP))) Then MenuAbsIsLeave = False     ' already done
-        End If
-    End If
-End Function
-
-Public Sub CalMenuLeaveReturn()
-    On Error GoTo Oops                         ' v24.3.1: the second door into the Leave pop-up (ShowLeaveForm has one)
-    Dim id As String: id = MenuAbsId()
-    If id = "" Then Exit Sub
-    If Not RequireAdmin() Then Exit Sub
-    If Not RequireWritable() Then Exit Sub
-    If Not AbsenceColumnsCurrent() Then
-        MsgBox "The Absences table needs its v22 upgrade first: an admin runs Alt+F8 > UpgradeAbsenceColumns once.", vbExclamation, "Time off"
-        Exit Sub
-    End If
-    Load frmLeave
-    frmLeave.StartReturn id
-    frmLeave.Show
-    RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "CalMenuLeaveReturn"
-End Sub
-
-Public Sub CalMenuVoid()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim id As String: id = MenuAbsId()
-    If id = "" Then Exit Sub
-    If VoidAbsence(id) Then RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "CalMenuVoid"
-End Sub
-
-Public Sub CalMenuSwitch()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    ShowShiftSwitchForm
-    RefreshCalendar
-    Exit Sub
-Oops:
-    ReportError "CalMenuSwitch"
-End Sub
-
-Public Sub CalMenuBook()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    ShowTimeOffForm
-    Exit Sub
-Oops:
-    ReportError "CalMenuBook"
-End Sub
-
-' from Needs Attention: open the calendar on that month with the line selected
-Public Sub CalMenuGoto()
-    On Error GoTo Oops                         ' v25 (I5): every menu macro runs top-level from the pop-up menu
-    Dim keyTxt As String: keyTxt = mMenuKey
-    Dim d As Date: d = KeyDate(keyTxt)
-    If d = 0 Then Exit Sub
-    CalendarSheet
-    Dim moved As Boolean: moved = (CalMonth() <> DateSerial(Year(d), Month(d), 1))   ' v26 review: a month change alone never made the calendar stale
-    MapWrite "Z1", DateSerial(Year(d), Month(d), 1)
-    LoadCache
-    Dim u As String: u = SlotUnit(keyTxt)
-    If u <> "" Then
-        If Not UnitInGroup(u, CalGroup()) Then MapWrite "Z2", GroupOfUnit(u): moved = True
-    End If
-    If moved Then MapWrite "Z8", "moved"
-    ShowCalendar
-    On Error Resume Next                            ' never raises
-    Dim hit As Range
-    Set hit = MapSheet().Range("A1:P1000").Find(What:=keyTxt, LookIn:=xlFormulas, LookAt:=xlWhole)
-    If Not hit Is Nothing Then
-        Application.Goto CalendarSheet().Range(hit.Address), False
-    End If
-    Exit Sub
-Oops:
-    ReportError "CalMenuGoto"
-End Sub
-
 ' ====================================================================
 '  AUTOMATIC REDRAW + EVENT ROUTING  (called from ThisWorkbook)
 ' ====================================================================
@@ -6226,67 +3839,6 @@ Public Sub CalSheetRightClick(ByVal Sh As Object, ByVal Target As Range, ByRef C
         NARightClick Target, Cancel
     End If
 End Sub
-
-' ====================================================================
-'  THE MIN STAFF POP-UP (v27 item 33)
-' ====================================================================
-' Alt+F8 / the admin Desk (Holidays / minimum staffing): the pop-up on the Min Staff table
-Public Sub ShowMinStaffEditor()
-    On Error GoTo Oops
-    If Not RequireAdmin() Then Exit Sub
-    If MinStaffTable(True) Is Nothing Then MsgBox "The Min Staff sheet couldn't be made (is the file read-only?).", vbExclamation, "Minimum staffing": Exit Sub
-    frmTableEdit.Setup "minstaff"
-    frmTableEdit.Show
-    Unload frmTableEdit                             ' (review L6) the form hides itself on Close
-    Exit Sub
-Oops:
-    ReportError "ShowMinStaffEditor"
-End Sub
-
-' the pop-up's rows: Unit, Shift, Minimum, Note, or Empty
-Public Function MinStaffEditRows() As Variant
-    Dim lo As ListObject: Set lo = MinStaffTable(False)
-    If lo Is Nothing Then Exit Function
-    If lo.DataBodyRange Is Nothing Then Exit Function
-    MinStaffEditRows = RangeTo2D(lo.DataBodyRange)
-End Function
-
-' The ONE write to the Min Staff table: row r (1-based), the minimum as typed (blank = none, else a whole number 0
-' to 20; 0 = none) and the note (blank = none, 250 characters kept). Admin, writable. False = refused (why).
-Public Function SetMinStaff(ByVal r As Long, ByVal minTxt As String, ByVal note As String, ByRef why As String, _
-                            Optional ByVal callNote As String = "") As Boolean     ' (review M2) + the call-out note, column 5
-    why = ""
-    If Not RequireAdmin() Then why = "admins only": Exit Function
-    If Not RequireWritable() Then why = "this copy can't be saved": Exit Function
-    minTxt = Trim$(minTxt): note = Trim$(Replace(Replace(note, vbCr, " "), vbLf, " "))
-    callNote = Trim$(Replace(Replace(callNote, vbCr, " "), vbLf, " "))
-    Dim m As Long
-    If minTxt <> "" Then
-        If Not IsNumeric(minTxt) Then why = "the minimum is a whole number (blank = no minimum)": Exit Function
-        If Val(minTxt) <> Int(Val(minTxt)) Or Val(minTxt) < 0 Or Val(minTxt) > 20 Then why = "the minimum is a whole number from 0 to 20": Exit Function
-        m = CLng(Val(minTxt))
-    End If
-    Dim lo As ListObject: Set lo = MinStaffTable(False)
-    If lo Is Nothing Then why = "there is no Min Staff table": Exit Function
-    If lo.DataBodyRange Is Nothing Then why = "the Min Staff table is empty": Exit Function
-    If r < 1 Or r > lo.ListRows.Count Then why = "that row is gone - close and open the pop-up again": Exit Function
-    Dim ws As Worksheet: Set ws = lo.Parent
-    Dim evWas As Boolean: evWas = Application.EnableEvents
-    Application.EnableEvents = False
-    UnlockSheet ws
-    If lo.ListColumns.Count < MS_CALLNOTE Then      ' an older table: the column is added once
-        lo.ListColumns.Add
-        lo.HeaderRowRange.Cells(1, MS_CALLNOTE).Value = "Call-out note"
-        ws.Columns(lo.Range.Column + MS_CALLNOTE - 1).ColumnWidth = 50
-    End If
-    If callNote <> "" Then lo.DataBodyRange.Cells(r, MS_CALLNOTE).Value = "'" & Left$(callNote, 200) Else lo.DataBodyRange.Cells(r, MS_CALLNOTE).ClearContents
-    If m > 0 Then lo.DataBodyRange.Cells(r, 3).Value = m Else lo.DataBodyRange.Cells(r, 3).ClearContents
-    If note <> "" Then lo.DataBodyRange.Cells(r, 4).Value = "'" & Left$(note, 250) Else lo.DataBodyRange.Cells(r, 4).ClearContents
-    ProtectSheet ws
-    Application.EnableEvents = evWas
-    MarkCalDirty
-    SetMinStaff = True
-End Function
 
 ' v27 (item 32): the last calendar draw's seconds, from the CalMap line "... drawn in N s" (Empty when never drawn). Never raises.
 Public Function CalDrawSeconds() As Variant

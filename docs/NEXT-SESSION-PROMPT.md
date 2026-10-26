@@ -1,4 +1,27 @@
-# Paste this into a fresh session to carry on (updated Oct 25, 2026, late: **v27.5 - the three rule fixes - is BUILT and REVIEWED on main (two review rounds); see "v27.5 STATE" first.** v27.1 is on the real roster since Oct 25. The older blocks below are the v27.1 and v27 hand-offs.)
+# Paste this into a fresh session to carry on (updated Oct 26, 2026: **v28 - members' requests + the Payroll # key - is BUILT and REVIEWED on main; see "v28 STATE" first.** v27.5 is tagged, zipped and pushed, NOT installed; v27.1 is on the real roster since Oct 25. The older blocks below are the v27.5, v27.1 and v27 hand-offs.)
+
+```
+v28 STATE (Oct 26, 2026): read docs/v28-report-back.md (Graeme's decisions: build now - the pre-release rule waived -,
+scope = members' requests + the Payroll # key, the phone page CANCELLED, go-live facts as placeholders; admins only
+act on a request; a switch request needs the partner's Agree in the file first; the key carried everywhere with the
+rename by it, the SUMIFS by name; a new hire's number typed at Add), briefs/v28.md ("As built"), the CHANGELOG's
+v28 entry (the design + the review record), docs/INSTALL-v28.md and briefs/steps-v28.txt. On main: modRequests
+(NEW) + the members' file's Requests page (Members M5, the template rebuilt at install), modKeys (NEW), 43 modules,
+ThisWorkbook v28 (open step 10 = RequestsOnOpen), frmTimeOff / frmShiftSwitch (Prefill) / frmEmployee (Payroll #) v28,
+AssignPayrollKeys = the run-once in group 3. Two read-only reviews took 7 HIGH / 8 MED (5c63a9f; the CHANGELOG lists
+them - the biggest: a 21-column log deadlocked behind the layout guard, now LogTable() adds the key column; 24
+module-level Consts after procedures in the members' module = a compile error vbacheck could not see behind an
+open one-line Sub - fixed, and vbacheck now closes one-liners: a clean run says OK). 1053 cases / 113 suites, pytest
+1116, SmokeTest 22, checkers + docscheck clean.
+DONE Oct 26: the re-review's 2 MED / 10 LOW taken (the commit after 5c63a9f); TAGGED v28 (annotated) on that commit;
+ZIPPED dist/Callout_Roster_v28.zip. The push of main + the tag waits for Graeme's word.
+NEXT: (b) push from Graeme's Terminal with his approval - NOTE the install ORDER: v27.5 first (or straight to v28: v27.5 rides in), the members' template rebuilt by
+hand (INSTALL-v28.md), AssignPayrollKeys once; the freeze Dec 20 - Jan 4; (c) the alpha Nov 1-15 -> v27.5.5 (fixes
+found at the v27.5 install go there, never alone); (d) item 39 (the email digest) when he gives the wording; the
+December rollover dry run; the Reconcile differences for the Nov 15 pack. Follow-ups noted in briefs/v28.md: an
+IntegrityCheck line for a Booked request whose Ref is void; the lookups (call order, lists, calendar) still match by
+name - a later release may switch them to the key.
+```
 
 ```
 v27.5 STATE (Oct 25, 2026): read docs/v27.5-report-back.md (Graeme's decisions incl. the two taken AFTER the reviews),

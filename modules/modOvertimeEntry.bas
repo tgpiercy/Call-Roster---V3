@@ -2164,7 +2164,7 @@ Public Function LogTable() As ListObject
         If Not LogLayoutCurrent(lo) Then
             ' never write new-layout rows into the old column order
             MsgBox "The OT Log is still in the old column layout." & vbNewLine & vbNewLine & _
-                   IIf(lo.ListColumns.Count = L_NCOLS - 1, "This copy is read-only, so the v28 Payroll # column could not be added: open the live roster.", _
+                   IIf(lo.ListColumns.Count = L_NCOLS - 1, IIf(ThisWorkbook.ReadOnly, "This copy is read-only, so the v28 Payroll # column could not be added: open the live roster.", "Its 21st column is not 'Void Note', so the v28 Payroll # column was not added: tell " & PRIMARY_ADMIN_NAME & "."), _
                        "Run Alt+F8 > UpgradeOTLogLayout once, then try again."), vbExclamation, "OT Log upgrade needed"
             Set lo = Nothing
         End If
@@ -2340,12 +2340,7 @@ Public Function AppendLogRows(data As Variant) As Boolean
     Dim r As Long
     ' v28 (item 2): an older log gets its Payroll # column before the first write that is L_NCOLS wide; every row
     ' carries the person's key (blank until the roster knows the number - FillPayrollKeys stamps it later)
-    If lo.ListColumns.Count < L_NCOLS Then          ' (LogTable adds the column itself; this says why when it could not)
-        If EnsureKeyColumn(lo, KEY_HEADER) = 0 Then
-            MsgBox "The OT Log has no Payroll # column and it could not be added (a read-only copy?). Nothing was logged.", vbCritical, "OT Log"
-            Exit Function
-        End If
-    End If
+    ' (LogTable() above has added the key column to a 21-column log, or returned Nothing and said why)
     Dim keyMap As Object: Set keyMap = PayrollMap()
     For r = 1 To n
         data(r, L_ENTRY) = firstId + r - 1

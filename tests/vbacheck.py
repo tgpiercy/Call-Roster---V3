@@ -127,16 +127,18 @@ for f in files:
                     # v28 (review): a one-line `Sub X(): ...: End Sub` opens and closes on its own line - it must not stay on
                     # the stack, or every later rule that needs an empty stack (the declaration-after-a-procedure check) goes
                     # blind for the rest of the file (24 Consts after HelpPara in modMember were missed that way)
-                    if re.search(r":\s*end\s+" + re.escape(tok) + r"\s*$", low):
-                        continue
-                    stack.append((tok, n))
+                    one_liner = bool(re.search(r":\s*end\s+" + re.escape(tok) + r"\s*$", low))
+                    if not one_liner:
+                        stack.append((tok, n))
                     nm = re.search(r"(sub|function|property\s+(get|let|set))\s+(\w+)", low)
-                    if nm:
+                    if nm:                                        # (re-review) a one-liner's name still counts for the duplicate-Public check
                         name = nm.group(3)
                         procs.setdefault(name, []).append(f.name)
                         scope_pub = low.startswith("public ") or (not low.startswith("private ") and is_bas and tok != "property")
                         if scope_pub and is_bas:
                             publics.setdefault(name, []).append(f.name)
+                    if one_liner:
+                        continue
             elif tok == "if":
                 # block if: ends with Then
                 if re.search(r"\bthen\s*$", low):

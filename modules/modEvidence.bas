@@ -504,7 +504,7 @@ End Sub
 ' ====================================================================
 '  THE DAILY TABLE EXPORT (v27 item 25, 1.4)
 ' ====================================================================
-' Workbook_Open step 12: the first ADMIN open of the live roster each day writes the tables a SUPERVISOR's view
+' Workbook_Open step 13 (v28; 12 before): the first ADMIN open of the live roster each day writes the tables a SUPERVISOR's view
 ' shows to CSV in <backup folder>\csv\<yyyy-mm-dd>\ (one file per table, every column, every row whatever the view),
 ' then prunes the day folders older than EXPORT_KEEP_DAYS. Plain text a person can open without Excel: what a
 ' later SharePoint List would be loaded from. (Review of item 25, HIGH: the folder sits beside the roster where

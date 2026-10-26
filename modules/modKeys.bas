@@ -93,8 +93,9 @@ Public Sub RekeyRows(ByVal nm As String, ByVal oldKey As String, ByVal newKey As
     If oldKey = "" Or oldKey = newKey Then Exit Sub
     Dim los() As ListObject, nameCols() As Long, heads() As String, labels() As String
     Dim n As Long: n = KeyTables(los, nameCols, heads, labels)
-    Dim i As Long, kc As Long, r As Long, names As Variant, keys As Variant, touched As Boolean
+    Dim i As Long, kc As Long, r As Long, names As Variant, keys As Variant, touched As Boolean, cur As Worksheet
     For i = 1 To n
+        Set cur = Nothing
         kc = KeyColumnOf(los(i), heads(i))
         If kc > 0 And Not los(i).DataBodyRange Is Nothing Then
             names = RangeTo2D(los(i).ListColumns(nameCols(i)).DataBodyRange)
@@ -106,16 +107,21 @@ Public Sub RekeyRows(ByVal nm As String, ByVal oldKey As String, ByVal newKey As
                 End If
             Next r
             If touched Then
-                UnlockSheet los(i).Parent
+                Set cur = los(i).Parent
+                UnlockSheet cur
                 los(i).ListColumns(kc).DataBodyRange.NumberFormat = "@"
                 los(i).ListColumns(kc).DataBodyRange.Value = keys
-                ProtectSheet los(i).Parent
+                ProtectSheet cur
+                Set cur = Nothing
             End If
         End If
     Next i
     Exit Sub
 Oops:
-    LogError "RekeyRows", Err.Number, Err.Description
+    Dim en As Long, em As String: en = Err.Number: em = Err.Description
+    On Error Resume Next                            ' never raises
+    If Not cur Is Nothing Then ProtectSheet cur
+    LogError "RekeyRows", en, em
 End Sub
 
 ' v28 (review MED-2): the key columns on the sheets a supervisor or a plain user sees (the OT Log, the posting lists,
@@ -146,7 +152,7 @@ End Sub
 Private Function KeyTables(ByRef los() As ListObject, ByRef nameCols() As Long, ByRef heads() As String, ByRef labels() As String) As Long
     ReDim los(1 To 14): ReDim nameCols(1 To 14): ReDim heads(1 To 14): ReDim labels(1 To 14)
     Dim n As Long
-    AddKeyTable los, nameCols, heads, labels, n, LogTable(), L_EMP, KEY_HEADER, "OT Log"
+    AddKeyTable los, nameCols, heads, labels, n, SheetTable(LOG_SHEET, LOG_TABLE), L_EMP, KEY_HEADER, "OT Log"   ' quiet: LogTable() shows boxes (re-review); a 21-column log has no key column yet and is skipped here
     AddKeyTable los, nameCols, heads, labels, n, SheetTable(POSTINGS_SHEET, PL_TABLE), PL_EMP, KEY_HEADER, "Posting lists"
     AddKeyTable los, nameCols, heads, labels, n, AbsTable(False), AB_EMP, KEY_HEADER, "Absences"
     AddKeyTable los, nameCols, heads, labels, n, SwitchTable(False), SW_OFF, KEY_HEADER_OFF, "Shift switches (gives up)"
@@ -230,8 +236,9 @@ Public Function FillPayrollKeys(ByVal quiet As Boolean, Optional ByVal addColumn
     Dim los() As ListObject, nameCols() As Long, heads() As String, labels() As String
     Dim n As Long: n = KeyTables(los, nameCols, heads, labels)
     Dim i As Long, kc As Long, r As Long, nm As String, k As String, nStamped As Long, touched As Boolean
-    Dim names As Variant, keys As Variant
+    Dim names As Variant, keys As Variant, cur As Worksheet
     For i = 1 To n
+        Set cur = Nothing
         If addColumns Then kc = EnsureKeyColumn(los(i), heads(i)) Else kc = KeyColumnOf(los(i), heads(i))
         If kc > 0 And Not los(i).DataBodyRange Is Nothing Then
             names = RangeTo2D(los(i).ListColumns(nameCols(i)).DataBodyRange)
@@ -246,10 +253,12 @@ Public Function FillPayrollKeys(ByVal quiet As Boolean, Optional ByVal addColumn
                 End If
             Next r
             If touched Then
-                UnlockSheet los(i).Parent
+                Set cur = los(i).Parent
+                UnlockSheet cur
                 los(i).ListColumns(kc).DataBodyRange.NumberFormat = "@"
                 los(i).ListColumns(kc).DataBodyRange.Value = keys
-                ProtectSheet los(i).Parent
+                ProtectSheet cur
+                Set cur = Nothing
             End If
         End If
     Next i
@@ -257,7 +266,10 @@ Public Function FillPayrollKeys(ByVal quiet As Boolean, Optional ByVal addColumn
     If Not quiet Then Tell nStamped & " key cell(s) stamped from the roster's Payroll # column.", vbInformation, "Payroll # keys"
     Exit Function
 Oops:
-    LogError "FillPayrollKeys", Err.Number, Err.Description
+    Dim en As Long, em As String: en = Err.Number: em = Err.Description
+    On Error Resume Next                            ' never raises
+    If Not cur Is Nothing Then ProtectSheet cur     ' (re-review) a sheet unlocked for the write is never left open
+    LogError "FillPayrollKeys", en, em
 End Function
 
 ' the live roster's keys kept current before a save (SaveIfWritable); never raises, never blocks the save

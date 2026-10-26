@@ -2944,8 +2944,10 @@ Private Sub FolderAnswers(ByRef fv As Variant, ByVal rid As String, ByVal reques
             Select Case Txt(fv(i, FQ_ACTION))
                 Case "agree"
                     If StrComp(Txt(fv(i, FQ_LOGIN)), requesterLogin, vbTextCompare) <> 0 Then agreeLogin = Txt(fv(i, FQ_LOGIN))
-                Case "refuse": refused = True
-                Case "withdraw": withdrawn = True
+                Case "refuse"                               ' the master's rule (re-review): a refuse from another login, a withdraw from the one that asked
+                    If StrComp(Txt(fv(i, FQ_LOGIN)), requesterLogin, vbTextCompare) <> 0 Then refused = True
+                Case "withdraw"
+                    If StrComp(Txt(fv(i, FQ_LOGIN)), requesterLogin, vbTextCompare) = 0 Then withdrawn = True
             End Select
         End If
     Next i

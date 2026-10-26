@@ -629,7 +629,7 @@ Public Sub ShowDeskSheet()
     ws.Range("A1").Select
 End Sub
 
-' ThisWorkbook's open step 10: an admin Desk user and (SUPERVISOR_DESK) every supervisor on SUPERVISOR_USERS land on
+' ThisWorkbook's open step 11 (v28; 10 before): an admin Desk user and (SUPERVISOR_DESK) every supervisor on SUPERVISOR_USERS land on
 ' the Desk (v25.5: a plain user lands on the roster), the primary admin on the roster; a Desk that can't be made or
 ' brought to the front leaves the user on the roster (DrawDesk never raises: it writes its own red line on the
 ' sheet), and a 120 % left behind is put back

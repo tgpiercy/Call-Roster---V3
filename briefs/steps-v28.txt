@@ -1,7 +1,7 @@
 # Groups 3 and 4 of install-steps.txt for v28 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
 # VERSION / EXPECT / MEMBER / FORMS header, and fills {CASES} {SUITES} {MODULES} {STEPS} from the code).
 # member/ CHANGED: the members' template is rebuilt by hand (Members M5) - see the INSTALL note. ThisWorkbook re-pasted
-# (open step 14). Two NEW modules (modRequests, modKeys) imported by the swap; three forms re-pasted (frmTimeOff,
+# (open step 10, before the Desk lands). Two NEW modules (modRequests, modKeys) imported by the swap; three forms re-pasted (frmTimeOff,
 # frmShiftSwitch, frmEmployee). No ApplyRosterLayout (no bar button moved).
 # Never a "|" inside a field: it is the panel's separator.
 # Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.

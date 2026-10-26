@@ -177,7 +177,7 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
         files(nF) = f
         f = Dir$()
     Loop
-    On Error GoTo 0
+    On Error GoTo Oops                              ' (re-review) the handler is back on for the whole fold
     Dim byId As Object: Set byId = CreateObject("Scripting.Dictionary"): byId.CompareMode = 1    ' id -> the request facts (a String())
     Dim agreeOf As Object: Set agreeOf = CreateObject("Scripting.Dictionary"): agreeOf.CompareMode = 1   ' id -> every agree as "login|stamp;login|stamp" (the requester's own is set aside below)
     Dim refusedOf As Object: Set refusedOf = CreateObject("Scripting.Dictionary"): refusedOf.CompareMode = 1
@@ -195,9 +195,9 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
                         Case "agree"
                             agreeOf(rid) = SafeStr(agreeOf(rid)) & IIf(SafeStr(agreeOf(rid)) = "", "", ";") & fx(RF_LOGIN) & "|" & fx(RF_STAMP)
                         Case "refuse"
-                            refusedOf(rid) = fx(RF_LOGIN)
+                            refusedOf(rid) = SafeStr(refusedOf(rid)) & ";" & fx(RF_LOGIN) & ";"       ' every login that refused (re-review)
                         Case "withdraw"
-                            withdrawnOf(rid) = fx(RF_LOGIN)
+                            withdrawnOf(rid) = SafeStr(withdrawnOf(rid)) & ";" & fx(RF_LOGIN) & ";"   ' every login that withdrew
                     End Select
                 End If
             End If
@@ -220,7 +220,9 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
             fx = byId(kk)
             IsoDate fx(RF_FROM), fromD: IsoDate fx(RF_TO), toD
             Dim newRow As ListRow
-            If lo.ListRows.Count = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then
+            If lo.DataBodyRange Is Nothing Then
+                Set newRow = lo.ListRows.Add
+            ElseIf lo.ListRows.Count = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then
                 Set newRow = lo.ListRows(1)                      ' the blank row a new table is made with (as OpensOnOpen)
             Else
                 Set newRow = lo.ListRows.Add
@@ -275,8 +277,8 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
                     Next aj
                 End If
                 wd = False: rf = False
-                If withdrawnOf.Exists(rid) Then wd = (StrComp(CStr(withdrawnOf(rid)), reqLogin, vbTextCompare) = 0)   ' only the login that asked
-                If refusedOf.Exists(rid) Then rf = (StrComp(CStr(refusedOf(rid)), reqLogin, vbTextCompare) <> 0)      ' the partner, not the requester
+                If withdrawnOf.Exists(rid) Then wd = (InStr(1, CStr(withdrawnOf(rid)), ";" & reqLogin & ";", vbTextCompare) > 0)   ' some withdraw from the login that asked
+                If refusedOf.Exists(rid) Then rf = LoginOtherThan(CStr(refusedOf(rid)), reqLogin)                                 ' some refuse from another login (the partner)
                 toD = 0
                 If IsDate(v(i, RQ_TO)) Then toD = CDate(v(i, RQ_TO))
                 st = RequestStatusCore(kind, agreeLogin, reqLogin, rf, wd, "", Format$(toD, "yyyy-mm-dd"), Format$(Date, "yyyy-mm-dd"))
@@ -302,6 +304,7 @@ Oops:
     On Error Resume Next
     ProtectSheet lo.Parent
     LogError "ReadRequests", en, em
+    On Error GoTo 0                                 ' (re-review) or the raise below would be swallowed by Resume Next
     Err.Raise en, , em
 End Function
 
@@ -321,6 +324,17 @@ Public Sub ArchiveEndedRequests()
         End If
     Next i
 End Sub
+
+' True when one of the ";"-wrapped logins differs from the requester's (a refuse from the partner counts; the requester's own does not)
+Private Function LoginOtherThan(ByVal logins As String, ByVal requesterLogin As String) As Boolean
+    Dim parts As Variant, i As Long
+    parts = Split(logins, ";")
+    For i = 0 To UBound(parts)
+        If Trim$(CStr(parts(i))) <> "" Then
+            If StrComp(Trim$(CStr(parts(i))), Trim$(requesterLogin), vbTextCompare) <> 0 Then LoginOtherThan = True: Exit Function
+        End If
+    Next i
+End Function
 
 ' the files of an ended request -> done\ (never raises; a file still open elsewhere stays and is skipped next time)
 Private Sub ArchiveRequestFiles(ByVal folder As String, ByVal fileList As String)
@@ -556,8 +570,14 @@ Public Sub RequestBooked(ByVal ref As String, ByVal emp As String, ByVal d As Da
     If r = 0 Then Exit Sub
     Dim same As Boolean
     same = (StrComp(Trim$(SafeStr(v(r, RQ_EMP))), Trim$(emp), vbTextCompare) = 0)
-    If same And IsDate(v(r, RQ_FROM)) Then same = (Int(CDate(v(r, RQ_FROM))) = Int(d))
-    If same And SafeStr(v(r, RQ_KIND)) = "Switch" Then same = (StrComp(Trim$(SafeStr(v(r, RQ_PARTNER))), Trim$(worksName), vbTextCompare) = 0)
+    If same And SafeStr(v(r, RQ_KIND)) = "Switch" Then
+        If IsDate(v(r, RQ_FROM)) Then same = (Int(CDate(v(r, RQ_FROM))) = Int(d))
+        If same Then same = (StrComp(Trim$(SafeStr(v(r, RQ_PARTNER))), Trim$(worksName), vbTextCompare) = 0)
+    ElseIf same Then
+        ' time off: the booking's start may sit inside the asked range (re-review MED-2: the pop-up offers to trim the
+        ' days off at the ends - Nov 3-9 asked, booked from Nov 4 - and that IS the request)
+        If IsDate(v(r, RQ_FROM)) And IsDate(v(r, RQ_TO)) Then same = (Int(d) >= Int(CDate(v(r, RQ_FROM))) And Int(d) <= Int(CDate(v(r, RQ_TO))))
+    End If
     If Not same Then
         Tell id & " stays waiting: what you saved (" & emp & ", " & Format$(d, "ddd mmm d") & IIf(worksName <> "", ", " & worksName & " works", "") & _
              ") is not that request. Book it from Needs Attention again, or decline it.", vbExclamation, "Members' requests"

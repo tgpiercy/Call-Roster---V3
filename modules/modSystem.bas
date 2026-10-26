@@ -1198,7 +1198,7 @@ End Sub
 '  THE OPENS TABLE (v27 item 32, C12)
 ' ====================================================================
 ' One row per open of the live roster (When, Login, View, Release, Read-only, Integrity PROBLEMs, Calendar draw s) on
-' the admin-only Opens sheet (made on first use), pruned at OPENS_KEEP_DAYS; never published. Workbook_Open step 13,
+' the admin-only Opens sheet (made on first use), pruned at OPENS_KEEP_DAYS; never published. Workbook_Open step 14 (v28; 13 before),
 ' after the integrity check. A practice / backup copy writes nothing; a read-only open could never keep its row, so
 ' it writes nothing either (the column says "no" on every kept row). The row goes with the next real save. Never raises.
 Public Sub OpensOnOpen()

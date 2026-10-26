@@ -262,7 +262,7 @@ End Sub
 
 ' v27.1 (R4): PURE (SelfTest "staffcount") - the counts behind one unit / date / shift from what StaffCounts gathered.
 ' people = one token per code-holder: "S" on the shift by rotation, "SA" also booked off or sick for it, "SW" also
-' gave it up in a switch ("" = not on the shift; v27.5: "SW" too for a giver the rotation did not put on it). rightTexts
+' gave it up in a switch ("" = not on the shift, a switch giver the rotation did not put on it included). rightTexts
 ' = the Covered-by texts of the unit's lines on that shift. Not an array = none. scheduled = the tokens with S; off =
 ' those with A or W, once each; covered = the people the texts stand for: the shares of every line added once
 ' (CoveredShare; shiftHours = the shift's length, 12 or a clock-change night's 11 / 13: a cover of that many hours is

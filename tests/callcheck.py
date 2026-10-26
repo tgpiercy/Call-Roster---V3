@@ -387,7 +387,7 @@ def check_project(files: list[Path], label: str) -> int:
                 # ---- SELFCALL (v27.5): the Function's own name followed by (...) on the LEFT of = inside its body is a CALL to
                 # itself (it recurses until the stack runs out; it compiles when the Function returns Object or Variant) - the
                 # v27.5 SerialSet slip that three checkers and a mirror could not see ----
-                pat_self = re.compile(r"(?:^\s*|\bThen\s+|\bElse\s+)(?:Set\s+)?" + re.escape(p.name) + r"\s*\(.*?\)\s*=(?!=)", re.I)
+                pat_self = re.compile(r"(?:^\s*|\bThen\s+|\bElse\s+)(?:Set\s+)?" + re.escape(p.name) + r"\s*\(.*?\)(?:\.\w+)*\s*=(?!=)", re.I)
                 for st in stmts:
                     if pat_self.search(st):
                         say("SELFCALL", m, p.name, "its own name with an argument list on the left of '=' calls the Function again: build the result in a local, then assign it")

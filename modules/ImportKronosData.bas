@@ -768,6 +768,7 @@ Private Function KronosReadFiles(ByRef files As Variant, ByVal stamp As Date, By
 NextFile:
     Next fi
     Next rdPass
+    If lastFileDate > 0 Then fileDate = lastFileDate           ' (re-review) the NEWEST file's time, not the deferred year-to-date's
     KronosReadFiles = True
 End Function
 

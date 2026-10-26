@@ -29,6 +29,7 @@ End Function
 Private Function SelfIndexed(ByVal n As Long) As Object
     Set SelfIndexed = CreateObject("Scripting.Dictionary")
     SelfIndexed(n) = True
+    SelfIndexed(n).Item = True
 End Function
 
 Private Function BuiltInALocal(ByVal n As Long) As Object
@@ -142,7 +143,7 @@ def test_selfcall_fires_only_on_the_self_indexed_function(tmp_path, capsys):
     # v27.5: SerialSet(key) = True inside SerialSet called itself until the stack ran out
     out = run(tmp_path, capsys)
     sc = [ln for ln in out if ln.startswith("SELFCALL")]
-    assert len(sc) == 1 and "SelfIndexed" in sc[0], sc
+    assert len(sc) == 2 and all("SelfIndexed" in ln for ln in sc), sc
 
 
 def test_nothing_else_fires(tmp_path, capsys):

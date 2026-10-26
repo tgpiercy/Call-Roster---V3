@@ -448,7 +448,7 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
             If i1 <> "" Then scP = Split(i1, ";")
-            If i2 <> "" Then scT = Split(i2, ";")
+            If i2 <> "" Then scT = Split(Replace(i2, "~", "; "), ";")   ' v27.5 (re-review): "~" spells an in-line "; " (two covers of one line)
             scH = USUAL_SHIFT_HOURS: If i4 <> "" Then scH = Val(i4)   ' v27.5: the shift's hours (a clock-change night)
             StaffCountsCore scP, scT, scS, scO, scC, scPt, scH          ' v27.5 (item 3): + part, + the shift's hours
             scX = StaffShort(scS, scO, scC, CLng(Val(i3)), scPt)
@@ -2149,9 +2149,9 @@ End Sub
 Private Sub LoadCases6()
     AddCase "staffcount,partial-across-two-lines-with-a-whole,SA;SA;S,Joe D 6h;Sam K 6h / Eve F,3,,,3|2|2|ok"
     AddCase "staffcount,lone-slash-is-a-text-counts-one,S,  / ,1,,,1|0|1|ok"
-    AddCase "staffcount,two-covers-of-one-absence-joined-with-semicolon,SA;S,Joe D 6h; Sam K 6h,2,,,2|1|1|ok"
-    AddCase "staffcount,posted-then-a-cover-on-one-line,S,POSTED P-0012; Joe D,2,,,1|0|1|ok"
-    AddCase "staffcount,whole-then-partial-joined,S,Joe D; Sam K 6h,2,,,1|0|1|ok"
+    AddCase "staffcount,two-covers-of-one-absence-joined-with-semicolon,SA;S,Joe D 6h~Sam K 6h,2,,,2|1|1|ok"
+    AddCase "staffcount,posted-then-a-cover-on-one-line,S,POSTED P-0012~Joe D,2,,,1|0|1|ok"
+    AddCase "staffcount,whole-then-partial-joined,S,Joe D~Sam K 6h,2,,,1|0|1|ok"
     AddCase "staffcount,no-takers-part-then-a-cover,S,NO TAKERS / Joe D,2,,,1|0|1|ok"
     AddCase "staffcount,dst-eleven-h-night-whole-cover,S,Ann B 11h,2,11,,1|0|1|ok"
     AddCase "staffcount,dst-thirteen-h-night-twelve-h-is-part,S,Ann B 12h,2,13,,1|0|0|SHORT 1/2 (part)"

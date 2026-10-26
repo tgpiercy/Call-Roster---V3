@@ -355,7 +355,7 @@ def evaluate(row: dict) -> str:
         return rules.roster_name(i1, i2)
     if suite == "staffcount":                    # v27.1: people tokens ;, Covered-by texts ;, minimum -> scheduled|off|covered|ok / SHORT
         people = i1.split(";") if i1 != "" else []
-        texts = i2.split(";") if i2 != "" else []
+        texts = i2.replace("~", "; ").split(";") if i2 != "" else []     # v27.5: "~" spells an in-line "; " (two covers of one line)
         s, o, c, pt = rules.staff_counts_core(people, texts, float(i4) if i4 else rules.USUAL_SHIFT_HOURS)
         return f"{s}|{o}|{c}|{rules.staff_short(s, o, c, int(i3 or 0), pt) or 'ok'}"
     if suite == "switchstop":                    # v27.1: 'mmm d|shift', none / same|sh2 / 'mmm d|sh2', the facts -> the stops or none

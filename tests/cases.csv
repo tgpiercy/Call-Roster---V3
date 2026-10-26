@@ -1002,9 +1002,9 @@ staffcount,eleven-h-is-not-a-whole-person,S;SA,Sam K 11h,2,,,2|1|0|SHORT 1/2 (pa
 staffcount,whole-plus-eleven-h-rounds-down,S;S;SA,Ann B / Sam K 11h,3,,,3|1|1|ok
 staffcount,partial-across-two-lines-with-a-whole,SA;SA;S,Joe D 6h;Sam K 6h / Eve F,3,,,3|2|2|ok
 staffcount,lone-slash-is-a-text-counts-one,S,  / ,1,,,1|0|1|ok
-staffcount,two-covers-of-one-absence-joined-with-semicolon,SA;S,Joe D 6h; Sam K 6h,2,,,2|1|1|ok
-staffcount,posted-then-a-cover-on-one-line,S,POSTED P-0012; Joe D,2,,,1|0|1|ok
-staffcount,whole-then-partial-joined,S,Joe D; Sam K 6h,2,,,1|0|1|ok
+staffcount,two-covers-of-one-absence-joined-with-semicolon,SA;S,Joe D 6h~Sam K 6h,2,,,2|1|1|ok
+staffcount,posted-then-a-cover-on-one-line,S,POSTED P-0012~Joe D,2,,,1|0|1|ok
+staffcount,whole-then-partial-joined,S,Joe D~Sam K 6h,2,,,1|0|1|ok
 staffcount,no-takers-part-then-a-cover,S,NO TAKERS / Joe D,2,,,1|0|1|ok
 staffcount,dst-eleven-h-night-whole-cover,S,Ann B 11h,2,11,,1|0|1|ok
 staffcount,dst-thirteen-h-night-twelve-h-is-part,S,Ann B 12h,2,13,,1|0|0|SHORT 1/2 (part)

@@ -1,4 +1,24 @@
-# Paste this into a fresh session to carry on (updated Oct 25, 2026: **v27.1 the behaviour-free refactor is TAGGED (v27.1 = 3abdc92), ZIPPED (dist/Callout_Roster_v27.1.zip), PUSHED, and INSTALLED - Graeme reported it passed testing on Oct 25; next is the v27.5 bundle**; see "v27.1" below. The older block under it is the v27 hand-off.)
+# Paste this into a fresh session to carry on (updated Oct 25, 2026, late: **v27.5 - the three rule fixes - is BUILT and REVIEWED on main (two review rounds); see "v27.5 STATE" first.** v27.1 is on the real roster since Oct 25. The older blocks below are the v27.1 and v27 hand-offs.)
+
+```
+v27.5 STATE (Oct 25, 2026): read docs/v27.5-report-back.md (Graeme's decisions incl. the two taken AFTER the reviews),
+briefs/v27.5.md, the CHANGELOG's v27.5 entry (the design + the review record), docs/INSTALL-v27.5.md and
+briefs/steps-v27.5.txt. Three rule fixes on main: (1) every switch runs the 16 h stop by the rule's own arithmetic
+(modCalendar.FatigueShiftReason; a scheduled shift beside the one worked counts; the shifts a switch gives up are set
+aside through SetPendingGiveUp) - BUT the same-day sister swap of BOTH shifts is EXEMPT from the arithmetic (Graeme:
+"the only time an A/B pair can swap"; only "on OT" stops it); (2) a missed Kronos morning writes "gap" rows at the
+year-to-date import, counted in Worked Periods per person + pay code until that day's rows arrive; the one-day reports
+of a run are taken before its year-to-date; (3) the staffing count adds partial covers once ("; " and " / " parts),
+rounds down, says "(part)"; a switch saved over the warning counts its worker. Review record in the CHANGELOG: item 2
+had a HIGH (SerialSet called itself - callcheck SELFCALL now flags a Function's own name with an argument list on the
+left of =), item 3 two HIGHs (the switch-giver no-op, the "; " join). 1010 cases / 109 suites, pytest 1066, SmokeTest
+22, checkers + docscheck clean. Every stamp v27.5, EXPECTED_RELEASE v27.5, the What's New box shows (a rule change).
+NEXT: (a) the re-review of the fix commit 8a3914b (running at the end of the Oct 25 session - take its findings if any
+fix commit is missing after it); (b) tag v27.5 (annotated), tests/build_zip.py v27.5 v27.1, push main + the tag from
+Graeme's Terminal panel with his approval; (c) his install on a practice copy, then the real roster (steps-v27.5.txt
+group 4: the one-way switch stops, the same-day swap does not, the What's New box); (d) the alpha Nov 1-15 -> v27.5.5;
+item 39 (the email digest) when he gives the wording; the Reconcile differences for the Nov 15 pack.
+```
 
 ```
 v27.1 STATE (Oct 22, 2026): read docs/v27.1-report-back.md (the plan, the maps, Graeme's eight decisions), the

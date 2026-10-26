@@ -1057,26 +1057,46 @@ Private Sub CheckKronos()
         If nMiss > 0 Then AddIssue SEV_WARN, "Kronos", "No one-day Kronos report for " & nMiss & " day(s) since the ledger began: " & missing & IIf(nMiss > 10, " ...", ""), _
                                         "Run the report for each missing day into the Kronos folder, then Import Kronos (or the year to date at the period's end)"
     End If
-    ' v27.5 (item 2): the gap rows a year-to-date wrote for a missed morning whose day's report has still not come
+    ' v27.5 (item 2): the gap rows a year-to-date wrote for a missed morning whose day's report has still not come - the
+    ' rows RebuildWorkedPeriods would count (re-review: this year's, from the first one-day report on, as GapCountsCore;
+    ' last year's rows stay in the append-only sheet and name days no report can reach)
     Dim gv As Variant: gv = TableValues(WC_TABLE)
     Dim gapWait As Object: Set gapWait = CreateObject("Scripting.Dictionary")
-    Dim gp As Variant, gk As Long, gTxt As String
-    If IsArray(gv) Then
+    Dim gp As Variant, gk As Long, gTxt As String, gd As Date
+    If IsArray(gv) And lf > 0 Then
         For i = 1 To UBound(gv, 1)
-            If LCase$(Trim$(SafeStr(gv(i, 10)))) = "gap" Then
-                gp = Split(GapNoteDays(SafeStr(gv(i, 11))), ";")
-                For gk = 0 To UBound(gp)
-                    If Trim$(CStr(gp(gk))) <> "" Then
-                        If Not days.Exists(CLng(Val(CStr(gp(gk))))) Then gapWait(CLng(Val(CStr(gp(gk))))) = True
-                    End If
-                Next gk
+            If LCase$(Trim$(SafeStr(gv(i, 10)))) = "gap" And IsDate(gv(i, 4)) Then
+                gd = CDate(gv(i, 4))
+                If gd >= RosterYearFrom() And gd >= lf Then
+                    gp = Split(GapNoteDays(SafeStr(gv(i, 11))), ";")
+                    For gk = 0 To UBound(gp)
+                        If Trim$(CStr(gp(gk))) <> "" Then
+                            If Not days.Exists(CLng(Val(CStr(gp(gk))))) Then gapWait(CLng(Val(CStr(gp(gk))))) = True
+                        End If
+                    Next gk
+                End If
             End If
         Next i
     End If
     If gapWait.Count > 0 Then
+        Dim gKeys() As Variant, ga As Long, gb As Long, gTmp As Variant
+        ReDim gKeys(0 To gapWait.Count - 1)
+        ga = 0
         For Each kk In gapWait.Keys
-            If Len(gTxt) < 120 Then gTxt = gTxt & IIf(gTxt = "", "", ", ") & Format$(CDate(CLng(kk)), "ddd mmm d")
+            gKeys(ga) = kk: ga = ga + 1
         Next kk
+        For ga = 0 To UBound(gKeys) - 1                      ' oldest first (a handful of days: a plain sort)
+            For gb = ga + 1 To UBound(gKeys)
+                If CLng(gKeys(gb)) < CLng(gKeys(ga)) Then gTmp = gKeys(ga): gKeys(ga) = gKeys(gb): gKeys(gb) = gTmp
+            Next gb
+        Next ga
+        For ga = 0 To UBound(gKeys)
+            If Len(gTxt) < 120 Then
+                gTxt = gTxt & IIf(gTxt = "", "", ", ") & Format$(CDate(CLng(gKeys(ga))), "ddd mmm d")
+            ElseIf Right$(gTxt, 4) <> " ..." Then
+                gTxt = gTxt & " ..."
+            End If
+        Next ga
         AddIssue SEV_WARN, "Kronos", gapWait.Count & " day(s) named by gap rows in Worked Changes still have no one-day report: " & gTxt, _
                  "Run that day's report into the Kronos folder, then Import Kronos: its hours then count in Worked Periods and the gap rows step aside"
     End If

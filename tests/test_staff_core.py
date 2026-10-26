@@ -21,6 +21,16 @@ def test_mirror_matches_vba():
     assert "covered = CLng(Int(total + 0.000001))" in src
     assert 'Split(Replace(rt, "; ", " / "), " / ")' in src
     assert "CoveredCount" not in src
+
+
+def test_covered_share_splits_the_semicolon_join_and_skips_posted_parts():
+    # v27.5 re-review: SlotsFor joins two covers of ONE absence line with "; " - each is a part
+    assert rules.covered_share("Joe D 6h; Sam K 6h") == 1.0
+    assert rules.covered_share("POSTED P-0012; Joe D") == 1.0
+    assert rules.covered_share("Joe D; Sam K 6h") == 1.5
+    assert rules.covered_share("NO TAKERS") == 0.0
+    assert rules.covered_share("Ann B 11h", 11.0) == 1.0
+    assert rules.covered_share("Ann B 11h", 12.0) == 11.0 / 12.0
     oe = (ROOT / "modules" / "modOvertimeEntry.bas").read_bytes().decode("ascii")
     m = re.search(r"Public Const USUAL_SHIFT_HOURS As Double = ([\d.]+)", oe)
     assert m and float(m.group(1)) == rules.USUAL_SHIFT_HOURS

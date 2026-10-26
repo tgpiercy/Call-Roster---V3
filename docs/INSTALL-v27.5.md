@@ -9,7 +9,7 @@ Needs **v27.1 installed** (the install never removes a module, so this zip canno
 ## The panel
 1. Open the roster (ADMIN view), then File > Open `Roster Updater.xlsm` in the same Excel window. Click the roster so it is in front.
 2. Alt+F8 > `'Roster Updater.xlsm'!InstallPanel`. Pick the unzipped `Callout_Roster_v27.5` folder.
-3. Click the one blue button, read its box, click the next. The swap replaces every module (every stamp moves to v27.5; the rules changed in modShiftSwitch, modCalendar, ImportKronosData, modMinStaff; the cases in modSelfTest; the Rules sheet text in modRules; one Help sentence in modDesk; the release constants in modSystem). Group 3: System check (41 of 41 on v27.5), Self test (1010 cases, 109 suites). Group 4: the practice copy + SmokeTest (22 steps), the switch stop by hand (one-way stops, the same-day swap does not), the What's New box, IntegrityCheck.
+3. Click the one blue button, read its box, click the next. The swap replaces every module (every stamp moves to v27.5; the rules changed in modShiftSwitch, modCalendar, ImportKronosData, modMinStaff; IntegrityCheck's new Kronos line in modIntegrity; the cases in modSelfTest; the Rules sheet text in modRules; one Help sentence in modDesk; the release constants in modSystem). Group 3: System check (41 of 41 on v27.5), Self test (1010 cases, 109 suites). Group 4: the practice copy + SmokeTest (22 steps), the switch stop by hand (one-way stops, the same-day swap does not), the What's New box, IntegrityCheck.
 
 By hand instead: in the VBA editor replace every module in `modules/` (Remove, then File > Import); nothing to paste; Debug > Compile; save, close, reopen; then the group 3-4 rows yourself.
 

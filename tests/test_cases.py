@@ -354,8 +354,8 @@ def evaluate(row: dict) -> str:
     if suite == "staffcount":                    # v27.1: people tokens ;, Covered-by texts ;, minimum -> scheduled|off|covered|ok / SHORT
         people = i1.split(";") if i1 != "" else []
         texts = i2.split(";") if i2 != "" else []
-        s, o, c = rules.staff_counts_core(people, texts)
-        return f"{s}|{o}|{c}|{rules.staff_short(s, o, c, int(i3 or 0)) or 'ok'}"
+        s, o, c, pt = rules.staff_counts_core(people, texts)
+        return f"{s}|{o}|{c}|{rules.staff_short(s, o, c, int(i3 or 0), pt) or 'ok'}"
     if suite == "switchstop":                    # v27.1: 'mmm d|shift', none / same|sh2 / 'mmm d|sh2', the facts -> the stops or none
         dtx, _, sh = (i1 + "|").partition("|")
         sh = sh.rstrip("|")

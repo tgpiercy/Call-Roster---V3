@@ -13,8 +13,12 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_mirror_matches_vba():
     src = (ROOT / "modules" / "modMinStaff.bas").read_bytes().decode("ascii")
     assert re.search(r"^Public Sub StaffCountsCore\(ByRef people As Variant, ByRef rightTexts As Variant, _\r\n"
-                     r"\s+ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long\)", src, re.M)
-    assert "StaffCountsCore people, texts, scheduled, off, covered" in src
+                     r"\s+ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long, ByRef part As Boolean\)", src, re.M)
+    assert "StaffCountsCore people, texts, scheduled, off, covered, part" in src
+    # v27.5 (item 3): the shares summed once and rounded down; a switch giver the rotation did not schedule is tokened SW
+    assert "covered = CLng(Int(total + 0.000001))" in src
+    assert re.search(r"ElseIf busy Then\r\n(\s+'.*\r\n)*\s+If SwitchOffOn\(nm, d, shiftLbl\) <> \"\" Then tokens\(i\) = \"SW\"", src)
+    assert "CoveredCount" not in src
     oe = (ROOT / "modules" / "modOvertimeEntry.bas").read_bytes().decode("ascii")
     m = re.search(r"Public Const USUAL_SHIFT_HOURS As Double = ([\d.]+)", oe)
     assert m and float(m.group(1)) == rules.USUAL_SHIFT_HOURS

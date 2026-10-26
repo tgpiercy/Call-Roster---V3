@@ -18,14 +18,21 @@ Private mStaffBusy As Object        ' v26: names with any absence row or a switc
 ' crew off on a plant holiday is not scheduled); off = booked off or sick
 ' on that shift (OffForStaffing) or off in a switch; covered = the coverage
 ' lines a named person covers - a switch's own S/S line counts its worker
-' (OPEN, NO TAKERS, POSTED and NCN add nobody). Shown on the calendar's
-' date cell and in Needs Attention. Reads only; no rule changes.
+' (OPEN, NO TAKERS, POSTED and NCN add nobody). v27.5 (item 3, Graeme Oct
+' 25): a partial cover ("Joe D 6h") is 6/12 of a person; the shares of every
+' line on the shift are added ONCE and rounded DOWN, a blank " / " part adds
+' nobody, and the flag says "(part)" when a fraction was dropped; a giver the
+' rotation did not put on the shift who gave it up in a switch counts
+' scheduled-and-off, so the S/S line nets to zero. Shown on the calendar's
+' date cell and in Needs Attention. Reads only.
 
-' PURE (SelfTest "minstaff"): "" (fine, or no minimum) / "SHORT staffed/minimum"
-Public Function StaffShort(ByVal scheduled As Long, ByVal off As Long, ByVal covered As Long, ByVal minimum As Long) As String
+' PURE (SelfTest "minstaff"): "" (fine, or no minimum) / "SHORT staffed/minimum"; v27.5 (item 3): "(part)" added when a
+' partial cover's fraction was dropped from covered (StaffCountsCore's part)
+Public Function StaffShort(ByVal scheduled As Long, ByVal off As Long, ByVal covered As Long, ByVal minimum As Long, _
+                           Optional ByVal part As Boolean = False) As String
     If minimum <= 0 Then Exit Function
     Dim staffed As Long: staffed = scheduled - off + covered
-    If staffed < minimum Then StaffShort = "SHORT " & staffed & "/" & minimum
+    If staffed < minimum Then StaffShort = "SHORT " & staffed & "/" & minimum & IIf(part, " (part)", "")
 End Function
 
 ' The plant's minimums on first use (Graeme, Oct 18, 2026): unit, days, nights (0 = none), note
@@ -210,8 +217,8 @@ End Function
 
 ' The counts behind one unit / date / shift (reads the caches only; switch reads batched by the caller)
 Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As String, _
-                        ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long)
-    scheduled = 0: off = 0: covered = 0
+                        ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long, ByRef part As Boolean)
+    scheduled = 0: off = 0: covered = 0: part = False
     Dim names As Variant: names = StaffNames(unit, d)
     Dim i As Long, nm As String, onShift As Boolean, fb As String, busy As Boolean
     Dim people As Variant, tokens() As String           ' v27.1: one token per name for StaffCountsCore
@@ -234,6 +241,10 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
                         tokens(i) = "SW"
                     End If
                 End If
+            ElseIf busy Then
+                ' v27.5 (item 3): a switch saved over the "isn't on that shift" warning - the giver was not on the shift by
+                ' rotation; counted scheduled-and-off so the switch's S/S line (its worker, covered below) nets to zero
+                If SwitchOffOn(nm, d, shiftLbl) <> "" Then tokens(i) = "SW"
             End If
         Next i
         people = tokens
@@ -247,18 +258,20 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
         Next i
         texts = rts
     End If
-    StaffCountsCore people, texts, scheduled, off, covered
+    StaffCountsCore people, texts, scheduled, off, covered, part
 End Sub
 
 ' v27.1 (R4): PURE (SelfTest "staffcount") - the counts behind one unit / date / shift from what StaffCounts gathered.
 ' people = one token per code-holder: "S" on the shift by rotation, "SA" also booked off or sick for it, "SW" also
-' gave it up in a switch ("" = not on the shift). rightTexts = the Covered-by texts of the unit's lines on that
-' shift. Not an array = none. scheduled = the tokens with S; off = those with A or W, once each; covered = the people
-' each text stands for (CoveredCount), NO TAKERS / POSTED / NCN and a blank text adding nobody.
+' gave it up in a switch ("" = not on the shift; v27.5: "SW" too for a giver the rotation did not put on it). rightTexts
+' = the Covered-by texts of the unit's lines on that shift. Not an array = none. scheduled = the tokens with S; off =
+' those with A or W, once each; covered = the people the texts stand for: the shares of every line added once
+' (CoveredShare) and rounded DOWN, part = True when a fraction was dropped (v27.5, item 3, Graeme Oct 25; before,
+' each line rounded up on its own, at least 1); NO TAKERS / POSTED / NCN and a blank text add nobody.
 Public Sub StaffCountsCore(ByRef people As Variant, ByRef rightTexts As Variant, _
-                           ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long)
-    scheduled = 0: off = 0: covered = 0
-    Dim i As Long, tok As String, rt As String
+                           ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long, ByRef part As Boolean)
+    scheduled = 0: off = 0: covered = 0: part = False
+    Dim i As Long, tok As String, rt As String, total As Double
     If IsArray(people) Then
         For i = LBound(people) To UBound(people)
             tok = CStr(people(i))
@@ -273,31 +286,35 @@ Public Sub StaffCountsCore(ByRef people As Variant, ByRef rightTexts As Variant,
             rt = Trim$(CStr(rightTexts(i)))
             If rt <> "" Then
                 ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each; a
-                ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of a 12 h shift, rounded up
-                If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then covered = covered + CoveredCount(rt)
+                ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of a 12 h shift
+                If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then total = total + CoveredShare(rt)
             End If
         Next i
     End If
+    covered = CLng(Int(total + 0.000001))          ' v27.5 (item 3): the shares of every line, rounded DOWN once
+    part = (total - covered > 0.001)
 End Sub
 
-' v26 (re-review): how many people a covered-by text stands for: one per " / " part; a part ending in "Nh"
-' (a partial award) counts N / 12 of a person; the sum rounded up, at least 1
-Private Function CoveredCount(ByVal rt As String) As Long
+' v26 (re-review) / v27.5 (item 3): how many people a covered-by text stands for, as a share: one per " / " part; a part
+' ending in "Nh" (a partial award) counts N / 12 of a person; a blank part (a stray " / ") adds nobody. No rounding here:
+' StaffCountsCore adds every line's share first and rounds down once.
+Private Function CoveredShare(ByVal rt As String) As Double
     Dim parts As Variant: parts = Split(rt, " / ")
     Dim i As Long, part As String, p As Long, hrs As Double, total As Double
     For i = LBound(parts) To UBound(parts)
         part = Trim$(CStr(parts(i)))
-        hrs = 0
-        If LCase$(Right$(part, 1)) = "h" Then
-            p = InStrRev(part, " ")
-            If p > 0 Then
-                If IsNumeric(Mid$(part, p + 1, Len(part) - p - 1)) Then hrs = Val(Mid$(part, p + 1))
+        If part <> "" Then
+            hrs = 0
+            If LCase$(Right$(part, 1)) = "h" Then
+                p = InStrRev(part, " ")
+                If p > 0 Then
+                    If IsNumeric(Mid$(part, p + 1, Len(part) - p - 1)) Then hrs = Val(Mid$(part, p + 1))
+                End If
             End If
+            If hrs > 0 And hrs < USUAL_SHIFT_HOURS Then total = total + hrs / USUAL_SHIFT_HOURS Else total = total + 1
         End If
-        If hrs > 0 And hrs < USUAL_SHIFT_HOURS Then total = total + hrs / USUAL_SHIFT_HOURS Else total = total + 1
     Next i
-    CoveredCount = CLng(-Int(-total))
-    If CoveredCount < 1 Then CoveredCount = 1
+    CoveredShare = total
 End Function
 
 ' v26 (review): booked off or sick FOR THIS SHIFT, as the calendar draws it - a sick call sits on the shift it
@@ -323,15 +340,15 @@ Public Function StaffShortText(ByVal d As Date, ByVal groupName As String, Optio
     Dim mine As Boolean
     If Not SwitchBatchActive() Then BeginSwitchBatch: mine = True
     On Error GoTo Done
-    Dim sh As Variant, kk As Variant, u As String, s As Long, o As Long, c As Long, t As String, part As String
+    Dim sh As Variant, kk As Variant, u As String, s As Long, o As Long, c As Long, t As String, part As String, pt As Boolean
     For Each sh In Array("Days", "Nights")
         part = ""
         For Each kk In mStaffMin.Keys
             If Right$(CStr(kk), Len(CStr(sh)) + 1) = "|" & CStr(sh) Then
                 u = Left$(CStr(kk), Len(CStr(kk)) - Len(CStr(sh)) - 1)
                 If UnitInGroup(u, groupName) Then
-                    StaffCounts u, d, CStr(sh), s, o, c
-                    t = StaffShort(s, o, c, CLng(mStaffMin(kk)))
+                    StaffCounts u, d, CStr(sh), s, o, c, pt
+                    t = StaffShort(s, o, c, CLng(mStaffMin(kk)), pt)
                     If t <> "" Then part = part & IIf(part = "", "", ", ") & u & " " & Mid$(t, 7): nShort = nShort + 1
                 End If
             End If
@@ -353,19 +370,20 @@ Public Function StaffShortList(ByVal d0 As Date, ByVal nDays As Long, ByVal grou
     On Error GoTo Done
     Dim out() As Variant, n As Long, cap As Long: cap = 2 * nDays * mStaffMin.Count + 1
     ReDim out(1 To cap, 1 To 5)
-    Dim dd As Long, d As Date, kk As Variant, u As String, sh As String, s As Long, o As Long, c As Long, t As String
+    Dim dd As Long, d As Date, kk As Variant, u As String, sh As String, s As Long, o As Long, c As Long, t As String, pt As Boolean
     For dd = 0 To nDays - 1
         d = d0 + dd
         For Each kk In mStaffMin.Keys
             u = Left$(CStr(kk), InStr(CStr(kk), "|") - 1)
             sh = Mid$(CStr(kk), InStr(CStr(kk), "|") + 1)
             If UnitInGroup(u, groupName) Then
-                StaffCounts u, d, sh, s, o, c
-                t = StaffShort(s, o, c, CLng(mStaffMin(kk)))
+                StaffCounts u, d, sh, s, o, c, pt
+                t = StaffShort(s, o, c, CLng(mStaffMin(kk)), pt)
                 If t <> "" Then
                     n = n + 1
                     out(n, 1) = u: out(n, 2) = CDbl(Int(d)): out(n, 3) = sh
-                    out(n, 4) = "staffed " & (s - o + c) & " of " & CLng(mStaffMin(kk)) & "  (" & s & " on, " & o & " off, " & c & " covered)"
+                    out(n, 4) = "staffed " & (s - o + c) & " of " & CLng(mStaffMin(kk)) & "  (" & s & " on, " & o & " off, " & c & " covered" & _
+                                IIf(pt, "; a partial cover is not a whole person", "") & ")"
                     out(n, 5) = t
                 End If
             End If

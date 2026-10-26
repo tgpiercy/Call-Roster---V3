@@ -1165,12 +1165,13 @@ def charge_why(typ: str, outcome: str, call_order: int, hours: float, charged: f
     return f"{head}: {sign}{hours_text(charged)} h" + (f" ({oc})" if oc else "")
 
 
-def staff_short(scheduled: int, off: int, covered: int, minimum: int) -> str:
-    """modCalendar.StaffShort (v26): '' or 'SHORT staffed/minimum'; staffed = scheduled - off + covered; no minimum = never short."""
+def staff_short(scheduled: int, off: int, covered: int, minimum: int, part: bool = False) -> str:
+    """modMinStaff.StaffShort (v26): '' or 'SHORT staffed/minimum'; staffed = scheduled - off + covered; no minimum = never
+    short. v27.5 (item 3): ' (part)' added when a partial cover's fraction was dropped from covered."""
     if minimum <= 0:
         return ""
     staffed = scheduled - off + covered
-    return f"SHORT {staffed}/{minimum}" if staffed < minimum else ""
+    return f"SHORT {staffed}/{minimum}" + (" (part)" if part else "") if staffed < minimum else ""
 
 
 FATIGUE_MAX_HOURS = 16.0   # modOvertimeEntry (v26.5.5): the plant's maximum consecutive hours
@@ -2112,12 +2113,14 @@ def vb_val(s: str) -> float:
     return float(m.group(0)) if m else 0.0
 
 
-def covered_count(rt: str) -> int:
-    """modMinStaff.CoveredCount: one person per " / " part; a part ending in "Nh" with 0 < N < 12 counts N / 12 of a
-    person; the sum rounded up, at least 1."""
+def covered_share(rt: str) -> float:
+    """modMinStaff.CoveredShare (v27.5, item 3; CoveredCount before): one person per " / " part; a part ending in "Nh"
+    with 0 < N < 12 counts N / 12 of a person; a blank part adds nobody; no rounding (the core rounds once)."""
     total = 0.0
     for raw in rt.split(" / "):
         part = vb_trim(raw)
+        if part == "":
+            continue
         hrs = 0.0
         if part[-1:].lower() == "h":
             p = part.rfind(" ") + 1                         # InStrRev, 1-based (0 = no space)
@@ -2127,12 +2130,14 @@ def covered_count(rt: str) -> int:
             total += hrs / USUAL_SHIFT_HOURS
         else:
             total += 1
-    return max(1, math.ceil(total))                         # CLng(-Int(-total)), at least 1
+    return total
 
 
-def staff_counts_core(people: list[str], right_texts: list[str]) -> tuple[int, int, int]:
-    """modMinStaff.StaffCountsCore."""
+def staff_counts_core(people: list[str], right_texts: list[str]) -> tuple[int, int, int, bool]:
+    """modMinStaff.StaffCountsCore: scheduled, off, covered (every line's share added once, rounded DOWN) and part
+    (a fraction was dropped) - v27.5, item 3."""
     scheduled = off = covered = 0
+    total = 0.0
     for tok in people:
         if "S" in tok:
             scheduled += 1
@@ -2143,5 +2148,6 @@ def staff_counts_core(people: list[str], right_texts: list[str]) -> tuple[int, i
         if rt != "":
             up = rt.upper()
             if not (up.startswith("NO TAKERS") or up.startswith("POSTED") or up == "NCN"):
-                covered += covered_count(rt)
-    return scheduled, off, covered
+                total += covered_share(rt)
+    covered = int(math.floor(total + 0.000001))              # CLng(Int(total + 0.000001))
+    return scheduled, off, covered, (total - covered > 0.001)

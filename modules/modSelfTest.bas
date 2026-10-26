@@ -442,11 +442,11 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             RunCaseV271 = GapDaysText(ParseD(i1), ParseD(i2), IsoSerials(i3))
             If RunCaseV271 = "" Then RunCaseV271 = "none"
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
-            Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String
+            Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean
             If i1 <> "" Then scP = Split(i1, ";")
             If i2 <> "" Then scT = Split(i2, ";")
-            StaffCountsCore scP, scT, scS, scO, scC
-            scX = StaffShort(scS, scO, scC, CLng(Val(i3)))
+            StaffCountsCore scP, scT, scS, scO, scC, scPt               ' v27.5 (item 3): + part
+            scX = StaffShort(scS, scO, scC, CLng(Val(i3)), scPt)
             If scX = "" Then scX = "ok"
             RunCaseV271 = scS & "|" & scO & "|" & scC & "|" & scX
     End Select
@@ -2099,16 +2099,22 @@ Private Sub LoadCases5()
     AddCase "staffcount,ncn-posted-notakers-add-nobody,SA;S,ncn;Posted P-0012;NO TAKERS,2,,,2|1|0|SHORT 1/2"
     AddCase "staffcount,multi-name-line-counts-each,S;S,Ann B / Cal D;Eve F,2,,,2|0|3|ok"
     AddCase "staffcount,two-half-partials-one-person,SA;S,Joe D 6h / Sam K 6h,2,,,2|1|1|ok"
-    AddCase "staffcount,partial-rounds-up,SA;S,Joe D 4h,2,,,2|1|1|ok"
-    AddCase "staffcount,partial-plus-whole,SA;SA;S,Joe D 9h / Sam K,3,,,3|2|2|ok"
+    AddCase "staffcount,partial-alone-rounds-down-part,SA;S,Joe D 4h,2,,,2|1|0|SHORT 1/2 (part)"
+    AddCase "staffcount,partial-plus-whole-rounds-down,SA;SA;S,Joe D 9h / Sam K,3,,,3|2|1|SHORT 2/3 (part)"
     AddCase "staffcount,twelve-h-is-whole,S,Ann B 12h,2,,,1|0|1|ok"
     AddCase "staffcount,dst-thirteen-h-is-whole,S,Ann B 13h,3,,,1|0|1|SHORT 2/3"
-    AddCase "staffcount,uppercase-h-partial,S,Joe D 6H,2,,,1|0|1|ok"
+    AddCase "staffcount,uppercase-h-partial,S,Joe D 6H,2,,,1|0|0|SHORT 1/2 (part)"
     AddCase "staffcount,name-ending-in-h,S,Joe Smith,2,,,1|0|1|ok"
     AddCase "staffcount,hours-without-a-name-whole,S,6h,2,,,1|0|1|ok"
     AddCase "staffcount,zero-hours-part-whole,S,Joe D 0h,2,,,1|0|1|ok"
-    AddCase "staffcount,edge-two-partial-lines-round-each,SA;S,Joe D 6h;Sam K 6h,2,,,2|1|2|ok"
-    AddCase "staffcount,edge-empty-part-counts-one,S,Ann B /  / Cal D,5,,,1|0|3|SHORT 4/5"
+    AddCase "staffcount,two-partial-lines-sum-once,SA;S,Joe D 6h;Sam K 6h,2,,,2|1|1|ok"
+    AddCase "staffcount,empty-part-adds-nobody,S,Ann B /  / Cal D,5,,,1|0|2|SHORT 3/5"
+    AddCase "staffcount,three-four-hour-parts-one-person,S,Joe D 4h / Sam K 4h / Tim L 4h,2,,,1|0|1|ok"
+    AddCase "staffcount,fraction-dropped-but-not-short-no-flag,S;S,Joe D 6h,1,,,2|0|0|ok"
+    AddCase "staffcount,eleven-h-is-not-a-whole-person,S;SA,Sam K 11h,2,,,2|1|0|SHORT 1/2 (part)"
+    AddCase "staffcount,whole-plus-eleven-h-rounds-down,S;S;SA,Ann B / Sam K 11h,3,,,3|1|1|ok"
+    AddCase "staffcount,partial-across-two-lines-with-a-whole,SA;SA;S,Joe D 6h;Sam K 6h / Eve F,3,,,3|2|2|ok"
+    AddCase "staffcount,lone-slash-is-a-text-counts-one,S,  / ,1,,,1|0|1|ok"
     AddCase "staffcount,nobody-holds-a-code,,,1,,,0|0|0|SHORT 0/1"
 ' <<< CASES
 End Sub

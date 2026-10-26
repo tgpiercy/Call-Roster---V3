@@ -936,6 +936,24 @@ kedit,day-reimported-the-same-minute,2026-10-05,2025-12-28,2026-10-01,2026-10-17
 kedit,day-reimported-before-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-16-07-00,2026-10-17-08-00,counts
 kedit,edit-when-not-a-date,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,notadate,counts
 kedit,pins-the-missed-morning,2026-10-10,2025-12-28,2026-10-01,none,2026-10-11-08-00,counts
+kgap,none-held-counts,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-13;2026-10-16,counts
+kgap,one-named-day-held-sets-it-aside,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-15,skip
+kgap,both-named-days-held,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-14;2026-10-15,skip
+kgap,person-holds-other-days-only,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14,2026-10-13;2026-10-20,counts
+kgap,person-holds-no-days,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14,,counts
+kgap,no-ledger-yet,2026-10-24,2025-12-28,none,no one-day report for 2026-10-14,,skip
+kgap,before-the-ledger-start,2026-09-20,2025-12-28,2026-10-01,no one-day report for 2026-09-14,,skip
+kgap,on-the-ledger-start-day,2026-10-01,2025-12-28,2026-10-01,no one-day report for 2026-09-30,,counts
+kgap,last-years-row-after-rollover,2025-12-20,2025-12-28,2025-10-01,no one-day report for 2025-12-14,,skip
+kgap,note-naming-no-day-counts,2026-10-24,2025-12-28,2026-10-01,differs from the ledger,2026-10-14,counts
+kgap,note-with-a-bad-date-ignored,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-13-14; 2026-10-15,2026-10-15,skip
+kgapdays,one-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-13,,,2026-10-12
+kgapdays,none-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-12;2026-10-13,,,none
+kgapdays,two-missing-in-order,2026-10-10,2026-10-13,2026-10-12,,,2026-10-11; 2026-10-13
+kgapdays,all-missing,2026-10-10,2026-10-12,,,,2026-10-11; 2026-10-12
+kgapdays,same-day-throughs,2026-10-10,2026-10-10,,,,none
+kgapdays,days-outside-the-span-ignored,2026-10-10,2026-10-11,2026-10-09;2026-10-12,,,2026-10-11
+kgapdays,quiet-day-marker-is-held,2026-10-10,2026-10-12,2026-10-11;2026-10-12,,,none
 kday,same-day-roster-row-replaced,2026-10-11,2026-10-11,Ann Lee,Y,,drop
 kday,same-day-quiet-marker-replaced,2026-10-11,2026-10-11,,N,,drop
 kday,same-day-former-person-kept,2026-10-11,2026-10-11,Old Name,N,,keep

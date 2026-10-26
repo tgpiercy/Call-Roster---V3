@@ -2035,6 +2035,40 @@ def edit_counts(d: date, year_from: date, ledger_from: date | None, reimported_a
             and not day_reimported_after(reimported_at, when))
 
 
+def gap_days_text(old_through: date | None, to_d: date, held: set[int]) -> str:
+    """ImportKronosData.GapDaysText (v27.5, item 2): the days in (oldThrough, toD] the ledger does not hold, as
+    'yyyy-mm-dd; yyyy-mm-dd' ('' = none; no snapshot yet = none). held = whole-day serials the ledger holds."""
+    if _ser(old_through) <= 0:
+        return ""
+    out = []
+    x = old_through + timedelta(days=1)
+    while x <= to_d:
+        if int(_ser(x)) not in held:
+            out.append(x.strftime("%Y-%m-%d"))
+        x += timedelta(days=1)
+    return "; ".join(out)
+
+
+def gap_note_days(note: str) -> list[int]:
+    """ImportKronosData.GapNoteDays: every 'yyyy-mm-dd' (digits in every place, month 1-12, day 1-31) in a gap row's
+    Note, as whole-day serials, left to right, a match consumed whole."""
+    out: list[int] = []
+    for m in re.finditer(r"\d{4}-\d{2}-\d{2}", note):
+        s = m.group(0)
+        mo, dd = int(s[5:7]), int(s[8:10])
+        if 1 <= mo <= 12 and 1 <= dd <= 31:
+            out.append(int(_ser(date(int(s[0:4]), 1, 1)) + (date(int(s[0:4]), mo, 1) - date(int(s[0:4]), 1, 1)).days + dd - 1))
+    return out
+
+
+def gap_counts(d: date, year_from: date, ledger_from: date | None, gap_days: list[int], held: set[int]) -> bool:
+    """ImportKronosData.GapCountsCore: a gap row dated d counts in Worked Periods when it is this year, from the first
+    one-day report on, and the person has no ledger row on any day it names (held = the person's days)."""
+    if not (_ser(d) >= _ser(year_from) and _ser(ledger_from) > 0 and _ser(d) >= _ser(ledger_from)):
+        return False
+    return not any(g in held for g in gap_days)
+
+
 def ledger_day_drop(row_date, d: date, emp: str, on_roster: bool) -> bool:
     """ImportKronosData.LedgerDayDrop: a one-day report for d replaces a ledger row of that day that is a roster
     person's or the quiet-day marker (blank Employee)."""

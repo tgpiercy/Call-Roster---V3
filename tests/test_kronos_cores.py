@@ -9,7 +9,7 @@ from pathlib import Path
 
 CASES = Path(__file__).with_name("cases.csv")
 VBA = Path(__file__).resolve().parents[1] / "modules" / "ImportKronosData.bas"
-SUITES = ("kledger", "kedit", "kday", "kname")
+SUITES = ("kledger", "kedit", "kday", "kname", "kgap", "kgapdays")
 
 # How each expected answer was derived from the VBA (ImportKronosData.bas, v27.1). OT = CA OVERTIME x 1.75,
 # LIEU ST x 1, DBLTIME not a roster code; rounding = RoundHalfUp once per person.
@@ -38,6 +38,25 @@ NOTES = {
     "kedit:day-reimported-after-the-edit": "re-imported Oct 18 7:00 >= the edit's Oct 17 8:00: DayReimportedAfter -> skip",
     "kedit:day-reimported-the-same-minute": "the test is >=: the same moment counts as after -> skip",
     "kedit:day-reimported-before-the-edit": "re-imported Oct 16 < the edit's Oct 17 -> counts",
+    # v27.5 (item 2): the gap rows (GapCountsCore / GapDaysText / GapNoteDays)
+    "kgap:none-held-counts": "Oct 24 >= the year, ledger from Oct 1, Oct 24 >= Oct 1; the person holds Oct 13 / 16, neither named -> counts",
+    "kgap:one-named-day-held-sets-it-aside": "the person holds Oct 15, which the Note names -> held.Exists -> skip (the day's own rows count)",
+    "kgap:both-named-days-held": "both named days held -> skip",
+    "kgap:person-holds-other-days-only": "Oct 13 / 20 held, Oct 14 named -> counts",
+    "kgap:person-holds-no-days": "heldSerials '' -> an empty set -> counts",
+    "kgap:no-ledger-yet": "ledgerFrom 0: 'ledgerFrom > 0' fails -> skip (as kedit)",
+    "kgap:before-the-ledger-start": "Sep 20 < Oct 1 -> skip",
+    "kgap:on-the-ledger-start-day": "d >= ledgerFrom is inclusive -> counts",
+    "kgap:last-years-row-after-rollover": "Dec 20 < the year's Dec 28 -> skip",
+    "kgap:note-naming-no-day-counts": "GapNoteDays finds no yyyy-mm-dd: gapSerials '' -> the loop never runs -> counts",
+    "kgap:note-with-a-bad-date-ignored": "2026-13-14 fails IsIsoDay (month 13), 2026-10-15 is read and held -> skip",
+    "kgapdays:one-missing": "Oct 11 .. 13 after the Oct 10 Through; Oct 12 not held -> '2026-10-12'",
+    "kgapdays:none-missing": "every day held -> ''  -> none",
+    "kgapdays:two-missing-in-order": "Oct 11 and 13 not held, in date order, '; ' between",
+    "kgapdays:all-missing": "heldSerials '' -> both days named",
+    "kgapdays:same-day-throughs": "the loop runs from Oct 11 > Oct 10: nothing -> none",
+    "kgapdays:days-outside-the-span-ignored": "Oct 9 and 12 held but outside (Oct 10, Oct 11]; Oct 11 not held -> named",
+    "kgapdays:quiet-day-marker-is-held": "the marker row's day is in heldSerials like any row -> none",
     "kedit:edit-when-not-a-date": "IsDate(When) False: DayReimportedAfter exits False even with a re-import -> counts",
     "kedit:pins-the-missed-morning": "PINS TODAY (fixed in v27.5): an edit dated at the year-to-date's Through (no earlier "
                                      "Transactions day) for a day whose one-day report arrives later as a FIRST import (no 'day' "
@@ -65,6 +84,9 @@ VBA_CORES = {
     "EditCountsCore": ["d", "yearFrom", "ledgerFrom", "reimportedAt", "editWhen"],
     "LedgerDayDrop": ["rowDate", "d", "emp", "onRoster"],
     "RosterNameCore": ["byNum", "byName"],
+    "GapDaysText": ["oldThrough", "toD", "heldSerials"],                      # v27.5 (item 2)
+    "GapNoteDays": ["note"],
+    "GapCountsCore": ["d", "yearFrom", "ledgerFrom", "gapSerials", "heldSerials"],
 }
 
 

@@ -343,6 +343,12 @@ def evaluate(row: dict) -> str:
         return "counts" if rules.edit_counts(d(i1), d(i2), d_or_none(i3), re_at, date_value(i5)) else "skip"
     if suite == "kday":                          # v27.1: row date, the report's day, Employee, on the roster Y/N -> drop / keep
         return "drop" if rules.ledger_day_drop(date_value(i1), d(i2), i3, i4 == "Y") else "keep"
+    if suite == "kgap":                          # v27.5: gap row date, year from, ledger from|none, the Note, the person's ledger days ; -> counts / skip
+        held = {int(rules._ser(d(x.strip()))) for x in i5.split(";") if x.strip()}
+        return "counts" if rules.gap_counts(d(i1), d(i2), d_or_none(i3), rules.gap_note_days(i4), held) else "skip"
+    if suite == "kgapdays":                      # v27.5: old Through, new Through, the ledger's days ; -> the missed days text or none
+        held = {int(rules._ser(d(x.strip()))) for x in i3.split(";") if x.strip()}
+        return rules.gap_days_text(d(i1), d(i2), held) or "none"
     if suite == "kname":                         # v27.1: roster name by Payroll #, by name -> clash / number / name / none
         return rules.roster_name(i1, i2)
     if suite == "staffcount":                    # v27.1: people tokens ;, Covered-by texts ;, minimum -> scheduled|off|covered|ok / SHORT

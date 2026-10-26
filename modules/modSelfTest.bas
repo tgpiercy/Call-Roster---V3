@@ -232,7 +232,7 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines)
+        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -434,6 +434,13 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             RunCaseV271 = IIf(LedgerDayDrop(kdRow, ParseD(i2), i3, (i4 = "Y")), "drop", "keep")
         Case "kname"                               ' v27.1: roster name by Payroll #, by name -> clash / number / name / none
             RunCaseV271 = RosterNameCore(i1, i2)
+        Case "kgap"                                ' v27.5 (item 2): gap row date, year from, ledger from|none, the Note, the person's ledger days ; -> counts / skip
+            Dim kgLf As Date
+            If i3 <> "none" Then kgLf = ParseD(i3)
+            RunCaseV271 = IIf(GapCountsCore(ParseD(i1), ParseD(i2), kgLf, GapNoteDays(i4), IsoSerials(i5)), "counts", "skip")
+        Case "kgapdays"                            ' v27.5 (item 2): old Through, new Through, the ledger's days ; -> the missed days text or none
+            RunCaseV271 = GapDaysText(ParseD(i1), ParseD(i2), IsoSerials(i3))
+            If RunCaseV271 = "" Then RunCaseV271 = "none"
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String
             If i1 <> "" Then scP = Split(i1, ";")
@@ -443,6 +450,16 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             If scX = "" Then scX = "ok"
             RunCaseV271 = scS & "|" & scO & "|" & scC & "|" & scX
     End Select
+End Function
+
+' v27.5 (suites kgap / kgapdays): "yyyy-mm-dd;yyyy-mm-dd" -> ";"-joined whole-day serials ("" stays "")
+Private Function IsoSerials(ByVal spec As String) As String
+    Dim parts As Variant, i As Long
+    If spec = "" Then Exit Function
+    parts = Split(spec, ";")
+    For i = 0 To UBound(parts)
+        If Trim$(CStr(parts(i))) <> "" Then IsoSerials = IsoSerials & IIf(IsoSerials = "", "", ";") & CStr(CLng(ParseD(Trim$(CStr(parts(i))))))
+    Next i
 End Function
 
 ' v27.1 (suite switchstop): "key=value;..." -> SwitchStopsCore's facts (modShiftSwitch SF_*). A booked key's value is the
@@ -2042,6 +2059,24 @@ Private Sub LoadCases5()
     AddCase "kedit,day-reimported-before-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-16-07-00,2026-10-17-08-00,counts"
     AddCase "kedit,edit-when-not-a-date,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,notadate,counts"
     AddCase "kedit,pins-the-missed-morning,2026-10-10,2025-12-28,2026-10-01,none,2026-10-11-08-00,counts"
+    AddCase "kgap,none-held-counts,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-13;2026-10-16,counts"
+    AddCase "kgap,one-named-day-held-sets-it-aside,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-15,skip"
+    AddCase "kgap,both-named-days-held,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-14;2026-10-15,skip"
+    AddCase "kgap,person-holds-other-days-only,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14,2026-10-13;2026-10-20,counts"
+    AddCase "kgap,person-holds-no-days,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14,,counts"
+    AddCase "kgap,no-ledger-yet,2026-10-24,2025-12-28,none,no one-day report for 2026-10-14,,skip"
+    AddCase "kgap,before-the-ledger-start,2026-09-20,2025-12-28,2026-10-01,no one-day report for 2026-09-14,,skip"
+    AddCase "kgap,on-the-ledger-start-day,2026-10-01,2025-12-28,2026-10-01,no one-day report for 2026-09-30,,counts"
+    AddCase "kgap,last-years-row-after-rollover,2025-12-20,2025-12-28,2025-10-01,no one-day report for 2025-12-14,,skip"
+    AddCase "kgap,note-naming-no-day-counts,2026-10-24,2025-12-28,2026-10-01,differs from the ledger,2026-10-14,counts"
+    AddCase "kgap,note-with-a-bad-date-ignored,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-13-14; 2026-10-15,2026-10-15,skip"
+    AddCase "kgapdays,one-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-13,,,2026-10-12"
+    AddCase "kgapdays,none-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-12;2026-10-13,,,none"
+    AddCase "kgapdays,two-missing-in-order,2026-10-10,2026-10-13,2026-10-12,,,2026-10-11; 2026-10-13"
+    AddCase "kgapdays,all-missing,2026-10-10,2026-10-12,,,,2026-10-11; 2026-10-12"
+    AddCase "kgapdays,same-day-throughs,2026-10-10,2026-10-10,,,,none"
+    AddCase "kgapdays,days-outside-the-span-ignored,2026-10-10,2026-10-11,2026-10-09;2026-10-12,,,2026-10-11"
+    AddCase "kgapdays,quiet-day-marker-is-held,2026-10-10,2026-10-12,2026-10-11;2026-10-12,,,none"
     AddCase "kday,same-day-roster-row-replaced,2026-10-11,2026-10-11,Ann Lee,Y,,drop"
     AddCase "kday,same-day-quiet-marker-replaced,2026-10-11,2026-10-11,,N,,drop"
     AddCase "kday,same-day-former-person-kept,2026-10-11,2026-10-11,Old Name,N,,keep"

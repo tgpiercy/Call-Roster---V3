@@ -19,12 +19,13 @@ Private mStaffBusy As Object        ' v26: names with any absence row or a switc
 ' on that shift (OffForStaffing) or off in a switch; covered = the coverage
 ' lines a named person covers - a switch's own S/S line counts its worker
 ' (OPEN, NO TAKERS, POSTED and NCN add nobody). v27.5 (item 3, Graeme Oct
-' 25): a partial cover ("Joe D 6h") is 6/12 of a person; the shares of every
-' line on the shift are added ONCE and rounded DOWN, a blank " / " part adds
-' nobody, and the flag says "(part)" when a fraction was dropped; a giver the
-' rotation did not put on the shift who gave it up in a switch counts
-' scheduled-and-off, so the S/S line nets to zero. Shown on the calendar's
-' date cell and in Needs Attention. Reads only.
+' 25): a partial cover ("Joe D 6h") is 6 of the shift's hours (12; 11 or 13
+' on a clock-change night) of a person; the shares of every line on the shift
+' are added ONCE and rounded DOWN (two covers of one absence joined with "; "
+' are two parts), a blank " / " part adds nobody, and the date's details and
+' Needs Attention say "(part)" when a fraction was dropped. A switch saved
+' over the "isn't on that shift" warning counts its worker: they are on the
+' shift. Shown on the calendar's date cell and in Needs Attention. Reads only.
 
 ' PURE (SelfTest "minstaff"): "" (fine, or no minimum) / "SHORT staffed/minimum"; v27.5 (item 3): "(part)" added when a
 ' partial cover's fraction was dropped from covered (StaffCountsCore's part)
@@ -241,11 +242,9 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
                         tokens(i) = "SW"
                     End If
                 End If
-            ElseIf busy Then
-                ' v27.5 (item 3): a switch saved over the "isn't on that shift" warning - the giver was not on the shift by
-                ' rotation; counted scheduled-and-off so the switch's S/S line (its worker, covered below) nets to zero
-                If SwitchOffOn(nm, d, shiftLbl) <> "" Then tokens(i) = "SW"
             End If
+            ' v27.5 (item 3, Graeme Oct 25 after review): a switch saved over the "isn't on that shift" warning counts its
+            ' WORKER through the S/S line below - they are on the shift - and the giver, never on it by rotation, is not tokened
         Next i
         people = tokens
     End If
@@ -258,7 +257,7 @@ Private Sub StaffCounts(ByVal unit As String, ByVal d As Date, ByVal shiftLbl As
         Next i
         texts = rts
     End If
-    StaffCountsCore people, texts, scheduled, off, covered, part
+    StaffCountsCore people, texts, scheduled, off, covered, part, DefaultShiftHours(d, IsNightShift(shiftLbl), USUAL_SHIFT_HOURS)
 End Sub
 
 ' v27.1 (R4): PURE (SelfTest "staffcount") - the counts behind one unit / date / shift from what StaffCounts gathered.
@@ -266,10 +265,12 @@ End Sub
 ' gave it up in a switch ("" = not on the shift; v27.5: "SW" too for a giver the rotation did not put on it). rightTexts
 ' = the Covered-by texts of the unit's lines on that shift. Not an array = none. scheduled = the tokens with S; off =
 ' those with A or W, once each; covered = the people the texts stand for: the shares of every line added once
-' (CoveredShare) and rounded DOWN, part = True when a fraction was dropped (v27.5, item 3, Graeme Oct 25; before,
-' each line rounded up on its own, at least 1); NO TAKERS / POSTED / NCN and a blank text add nobody.
+' (CoveredShare; shiftHours = the shift's length, 12 or a clock-change night's 11 / 13: a cover of that many hours is
+' a whole person) and rounded DOWN, part = True when a fraction was dropped (v27.5, item 3, Graeme Oct 25; before,
+' each line rounded up on its own, at least 1); a NO TAKERS / POSTED / NCN part and a blank text add nobody.
 Public Sub StaffCountsCore(ByRef people As Variant, ByRef rightTexts As Variant, _
-                           ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long, ByRef part As Boolean)
+                           ByRef scheduled As Long, ByRef off As Long, ByRef covered As Long, ByRef part As Boolean, _
+                           Optional ByVal shiftHours As Double = USUAL_SHIFT_HOURS)
     scheduled = 0: off = 0: covered = 0: part = False
     Dim i As Long, tok As String, rt As String, total As Double
     If IsArray(people) Then
@@ -284,26 +285,27 @@ Public Sub StaffCountsCore(ByRef people As Variant, ByRef rightTexts As Variant,
     If IsArray(rightTexts) Then
         For i = LBound(rightTexts) To UBound(rightTexts)
             rt = Trim$(CStr(rightTexts(i)))
-            If rt <> "" Then
-                ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each; a
-                ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of a 12 h shift
-                If Not (UCase$(rt) Like "NO TAKERS*" Or UCase$(rt) Like "POSTED*" Or UCase$(rt) = "NCN") Then total = total + CoveredShare(rt)
-            End If
+            ' an awarded multi-position posting writes its names into one line, "A B / C D" (review): count each; a
+            ' partial award "Joe D 6h / Sam K 6h" (re-review) counts its hours as a share of the shift; two covers of ONE
+            ' absence line are joined with "; " (SlotsFor) - the same parts (v27.5 review)
+            If rt <> "" Then total = total + CoveredShare(rt, shiftHours)
         Next i
     End If
     covered = CLng(Int(total + 0.000001))          ' v27.5 (item 3): the shares of every line, rounded DOWN once
     part = (total - covered > 0.001)
 End Sub
 
-' v26 (re-review) / v27.5 (item 3): how many people a covered-by text stands for, as a share: one per " / " part; a part
-' ending in "Nh" (a partial award) counts N / 12 of a person; a blank part (a stray " / ") adds nobody. No rounding here:
-' StaffCountsCore adds every line's share first and rounds down once.
-Private Function CoveredShare(ByVal rt As String) As Double
-    Dim parts As Variant: parts = Split(rt, " / ")
+' v26 (re-review) / v27.5 (item 3): how many people a covered-by text stands for, as a share: one per part (" / " between
+' the names of one award, "; " between two covers of one line); a part ending in "Nh" (a partial award) counts
+' N / shiftHours of a person (N >= the shift's hours = whole); a blank part (a stray " / ") and a NO TAKERS / POSTED /
+' NCN part add nobody. No rounding here: StaffCountsCore adds every line's share first and rounds down once.
+Private Function CoveredShare(ByVal rt As String, ByVal shiftHours As Double) As Double
+    Dim parts As Variant: parts = Split(Replace(rt, "; ", " / "), " / ")
     Dim i As Long, part As String, p As Long, hrs As Double, total As Double
+    If shiftHours <= 0 Then shiftHours = USUAL_SHIFT_HOURS
     For i = LBound(parts) To UBound(parts)
         part = Trim$(CStr(parts(i)))
-        If part <> "" Then
+        If part <> "" And Not (UCase$(part) Like "NO TAKERS*" Or UCase$(part) Like "POSTED*" Or UCase$(part) = "NCN") Then
             hrs = 0
             If LCase$(Right$(part, 1)) = "h" Then
                 p = InStrRev(part, " ")
@@ -311,7 +313,7 @@ Private Function CoveredShare(ByVal rt As String) As Double
                     If IsNumeric(Mid$(part, p + 1, Len(part) - p - 1)) Then hrs = Val(Mid$(part, p + 1))
                 End If
             End If
-            If hrs > 0 And hrs < USUAL_SHIFT_HOURS Then total = total + hrs / USUAL_SHIFT_HOURS Else total = total + 1
+            If hrs > 0 And hrs < shiftHours - 0.001 Then total = total + hrs / shiftHours Else total = total + 1
         End If
     Next i
     CoveredShare = total
@@ -383,7 +385,7 @@ Public Function StaffShortList(ByVal d0 As Date, ByVal nDays As Long, ByVal grou
                     n = n + 1
                     out(n, 1) = u: out(n, 2) = CDbl(Int(d)): out(n, 3) = sh
                     out(n, 4) = "staffed " & (s - o + c) & " of " & CLng(mStaffMin(kk)) & "  (" & s & " on, " & o & " off, " & c & " covered" & _
-                                IIf(pt, "; a partial cover is not a whole person", "") & ")"
+                                IIf(pt, "; part of a shift", "") & ")"
                     out(n, 5) = t
                 End If
             End If

@@ -232,7 +232,7 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows
+        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -438,14 +438,19 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             Dim kgLf As Date
             If i3 <> "none" Then kgLf = ParseD(i3)
             RunCaseV271 = IIf(GapCountsCore(ParseD(i1), ParseD(i2), kgLf, GapNoteDays(i4), IsoSerials(i5)), "counts", "skip")
-        Case "kgapdays"                            ' v27.5 (item 2): old Through, new Through, the ledger's days ; -> the missed days text or none
-            RunCaseV271 = GapDaysText(ParseD(i1), ParseD(i2), IsoSerials(i3))
+        Case "kgapdays"                            ' v27.5 (item 2): old Through|none, new Through, the ledger's days ; -> the missed days text or none
+            Dim kdOld As Date
+            If i1 <> "none" Then kdOld = ParseD(i1)
+            RunCaseV271 = GapDaysText(kdOld, ParseD(i2), IsoSerials(i3))
             If RunCaseV271 = "" Then RunCaseV271 = "none"
+        Case "fatshift"                            ' v27.5 (item 1, review): crew code, date, the shift worked, the shift given up on it|none -> 16 h rule / on OT / fits
+            RunCaseV271 = CaseFatShift(i1, ParseD(i2), i3, i4)
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
-            Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean
+            Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
             If i1 <> "" Then scP = Split(i1, ";")
             If i2 <> "" Then scT = Split(i2, ";")
-            StaffCountsCore scP, scT, scS, scO, scC, scPt               ' v27.5 (item 3): + part
+            scH = USUAL_SHIFT_HOURS: If i4 <> "" Then scH = Val(i4)   ' v27.5: the shift's hours (a clock-change night)
+            StaffCountsCore scP, scT, scS, scO, scC, scPt, scH          ' v27.5 (item 3): + part, + the shift's hours
             scX = StaffShort(scS, scO, scC, CLng(Val(i3)), scPt)
             If scX = "" Then scX = "ok"
             RunCaseV271 = scS & "|" & scO & "|" & scC & "|" & scX
@@ -615,6 +620,21 @@ Private Function CasePosting(ByVal mode As String, ByVal hours As Double, ByVal 
         s = s & IIf(i = 1, "", ";") & lst(i).Rank & "=" & NumText(lst(i).Charged)
     Next i
     CasePosting = s
+End Function
+
+' v27.5 (item 1, review): modCalendar.FatigueShiftReason on the rotation alone - crew code, date, the shift worked, the
+' shift on that date given up in the switch being saved (SetPendingGiveUp; "none") -> "16 h rule" / "on OT" / "fits".
+' Proves the pending give-up itself: without it the first night of a block taking that day's Days reads max 1 h.
+Private Function CaseFatShift(ByVal code As String, ByVal d As Date, ByVal shiftLbl As String, ByVal pend As String) As String
+    SetTestFixtures Empty
+    SetTestSwitches Empty
+    ClearPendingGiveUp
+    If pend <> "none" And pend <> "" Then SetPendingGiveUp 1, ST_NAME, d, pend
+    CaseFatShift = FatigueShiftReason(ST_NAME, code, d, shiftLbl)
+    ClearPendingGiveUp
+    ClearTestFixtures
+    ClearTestSwitches
+    If CaseFatShift = "" Then CaseFatShift = "fits"
 End Function
 
 ' crew code, date, shift, fixture ("", "off:VAC", "ss", "ssoff", "ssrest") -> reason or "free"
@@ -1108,6 +1128,7 @@ Private Sub LoadCases()
     LoadCases3
     LoadCases4
     LoadCases5
+    LoadCases6
 End Sub
 
 Private Sub LoadCases1()
@@ -2022,10 +2043,11 @@ Private Sub LoadCases5()
     AddCase "switchstop,one-way-ignores-payback-facts,Nov 2|Days,none,p_bkoff=Vac;s_offon=y,,,none"
     AddCase "switchstop,same-day-clean,Nov 2|Days,same|Nights,,,,none"
     AddCase "switchstop,same-day-sets-the-one-way-stops-aside,Nov 2|Days,same|Nights,bkoff=Vac;workoff=SS-0001;fat=16 h rule,,,none"
-    AddCase "switchstop,same-day-worker-16h,Nov 2|Days,same|Nights,s_fatworks=16 h rule,,,- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
-    AddCase "switchstop,same-day-giver-16h-on-the-shift-they-work,Nov 2|Days,same|Nights,s_fatoff=16 h rule,,,- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
+    AddCase "switchstop,same-day-worker-16h-is-no-stop,Nov 2|Days,same|Nights,s_fatworks=16 h rule,,,none"
+    AddCase "switchstop,same-day-giver-16h-is-no-stop,Nov 2|Days,same|Nights,s_fatoff=16 h rule,,,none"
+    AddCase "switchstop,same-day-worker-on-ot,Nov 2|Days,same|Nights,s_fatworks=on OT,,,- Bob already has OT accepted on Nov 2 days"
     AddCase "switchstop,same-day-giver-on-ot,Nov 2|Days,same|Nights,s_fatoff=on OT,,,- Ann already has OT accepted on Nov 2 nights"
-    AddCase "switchstop,same-day-16h-after-the-bookings,Nov 2|Days,same|Nights,s_fatoff=16 h rule;s_fatworks=on OT;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob already has OT accepted on Nov 2 days;- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
+    AddCase "switchstop,same-day-on-ot-after-the-bookings-16h-set-aside,Nov 2|Days,same|Nights,s_fatoff=16 h rule;s_fatworks=on OT;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob already has OT accepted on Nov 2 days"
     AddCase "switchstop,same-day-scheduled-or-rest-is-no-stop,Nov 2|Days,same|Nights,s_fatworks=scheduled;s_fatoff=rest,,,none"
     AddCase "switchstop,one-way-ignores-the-same-day-16h-facts,Nov 2|Days,none,s_fatworks=16 h rule;s_fatoff=on OT,,,none"
     AddCase "switchstop,payback-ignores-the-same-day-16h-facts,Nov 2|Days,Nov 9|Nights,s_fatworks=16 h rule;s_fatoff=on OT,,,none"
@@ -2033,6 +2055,14 @@ Private Sub LoadCases5()
     AddCase "switchstop,same-day-cant-work-the-other-shift,Nov 2|Days,same|Nights,s_bkoff2=Sick;s_bkworks1=Trn,,,- Ann can't work the nights shift (Sick);- Bob can't work the days shift (Trn)"
     AddCase "switchstop,same-day-on-a-switch,Nov 2|Days,same|Nights,s_workson=y;s_offon=y,,,- Ann is already on a switch that day;- Bob is already on a switch that day"
     AddCase "switchstop,same-day-every-stop-in-order,Nov 2|Nights,same|Days,s_workson=y;s_offon=y;s_bkworks1=A;s_bkoff2=B;s_bkworks=C;s_bkoff=D,,,- Ann is booked off (D);- Bob is booked off (C);- Ann can't work the days shift (B);- Bob can't work the nights shift (A);- Ann is already on a switch that day;- Bob is already on a switch that day"
+    AddCase "fatshift,first-night-takes-days-no-give-up,A,2026-11-27,Days,none,,16 h rule"
+    AddCase "fatshift,first-night-takes-days-nights-given-up,A,2026-11-27,Days,Nights,,fits"
+    AddCase "fatshift,second-night-takes-days-stops-despite-the-give-up,A,2026-11-01,Days,Nights,,16 h rule"
+    AddCase "fatshift,crew-off-both-sides-fits,C,2026-11-27,Days,none,,fits"
+    AddCase "fatshift,days-crew-takes-nights-then-days-tomorrow,B,2026-11-27,Nights,Days,,16 h rule"
+    AddCase "fatshift,last-day-of-the-block-takes-nights-fits,B,2026-11-29,Nights,Days,,fits"
+    AddCase "fatshift,no-shift-named-fits,A,2026-11-27,,none,,fits"
+    AddCase "fatshift,pending-for-the-other-shift-does-not-relieve,A,2026-11-27,Days,Days,,16 h rule"
     AddCase "kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
     AddCase "kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
     AddCase "kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182"
@@ -2070,6 +2100,7 @@ Private Sub LoadCases5()
     AddCase "kgap,last-years-row-after-rollover,2025-12-20,2025-12-28,2025-10-01,no one-day report for 2025-12-14,,skip"
     AddCase "kgap,note-naming-no-day-counts,2026-10-24,2025-12-28,2026-10-01,differs from the ledger,2026-10-14,counts"
     AddCase "kgap,note-with-a-bad-date-ignored,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-13-14; 2026-10-15,2026-10-15,skip"
+    AddCase "kgapdays,old-through-none,none,2026-10-13,2026-10-11,,,none"
     AddCase "kgapdays,one-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-13,,,2026-10-12"
     AddCase "kgapdays,none-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-12;2026-10-13,,,none"
     AddCase "kgapdays,two-missing-in-order,2026-10-10,2026-10-13,2026-10-12,,,2026-10-11; 2026-10-13"
@@ -2113,8 +2144,18 @@ Private Sub LoadCases5()
     AddCase "staffcount,fraction-dropped-but-not-short-no-flag,S;S,Joe D 6h,1,,,2|0|0|ok"
     AddCase "staffcount,eleven-h-is-not-a-whole-person,S;SA,Sam K 11h,2,,,2|1|0|SHORT 1/2 (part)"
     AddCase "staffcount,whole-plus-eleven-h-rounds-down,S;S;SA,Ann B / Sam K 11h,3,,,3|1|1|ok"
+End Sub
+
+Private Sub LoadCases6()
     AddCase "staffcount,partial-across-two-lines-with-a-whole,SA;SA;S,Joe D 6h;Sam K 6h / Eve F,3,,,3|2|2|ok"
     AddCase "staffcount,lone-slash-is-a-text-counts-one,S,  / ,1,,,1|0|1|ok"
+    AddCase "staffcount,two-covers-of-one-absence-joined-with-semicolon,SA;S,Joe D 6h; Sam K 6h,2,,,2|1|1|ok"
+    AddCase "staffcount,posted-then-a-cover-on-one-line,S,POSTED P-0012; Joe D,2,,,1|0|1|ok"
+    AddCase "staffcount,whole-then-partial-joined,S,Joe D; Sam K 6h,2,,,1|0|1|ok"
+    AddCase "staffcount,no-takers-part-then-a-cover,S,NO TAKERS / Joe D,2,,,1|0|1|ok"
+    AddCase "staffcount,dst-eleven-h-night-whole-cover,S,Ann B 11h,2,11,,1|0|1|ok"
+    AddCase "staffcount,dst-thirteen-h-night-twelve-h-is-part,S,Ann B 12h,2,13,,1|0|0|SHORT 1/2 (part)"
+    AddCase "staffcount,six-two-hour-parts-one-person,S,Ann B 2h / Bo C 2h / Cy D 2h / Di E 2h / Ed F 2h / Fa G 2h,2,,,1|0|1|ok"
     AddCase "staffcount,nobody-holds-a-code,,,1,,,0|0|0|SHORT 0/1"
 ' <<< CASES
 End Sub

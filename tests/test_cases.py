@@ -346,15 +346,17 @@ def evaluate(row: dict) -> str:
     if suite == "kgap":                          # v27.5: gap row date, year from, ledger from|none, the Note, the person's ledger days ; -> counts / skip
         held = {int(rules._ser(d(x.strip()))) for x in i5.split(";") if x.strip()}
         return "counts" if rules.gap_counts(d(i1), d(i2), d_or_none(i3), rules.gap_note_days(i4), held) else "skip"
-    if suite == "kgapdays":                      # v27.5: old Through, new Through, the ledger's days ; -> the missed days text or none
+    if suite == "kgapdays":                      # v27.5: old Through|none, new Through, the ledger's days ; -> the missed days text or none
         held = {int(rules._ser(d(x.strip()))) for x in i3.split(";") if x.strip()}
-        return rules.gap_days_text(d(i1), d(i2), held) or "none"
+        return rules.gap_days_text(d_or_none(i1), d(i2), held) or "none"
+    if suite == "fatshift":                      # v27.5: crew code, date, the shift worked, the shift given up on it|none -> 16 h rule / fits
+        return rules.fatigue_shift_reason_fixture(i1, d(i2), i3, "" if i4 in ("", "none") else i4) or "fits"
     if suite == "kname":                         # v27.1: roster name by Payroll #, by name -> clash / number / name / none
         return rules.roster_name(i1, i2)
     if suite == "staffcount":                    # v27.1: people tokens ;, Covered-by texts ;, minimum -> scheduled|off|covered|ok / SHORT
         people = i1.split(";") if i1 != "" else []
         texts = i2.split(";") if i2 != "" else []
-        s, o, c, pt = rules.staff_counts_core(people, texts)
+        s, o, c, pt = rules.staff_counts_core(people, texts, float(i4) if i4 else rules.USUAL_SHIFT_HOURS)
         return f"{s}|{o}|{c}|{rules.staff_short(s, o, c, int(i3 or 0), pt) or 'ok'}"
     if suite == "switchstop":                    # v27.1: 'mmm d|shift', none / same|sh2 / 'mmm d|sh2', the facts -> the stops or none
         dtx, _, sh = (i1 + "|").partition("|")

@@ -384,6 +384,13 @@ def check_project(files: list[Path], label: str) -> int:
                 pat = re.compile(ASSIGN.format(name=re.escape(p.name)), re.I)
                 if not any(pat.search(st) for st in stmts):
                     say("NORET", m, p.name, "Function never assigns its result (returns Empty / 0 / \"\" / False everywhere)")
+                # ---- SELFCALL (v27.5): the Function's own name followed by (...) on the LEFT of = inside its body is a CALL to
+                # itself (it recurses until the stack runs out; it compiles when the Function returns Object or Variant) - the
+                # v27.5 SerialSet slip that three checkers and a mirror could not see ----
+                pat_self = re.compile(r"(?:^\s*|\bThen\s+|\bElse\s+)(?:Set\s+)?" + re.escape(p.name) + r"\s*\(.*?\)\s*=(?!=)", re.I)
+                for st in stmts:
+                    if pat_self.search(st):
+                        say("SELFCALL", m, p.name, "its own name with an argument list on the left of '=' calls the Function again: build the result in a local, then assign it")
             # ---- RESTORE (v25): what this procedure turns off / on, and whom it calls; judged after every procedure is read ----
             offs, ons = set(), set()
             raw_lines = raw_proc_lines(m, p.name)

@@ -26,6 +26,18 @@ Private Function AssignedOnOneLineIf(ByVal x As Long) As String
     If x > 1 Then AssignedOnOneLineIf = "big" Else AssignedOnOneLineIf = "small"
 End Function
 
+Private Function SelfIndexed(ByVal n As Long) As Object
+    Set SelfIndexed = CreateObject("Scripting.Dictionary")
+    SelfIndexed(n) = True
+End Function
+
+Private Function BuiltInALocal(ByVal n As Long) As Object
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d(n) = True
+    If n > 1 Then BuiltInALocal = Nothing
+    Set BuiltInALocal = d
+End Function
+
 Private Sub OffNoRestore()
     Application.EnableEvents = False
     Application.ScreenUpdating = False
@@ -126,9 +138,16 @@ def test_msgtitle_fires_on_the_untitled_boxes_only(tmp_path, capsys):
     assert len(boxes) == 3 and all("UntitledBoxes" in ln for ln in boxes), boxes
 
 
+def test_selfcall_fires_only_on_the_self_indexed_function(tmp_path, capsys):
+    # v27.5: SerialSet(key) = True inside SerialSet called itself until the stack ran out
+    out = run(tmp_path, capsys)
+    sc = [ln for ln in out if ln.startswith("SELFCALL")]
+    assert len(sc) == 1 and "SelfIndexed" in sc[0], sc
+
+
 def test_nothing_else_fires(tmp_path, capsys):
     out = run(tmp_path, capsys)
-    other = [ln for ln in out if not ln.startswith(("NORET", "RESTORE", "SET", "MSGTITLE"))]
+    other = [ln for ln in out if not ln.startswith(("NORET", "RESTORE", "SET", "MSGTITLE", "SELFCALL"))]
     assert other == [], other
 
 

@@ -1258,7 +1258,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "= the people on the crew that is on, holding a code in the unit, minus those booked off or sick for that shift or off in a " & _
         "switch, plus every coverage line a named person covers (a switch's own S/S line counts the one working it); an OPEN, " & _
         "NO TAKERS, POSTED or NCN line adds nobody. A partial cover (Joe D 6h) is 6/12 of a person: the shares on the shift are added " & _
-        "and rounded down, and the flag says (part) when a fraction was dropped. It only reads: fix a short shift the usual way " & _
+        "and rounded down, and the date's details and Needs Attention say (part) when a fraction was dropped. It only reads: fix a short shift the usual way " & _
         "(a call-out, a posting, a switch)."
     HelpAdd h, n, "The two-week board", _
         "Board on the Calendar's top row (supervisors and admins): the Board tab is drawn for today and the next 13 days, one page " & _

@@ -334,7 +334,7 @@ Public Function WorksConflict(ByVal empName As String, ByVal d As Date, ByVal is
         Case "rest"
             If isNight Then WorksConflict = "starts days the next morning" Else WorksConflict = "is coming off nights that morning"
         Case "16 h rule"
-            WorksConflict = "would go past " & FATIGUE_MAX_HOURS & " h of work with the OT they have accepted around that shift (the 16 h rule)"
+            WorksConflict = "can't work it under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past " & FATIGUE_MAX_HOURS & " h or leave under " & FATIGUE_MIN_REST & " h rest)"
         Case "on OT"
             WorksConflict = "already has OT accepted on that shift"
     End Select
@@ -495,7 +495,7 @@ Public Function PaybackProblem(ByVal offName As String, ByVal worksName As Strin
                 PaybackProblem = who & " starts days the next morning"
             End If
         Case "S/S": PaybackProblem = who & " is already working a switch that day"
-        Case "16 h rule": PaybackProblem = who & " would go past " & FATIGUE_MAX_HOURS & " h of work with the OT accepted around that shift (the 16 h rule)"
+        Case "16 h rule": PaybackProblem = who & " can't work that shift under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past " & FATIGUE_MAX_HOURS & " h or leave under " & FATIGUE_MIN_REST & " h rest)"
         Case "on OT": PaybackProblem = who & " already has OT accepted on that shift"
         Case Else: PaybackProblem = who & " is booked off (" & why & ")"
     End Select
@@ -504,9 +504,10 @@ End Function
 ' v26.5.5 (review): a switch is a whole shift, so the one WORKING it must fit the 16 h rule - a hard stop
 ' ("" = fine). v27.5 (item 1, Graeme Oct 25): the rule's own arithmetic (modCalendar.FatigueShiftReason), so a
 ' SCHEDULED shift beside the one worked counts like OT accepted or a switch - nights last night then days today is a
-' stop, no longer the "coming off nights" warning alone - and a same-day sister swap, where each one IS scheduled that
-' day, is tested too (NotFreeReason answered "scheduled" there and never reached the 16 h test). The shift(s) the
-' switch gives up are set aside by SwitchSaveStops (SetPendingGiveUp) before this reads.
+' stop, no longer the "coming off nights" warning alone. A same-day sister swap reads it too but SwitchStopsCore keeps
+' only "on OT" from it (the swap of both shifts is exempt from the arithmetic: Graeme, Oct 25). The shift(s) the
+' switch gives up are set aside by SwitchSaveStops (SetPendingGiveUp) before this reads, so a two-way payback on the
+' adjoining shift is not stopped by the shift it gives up.
 ' v27.1: what the rule reads - the crew code, then the reason ("" when no shift is named); FatigueStopText words it.
 Private Function FatigueReason(ByVal worksName As String, ByVal d As Date, ByVal shiftLbl As String) As String
     If shiftLbl = "" Then Exit Function
@@ -514,8 +515,8 @@ Private Function FatigueReason(ByVal worksName As String, ByVal d As Date, ByVal
     FatigueReason = FatigueShiftReason(worksName, code, d, shiftLbl)
 End Function
 
-' v27.1 (pure; suite switchstop): the 16 h stop from NotFreeReason's answer ("" = fine) - only the 16 h rule and OT already
-' held on the shift stop it; dTxt = the date as "mmm d"
+' v27.1 (pure; suite switchstop): the 16 h stop from FatigueShiftReason's answer ("" = fine; NotFreeReason's before v27.5) -
+' only the 16 h rule and OT already held on the shift stop it; dTxt = the date as "mmm d"
 Public Function FatigueStopText(ByVal worksName As String, ByVal dTxt As String, ByVal shiftLbl As String, ByVal reason As String) As String
     If shiftLbl = "" Then Exit Function
     Select Case reason
@@ -530,7 +531,8 @@ End Function
 
 ' The hard stops before a switch is saved ("" = none): booked off / already on a switch, and the 16 h rule for the
 ' one working it, for the switch itself and, two-way, for its payback (a same-day sister swap: each is the other's
-' switch, so bookings and other switches that day, and - v27.5 - the 16 h rule on the shift each one works).
+' switch, so bookings and other switches that day, and - v27.5 - OT already held on the shift each one works; the 16 h
+' arithmetic is not applied to that swap: Graeme, Oct 25).
 ' v27.1: every fact is read here in the order the stops always read them (so an error comes from the same read; a
 ' same-day swap still reads the one-way facts first, then sets them aside), and the pure SwitchStopsCore words them.
 ' v27.5 (item 1): the shift(s) this switch gives up are not worked - named to modCalendar (SetPendingGiveUp) before the
@@ -581,8 +583,8 @@ End Function
 ' v27.1 (pure; suite switchstop): the hard stops from the facts SwitchSaveStops read (positions SF_*). One-way: the
 ' eligibility stops, then the 16 h stop for the one working it. Two-way on another day: the same again for the payback,
 ' the roles swapped. A same-day sister swap: the one-way stops are set aside (each one IS scheduled that day - on the
-' shift they give up); bookings and other switches that day, then (v27.5, item 1, Graeme Oct 25) the 16 h stop for each
-' one on the shift they WORK (SF_S_FATWORKS / SF_S_FATOFF, read with the given-up shifts set aside).
+' shift they give up); bookings and other switches that day, then (v27.5, item 1) only "on OT" from the two 16 h facts
+' (SF_S_FATWORKS / SF_S_FATOFF): the 16 h arithmetic is NOT applied to the swap of both shifts (Graeme, Oct 25).
 Public Function SwitchStopsCore(ByVal offName As String, ByVal worksName As String, ByVal dTxt As String, ByVal shiftLbl As String, _
                                 ByVal twoWay As Boolean, ByVal sameDay As Boolean, ByVal d2Txt As String, ByVal sh2 As String, _
                                 ByRef f() As String) As String
@@ -598,8 +600,11 @@ Public Function SwitchStopsCore(ByVal offName As String, ByVal worksName As Stri
             If f(SF_S_BKWORKS1) <> "" Then stops = stops & "- " & worksName & " can't work the " & LCase$(shiftLbl) & " shift (" & Mid$(f(SF_S_BKWORKS1), 2) & ")" & vbNewLine
             If f(SF_S_OFFON) <> "" Then stops = stops & "- " & offName & " is already on a switch that day" & vbNewLine
             If f(SF_S_WORKSON) <> "" Then stops = stops & "- " & worksName & " is already on a switch that day" & vbNewLine
-            stops = stops & FatigueStopText(worksName, dTxt, shiftLbl, f(SF_S_FATWORKS))     ' v27.5 (item 1)
-            stops = stops & FatigueStopText(offName, dTxt, sh2, f(SF_S_FATOFF))
+            ' v27.5 (item 1; Graeme Oct 25 after review): the swap of BOTH shifts is the one way an A/B pair can swap, and under
+            ' the rotation one of the two always has the adjoining shift - so the 16 h arithmetic is set aside here; OT already
+            ' held (or an award) on the shift each one would work still stops it
+            If f(SF_S_FATWORKS) = "on OT" Then stops = stops & FatigueStopText(worksName, dTxt, shiftLbl, f(SF_S_FATWORKS))
+            If f(SF_S_FATOFF) = "on OT" Then stops = stops & FatigueStopText(offName, dTxt, sh2, f(SF_S_FATOFF))
         Else
             stops = stops & EligibilityText(worksName, offName, d2Txt, f(SF_P_BKWORKS), f(SF_P_GAVEWORKS), f(SF_P_WORKWORKS), f(SF_P_BKOFF), f(SF_P_WORKOFF))
             stops = stops & FatigueStopText(offName, d2Txt, sh2, f(SF_P_FAT))

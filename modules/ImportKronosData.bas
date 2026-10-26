@@ -74,6 +74,7 @@ Private mClashes As String                  ' v27 (review M3): report rows whose
 Private mClashNames As Object               ' v27 (review N1): the roster names a clash touches - H is left alone for them
 Private mIngested As Long                   ' v27 (review N2): reports written into the tables in this run (set by the FIRST write)
 Private mGapNote As String                  ' v27.5 (item 2): the last cumulative's gap Note ("" = no missed one-day report between the Throughs)
+Private mGapMsg As String                   '   the same days as words for the message ("Oct 14, Oct 15")
 Private Const GAP_NOTE_PREFIX As String = "no one-day report for "   ' v27.5 (item 2): a gap row's Note = this + "yyyy-mm-dd; ..."
 Public Const KF_SHEET As String = "Kronos Files"
 Public Const KF_TABLE As String = "tblKronosFiles"
@@ -338,12 +339,28 @@ End Function
 
 ' ";"-joined whole-day serials -> a set (a blank part skipped)
 Private Function SerialSet(ByVal serials As String) As Object
-    Set SerialSet = CreateObject("Scripting.Dictionary")
+    ' (review v27.5, HIGH) built in a local: inside a Function its own name followed by (...) is a CALL to itself, so
+    ' "SerialSet(key) = True" recursed until the stack ran out - callcheck SELFCALL now flags that shape
+    Dim dict As Object: Set dict = CreateObject("Scripting.Dictionary")
     Dim parts As Variant, i As Long
     parts = Split(serials, ";")
     For i = 0 To UBound(parts)
-        If Trim$(CStr(parts(i))) <> "" Then SerialSet(CLng(Val(CStr(parts(i))))) = True
+        If Trim$(CStr(parts(i))) <> "" Then dict(CLng(Val(CStr(parts(i))))) = True
     Next i
+    Set SerialSet = dict
+End Function
+
+' v27.5 (item 2): a gap Note's ISO days as words for a message - "Oct 14, Oct 15", at most five, then "and N more"
+Private Function GapDaysWords(ByVal isoList As String) As String
+    Dim parts As Variant, i As Long, n As Long
+    parts = Split(GapNoteDays(isoList), ";")
+    For i = 0 To UBound(parts)
+        If Trim$(CStr(parts(i))) <> "" Then
+            n = n + 1
+            If n <= 5 Then GapDaysWords = GapDaysWords & IIf(GapDaysWords = "", "", ", ") & Format$(CDate(CLng(Val(CStr(parts(i))))), "mmm d")
+        End If
+    Next i
+    If n > 5 Then GapDaysWords = GapDaysWords & " and " & (n - 5) & " more"
 End Function
 
 ' a dictionary's keys ";"-joined
@@ -680,7 +697,13 @@ Private Function KronosReadFiles(ByRef files As Variant, ByVal stamp As Date, By
     Dim srcPath As String, fileName As String, wsSource As Worksheet
     Dim rep As KronosReport, fi As Long, ingest As String
     Dim lastFileDate As Date
+    ' v27.5 (item 2, review): the one-day reports of a run are taken BEFORE its year-to-date, whatever the files' saved
+    ' order, so a year-to-date saved a minute before that morning's one-day report sees the day and names no gap
+    Dim deferred() As Boolean, rdPass As Long
+    ReDim deferred(LBound(files) To UBound(files))
+    For rdPass = 1 To 2
     For fi = LBound(files) To UBound(files)
+        If rdPass = 2 And Not deferred(fi) Then GoTo NextFile
         srcPath = CStr(files(fi))
         fileName = Mid$(srcPath, InStrRev(srcPath, "\") + 1)
         Set wbSource = Nothing: openedHere = False
@@ -709,6 +732,14 @@ Private Function KronosReadFiles(ByRef files As Variant, ByVal stamp As Date, By
         On Error GoTo 0
         If fileDate > lastFileDate Then lastFileDate = fileDate
         ingest = ReadKronosReport(wbSource, rep)
+        If rdPass = 1 And rep.HasTotals And ingest = "" Then
+            If ReportKindCore(rep.FromD, rep.ToD, RosterYearFrom(), RosterYearTo()) = "cumulative" Then
+                deferred(fi) = True                       ' read again on pass 2, after every one-day report of the run
+                If openedHere Then wbSource.Close SaveChanges:=False
+                Set wbSource = Nothing: openedHere = False
+                GoTo NextFile
+            End If
+        End If
         If rep.HasTotals And ingest = "" Then
             ' v23: after a rollover nothing is taken until a report reaches the new year
             If awaitFrom > 0 And rep.ToD < awaitFrom Then
@@ -734,7 +765,9 @@ Private Function KronosReadFiles(ByRef files As Variant, ByVal stamp As Date, By
         End If
         If openedHere Then wbSource.Close SaveChanges:=False
         Set wbSource = Nothing: openedHere = False
+NextFile:
     Next fi
+    Next rdPass
     KronosReadFiles = True
 End Function
 
@@ -1295,7 +1328,7 @@ Private Function IngestReport(ByRef rep As KronosReport, ByVal srcName As String
         nChanges = WriteCumulative(rep, tot, payOf, srcName, stamp)
         line = "the year to date " & span & ": " & nPeople & " roster people into the Kronos Totals"
         If mGapNote <> "" Then                        ' v27.5 (item 2): a missed morning is named, its differences are gap rows
-            line = line & "; " & mGapNote & " - " & IIf(nChanges > 0, nChanges & " figure(s) differed from what the ledger expected: " & _
+            line = line & "; NO one-day report for " & mGapMsg & " - " & IIf(nChanges > 0, nChanges & " figure(s) differed from what the ledger expected: " & _
                    "in Worked Changes as gap rows, counted in Worked Periods until those days are imported", "nothing differed")
         ElseIf nChanges > 0 Then
             line = line & "; " & nChanges & " figure(s) differed from what the ledger expected - timecard edits, in Worked Changes"
@@ -1534,11 +1567,12 @@ Private Function WriteCumulative(ByRef rep As KronosReport, ByVal tot As Object,
     ' v27.5 (item 2, Graeme Oct 25): a day between the Throughs the ledger does not hold is a GAP - a missed one-day
     ' report - so each difference is a "gap" row naming those days (counted in Worked Periods only until the person's
     ' rows for one of them arrive: GapCountsCore), not a timecard "edit" dated by the Transactions block
-    mGapNote = ""
+    mGapNote = "": mGapMsg = ""
     If oldThrough > 0 Then
         Dim gapTxt As String: gapTxt = GapDaysText(oldThrough, rep.ToD, KeysJoined(held))
         If gapTxt <> "" Then
             mGapNote = GAP_NOTE_PREFIX & gapTxt
+            mGapMsg = GapDaysWords(gapTxt)
             WriteCumulative = LogChanges(expected, tot, payOf, rep.ToD, "gap", mGapNote, srcName, stamp, rep, oldThrough)
         Else
             WriteCumulative = LogChanges(expected, tot, payOf, rep.ToD, "edit", "differs from the ledger", srcName, stamp, rep, oldThrough)
@@ -1676,10 +1710,10 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
         rosterSet(CStr(nameMap(kk))) = True
     Next kk
     Dim v As Variant: v = TableRows(WorkedDaysTable(False))
-    Dim i As Long, nm As String, k As String, pk As String, w As Double, d As Date
+    Dim i As Long, nm As String, k As String, pk As String, w As Double, d As Date, hk As String
     Dim yearFrom As Date: yearFrom = RosterYearFrom()
     Dim lf As Date: lf = KronosLedgerFrom()
-    Dim heldOf As Object: Set heldOf = CreateObject("Scripting.Dictionary"): heldOf.CompareMode = 1   ' v27.5 (item 2): namekey -> the days this person has ledger rows on (";" serials)
+    Dim heldOf As Object: Set heldOf = CreateObject("Scripting.Dictionary"): heldOf.CompareMode = 1   ' v27.5 (item 2): "namekey|code" -> the days this person has ledger rows on for that pay code (";" serials; review: per code, so a backfill sets aside only its own code's gap row)
     Dim dayStamp As Object: Set dayStamp = CreateObject("Scripting.Dictionary")   ' (review N5 / R2): day -> when it was last RE-imported (a "day" change row)
     Dim cv As Variant: cv = TableRows(WorkedChangesTable(False))
     Dim ck As Long
@@ -1699,7 +1733,8 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
         For i = 1 To UBound(v, 1)
             nm = Trim$(SafeStr(v(i, 2)))
             If nm <> "" And IsDate(v(i, 3)) Then
-                heldOf(NameKey(nm)) = SafeStr(heldOf(NameKey(nm))) & ";" & CStr(CLng(Int(CDbl(CDate(v(i, 3))))))   ' v27.5 (item 2)
+                hk = NameKey(nm) & "|" & Trim$(SafeStr(v(i, 4)))                                                 ' v27.5 (item 2)
+                heldOf(hk) = SafeStr(heldOf(hk)) & ";" & CStr(CLng(Int(CDbl(CDate(v(i, 3))))))
                 If rosterSet.Exists(nm) And CDate(v(i, 3)) >= yearFrom Then                 ' roster people only, this year only (a Former person's rows stay in the ledger)
                     k = NameKey(nm)
                     If Not rosterOf.Exists(k) Then rosterOf.Add k, nm: mTxRaw(k) = nm: mTxPay(k) = SafeStr(v(i, 1))
@@ -1725,7 +1760,7 @@ Private Function RebuildWorkedPeriods(ByVal nameMap As Object, ByVal stamp As Da
                 d = CDate(v(i, 4))
                 k = NameKey(nm)
                 If kindTxt = "gap" Then
-                    counts = rosterSet.Exists(nm) And GapCountsCore(d, yearFrom, lf, GapNoteDays(SafeStr(v(i, 11))), SafeStr(heldOf(k)))
+                    counts = rosterSet.Exists(nm) And GapCountsCore(d, yearFrom, lf, GapNoteDays(SafeStr(v(i, 11))), SafeStr(heldOf(k & "|" & Trim$(SafeStr(v(i, 5))))))
                 Else
                     ' (review N4 / N5) this year, from the first one-day report on, and not a day re-imported AFTER the edit was logged
                     ' (that re-import already holds the edited figure)

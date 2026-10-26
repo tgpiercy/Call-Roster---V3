@@ -899,10 +899,11 @@ switchstop,switch-then-payback-in-order,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0
 switchstop,one-way-ignores-payback-facts,Nov 2|Days,none,p_bkoff=Vac;s_offon=y,,,none
 switchstop,same-day-clean,Nov 2|Days,same|Nights,,,,none
 switchstop,same-day-sets-the-one-way-stops-aside,Nov 2|Days,same|Nights,bkoff=Vac;workoff=SS-0001;fat=16 h rule,,,none
-switchstop,same-day-worker-16h,Nov 2|Days,same|Nights,s_fatworks=16 h rule,,,- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
-switchstop,same-day-giver-16h-on-the-shift-they-work,Nov 2|Days,same|Nights,s_fatoff=16 h rule,,,- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
+switchstop,same-day-worker-16h-is-no-stop,Nov 2|Days,same|Nights,s_fatworks=16 h rule,,,none
+switchstop,same-day-giver-16h-is-no-stop,Nov 2|Days,same|Nights,s_fatoff=16 h rule,,,none
+switchstop,same-day-worker-on-ot,Nov 2|Days,same|Nights,s_fatworks=on OT,,,- Bob already has OT accepted on Nov 2 days
 switchstop,same-day-giver-on-ot,Nov 2|Days,same|Nights,s_fatoff=on OT,,,- Ann already has OT accepted on Nov 2 nights
-switchstop,same-day-16h-after-the-bookings,Nov 2|Days,same|Nights,s_fatoff=16 h rule;s_fatworks=on OT;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob already has OT accepted on Nov 2 days;- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
+switchstop,same-day-on-ot-after-the-bookings-16h-set-aside,Nov 2|Days,same|Nights,s_fatoff=16 h rule;s_fatworks=on OT;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob already has OT accepted on Nov 2 days
 switchstop,same-day-scheduled-or-rest-is-no-stop,Nov 2|Days,same|Nights,s_fatworks=scheduled;s_fatoff=rest,,,none
 switchstop,one-way-ignores-the-same-day-16h-facts,Nov 2|Days,none,s_fatworks=16 h rule;s_fatoff=on OT,,,none
 switchstop,payback-ignores-the-same-day-16h-facts,Nov 2|Days,Nov 9|Nights,s_fatworks=16 h rule;s_fatoff=on OT,,,none
@@ -910,6 +911,14 @@ switchstop,same-day-booked,Nov 2|Days,same|Nights,s_bkworks=Sick;s_bkoff=Vac,,,-
 switchstop,same-day-cant-work-the-other-shift,Nov 2|Days,same|Nights,s_bkoff2=Sick;s_bkworks1=Trn,,,- Ann can't work the nights shift (Sick);- Bob can't work the days shift (Trn)
 switchstop,same-day-on-a-switch,Nov 2|Days,same|Nights,s_workson=y;s_offon=y,,,- Ann is already on a switch that day;- Bob is already on a switch that day
 switchstop,same-day-every-stop-in-order,Nov 2|Nights,same|Days,s_workson=y;s_offon=y;s_bkworks1=A;s_bkoff2=B;s_bkworks=C;s_bkoff=D,,,- Ann is booked off (D);- Bob is booked off (C);- Ann can't work the days shift (B);- Bob can't work the nights shift (A);- Ann is already on a switch that day;- Bob is already on a switch that day
+fatshift,first-night-takes-days-no-give-up,A,2026-11-27,Days,none,,16 h rule
+fatshift,first-night-takes-days-nights-given-up,A,2026-11-27,Days,Nights,,fits
+fatshift,second-night-takes-days-stops-despite-the-give-up,A,2026-11-01,Days,Nights,,16 h rule
+fatshift,crew-off-both-sides-fits,C,2026-11-27,Days,none,,fits
+fatshift,days-crew-takes-nights-then-days-tomorrow,B,2026-11-27,Nights,Days,,16 h rule
+fatshift,last-day-of-the-block-takes-nights-fits,B,2026-11-29,Nights,Days,,fits
+fatshift,no-shift-named-fits,A,2026-11-27,,none,,fits
+fatshift,pending-for-the-other-shift-does-not-relieve,A,2026-11-27,Days,Days,,16 h rule
 kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
 kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
 kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182
@@ -947,6 +956,7 @@ kgap,on-the-ledger-start-day,2026-10-01,2025-12-28,2026-10-01,no one-day report 
 kgap,last-years-row-after-rollover,2025-12-20,2025-12-28,2025-10-01,no one-day report for 2025-12-14,,skip
 kgap,note-naming-no-day-counts,2026-10-24,2025-12-28,2026-10-01,differs from the ledger,2026-10-14,counts
 kgap,note-with-a-bad-date-ignored,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-13-14; 2026-10-15,2026-10-15,skip
+kgapdays,old-through-none,none,2026-10-13,2026-10-11,,,none
 kgapdays,one-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-13,,,2026-10-12
 kgapdays,none-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-12;2026-10-13,,,none
 kgapdays,two-missing-in-order,2026-10-10,2026-10-13,2026-10-12,,,2026-10-11; 2026-10-13
@@ -992,4 +1002,11 @@ staffcount,eleven-h-is-not-a-whole-person,S;SA,Sam K 11h,2,,,2|1|0|SHORT 1/2 (pa
 staffcount,whole-plus-eleven-h-rounds-down,S;S;SA,Ann B / Sam K 11h,3,,,3|1|1|ok
 staffcount,partial-across-two-lines-with-a-whole,SA;SA;S,Joe D 6h;Sam K 6h / Eve F,3,,,3|2|2|ok
 staffcount,lone-slash-is-a-text-counts-one,S,  / ,1,,,1|0|1|ok
+staffcount,two-covers-of-one-absence-joined-with-semicolon,SA;S,Joe D 6h; Sam K 6h,2,,,2|1|1|ok
+staffcount,posted-then-a-cover-on-one-line,S,POSTED P-0012; Joe D,2,,,1|0|1|ok
+staffcount,whole-then-partial-joined,S,Joe D; Sam K 6h,2,,,1|0|1|ok
+staffcount,no-takers-part-then-a-cover,S,NO TAKERS / Joe D,2,,,1|0|1|ok
+staffcount,dst-eleven-h-night-whole-cover,S,Ann B 11h,2,11,,1|0|1|ok
+staffcount,dst-thirteen-h-night-twelve-h-is-part,S,Ann B 12h,2,13,,1|0|0|SHORT 1/2 (part)
+staffcount,six-two-hour-parts-one-person,S,Ann B 2h / Bo C 2h / Cy D 2h / Di E 2h / Ed F 2h / Fa G 2h,2,,,1|0|1|ok
 staffcount,nobody-holds-a-code,,,1,,,0|0|0|SHORT 0/1

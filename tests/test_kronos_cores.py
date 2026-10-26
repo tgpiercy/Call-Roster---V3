@@ -50,6 +50,7 @@ NOTES = {
     "kgap:last-years-row-after-rollover": "Dec 20 < the year's Dec 28 -> skip",
     "kgap:note-naming-no-day-counts": "GapNoteDays finds no yyyy-mm-dd: gapSerials '' -> the loop never runs -> counts",
     "kgap:note-with-a-bad-date-ignored": "2026-13-14 fails IsIsoDay (month 13), 2026-10-15 is read and held -> skip",
+    "kgapdays:old-through-none": "oldThrough 0 (no snapshot yet): GapDaysText exits at once -> '' -> none",
     "kgapdays:one-missing": "Oct 11 .. 13 after the Oct 10 Through; Oct 12 not held -> '2026-10-12'",
     "kgapdays:none-missing": "every day held -> ''  -> none",
     "kgapdays:two-missing-in-order": "Oct 11 and 13 not held, in date order, '; ' between",
@@ -58,9 +59,8 @@ NOTES = {
     "kgapdays:days-outside-the-span-ignored": "Oct 9 and 12 held but outside (Oct 10, Oct 11]; Oct 11 not held -> named",
     "kgapdays:quiet-day-marker-is-held": "the marker row's day is in heldSerials like any row -> none",
     "kedit:edit-when-not-a-date": "IsDate(When) False: DayReimportedAfter exits False even with a re-import -> counts",
-    "kedit:pins-the-missed-morning": "PINS TODAY (fixed in v27.5): an edit dated at the year-to-date's Through (no earlier "
-                                     "Transactions day) for a day whose one-day report arrives later as a FIRST import (no 'day' "
-                                     "change row) still counts, beside that day's own ledger rows - Worked Periods counts it twice",
+    "kedit:pins-the-missed-morning": "HISTORICAL (before v27.5 this edit row stayed counted beside a backfilled day): an edit dated at "
+                                    "the year-to-date's Through, inside the ledger -> counts as an edit; since v27.5 a missed morning writes a gap row instead",
     "kday:same-day-roster-row-replaced": "Int(row date) = Int(d) and a roster person -> drop",
     "kday:same-day-quiet-marker-replaced": "a blank Employee on the day is the quiet-day marker -> drop",
     "kday:same-day-former-person-kept": "not on the roster (a Former person's row) -> keep",

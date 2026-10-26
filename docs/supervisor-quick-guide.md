@@ -66,7 +66,7 @@ Members can sign up from the members' file: on its Postings sheet, **Sign me up*
 ## Shift switch and payback
 1. Click **Shift Switch**. Type the Shift date and pick the Unit.
 2. Pick "Gives up shift" and "Works the shift". The Shift fills in.
-3. Read the hint lines. "NOT ELIGIBLE" stops the save. "check" is a warning only. v27.5: the save also stops when the one WORKING the shift would run past 16 h with the shift beside it - a scheduled shift counts (nights last night, then days today); in a same-day days-for-nights swap both people are checked on the shift each one works, and the shift each gives up does not count. Someone inside the 24 hours after a sick shift can neither work nor give up a shift (the pick list leaves them out). A shift given up in a switch still keeps the person off the other shift that day.
+3. Read the hint lines. "NOT ELIGIBLE" stops the save. "check" is a warning only. v27.5: the save also stops when the one WORKING the shift would run past 16 h with the shift beside it - a scheduled shift counts (nights last night, then days today) - and the shift each one gives up does not count. The same-day swap of BOTH shifts between sister crews (days for nights) stays allowed - the only way an A/B pair can swap; it is stopped only when one of them already has OT on the shift they would work. Someone inside the 24 hours after a sick shift can neither work nor give up a shift (the pick list leaves them out). A shift given up in a switch still keeps the person off the other shift that day.
 4. Click **SAVE SWITCH**, then OK. It stays on the OWED list until paid back.
 
 - **Payback:** click the switch in the OWED list. Type the payback date. Click **SAVE SWITCH**.
@@ -140,7 +140,7 @@ The three lines above the roster show the pay period, the Kronos date and the lo
 - `~` = an estimate, because the admin has entered a unit move for the person for a later date. `?` = left a message (the call-back pile). `S/S` = working a shift switch that shift.
 - **NCN** = no cover needed. **PHA** = hazard-analysis coverage. **OPEN** = the line still needs cover. **POSTED** = a posting is out for it. **DAYS** = the Monday-to-Friday day crew.
 - A sick call or a personal day shows to members as **Off**, never why.
-- The calendar's words: OPEN (red) = nobody on it yet, POSTED (orange) = waiting for sign-ups, NO TAKERS = posted, nobody signed up, NCN = no coverage needed, a name = covered, S/S = shift switch, N short = below minimum staffing ((part) after it, v27.5 = a partial cover is counted as a share of a person, not a whole one). Help > Words on the roster has the full glossary.
+- The calendar's words: OPEN (red) = nobody on it yet, POSTED (orange) = waiting for sign-ups, NO TAKERS = posted, nobody signed up, NCN = no coverage needed, a name = covered, S/S = shift switch, N short = below minimum staffing (v27.5: the date's details and Needs Attention add (part) when a partial cover - a share of a person, not a whole one - leaves the shift short). Help > Words on the roster has the full glossary.
 
 ## Close the file
 - Saving is automatic after each entry, and again when you close. Just close the file.

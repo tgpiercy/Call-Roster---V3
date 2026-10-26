@@ -1256,7 +1256,7 @@ def switch_stops_core(off: str, works: str, d_txt: str, shift: str, two_way: boo
                       d2_txt: str, sh2: str, f: list[str]) -> str:
     """modShiftSwitch.SwitchStopsCore: one-way = eligibility + the 16 h stop for the one working it; two-way on another
     day = the same for the payback, roles swapped; a same-day sister swap = bookings and switches that day, then (v27.5)
-    the 16 h stop for each one on the shift they work."""
+    only "on OT" from the two 16 h facts (the swap of both shifts is exempt from the 16 h arithmetic)."""
     stops = eligibility_text(off, works, d_txt, *f[0:5]) + fatigue_stop_text(works, d_txt, shift, f[5])
     if two_way:
         if same_day:
@@ -1273,10 +1273,43 @@ def switch_stops_core(off: str, works: str, d_txt: str, shift: str, two_way: boo
                 stops += f"- {off} is already on a switch that day\n"
             if f[17]:
                 stops += f"- {works} is already on a switch that day\n"
-            stops += fatigue_stop_text(works, d_txt, shift, f[18]) + fatigue_stop_text(off, d_txt, sh2, f[19])
+            # v27.5 (Graeme Oct 25 after review): the swap of both shifts is exempt from the 16 h arithmetic; only "on OT" stops
+            if f[18] == "on OT":
+                stops += fatigue_stop_text(works, d_txt, shift, f[18])
+            if f[19] == "on OT":
+                stops += fatigue_stop_text(off, d_txt, sh2, f[19])
         else:
             stops += eligibility_text(works, off, d2_txt, *f[6:11]) + fatigue_stop_text(off, d2_txt, sh2, f[11])
     return stops
+
+
+def fatigue_shift_reason_fixture(code: str, d: date, shift_lbl: str, pending_lbl: str) -> str:
+    """modCalendar.FatigueShiftReason on the rotation alone, as SelfTest's CaseFatShift runs it (v27.5, item 1 review): no OT,
+    no bookings, no saved switch; pending_lbl = the shift on d this person gives up in the switch being saved ('' = none;
+    SetPendingGiveUp -> WorkedHoursOn 0). '16 h rule' / '' (fits)."""
+    if shift_lbl == "":
+        return ""
+    one = timedelta(days=1)
+
+    def worked(dd: date, is_night: bool) -> float:
+        lbl = "Nights" if is_night else "Days"
+        if dd == d and lbl == pending_lbl:
+            return 0.0
+        return default_shift_hours(dd, is_night) if crew_shift_on(code, dd) == lbl else 0.0
+
+    night = is_night_shift(shift_lbl)
+    if night:                                     # FatigueInputs: a night offer - that date's day shift, then the night before it
+        hp = worked(d, False)
+        hpp = worked(d - one, True) if hp > 0 else 0.0
+        hn1 = worked(d + one, False)
+        hn2 = worked(d + one, True) if hn1 == 0 else 0.0
+    else:                                         # a day offer - the night before, then that night's day shift
+        hp = worked(d - one, True)
+        hpp = worked(d - one, False) if hp > 0 else 0.0
+        hn1 = worked(d, True)
+        hn2 = worked(d + one, False) if hn1 == 0 else 0.0
+    wb, htn = fatigue_block_core(hpp, hp, hn1, hn2)
+    return "16 h rule" if fatigue_max_hours(wb, htn) < default_shift_hours(d, night) - 0.001 else ""
 
 
 def capped_posting_hours(post_hours: float, max_hours: float, max_set: bool) -> float:
@@ -2052,7 +2085,8 @@ def gap_days_text(old_through: date | None, to_d: date, held: set[int]) -> str:
 
 def gap_note_days(note: str) -> list[int]:
     """ImportKronosData.GapNoteDays: every 'yyyy-mm-dd' (digits in every place, month 1-12, day 1-31) in a gap row's
-    Note, as whole-day serials, left to right, a match consumed whole."""
+    Note, as whole-day serials, left to right (the VBA moves on by one character after a window that is not a date; the
+    two agree on every Note the import writes)."""
     out: list[int] = []
     for m in re.finditer(r"\d{4}-\d{2}-\d{2}", note):
         s = m.group(0)
@@ -2102,7 +2136,7 @@ def vb_trim(s: str) -> str:
 
 
 def vb_isnumeric(s: str) -> bool:
-    """IsNumeric for the text CoveredCount gives it: a run with no spaces between the last space and the final h.
+    """IsNumeric for the text CoveredShare gives it: a run with no spaces between the last space and the final h.
     Plain decimal numbers only (hex, currency and thousands forms are out of scope; the cases avoid them)."""
     return bool(_NUMERIC.match(s))
 
@@ -2113,29 +2147,34 @@ def vb_val(s: str) -> float:
     return float(m.group(0)) if m else 0.0
 
 
-def covered_share(rt: str) -> float:
-    """modMinStaff.CoveredShare (v27.5, item 3; CoveredCount before): one person per " / " part; a part ending in "Nh"
-    with 0 < N < 12 counts N / 12 of a person; a blank part adds nobody; no rounding (the core rounds once)."""
+def covered_share(rt: str, shift_hours: float = USUAL_SHIFT_HOURS) -> float:
+    """modMinStaff.CoveredShare (v27.5, item 3; CoveredCount before): one person per part (" / " between the names of one
+    award, "; " between two covers of one line); a part ending in "Nh" with 0 < N < the shift's hours counts N / hours of a
+    person; a blank part and a NO TAKERS / POSTED / NCN part add nobody; no rounding (the core rounds once)."""
     total = 0.0
-    for raw in rt.split(" / "):
+    if shift_hours <= 0:
+        shift_hours = USUAL_SHIFT_HOURS
+    for raw in rt.replace("; ", " / ").split(" / "):
         part = vb_trim(raw)
-        if part == "":
+        up = part.upper()
+        if part == "" or up.startswith("NO TAKERS") or up.startswith("POSTED") or up == "NCN":
             continue
         hrs = 0.0
         if part[-1:].lower() == "h":
             p = part.rfind(" ") + 1                         # InStrRev, 1-based (0 = no space)
             if p > 0 and vb_isnumeric(part[p:len(part) - 1]):   # Mid$(part, p + 1, Len(part) - p - 1)
                 hrs = vb_val(part[p:])                          # Val(Mid$(part, p + 1))
-        if 0 < hrs < USUAL_SHIFT_HOURS:
-            total += hrs / USUAL_SHIFT_HOURS
+        if 0 < hrs < shift_hours - 0.001:
+            total += hrs / shift_hours
         else:
             total += 1
     return total
 
 
-def staff_counts_core(people: list[str], right_texts: list[str]) -> tuple[int, int, int, bool]:
+def staff_counts_core(people: list[str], right_texts: list[str],
+                      shift_hours: float = USUAL_SHIFT_HOURS) -> tuple[int, int, int, bool]:
     """modMinStaff.StaffCountsCore: scheduled, off, covered (every line's share added once, rounded DOWN) and part
-    (a fraction was dropped) - v27.5, item 3."""
+    (a fraction was dropped) - v27.5, item 3; shift_hours = the shift's length (a clock-change night's 11 / 13)."""
     scheduled = off = covered = 0
     total = 0.0
     for tok in people:
@@ -2146,8 +2185,6 @@ def staff_counts_core(people: list[str], right_texts: list[str]) -> tuple[int, i
     for raw in right_texts:
         rt = vb_trim(raw)
         if rt != "":
-            up = rt.upper()
-            if not (up.startswith("NO TAKERS") or up.startswith("POSTED") or up == "NCN"):
-                total += covered_share(rt)
+            total += covered_share(rt, shift_hours)
     covered = int(math.floor(total + 0.000001))              # CLng(Int(total + 0.000001))
     return scheduled, off, covered, (total - covered > 0.001)

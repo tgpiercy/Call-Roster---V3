@@ -155,7 +155,7 @@ After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)"
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v27.5: 993 cases in 108 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v27.5: 1010 cases in 109 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|

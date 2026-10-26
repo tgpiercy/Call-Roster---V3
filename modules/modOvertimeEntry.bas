@@ -2097,6 +2097,7 @@ Public Sub ApplyViewCore(ByVal adminView As Boolean, Optional ByVal deskMode As 
     rs.Columns(C_PHONE).Hidden = Not adminView
     rs.Columns(C_EMAIL).Hidden = Not adminView Or gDeskMode          ' v25.3: a Desk user keeps Phone, not these two
     rs.Columns(C_PAYROLL).Hidden = Not adminView Or gDeskMode        ' v24.2: a personal identifier, like phone and email
+    HideKeyColumns Not adminView Or gDeskMode                      ' v28 (item 2, review): the key columns on the OT Log, the posting lists and Shift Switches the same way
     ' column A is LEFT of the command bar, and the bar's shapes don't move with cells: carry them along
     Dim dx As Double: dx = rs.Cells(1, C_SHIFT).Left - leftWas
     Dim shp As Shape
@@ -2139,7 +2140,7 @@ Public Function LogLayoutCurrent(ByVal lo As ListObject) As Boolean
     If lo Is Nothing Then Exit Function
     If lo.ListColumns.Count <> L_NCOLS Then Exit Function
     LogLayoutCurrent = (lo.ListColumns(L_REF).Name = "Ref ID" And lo.ListColumns(L_ENTRY).Name = "Entry ID" _
-                        And lo.ListColumns(L_CHARGED).Name = "Hours Charged")
+                        And lo.ListColumns(L_CHARGED).Name = "Hours Charged" And lo.ListColumns(L_PAYROLL).Name = KEY_HEADER)   ' v28: + the key
 End Function
 
 Public Function LogTable() As ListObject
@@ -2153,11 +2154,20 @@ Public Function LogTable() As ListObject
         MsgBox "The OT Log table (" & LOG_TABLE & " on sheet '" & LOG_SHEET & _
                "') was not found." & vbNewLine & "If this workbook hasn't been migrated yet, " & _
                "run RunMigration first.", vbCritical, "OT Log missing"
-    ElseIf Not LogLayoutCurrent(lo) Then
-        ' never write new-layout rows into the old column order
-        MsgBox "The OT Log is still in the old column layout." & vbNewLine & vbNewLine & _
-               "Run Alt+F8 > UpgradeOTLogLayout once, then try again.", vbExclamation, "OT Log upgrade needed"
-        Set lo = Nothing
+    Else
+        ' v28 (item 2, review HIGH-1): a log from before v28 has 21 columns - the Payroll # key goes on its END here,
+        ' once, so every reader and writer (an open, SystemCheck, IntegrityCheck, AppendLogRows, AssignPayrollKeys)
+        ' sees the 22-column layout; a read-only copy is left as it is and reported below
+        If lo.ListColumns.Count = L_NCOLS - 1 And Not ThisWorkbook.ReadOnly Then
+            If lo.ListColumns(L_VOIDNOTE).Name = "Void Note" Then EnsureKeyColumn lo, KEY_HEADER
+        End If
+        If Not LogLayoutCurrent(lo) Then
+            ' never write new-layout rows into the old column order
+            MsgBox "The OT Log is still in the old column layout." & vbNewLine & vbNewLine & _
+                   IIf(lo.ListColumns.Count = L_NCOLS - 1, "This copy is read-only, so the v28 Payroll # column could not be added: open the live roster.", _
+                       "Run Alt+F8 > UpgradeOTLogLayout once, then try again."), vbExclamation, "OT Log upgrade needed"
+            Set lo = Nothing
+        End If
     End If
     Set LogTable = lo
 End Function
@@ -2330,8 +2340,11 @@ Public Function AppendLogRows(data As Variant) As Boolean
     Dim r As Long
     ' v28 (item 2): an older log gets its Payroll # column before the first write that is L_NCOLS wide; every row
     ' carries the person's key (blank until the roster knows the number - FillPayrollKeys stamps it later)
-    If lo.ListColumns.Count < L_NCOLS Then
-        If EnsureKeyColumn(lo, KEY_HEADER) = 0 Then Exit Function
+    If lo.ListColumns.Count < L_NCOLS Then          ' (LogTable adds the column itself; this says why when it could not)
+        If EnsureKeyColumn(lo, KEY_HEADER) = 0 Then
+            MsgBox "The OT Log has no Payroll # column and it could not be added (a read-only copy?). Nothing was logged.", vbCritical, "OT Log"
+            Exit Function
+        End If
     End If
     Dim keyMap As Object: Set keyMap = PayrollMap()
     For r = 1 To n
@@ -2356,6 +2369,7 @@ Public Function AppendLogRows(data As Variant) As Boolean
     If ws.FilterMode Then ws.ShowAllData              ' v26.5.5 (A14): a filtered log can't be resized onto hidden rows
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, L_NCOLS)
+        .Columns(L_PAYROLL).NumberFormat = "@"       ' v28 (review): the key stays text (a leading zero survives) - set BEFORE the values land
         .Value = data
         .Columns(L_DATE).NumberFormat = "mm/dd/yyyy"
         .Columns(L_PERIOD).NumberFormat = "mm/dd/yyyy"

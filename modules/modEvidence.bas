@@ -579,16 +579,19 @@ Private Function ExportTablesTo(ByVal folder As String) As Long
             ff = FreeFile
             Open folder & lo.Name & ".csv" For Output As #ff
             ln = ""
+            Dim isKey() As Boolean: ReDim isKey(1 To lo.ListColumns.Count)     ' v28 (review MED-2): the Payroll # key columns never leave in a CSV
+            Dim firstCol As Boolean: firstCol = True
             For j = 1 To lo.ListColumns.Count
-                ln = ln & IIf(j = 1, "", ",") & Csv(lo.ListColumns(j).Name)
+                isKey(j) = (Left$(lo.ListColumns(j).Name, 9) = KEY_HEADER)
+                If Not isKey(j) Then ln = ln & IIf(firstCol, "", ",") & Csv(lo.ListColumns(j).Name): firstCol = False
             Next j
             Print #ff, ln
             If Not lo.DataBodyRange Is Nothing Then
                 v = RangeTo2D(lo.DataBodyRange)
                 For i = 1 To UBound(v, 1)
-                    ln = ""
+                    ln = "": firstCol = True
                     For j = 1 To UBound(v, 2)
-                        ln = ln & IIf(j = 1, "", ",") & Csv(v(i, j))
+                        If Not isKey(j) Then ln = ln & IIf(firstCol, "", ",") & Csv(v(i, j)): firstCol = False
                     Next j
                     Print #ff, ln
                 Next i

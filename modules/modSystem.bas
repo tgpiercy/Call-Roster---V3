@@ -34,7 +34,7 @@ Public Const WHATS_NEW As String = "v28: members can ASK from their file. The me
                                    "Also: IntegrityCheck 16 'Keys' names a number on two rows or a row without one; the new Requests and Keys macros are listed in the admin guide. v27.5's three rule fixes (the 16 h stop on switches, the Kronos gap rows, the staffing count's partial covers) are in this install if v27.5 was skipped."
 Private Const N_MODULES As Long = 43           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 14 (RequestsOnOpen)
+Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 10 (RequestsOnOpen; the later steps moved down one)
 Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
 Private Const OP_TABLE As String = "tblOpens"
 Private Const OP_N As Long = 7

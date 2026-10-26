@@ -132,7 +132,8 @@ Public Function EnsureRequestFolder() As Boolean
     EnsureRequestFolder = FolderExists(p)
 End Function
 
-' ---- the open step (Workbook_Open 14): an admin's open of the live roster folds the new files in; never raises ----
+' ---- the open step (Workbook_Open 10, before the Desk lands): an admin's open of the live roster folds the new files in;
+'      nothing is archived (an open never saves); never raises ----
 Public Sub RequestsOnOpen()
     On Error Resume Next                            ' never raises
     If Not REQUESTS_ON Then Exit Sub
@@ -165,6 +166,7 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
     If Not EnsureRequestFolder() Then Exit Function
     Dim lo As ListObject: Set lo = RequestsTable(True)
     If lo Is Nothing Then Exit Function
+    On Error GoTo Oops                              ' (review) the sheet is re-protected and the error logged, then raised to the caller
     ' 1. the files, grouped by their own id
     Dim files() As String, nF As Long, f As String
     On Error Resume Next
@@ -177,25 +179,23 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
     Loop
     On Error GoTo 0
     Dim byId As Object: Set byId = CreateObject("Scripting.Dictionary"): byId.CompareMode = 1    ' id -> the request facts (a String())
-    Dim agreeOf As Object: Set agreeOf = CreateObject("Scripting.Dictionary"): agreeOf.CompareMode = 1   ' id -> "login|stamp" of the agree
+    Dim agreeOf As Object: Set agreeOf = CreateObject("Scripting.Dictionary"): agreeOf.CompareMode = 1   ' id -> every agree as "login|stamp;login|stamp" (the requester's own is set aside below)
     Dim refusedOf As Object: Set refusedOf = CreateObject("Scripting.Dictionary"): refusedOf.CompareMode = 1
     Dim withdrawnOf As Object: Set withdrawnOf = CreateObject("Scripting.Dictionary"): withdrawnOf.CompareMode = 1
-    Dim filesOf As Object: Set filesOf = CreateObject("Scripting.Dictionary"): filesOf.CompareMode = 1   ' id -> "file;file"
     Dim i As Long, fx() As String, rid As String, why As String
     For i = 1 To nF
         If RequestFileRead(folder & files(i), fx) Then
             rid = fx(RF_REQUEST)
             If rid <> "" Then
-                filesOf(rid) = SafeStr(filesOf(rid)) & IIf(SafeStr(filesOf(rid)) = "", "", ";") & files(i)
                 why = RequestCheckCore(fx(RF_KIND), fx(RF_EMP), fx(RF_FROM), fx(RF_TO), fx(RF_SHIFT), fx(RF_PARTNER), fx(RF_ACTION))
                 If why = "" Then
                     Select Case fx(RF_ACTION)
                         Case "request"
                             If Not byId.Exists(rid) Then byId.Add rid, fx
                         Case "agree"
-                            agreeOf(rid) = fx(RF_LOGIN) & "|" & fx(RF_STAMP)
+                            agreeOf(rid) = SafeStr(agreeOf(rid)) & IIf(SafeStr(agreeOf(rid)) = "", "", ";") & fx(RF_LOGIN) & "|" & fx(RF_STAMP)
                         Case "refuse"
-                            refusedOf(rid) = True
+                            refusedOf(rid) = fx(RF_LOGIN)
                         Case "withdraw"
                             withdrawnOf(rid) = fx(RF_LOGIN)
                     End Select
@@ -213,13 +213,18 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
     End If
     UnlockSheet lo.Parent
     Dim kk As Variant, r As Long, st As String, agreeLogin As String, agreeAt As Date, reqLogin As String, kind As String
-    Dim toD As Date, fromD As Date, ended As Boolean, newRows As Long
+    Dim toD As Date, fromD As Date, newRows As Long
     ' 2a. new requests -> new rows
     For Each kk In byId.Keys
         If Not rowIdx.Exists(CStr(kk)) Then
             fx = byId(kk)
             IsoDate fx(RF_FROM), fromD: IsoDate fx(RF_TO), toD
-            Dim newRow As ListRow: Set newRow = lo.ListRows.Add
+            Dim newRow As ListRow
+            If lo.ListRows.Count = 1 And Application.WorksheetFunction.CountA(lo.DataBodyRange) = 0 Then
+                Set newRow = lo.ListRows(1)                      ' the blank row a new table is made with (as OpensOnOpen)
+            Else
+                Set newRow = lo.ListRows.Add
+            End If
             r = newRow.Index
             With lo.DataBodyRange
                 .Cells(r, RQ_ID).Value = NextRequestId()
@@ -247,40 +252,75 @@ Public Function ReadRequests(ByVal byHand As Boolean) As Long
             If SafeStr(v(i, RQ_FILE)) <> "" Then rowIdx(SafeStr(v(i, RQ_FILE))) = i
         Next i
     End If
-    ' 2b. every row still open: the status from the files (agree / refuse / withdraw) and the calendar (expired)
-    Dim nWaiting As Long
+    ' 2b. every row still OPEN (Waiting / Waiting for partner / blank): the status from the files (agree / refuse /
+    '     withdraw) and the calendar (expired). Booked, Declined, Declined by partner, Withdrawn and Expired are final
+    '     (review: a final row was recomputed once its files were archived and came back as Waiting)
+    Dim nWaiting As Long, agreeAll As Variant, aj As Long, aParts As Variant, wd As Boolean, rf As Boolean
     If IsArray(v) Then
         For i = 1 To UBound(v, 1)
             rid = SafeStr(v(i, RQ_FILE))
             st = SafeStr(v(i, RQ_STATUS))
-            If st <> RQ_ST_BOOKED And st <> RQ_ST_DECLINED And rid <> "" Then
+            If (st = RQ_ST_WAITING Or st = RQ_ST_PARTNER Or st = "") And rid <> "" Then
                 kind = SafeStr(v(i, RQ_KIND)): reqLogin = SafeStr(v(i, RQ_LOGIN))
                 agreeLogin = "": agreeAt = 0
-                If agreeOf.Exists(rid) Then
-                    agreeLogin = Split(CStr(agreeOf(rid)) & "|", "|")(0)
-                    agreeAt = StampValue(Split(CStr(agreeOf(rid)) & "|", "|")(1))
-                ElseIf SafeStr(v(i, RQ_PLOGIN)) <> "" Then
-                    agreeLogin = SafeStr(v(i, RQ_PLOGIN))                  ' agreed on an earlier read (its file already archived)
+                If SafeStr(v(i, RQ_PLOGIN)) <> "" Then agreeLogin = SafeStr(v(i, RQ_PLOGIN))        ' agreed on an earlier read
+                If agreeLogin = "" And agreeOf.Exists(rid) Then
+                    agreeAll = Split(CStr(agreeOf(rid)), ";")                                        ' the first agree from a login OTHER than the requester's counts
+                    For aj = 0 To UBound(agreeAll)
+                        aParts = Split(CStr(agreeAll(aj)) & "|", "|")
+                        If StrComp(Trim$(CStr(aParts(0))), Trim$(reqLogin), vbTextCompare) <> 0 And Trim$(CStr(aParts(0))) <> "" Then
+                            agreeLogin = CStr(aParts(0)): agreeAt = StampValue(CStr(aParts(1)))
+                            Exit For
+                        End If
+                    Next aj
                 End If
+                wd = False: rf = False
+                If withdrawnOf.Exists(rid) Then wd = (StrComp(CStr(withdrawnOf(rid)), reqLogin, vbTextCompare) = 0)   ' only the login that asked
+                If refusedOf.Exists(rid) Then rf = (StrComp(CStr(refusedOf(rid)), reqLogin, vbTextCompare) <> 0)      ' the partner, not the requester
                 toD = 0
                 If IsDate(v(i, RQ_TO)) Then toD = CDate(v(i, RQ_TO))
-                st = RequestStatusCore(kind, agreeLogin, reqLogin, refusedOf.Exists(rid), withdrawnOf.Exists(rid), "", _
-                                       Format$(toD, "yyyy-mm-dd"), Format$(Date, "yyyy-mm-dd"))
+                st = RequestStatusCore(kind, agreeLogin, reqLogin, rf, wd, "", Format$(toD, "yyyy-mm-dd"), Format$(Date, "yyyy-mm-dd"))
                 If st <> SafeStr(v(i, RQ_STATUS)) Then lo.DataBodyRange.Cells(i, RQ_STATUS).Value = st
                 If agreeLogin <> "" And SafeStr(v(i, RQ_PLOGIN)) = "" Then
                     lo.DataBodyRange.Cells(i, RQ_PLOGIN).Value = agreeLogin
                     If agreeAt > 0 Then lo.DataBodyRange.Cells(i, RQ_AGREED).Value = agreeAt
                 End If
             End If
-            ended = (st = RQ_ST_BOOKED Or st = RQ_ST_DECLINED Or st = RQ_ST_REFUSED Or st = RQ_ST_WITHDRAWN Or st = RQ_ST_EXPIRED)
-            If ended And filesOf.Exists(rid) Then ArchiveRequestFiles folder, CStr(filesOf(rid))
             If st = RQ_ST_WAITING Then nWaiting = nWaiting + 1
         Next i
     End If
     ProtectSheet lo.Parent
-    If byHand Then SaveIfWritable
+    ' (review) the files of an ended request leave the folder only once the table that says so is SAVED: an open
+    ' never saves, so it archives nothing (the next read redoes the same work); the by-hand read saves, then archives
+    If byHand Then
+        If SaveIfWritable() Then ArchiveEndedRequests
+    End If
     ReadRequests = nWaiting
+    Exit Function
+Oops:
+    Dim en As Long, em As String: en = Err.Number: em = Err.Description
+    On Error Resume Next
+    ProtectSheet lo.Parent
+    LogError "ReadRequests", en, em
+    Err.Raise en, , em
 End Function
+
+' every ended request's files -> done\, called only after a SAVE went through (never raises)
+Public Sub ArchiveEndedRequests()
+    On Error Resume Next                            ' never raises
+    Dim folder As String: folder = RequestFolderPath()
+    If folder = "" Then Exit Sub
+    If Not FolderExists(folder & "done\") Then Exit Sub
+    Dim v As Variant: v = RequestRows()
+    If Not IsArray(v) Then Exit Sub
+    Dim i As Long, st As String
+    For i = 1 To UBound(v, 1)
+        st = SafeStr(v(i, RQ_STATUS))
+        If st = RQ_ST_BOOKED Or st = RQ_ST_DECLINED Or st = RQ_ST_REFUSED Or st = RQ_ST_WITHDRAWN Or st = RQ_ST_EXPIRED Then
+            If SafeStr(v(i, RQ_FILE)) <> "" Then ArchiveRequestFiles folder, RequestFilesNamed(folder, SafeStr(v(i, RQ_FILE)))
+        End If
+    Next i
+End Sub
 
 ' the files of an ended request -> done\ (never raises; a file still open elsewhere stays and is skipped next time)
 Private Sub ArchiveRequestFiles(ByVal folder As String, ByVal fileList As String)
@@ -463,14 +503,18 @@ Public Sub RequestAct(ByVal id As String, ByVal decline As Boolean)
     If decline Then
         Dim why As String
         why = AskRequired("Decline " & id & " (" & CalName(emp) & ": " & RequestLineText(v, r) & ")?" & vbNewLine & vbNewLine & _
-                          "The reason below goes to the member in the members' file (no leave words).", "Decline a request")
+                          "The reason below is published in the members' file, where every member can read it: no leave words, no phone numbers or emails.", "Decline a request")
         If why = "" Then Exit Sub
         If LeaveWordsIn(why) <> "" Then
             MsgBox "The reason holds a leave word (" & LeaveWordsIn(why) & ") and would reach every member. Word it another way.", vbExclamation, "Decline a request"
             Exit Sub
         End If
+        If PrivateValueKind(why) <> "" Then          ' (review MED-4) a phone-like number or an address would refuse every publish for 60 days
+            MsgBox "The reason looks like it holds " & PrivateValueKind(why) & ", which the members' file never carries. Word it another way.", vbExclamation, "Decline a request"
+            Exit Sub
+        End If
         MarkDecided id, RQ_ST_DECLINED, why, ""
-        SaveIfWritable
+        If SaveIfWritable() Then ArchiveEndedRequests
         ShowReceiptNow id & " declined", _
                        "  " & id & "  " & SafeStr(v(r, RQ_KIND)) & "  " & emp & "  " & RequestLineText(v, r) & vbNewLine, _
                        "  Nothing on the roster changed." & vbNewLine, _
@@ -498,12 +542,29 @@ Oops:
     ReportError "RequestAct"
 End Sub
 
-' the pop-ups call this after a save: the request a prefilled pop-up was booking becomes Booked with that ref
-Public Sub RequestBooked(ByVal ref As String)
+' the pop-ups call this after a save: the request a prefilled pop-up was booking becomes Booked with that ref - ONLY
+' when what was saved is that request (the same person and date, and for a switch the same partner working it; review
+' MED-1: an admin may save something else from the prefilled pop-up); then the file is saved and the files archived
+Public Sub RequestBooked(ByVal ref As String, ByVal emp As String, ByVal d As Date, ByVal worksName As String)
     On Error Resume Next                            ' never raises (the booking itself is saved; this is the bookkeeping)
     If gRequestId = "" Then Exit Sub
-    MarkDecided gRequestId, RQ_ST_BOOKED, "", ref
+    Dim id As String: id = gRequestId
     gRequestId = ""
+    Dim v As Variant: v = RequestRows()
+    If Not IsArray(v) Then Exit Sub
+    Dim r As Long: r = RowOf(v, id)
+    If r = 0 Then Exit Sub
+    Dim same As Boolean
+    same = (StrComp(Trim$(SafeStr(v(r, RQ_EMP))), Trim$(emp), vbTextCompare) = 0)
+    If same And IsDate(v(r, RQ_FROM)) Then same = (Int(CDate(v(r, RQ_FROM))) = Int(d))
+    If same And SafeStr(v(r, RQ_KIND)) = "Switch" Then same = (StrComp(Trim$(SafeStr(v(r, RQ_PARTNER))), Trim$(worksName), vbTextCompare) = 0)
+    If Not same Then
+        Tell id & " stays waiting: what you saved (" & emp & ", " & Format$(d, "ddd mmm d") & IIf(worksName <> "", ", " & worksName & " works", "") & _
+             ") is not that request. Book it from Needs Attention again, or decline it.", vbExclamation, "Members' requests"
+        Exit Sub
+    End If
+    MarkDecided id, RQ_ST_BOOKED, "", ref
+    If SaveIfWritable() Then ArchiveEndedRequests
 End Sub
 
 Private Sub MarkDecided(ByVal id As String, ByVal status As String, ByVal answer As String, ByVal ref As String)
@@ -521,8 +582,6 @@ Private Sub MarkDecided(ByVal id As String, ByVal status As String, ByVal answer
         If ref <> "" Then .Cells(r, RQ_REF).Value = ref
     End With
     ProtectSheet lo.Parent
-    Dim folder As String: folder = RequestFolderPath()
-    If folder <> "" And SafeStr(v(r, RQ_FILE)) <> "" Then ArchiveRequestFiles folder, RequestFilesNamed(folder, SafeStr(v(r, RQ_FILE)))
 End Sub
 
 ' the folder's files carrying this request's id in their name (";"-joined)

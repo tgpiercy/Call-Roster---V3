@@ -209,7 +209,7 @@ Private Sub UserForm_Initialize()
     o.Text = Format$(Date, "mmm d, yyyy")
     AddLabel "aLPay", "Payroll #", BOX_L + 122, RowT(5) + 3, 56, "A"          ' v28 (item 2): typed at Add; the Kronos import confirms it
     AddText "aPay", BOX_L + 182, RowT(5), 80, "A"
-    AddLabel "aHPay", "Kronos' digits; blank until known", BOX_L + 268, RowT(5) + 3, 180, "A"
+    AddLabel "aHPay", "blank until known", BOX_L + 268, RowT(5) + 3, 90, "A"
 
     ' ---- Move to unit ----
     AddLabel "mLEmp", "Employee", LBL_L, RowT(1) + 3, 110, "M"
@@ -548,7 +548,9 @@ Private Sub SaveEdit()
     ' v28 (item 2): the Payroll # - digits only, not on another row
     Dim payTxt As String: payTxt = Trim$(C("ePay").Text)
     If PayrollValid(payTxt) <> "" Then MsgBox "Payroll #: " & PayrollValid(payTxt) & ".", vbExclamation, "Edit employee": Exit Sub
-    If payTxt <> "" And PayrollTaken(payTxt, emp) Then MsgBox "Payroll # " & payTxt & " is already on another roster row.", vbExclamation, "Edit employee": Exit Sub
+    If payTxt <> "" And payTxt <> mEdPay Then
+        If PayrollTaken(payTxt, emp) Then MsgBox "Payroll # " & payTxt & " is already another person's (on the roster or the Former sheet).", vbExclamation, "Edit employee": Exit Sub
+    End If
     If payTxt <> mEdPay Then what = what & "- payroll #: " & IIf(mEdPay = "", "(none)", mEdPay) & " -> " & IIf(payTxt = "", "(cleared)", payTxt) & vbNewLine
     sen = ""
     If Trim$(C("eSen").Text) <> "" And Trim$(C("eSen").Text) <> mEdSen Then     ' unchanged text (even a text value the roster holds) is left alone
@@ -629,7 +631,7 @@ Private Sub SaveAdd()
     ' v28 (item 2): the Payroll # - digits only, not on another row (blank until known: the Kronos import fills it)
     Dim payAdd As String: payAdd = Trim$(C("aPay").Text)
     If PayrollValid(payAdd) <> "" Then MsgBox "Payroll #: " & PayrollValid(payAdd) & ".", vbExclamation, "Add employee": Exit Sub
-    If payAdd <> "" And PayrollTaken(payAdd, nm) Then MsgBox "Payroll # " & payAdd & " is already on a roster row.", vbExclamation, "Add employee": Exit Sub
+    If payAdd <> "" And PayrollTaken(payAdd, nm) Then MsgBox "Payroll # " & payAdd & " is already another person's (on the roster or the Former sheet).", vbExclamation, "Add employee": Exit Sub
     Dim msg As String
     msg = "Add " & nm & "?" & vbNewLine & vbNewLine & _
           "Crew " & C("aCrew").Text & "   |   " & C("aUnit").Text & " " & Trim$(C("aCode").Text) & vbNewLine & _

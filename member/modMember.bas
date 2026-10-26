@@ -70,13 +70,13 @@ Private Const CAL_UNIT As String = "G2"            ' a calendar group (the maste
 Private Const HIST_NAME As String = "B2"
 Private Const HOME_FIND As String = "C6"          ' M4: me first - the name sits at the top
 Private Const POST_PICK As String = "C2"           ' Postings: "show the list for"
-Private Const REQ_KIND As String = "C3"            ' M5: the request's typed cells (their labels sit one column left)
-Private Const REQ_FROM As String = "E3"
-Private Const REQ_TO As String = "G3"
-Private Const REQ_SHIFT As String = "C4"
-Private Const REQ_PARTNER As String = "E4"
-Private Const REQ_NOTE As String = "C5"
-Private Const REQ_FIRST_ROW As Long = 8            ' M5: the lists start here (rows 3-6 are the ask)
+Private Const REQ_KIND As String = "C4"            ' M5: the request's typed cells (their labels sit one column left)
+Private Const REQ_FROM As String = "E4"
+Private Const REQ_TO As String = "G4"
+Private Const REQ_SHIFT As String = "C5"
+Private Const REQ_PARTNER As String = "E5"
+Private Const REQ_NOTE As String = "C6"
+Private Const REQ_FIRST_ROW As Long = 9            ' M5: the lists start here (rows 4-7 are the ask; row 3 the subtitle)
 Private Const CARD_ROW As Long = 21                ' Home: the rest of the card starts here, under the tiles (rows 7-12) and the buttons (14-20)
 Private Const CAL_COLW As Double = 17              ' calendar: width of each half of a day
 Private Const CAL_MAX_LINES As Long = 6            ' calendar: lines shown per day half; the rest become "... and N more"
@@ -87,6 +87,33 @@ Private mDrawing As Boolean
 Private mViewErr As String                         ' M2.1: a view that failed to draw says so here (its own handler ends quietly)
 Private mLoadNote As String                        ' M2.1: the note MemberRefreshAll left on Home ("" = none)
 Private mSeen As Object                            ' M4: "since you last looked", worked out once a session per name (name -> line)
+
+
+' M5 (v28 item 1): the Requests page's constants (declared here, above the first procedure)
+Private Const RQ_TTL As String = "Members' requests"
+' dRequests, as the master publishes it (the contract test ties these to modRequests.PublishRequestsTable)
+Private Const DQ_EMP As Long = 1
+Private Const DQ_KIND As Long = 2
+Private Const DQ_FROM As Long = 3
+Private Const DQ_TO As Long = 4
+Private Const DQ_SHIFT As Long = 5
+Private Const DQ_PARTNER As Long = 6
+Private Const DQ_STATUS As Long = 7
+Private Const DQ_ANSWER As Long = 8
+Private Const DQ_DECIDED As Long = 9
+' a request file read back (ReadRequestFolder rows)
+Private Const FQ_ID As Long = 1
+Private Const FQ_ACTION As Long = 2
+Private Const FQ_KIND As Long = 3
+Private Const FQ_EMP As Long = 4
+Private Const FQ_FROM As Long = 5
+Private Const FQ_TO As Long = 6
+Private Const FQ_SHIFT As Long = 7
+Private Const FQ_PARTNER As Long = 8
+Private Const FQ_NOTE As Long = 9
+Private Const FQ_LOGIN As Long = 10
+Private Const FQ_STAMP As Long = 11
+Private Const FQ_N As Long = 11
 
 
 ' ====================================================================
@@ -211,6 +238,13 @@ Private Sub BlankViews()
             ProtectWs ws
         End If
     Next nm
+    Set ws = WsOf(SH_REQ)                            ' M5: the lists under the ask
+    If Not ws Is Nothing Then
+        UnprotectWs ws
+        ClearBelow ws, REQ_FIRST_ROW - 1
+        ws.Cells(REQ_FIRST_ROW, 1).Value = "Not available - see the note on the Home sheet."
+        ProtectWs ws
+    End If
     Set ws = WsOf(SH_HOME)
     If Not ws Is Nothing Then
         UnprotectWs ws
@@ -903,6 +937,7 @@ Private Sub ApplyMe(ByVal nm As String, ByVal stayOn As String)
     MemberShowCalendar
     DrawHistory nm
     MemberShowPostings
+    MemberShowRequests                               ' M5 (review): the Requests page follows the picked name
     DrawHomeCard
     If nm <> "" And stayOn = SH_HOME Then RememberMe nm     ' M4: the next open starts on this name (review: Home's Find me only, not a colleague looked up on the Roster)
 Done:
@@ -2588,7 +2623,7 @@ Public Sub MemberGoNext(): WsOf(SH_NEXT).Activate: End Sub
 Public Sub MemberGoCalendar(): WsOf(SH_CAL).Activate: End Sub
 Public Sub MemberGoPostings(): WsOf(SH_POST).Activate: End Sub
 Public Sub MemberGoHistory(): WsOf(SH_HIST).Activate: End Sub
-Public Sub MemberGoRequests(): WsOf(SH_REQ).Activate: End Sub     ' M5
+Public Sub MemberGoRequests(): MemberShowRequests: WsOf(SH_REQ).Activate: End Sub     ' M5 (redrawn when opened: the folder may have changed)
 
 Public Sub MemberOnOpen()
     On Error Resume Next
@@ -2730,7 +2765,7 @@ Private Sub DrawHelp()
     HelpPara ws, r, "~ and *", "~ = the hours someone will have after a planned unit move (used for their place only). * = the total includes overtime accepted but not yet in Kronos."
     HelpPara ws, r, "Sign-ups", "Sign me up drops a request for the supervisors' roster; the supervisor confirms it when the posting is awarded. The posted paper sheet still counts. A sign-up for part of the shift is awarded only when nobody takes the whole shift."
     HelpPara ws, r, "Who is free", "Not free: scheduled on that shift, coming off nights that morning or starting days the next morning (the rest rule), booked off, on a shift switch, inside the 24 h after a sick shift, or when the 16 h rule leaves nothing (no more than 16 h of work in a row, and 11 h rest before the next work)."
-    HelpPara ws, r, "Asking for time off or a switch", "The Requests page sends a request to the supervisors' roster: time off between two dates, or a shift switch on one date with the partner who would work it. A switch waits until that partner clicks Agree on their own PC. An admin then books it through the roster's own rules or declines it with a reason; the answer shows under My requests after the next update. A request books nothing by itself, and your note is read by the admin only."
+    HelpPara ws, r, "Asking for time off or a switch", "The Requests page sends a request to the supervisors' roster: time off between two dates, or a shift switch on one date with the partner who would work it. A switch waits until that partner clicks Agree on their own PC. An admin then books it through the roster's own rules or declines it with a reason; the answer shows under My requests after the next update. A request books nothing by itself; your note is read by the admin (the Requests folder beside this file is shared, like Signups)."
     HelpPara ws, r, "The calendar", Txt(Meta("Legend calendar"))
     HelpPara ws, r, "The log and the lists", Txt(Meta("Legend log"))
     ws.Cells(r + 1, 1).Value = IIf(HasData(), "As published " & Format$(Dt(Meta("Published at")), "ddd mmm d, h:mm AM/PM") & ".  " & Txt(Meta("Trust strip")), "Not published yet.")     ' (review) the template has no date
@@ -2757,30 +2792,8 @@ End Sub
 '  sent request shows as waiting before the roster has published its answer. No rule lives here: the admin books
 '  through the roster's own pop-ups.
 ' ====================================================================
-Private Const RQ_TTL As String = "Members' requests"
-' dRequests, as the master publishes it (the contract test ties these to modRequests.PublishRequestsTable)
-Private Const DQ_EMP As Long = 1
-Private Const DQ_KIND As Long = 2
-Private Const DQ_FROM As Long = 3
-Private Const DQ_TO As Long = 4
-Private Const DQ_SHIFT As Long = 5
-Private Const DQ_PARTNER As Long = 6
-Private Const DQ_STATUS As Long = 7
-Private Const DQ_ANSWER As Long = 8
-Private Const DQ_DECIDED As Long = 9
-' a request file read back (ReadRequestFolder rows)
-Private Const FQ_ID As Long = 1
-Private Const FQ_ACTION As Long = 2
-Private Const FQ_KIND As Long = 3
-Private Const FQ_EMP As Long = 4
-Private Const FQ_FROM As Long = 5
-Private Const FQ_TO As Long = 6
-Private Const FQ_SHIFT As Long = 7
-Private Const FQ_PARTNER As Long = 8
-Private Const FQ_NOTE As Long = 9
-Private Const FQ_LOGIN As Long = 10
-Private Const FQ_STAMP As Long = 11
-Private Const FQ_N As Long = 11
+' (the M5 constants - RQ_TTL, DQ_*, FQ_* - sit in the declarations section at the top of the module: a module-level
+'  Const after the first procedure does not compile - review v28)
 
 Private Function RequestsOn() As Boolean
     RequestsOn = (LCase$(Txt(Meta("Requests"))) = "on")
@@ -2821,20 +2834,21 @@ Private Sub LayoutRequests()
     ws.Columns("I").ColumnWidth = 16
     ws.Columns("J").ColumnWidth = 10
     ws.Columns("K").ColumnWidth = 10
-    ws.Rows(3).RowHeight = 20: ws.Rows(4).RowHeight = 20: ws.Rows(5).RowHeight = 20
+    ws.Rows(4).RowHeight = 20: ws.Rows(5).RowHeight = 20: ws.Rows(6).RowHeight = 20
     Picker ws, REQ_KIND, "", "Kind:"
     Picker ws, REQ_FROM, "", "From:"
     Picker ws, REQ_TO, "", "To:"
     Picker ws, REQ_SHIFT, "", "Shift:"
     Picker ws, REQ_PARTNER, "", "Partner:"
     Picker ws, REQ_NOTE, "", "Note:"
-    ws.Range("C5:G5").Merge
-    With ws.Range("A6")
+    ws.Range("C6:G6").Merge
+    ws.Range("C6").MergeArea.Locked = False          ' (review) Picker unlocked C6 alone; the merged note cell as a whole
+    With ws.Range("A7")
         .Value = "Dates like Nov 3, Nov 3 2026 or 2026-11-03; To blank = the one day. A switch is ONE shift: pick Days or Nights and the partner who would work it - they click Agree on their PC before the roster sees it. No leave words in the note."
         .Font.Size = 8: .Font.Italic = True: .Font.Color = RGB(100, 100, 100)
     End With
-    ws.Range("A6:K6").Merge: ws.Range("A6").WrapText = True: ws.Rows(6).RowHeight = 26
-    Btn ws, "mb_rq_send", "SEND REQUEST", "MemberSendRequest", ws.Range("I3").Left, ws.Range("I3").Top, 120, 44, GREEN, vbWhite
+    ws.Range("A7:K7").Merge: ws.Range("A7").WrapText = True: ws.Rows(7).RowHeight = 26
+    Btn ws, "mb_rq_send", "SEND REQUEST", "MemberSendRequest", ws.Range("I4").Left, ws.Range("I4").Top, 120, 44, GREEN, vbWhite
     ProtectWs ws
 End Sub
 
@@ -2989,7 +3003,7 @@ Public Sub MemberShowRequests()
     ' ---- 1. asked of me: switch requests naming me as the partner, still waiting for my answer ----
     SectionBar ws, r, "ASKED OF " & UCase$(who) & "  -  switches where you would work the shift (Agree, or No)"
     r = r + 1
-    Header ws, r, Array("Asked by", "Shift date", "Shift", "Their note", "", "", "", "", "", "", "")
+    Header ws, r, Array("Asked by", "Shift date", "Shift", "", "", "", "", "", "", "", "")
     r = r + 1
     Dim nAsked As Long, dF As Date
     If IsArray(fv) Then
@@ -3003,7 +3017,6 @@ Public Sub MemberShowRequests()
                             ws.Cells(r, 1).Value = Txt(fv(i, FQ_EMP))
                             ws.Cells(r, 2).Value = dF: ws.Cells(r, 2).NumberFormat = "ddd mmm d"
                             ws.Cells(r, 3).Value = Txt(fv(i, FQ_SHIFT))
-                            ws.Cells(r, 4).Value = Left$(Txt(fv(i, FQ_NOTE)), 80)
                             ws.Rows(r).RowHeight = 19
                             nBtn = nBtn + 1
                             Btn ws, "mb_rqb" & nBtn, "Agree", "'MemberAgreeRequest """ & Txt(fv(i, FQ_ID)) & """'", _
@@ -3094,7 +3107,7 @@ Public Sub MemberShowRequests()
         r = r + 1
     End If
     ws.Cells(r + 1, 1).Value = "A request books nothing by itself: an admin books it through the roster's own rules, or declines it with a reason. " & _
-                               "Statuses: Sent / Waiting for partner / Waiting (for an admin) / Booked / Declined / Withdrawn / Expired. Your note is read by the admin only."
+                               "Statuses: Sent / Waiting for partner / Waiting (for an admin) / Booked / Declined / Withdrawn / Expired. Your note is read by the admin (the Requests folder beside this file is shared, like Signups)."
     ws.Cells(r + 1, 1).Font.Size = 8: ws.Cells(r + 1, 1).Font.Italic = True: ws.Cells(r + 1, 1).Font.Color = RGB(100, 100, 100)
 Finish:
     If Err.Number <> 0 Then mViewErr = "the Requests: " & Err.Description
@@ -3138,9 +3151,9 @@ Private Function ReadTypedDay(ByVal s As String, ByRef d As Date) As Boolean
     Else
         parts = Split(s, " ")
         If UBound(parts) < 1 Or UBound(parts) > 2 Then Exit Function
-        p = InStr(mons, LCase$(Left$(CStr(parts(0)), 3)))
-        If p = 0 Or Len(CStr(parts(0))) < 3 Then
-            p = InStr(mons, LCase$(Left$(CStr(parts(1)), 3)))     ' "3 Nov"
+        p = MonthPos(CStr(parts(0)))
+        If p = 0 Then
+            p = MonthPos(CStr(parts(1)))                           ' "3 Nov"
             If p = 0 Or Not IsNumeric(parts(0)) Then Exit Function
             dd = CLng(Val(parts(0)))
         Else
@@ -3163,6 +3176,15 @@ Private Function ReadTypedDay(ByVal s As String, ByRef d As Date) As Boolean
         d = DateSerial(y, m, dd)
     End If
     ReadTypedDay = (Day(d) = dd)
+End Function
+
+' a month name's place in "janfeb..." (1, 4, 7 ...; 0 = not a month) - on a 3-letter boundary, so "Rap" is not March
+Private Function MonthPos(ByVal word As String) As Long
+    If Len(word) < 3 Then Exit Function
+    Dim p As Long: p = InStr("janfebmaraprmayjunjulaugsepoctnovdec", LCase$(Left$(word, 3)))
+    If p > 0 Then
+        If (p - 1) Mod 3 = 0 Then MonthPos = p
+    End If
 End Function
 
 ' the roster's leave words, as the master screens them (LeaveWordsIn): a note holding one is never sent
@@ -3191,6 +3213,7 @@ Private Function ReachableRequestFolder() As String
 End Function
 
 Public Sub MemberSendRequest()
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then MsgBox "This file did not load fully (see the note on Home), so nothing was sent. Ask your supervisor the usual way.", vbExclamation, RQ_TTL: Exit Sub
     Dim who As String: who = WhoAmI()
     If who = "" Then MsgBox "Pick your name in Find me on the Home sheet first.", vbInformation, RQ_TTL: Exit Sub
     Dim rv As Variant: rv = Data("dRoster")
@@ -3293,6 +3316,10 @@ Private Sub AnswerRequest(ByVal rid As String, ByVal action As String)
                       "Say no to " & emp & "'s switch?" & vbNewLine & what)
         Case "withdraw"
             If StrComp(emp, who, vbTextCompare) <> 0 Then MsgBox "Only " & emp & " can withdraw this request.", vbExclamation, RQ_TTL: Exit Sub
+            If StrComp(Txt(fv(k, FQ_LOGIN)), Environ$("USERNAME"), vbTextCompare) <> 0 Then
+                MsgBox "This request was sent from the PC login " & Txt(fv(k, FQ_LOGIN)) & "; withdraw it from that login (the roster counts no other).", vbExclamation, RQ_TTL
+                Exit Sub
+            End If
             askTxt = "Withdraw your request?" & vbNewLine & what & vbNewLine & vbNewLine & "If the roster has already booked it, tell your supervisor."
     End Select
     If MsgBox(askTxt & vbNewLine & vbNewLine & "Sent with this PC's login (" & Environ$("USERNAME") & ").", vbOKCancel + vbQuestion, RQ_TTL) <> vbOK Then Exit Sub

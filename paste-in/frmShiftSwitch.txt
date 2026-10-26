@@ -205,7 +205,13 @@ Public Sub Prefill(ByVal offName As String, ByVal worksName As String, ByVal d A
     RefillWorks
     mWorks.Value = worksName
     C("txtNote").Text = "Members' request " & requestId & " (the partner agreed in the members' file)"
-    C("status").Caption = "From " & requestId & ": " & offName & " gives up, " & worksName & " works " & shiftLbl & ". Check both names and the shift, then Save."
+    If mWorks.ListIndex < 0 Then
+        C("status").Caption = "From " & requestId & ": " & worksName & " isn't offered for this shift (not signed off in the unit, or not free) - it can't be booked as asked. Decline it from Needs Attention, or pick what works."
+    ElseIf mOff.ListIndex < 0 Then
+        C("status").Caption = "From " & requestId & ": " & offName & " isn't on the lists for this date and unit - check the date and unit, or decline it."
+    Else
+        C("status").Caption = "From " & requestId & ": " & offName & " gives up, " & worksName & " works " & shiftLbl & ". Check both names and the shift, then Save."
+    End If
     Me.Caption = "Shift Switch - from " & requestId
     On Error GoTo 0
 End Sub
@@ -643,7 +649,7 @@ Private Sub mSave_Click()
     Dim offNm As String, worksNm As String: offNm = mOff.Text: worksNm = mWorks.Text   ' (review M1) the boxes are cleared below, the receipt reads these
     id = SaveSwitch(d, mShift.Text, C("cboUnit").Text, mOff.Text, mWorks.Text, payFor, Trim$(C("txtNote").Text))
     If id = "" Then Exit Sub
-    RequestBooked id                     ' v28 (item 1): a member's request this pop-up was opened for is Booked with this id
+    RequestBooked id, offNm, d, worksNm  ' v28 (item 1): a member's request this pop-up was opened for is Booked with this id - when this IS it
     If twoWay Then
         id2 = SaveSwitch(d2, sh2, C("cboUnit").Text, mWorks.Text, mOff.Text, id, Trim$(C("txtNote").Text))
         If id2 = "" Then MsgBox "The switch was saved (" & id & ") but its payback wasn't - it stays on the owed list.", vbExclamation, "Call Out Roster"

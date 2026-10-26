@@ -126,3 +126,43 @@ def test_an_iif_that_uses_what_it_guards_is_a_problem(tmp_path):
     hits = [ln for ln in out.splitlines() if "IIf guards" in ln]
     assert len(hits) == 2, out
 
+
+
+# ---- v28 (review): a one-line Sub closes on its own line, so the declaration rule reaches the rest of the file ----
+ONELINER_THEN_CONST = """Attribute VB_Name = "modFixture"
+Option Explicit
+
+Public Sub GoHome(): ActiveSheet.Range("A1").Select: End Sub
+
+Private Const LATE As Long = 1
+
+Private Sub Second()
+    Dim x As Long
+    x = LATE
+End Sub
+"""
+
+ONELINER_CLEAN = """Attribute VB_Name = "modFixture"
+Option Explicit
+
+Private Const EARLY As Long = 1
+
+Public Sub GoHome(): ActiveSheet.Range("A1").Select: End Sub
+Public Function Two() As Long: Two = EARLY + 1: End Function
+
+Private Sub Second()
+    Dim x As Long
+    x = Two()
+End Sub
+"""
+
+
+def test_a_one_line_sub_does_not_hide_a_late_declaration(tmp_path):
+    out = run(tmp_path, ONELINER_THEN_CONST)
+    assert "module-level declaration" in out and "LATE" in out, out
+    assert "unclosed" not in out, out
+
+
+def test_one_line_procedures_are_clean(tmp_path):
+    out = run(tmp_path, ONELINER_CLEAN)
+    assert "OK" in out and "problem" not in out, out

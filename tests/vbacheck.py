@@ -123,8 +123,13 @@ for f in files:
         else:
             if tok in ("sub", "function", "property") and not low.startswith("exit ") and not low.startswith("end "):
                 if "declare " not in low:
-                    stack.append((tok, n))
                     seen_proc = True
+                    # v28 (review): a one-line `Sub X(): ...: End Sub` opens and closes on its own line - it must not stay on
+                    # the stack, or every later rule that needs an empty stack (the declaration-after-a-procedure check) goes
+                    # blind for the rest of the file (24 Consts after HelpPara in modMember were missed that way)
+                    if re.search(r":\s*end\s+" + re.escape(tok) + r"\s*$", low):
+                        continue
+                    stack.append((tok, n))
                     nm = re.search(r"(sub|function|property\s+(get|let|set))\s+(\w+)", low)
                     if nm:
                         name = nm.group(3)

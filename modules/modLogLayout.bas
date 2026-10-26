@@ -102,6 +102,8 @@ Public Sub UpgradeOTLogLayout()
     lo.ListColumns("Entry ID").Delete
     lo.ListColumns("EntryID_new").Name = "Entry ID"
 
+    If lo.ListColumns.Count = L_NCOLS - 1 Then lo.ListColumns.Add.Name = KEY_HEADER     ' v28: the key on the end
+
     ' ---- final check of the column order ----
     Dim newH As Variant: newH = LogHeaders()
     For i = 0 To L_NCOLS - 1

@@ -1401,7 +1401,7 @@ End Sub
 ' v28 (item 2): keyCols(i) = the table's Payroll # column for that name column (0 = none): the Kronos tables carry
 ' the number in their own column 1 or 2 since v27; the rest got theirs with modKeys (on the end)
 Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, ByRef labels() As String, ByRef keyCols() As Long) As Long
-    ReDim los(1 To 18): ReDim cols(1 To 18): ReDim labels(1 To 18): ReDim keyCols(1 To 18)      ' v27 review H1: room for more; v28: + Requests
+    ReDim los(1 To 20): ReDim cols(1 To 20): ReDim labels(1 To 20): ReDim keyCols(1 To 20)      ' v27 review H1: room for more; v28: + Requests
     Dim n As Long
     AddNameCol los, cols, labels, keyCols, n, TableOn(LOG_SHEET, LOG_TABLE), L_EMP, "OT Log", KEY_HEADER
     AddNameCol los, cols, labels, keyCols, n, TableOn(POSTINGS_SHEET, PL_TABLE), PL_EMP, "Posting lists", KEY_HEADER
@@ -1419,6 +1419,7 @@ Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, By
     AddNameCol los, cols, labels, keyCols, n, RstTable(False), RS_EMP, "OT restrictions", KEY_HEADER      ' v27 (item 21, review M3)
     AddNameCol los, cols, labels, keyCols, n, EvidenceTable(False), 3, "Evidence", KEY_HEADER                ' v27 (item 23, review L16): a dispute's Who
     AddNameCol los, cols, labels, keyCols, n, RequestsTable(False), RQ_EMP, "Requests", KEY_HEADER           ' v28 (item 1)
+    AddNameCol los, cols, labels, keyCols, n, RequestsTable(False), RQ_PARTNER, "Requests (partner)", "(no key column)"   ' the partner: by name (the row's key is the requester's)
     NameColumns = n
 End Function
 
@@ -1469,11 +1470,12 @@ Private Function RenameColumn(ByVal lo As ListObject, ByVal col As Long, ByVal o
     If lo.DataBodyRange Is Nothing Then Exit Function
     Dim rng As Range: Set rng = lo.ListColumns(col).DataBodyRange
     Dim v As Variant: v = RangeTo2D(rng)
-    Dim kv As Variant
+    Dim kv As Variant, rk As String
     If keyCol > 0 Then kv = RangeTo2D(lo.ListColumns(keyCol).DataBodyRange)
     Dim i As Long
     For i = 1 To UBound(v, 1)
-        If RowIsTheirs(SafeStr(v(i, 1)), IIf(keyCol > 0, PayrollText(kv(i, 1)), ""), oldName, key) Then
+        rk = "": If keyCol > 0 Then rk = PayrollText(kv(i, 1))          ' (review HIGH-3: never inside IIf - both branches run)
+        If RowIsTheirs(SafeStr(v(i, 1)), rk, oldName, key) Then
             If StrComp(Trim$(SafeStr(v(i, 1))), newName, vbBinaryCompare) <> 0 Then
                 rng.Cells(i, 1).Value = newName
                 RenameColumn = RenameColumn + 1
@@ -1486,11 +1488,28 @@ End Function
 Private Function CountTheirs(ByVal lo As ListObject, ByVal col As Long, ByVal keyCol As Long, ByVal nameTxt As String, ByVal key As String) As Long
     If lo.DataBodyRange Is Nothing Then Exit Function
     Dim v As Variant: v = RangeTo2D(lo.ListColumns(col).DataBodyRange)
-    Dim kv As Variant
+    Dim kv As Variant, rk As String
     If keyCol > 0 Then kv = RangeTo2D(lo.ListColumns(keyCol).DataBodyRange)
     Dim i As Long
     For i = 1 To UBound(v, 1)
-        If RowIsTheirs(SafeStr(v(i, 1)), IIf(keyCol > 0, PayrollText(kv(i, 1)), ""), nameTxt, key) Then CountTheirs = CountTheirs + 1
+        rk = "": If keyCol > 0 Then rk = PayrollText(kv(i, 1))
+        If RowIsTheirs(SafeStr(v(i, 1)), rk, nameTxt, key) Then CountTheirs = CountTheirs + 1
+    Next i
+End Function
+
+' the rows that are this person's and do NOT yet read newName exactly (the after-check of a rename: must be 0)
+Private Function CountTheirsNotNamed(ByVal lo As ListObject, ByVal col As Long, ByVal keyCol As Long, ByVal nameTxt As String, _
+                                     ByVal key As String, ByVal newName As String) As Long
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.ListColumns(col).DataBodyRange)
+    Dim kv As Variant, rk As String
+    If keyCol > 0 Then kv = RangeTo2D(lo.ListColumns(keyCol).DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        rk = "": If keyCol > 0 Then rk = PayrollText(kv(i, 1))
+        If RowIsTheirs(SafeStr(v(i, 1)), rk, nameTxt, key) Then
+            If StrComp(Trim$(SafeStr(v(i, 1))), newName, vbBinaryCompare) <> 0 Then CountTheirsNotNamed = CountTheirsNotNamed + 1
+        End If
     Next i
 End Function
 
@@ -1720,7 +1739,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
         If sameName Then
             If CountName(los(i), cols(i), newName, True) <> aBefore(i) Then diff = diff & "  " & labels(i) & ": not every row took the new spelling" & vbNewLine
         Else
-            If CountTheirs(los(i), cols(i), keyCols(i), oldName, key) <> 0 Then diff = diff & "  " & labels(i) & ": the old name is still there" & vbNewLine
+            If CountTheirsNotNamed(los(i), cols(i), keyCols(i), oldName, key, newName) <> 0 Then diff = diff & "  " & labels(i) & ": the old name is still there" & vbNewLine   ' (review HIGH-2: their rows keep the key - the test is the NAME)
             If CountName(los(i), cols(i), newName) <> aBefore(i) + bBefore(i) Then
                 diff = diff & "  " & labels(i) & ": " & CountName(los(i), cols(i), newName) & " rows under the new name, expected " & _
                        (aBefore(i) + bBefore(i)) & vbNewLine
@@ -1981,7 +2000,10 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
                      vbNewLine & "The call lists follow from the next load; an open posting's frozen list does not change.", "")
     End If
     If payrollNo <> "~" Then
-        If oldPay <> Trim$(payrollNo) Then FillPayrollKeys True   ' v28 (item 2): a new or corrected number reaches that person's rows
+        If oldPay <> Trim$(payrollNo) Then
+            RekeyRows emp, oldPay, Trim$(payrollNo)     ' v28 (item 2, review MED-1): the rows carrying the OLD number under this name take the new one
+            FillPayrollKeys True                        ' and the keyless ones are stamped
+        End If
     End If
     SaveEmployeeEdit = True
     Exit Function

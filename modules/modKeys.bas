@@ -71,24 +71,76 @@ Public Function PayrollMap() As Object
     Set PayrollMap = map
 End Function
 
-' one person's number ("" = none known)
-Private Function PayrollOf(ByVal nm As String) As String
-    Dim map As Object: Set map = PayrollMap()
-    If map.Exists(Trim$(nm)) Then PayrollOf = CStr(map(Trim$(nm)))
-End Function
-
-' True when another roster row (not exceptName's) already carries this number
+' True when another roster row, or a Former person under another name, already carries this number (review MED-3: a
+' Former number taken by a new hire would give the Former person's old rows to the new hire at the next rename)
 Public Function PayrollTaken(ByVal no As String, ByVal exceptName As String) As Boolean
     no = Trim$(no)
     If no = "" Then Exit Function
-    Dim ws As Worksheet: Set ws = RosterSheet()
-    Dim r As Long
-    For r = R_FIRST To RosterLastRow()
-        If PayrollText(ws.Cells(r, C_PAYROLL).Value) = no Then
-            If StrComp(Trim$(SafeStr(ws.Cells(r, C_NAME).Value)), Trim$(exceptName), vbTextCompare) <> 0 Then PayrollTaken = True: Exit Function
+    Dim map As Object: Set map = PayrollMap()
+    Dim kk As Variant
+    For Each kk In map.Keys
+        If CStr(map(kk)) = no Then
+            If StrComp(Trim$(CStr(kk)), Trim$(exceptName), vbTextCompare) <> 0 Then PayrollTaken = True: Exit Function
         End If
-    Next r
+    Next kk
 End Function
+
+' v28 (review MED-1): a person's number corrected (or cleared) in the Employee pop-up - the rows that carry the OLD number
+' under this name take the new one (blank = cleared, and FillPayrollKeys leaves it so until a number is known)
+Public Sub RekeyRows(ByVal nm As String, ByVal oldKey As String, ByVal newKey As String)
+    On Error GoTo Oops
+    oldKey = Trim$(oldKey): newKey = Trim$(newKey): nm = Trim$(nm)
+    If oldKey = "" Or oldKey = newKey Then Exit Sub
+    Dim los() As ListObject, nameCols() As Long, heads() As String, labels() As String
+    Dim n As Long: n = KeyTables(los, nameCols, heads, labels)
+    Dim i As Long, kc As Long, r As Long, names As Variant, keys As Variant, touched As Boolean
+    For i = 1 To n
+        kc = KeyColumnOf(los(i), heads(i))
+        If kc > 0 And Not los(i).DataBodyRange Is Nothing Then
+            names = RangeTo2D(los(i).ListColumns(nameCols(i)).DataBodyRange)
+            keys = RangeTo2D(los(i).ListColumns(kc).DataBodyRange)
+            touched = False
+            For r = 1 To UBound(names, 1)
+                If PayrollText(keys(r, 1)) = oldKey And StrComp(Trim$(SafeStr(names(r, 1))), nm, vbTextCompare) = 0 Then
+                    keys(r, 1) = newKey: touched = True
+                End If
+            Next r
+            If touched Then
+                UnlockSheet los(i).Parent
+                los(i).ListColumns(kc).DataBodyRange.NumberFormat = "@"
+                los(i).ListColumns(kc).DataBodyRange.Value = keys
+                ProtectSheet los(i).Parent
+            End If
+        End If
+    Next i
+    Exit Sub
+Oops:
+    LogError "RekeyRows", Err.Number, Err.Description
+End Sub
+
+' v28 (review MED-2): the key columns on the sheets a supervisor or a plain user sees (the OT Log, the posting lists,
+' Shift Switches) are hidden in those views, as the roster's column A is; the admin-only sheets are hidden whole
+Public Sub HideKeyColumns(ByVal hide As Boolean)
+    On Error Resume Next                            ' never raises (a view switch must finish)
+    Dim adminOnly As Object: Set adminOnly = CreateObject("Scripting.Dictionary"): adminOnly.CompareMode = 1
+    Dim nm As Variant
+    For Each nm In AdminOnlySheets()
+        adminOnly(CStr(nm)) = True
+    Next nm
+    Dim los() As ListObject, nameCols() As Long, heads() As String, labels() As String
+    Dim n As Long: n = KeyTables(los, nameCols, heads, labels)
+    Dim i As Long, kc As Long
+    For i = 1 To n
+        If Not adminOnly.Exists(los(i).Parent.Name) Then
+            kc = KeyColumnOf(los(i), heads(i))
+            If kc > 0 Then
+                UnlockSheet los(i).Parent
+                los(i).ListColumns(kc).Range.EntireColumn.Hidden = hide
+                ProtectSheet los(i).Parent
+            End If
+        End If
+    Next i
+End Sub
 
 ' ---- the people tables: their name column(s) and the key header each carries ----
 Private Function KeyTables(ByRef los() As ListObject, ByRef nameCols() As Long, ByRef heads() As String, ByRef labels() As String) As Long
@@ -168,7 +220,9 @@ End Sub
 
 ' ---- STAMP the blank keys from the names (before every save, after an import, after Add / Edit). Returns how
 '      many cells were stamped; quiet = no box, errors to the Error Log. Never raises. ----
-Public Function FillPayrollKeys(ByVal quiet As Boolean) As Long
+Public Function FillPayrollKeys(ByVal quiet As Boolean, Optional ByVal addColumns As Boolean = False) As Long
+    ' addColumns (review LOW-8): only the verified run-once (AssignPayrollKeys) adds a table's key column; a save, an
+    ' import or an Add / Edit stamps the columns that exist (the OT Log's is added by LogTable itself)
     On Error GoTo Oops
     If ThisWorkbook.ReadOnly Then Exit Function
     Dim map As Object: Set map = PayrollMap()
@@ -178,7 +232,7 @@ Public Function FillPayrollKeys(ByVal quiet As Boolean) As Long
     Dim i As Long, kc As Long, r As Long, nm As String, k As String, nStamped As Long, touched As Boolean
     Dim names As Variant, keys As Variant
     For i = 1 To n
-        kc = EnsureKeyColumn(los(i), heads(i))
+        If addColumns Then kc = EnsureKeyColumn(los(i), heads(i)) Else kc = KeyColumnOf(los(i), heads(i))
         If kc > 0 And Not los(i).DataBodyRange Is Nothing Then
             names = RangeTo2D(los(i).ListColumns(nameCols(i)).DataBodyRange)
             keys = RangeTo2D(los(i).ListColumns(kc).DataBodyRange)
@@ -231,7 +285,7 @@ Public Sub AssignPayrollKeys()
     Dim scrWas As Boolean: scrWas = Application.ScreenUpdating
     Application.ScreenUpdating = False
     EnsureKeyColumns
-    Dim nStamped As Long: nStamped = FillPayrollKeys(True)
+    Dim nStamped As Long: nStamped = FillPayrollKeys(True, True)
     Application.ScreenUpdating = scrWas
     Application.Calculate
     Dim diff As String: diff = TotalsDifference(before, RosterTotalsMap())
@@ -301,13 +355,30 @@ Public Function KeyProblemList() As Variant
     Next kk
     Dim los() As ListObject, nameCols() As Long, heads() As String, labels() As String
     Dim nT As Long: nT = KeyTables(los, nameCols, heads, labels)
-    Dim i As Long, kc As Long, names As Variant, keys As Variant, nUnknown As Long, nBlank As Long, firstUnknown As String
+    ' a roster number the Former sheet holds under another name (review MED-3)
+    Dim lo As ListObject: Set lo = FormerTable(False)
+    If Not lo Is Nothing Then
+        If Not lo.DataBodyRange Is Nothing And lo.ListColumns.Count >= FM_PAYROLL Then
+            Dim fv As Variant: fv = RangeTo2D(lo.DataBodyRange)
+            For r = 1 To UBound(fv, 1)
+                k = PayrollText(fv(r, FM_PAYROLL)): nm = Trim$(SafeStr(fv(r, FM_EMP)))
+                If k <> "" And nm <> "" Then
+                    If seen.Exists(k) Then
+                        If StrComp(CStr(seen(k)), nm, vbTextCompare) <> 0 Then
+                            n = n + 1
+                            If n <= 40 Then out(n, 1) = 1: out(n, 2) = "Payroll # " & k & " is " & CStr(seen(k)) & "'s on the roster and " & nm & "'s on the Former sheet": out(n, 3) = "One of them is wrong: a rename by key would mix their rows (Employee > Edit, Payroll #)"
+                        End If
+                    End If
+                End If
+            Next r
+        End If
+    End If
+    Dim i As Long, kc As Long, names As Variant, keys As Variant, nUnknown As Long, nBlank As Long, firstUnknown As String, noCol As String
     For i = 1 To nT
         kc = KeyColumnOf(los(i), heads(i))
         nUnknown = 0: nBlank = 0: firstUnknown = ""
         If kc = 0 Then
-            n = n + 1
-            If n <= 40 Then out(n, 1) = 1: out(n, 2) = labels(i) & " has no Payroll # column yet": out(n, 3) = "Run AssignPayrollKeys (Alt+F8) once"
+            noCol = noCol & IIf(noCol = "", "", ", ") & labels(i)
         ElseIf Not los(i).DataBodyRange Is Nothing Then
             names = RangeTo2D(los(i).ListColumns(nameCols(i)).DataBodyRange)
             keys = RangeTo2D(los(i).ListColumns(kc).DataBodyRange)
@@ -332,6 +403,10 @@ Public Function KeyProblemList() As Variant
             End If
         End If
     Next i
+    If noCol <> "" Then
+        n = n + 1
+        If n <= 40 Then out(n, 1) = 1: out(n, 2) = "No Payroll # column yet on: " & noCol: out(n, 3) = "Run AssignPayrollKeys (Alt+F8) once after the v28 install"
+    End If
     If n = 0 Then Exit Function
     If n > 40 Then n = 40
     Dim res() As Variant: ReDim res(1 To n, 1 To 3)

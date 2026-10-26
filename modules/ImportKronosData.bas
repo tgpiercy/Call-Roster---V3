@@ -637,6 +637,7 @@ Sub SyncKronosData()
     Next r
     wsDest.Rows(R_FIRST & ":" & lastRow).AutoFit
     ProtectSheet wsDest
+    FillPayrollKeys True                            ' v28 (item 2): a number the import just filled reaches that person's rows
     Application.Calculate
     Dim moved As String: moved = TotalsDifferenceRef(refBefore, RosterRefusedMap())
     If moved <> "" Then

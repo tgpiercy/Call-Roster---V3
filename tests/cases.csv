@@ -947,6 +947,21 @@ reqstatus,expired-when-to-is-past,Time off,|annb,;;,2026-10-20|2026-10-25,,Expir
 reqstatus,to-today-is-not-expired,Time off,|annb,;;,2026-10-25|2026-10-25,,Waiting
 reqstatus,expired-switch-even-if-agreed,Switch,bobk|annb,;;,2026-10-20|2026-10-25,,Expired
 reqstatus,no-dates-waiting,Time off,|annb,;;,|,,Waiting
+paykey,blank-is-fine,,,,,,ok
+paykey,eight-digits,10023456,,,,,ok
+paykey,one-digit,7,,,,,ok
+paykey,ten-digits,1234567890,,,,,ok
+paykey,eleven-digits,12345678901,,,,,at most 10 digits
+paykey,letters,1002E456,,,,,digits only
+paykey,space-inside,100 456,,,,,digits only
+paykey,leading-zero-kept,00123456,,,,,ok
+keymatch,both-keys-equal,10023456|10023456,Ann B|Ann Bee,,,,same
+keymatch,both-keys-differ-names-equal,10023456|10023457,Ann B|Ann B,,,,other
+keymatch,one-key-missing-names-equal,10023456|,Ann B|ann b,,,,same
+keymatch,one-key-missing-names-differ,|10023456,Ann B|Bob K,,,,other
+keymatch,no-keys-names-equal-trimmed,|, Ann B |Ann B,,,,same
+keymatch,no-keys-blank-names,|,|,,,,other
+keymatch,keys-equal-with-spaces, 10023456 |10023456,Ann B|Bob K,,,,same
 kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
 kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
 kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182

@@ -225,7 +225,7 @@ Public Sub FormatOTLog()
 
     Dim lastCol As String: lastCol = ColLetter(L_NCOLS)
     Dim widths As Variant, i As Long
-    widths = Array(10, 10, 11, 14, 8, 7, 18, 7, 7, 24, 9, 10, 14, 36, 10, 11, 8, 11, 18, 8, 30)
+    widths = Array(10, 10, 11, 14, 8, 7, 18, 7, 7, 24, 9, 10, 14, 36, 10, 11, 8, 11, 18, 8, 30, 12)     ' v28: + Payroll #
     For i = 1 To L_NCOLS
         ws.Columns(i).ColumnWidth = widths(i - 1)
     Next i

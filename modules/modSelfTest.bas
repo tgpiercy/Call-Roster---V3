@@ -232,7 +232,7 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests
+        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -450,6 +450,13 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             rcA = Split(i1 & "|", "|"): rcD = Split(i3 & "|", "|"): rcS = Split(i4 & "|", "|")
             RunCaseV271 = RequestCheckCore(CStr(rcA(0)), i2, CStr(rcD(0)), CStr(rcD(1)), CStr(rcS(0)), CStr(rcS(1)), CStr(rcA(1)))
             If RunCaseV271 = "" Then RunCaseV271 = "ok"
+        Case "paykey"                              ' v28 (item 2): a typed Payroll # -> ok / why not
+            RunCaseV271 = PayrollValid(i1)
+            If RunCaseV271 = "" Then RunCaseV271 = "ok"
+        Case "keymatch"                            ' v28 (item 2): keyA|keyB, nameA|nameB -> same / other
+            Dim kmK As Variant, kmN As Variant
+            kmK = Split(i1 & "|", "|"): kmN = Split(i2 & "|", "|")
+            RunCaseV271 = IIf(KeyMatchCore(CStr(kmK(0)), CStr(kmK(1)), CStr(kmN(0)), CStr(kmN(1))), "same", "other")
         Case "reqstatus"                           ' v28 (item 1): kind, agree login|requester login, flags (refused;withdrawn;decided), to|today (ISO) -> the status
             Dim rsL As Variant, rsF As Variant, rsD As Variant
             rsL = Split(i2 & "|", "|"): rsF = Split(i3 & ";;", ";"): rsD = Split(i4 & "|", "|")
@@ -2101,6 +2108,21 @@ Private Sub LoadCases5()
     AddCase "reqstatus,to-today-is-not-expired,Time off,|annb,;;,2026-10-25|2026-10-25,,Waiting"
     AddCase "reqstatus,expired-switch-even-if-agreed,Switch,bobk|annb,;;,2026-10-20|2026-10-25,,Expired"
     AddCase "reqstatus,no-dates-waiting,Time off,|annb,;;,|,,Waiting"
+    AddCase "paykey,blank-is-fine,,,,,,ok"
+    AddCase "paykey,eight-digits,10023456,,,,,ok"
+    AddCase "paykey,one-digit,7,,,,,ok"
+    AddCase "paykey,ten-digits,1234567890,,,,,ok"
+    AddCase "paykey,eleven-digits,12345678901,,,,,at most 10 digits"
+    AddCase "paykey,letters,1002E456,,,,,digits only"
+    AddCase "paykey,space-inside,100 456,,,,,digits only"
+    AddCase "paykey,leading-zero-kept,00123456,,,,,ok"
+    AddCase "keymatch,both-keys-equal,10023456|10023456,Ann B|Ann Bee,,,,same"
+    AddCase "keymatch,both-keys-differ-names-equal,10023456|10023457,Ann B|Ann B,,,,other"
+    AddCase "keymatch,one-key-missing-names-equal,10023456|,Ann B|ann b,,,,same"
+    AddCase "keymatch,one-key-missing-names-differ,|10023456,Ann B|Bob K,,,,other"
+    AddCase "keymatch,no-keys-names-equal-trimmed,|, Ann B |Ann B,,,,same"
+    AddCase "keymatch,no-keys-blank-names,|,|,,,,other"
+    AddCase "keymatch,keys-equal-with-spaces, 10023456 |10023456,Ann B|Bob K,,,,same"
     AddCase "kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
     AddCase "kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
     AddCase "kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182"
@@ -2139,6 +2161,9 @@ Private Sub LoadCases5()
     AddCase "kgap,note-naming-no-day-counts,2026-10-24,2025-12-28,2026-10-01,differs from the ledger,2026-10-14,counts"
     AddCase "kgap,note-with-a-bad-date-ignored,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-13-14; 2026-10-15,2026-10-15,skip"
     AddCase "kgapdays,old-through-none,none,2026-10-13,2026-10-11,,,none"
+End Sub
+
+Private Sub LoadCases6()
     AddCase "kgapdays,one-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-13,,,2026-10-12"
     AddCase "kgapdays,none-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-12;2026-10-13,,,none"
     AddCase "kgapdays,two-missing-in-order,2026-10-10,2026-10-13,2026-10-12,,,2026-10-11; 2026-10-13"
@@ -2154,9 +2179,6 @@ Private Sub LoadCases5()
     AddCase "kday,row-date-not-a-date-kept,notadate,2026-10-11,Ann Lee,Y,,keep"
     AddCase "kday,row-date-with-a-time-same-day,2026-10-11-15-30,2026-10-11,Ann Lee,Y,,drop"
     AddCase "kname,number-only,Ann Lee,,,,,number"
-End Sub
-
-Private Sub LoadCases6()
     AddCase "kname,name-only,,Ann Lee,,,,name"
     AddCase "kname,both-agree-exactly,Ann Lee,Ann Lee,,,,number"
     AddCase "kname,both-agree-any-case,Ann Lee,ann lee,,,,number"

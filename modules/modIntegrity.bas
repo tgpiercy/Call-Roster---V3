@@ -132,7 +132,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 15                            ' v27 (item 28): + Log rows, Records
+        For k = 1 To 16                            ' v27 (item 28): + Log rows, Records; v28: + Keys
             RunCheck k
         Next k
     End If
@@ -159,6 +159,7 @@ Private Function CheckName(ByVal k As Long) As String
         Case 13: CheckName = "Settings"
         Case 14: CheckName = "Log rows"
         Case 15: CheckName = "Records"
+        Case 16: CheckName = "Keys"                ' v28 (item 2): the Payroll # keys
     End Select
 End Function
 
@@ -181,6 +182,7 @@ Private Sub RunCheck(ByVal k As Long)
         Case 13: CheckSettings
         Case 14: CheckLogRows
         Case 15: CheckRecords
+        Case 16: CheckKeys
     End Select
     Exit Sub
 Oops:
@@ -1100,6 +1102,23 @@ Private Sub CheckKronos()
         AddIssue SEV_WARN, "Kronos", gapWait.Count & " day(s) named by gap rows in Worked Changes still have no one-day report: " & gTxt, _
                  "Run that day's report into the Kronos folder, then Import Kronos: its hours then count in Worked Periods and the gap rows step aside"
     End If
+End Sub
+
+
+' ---- 16. Keys (v28, item 2): the Payroll # on two roster rows (PROBLEM), a key the roster and Former do not hold
+'      (Check), rows without a key (Note). modKeys.KeyProblemList reads; nothing is changed ----
+Private Sub CheckKeys()
+    Dim rows As Variant: rows = KeyProblemList()
+    If Not IsArray(rows) Then Exit Sub
+    Dim i As Long, sev As String
+    For i = 1 To UBound(rows, 1)
+        Select Case CLng(NumOr0(rows(i, 1)))
+            Case 2: sev = SEV_ERR
+            Case 1: sev = SEV_WARN
+            Case Else: sev = SEV_INFO
+        End Select
+        AddIssue sev, "Keys", CStr(rows(i, 2)), CStr(rows(i, 3))
+    Next i
 End Sub
 
 

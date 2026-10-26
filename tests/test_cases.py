@@ -349,6 +349,12 @@ def evaluate(row: dict) -> str:
     if suite == "kgapdays":                      # v27.5: old Through|none, new Through, the ledger's days ; -> the missed days text or none
         held = {int(rules._ser(d(x.strip()))) for x in i3.split(";") if x.strip()}
         return rules.gap_days_text(d_or_none(i1), d(i2), held) or "none"
+    if suite == "paykey":                        # v28: a typed Payroll # -> ok / why not
+        return rules.payroll_valid(i1) or "ok"
+    if suite == "keymatch":                      # v28: keyA|keyB, nameA|nameB -> same / other
+        ka, _, kb = (i1 + "|").partition("|")
+        na, _, nb = (i2 + "|").partition("|")
+        return "same" if rules.key_match(ka, kb.rstrip("|"), na, nb.rstrip("|")) else "other"
     if suite == "reqcheck":                      # v28: kind|action, name, from|to (ISO), shift|partner -> ok / why not
         kind, _, action = (i1 + "|").partition("|")
         f_, _, t_ = (i3 + "|").partition("|")

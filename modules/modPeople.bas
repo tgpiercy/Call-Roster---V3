@@ -1055,7 +1055,8 @@ End Function
 Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal email As String, ByVal crewTxt As String, _
                             ByVal seniority As Variant, ByVal homeUnit As String, ByVal gradeCode As String, _
                             ByVal startDate As Date, ByRef pc As PeopleCalc, ByVal hoursToAdd As Double, _
-                            ByVal overrideReason As String, ByRef report As String) As Boolean
+                            ByVal overrideReason As String, ByRef report As String, Optional ByVal payrollNo As String = "") As Boolean
+    ' payrollNo (v28, item 2): the Payroll # typed at Add ("" = not known yet; the Kronos import fills it)
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     If LogTable() Is Nothing Then Exit Function
@@ -1091,7 +1092,7 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     mBusy = True
-    r = AddRosterRow(ws, nm, crewTxt, homeUnit, seniority, codes, Trim$(phone), Trim$(email))
+    r = AddRosterRow(ws, nm, crewTxt, homeUnit, seniority, codes, Trim$(phone), Trim$(email), Trim$(payrollNo))
     EnsureRosterFilter ws
     ProtectSheet ws
     If hoursToAdd <> 0 Then
@@ -1143,6 +1144,7 @@ Public Function SaveNewHire(ByVal nm As String, ByVal phone As String, ByVal ema
              nm & " added on row " & r & " with " & Format$(hoursToAdd, "0.0") & " h" & _
              IIf(refId <> "", " (" & refId & " in the OT Log; Void Entry undoes the hours)", "") & "." & vbNewLine & _
              "Worked hours stay 0 until the next Kronos import: the name must be spelled the way Kronos spells it."
+    If Trim$(payrollNo) <> "" Then FillPayrollKeys True        ' v28 (item 2): a number typed at Add reaches the rows just written
     SaveNewHire = True
     Exit Function
 Failed:
@@ -1804,12 +1806,14 @@ End Sub
 
 ' What the roster holds for a person, for the Edit boxes. codes(0 .. units - 1) follow the unit columns.
 Public Function PersonDetails(ByVal emp As String, ByRef homeUnit As String, ByRef crewTxt As String, ByRef phone As String, _
-                              ByRef email As String, ByRef seniority As String, ByRef codes() As String) As Boolean
+                              ByRef email As String, ByRef seniority As String, ByRef codes() As String, _
+                              Optional ByRef payrollNo As String = "") As Boolean
     ReDim codes(0 To UnitColLast() - UnitColFirst())
     Dim r As Long: r = RosterRowOf(emp)
     If r = 0 Then Exit Function
     Dim ws As Worksheet: Set ws = RosterSheet()
     homeUnit = Trim$(SafeStr(ws.Cells(r, C_HOME).Value))
+    payrollNo = PayrollText(ws.Cells(r, C_PAYROLL).Value)       ' v28 (item 2)
     Dim found As Boolean
     crewTxt = NewestCrew(emp, found)
     If Not found Then crewTxt = Trim$(SafeStr(ws.Cells(r, C_SHIFT).Value))
@@ -1833,7 +1837,8 @@ End Function
 ' before and after must agree (nothing here touches hours); saving is blocked otherwise.
 Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, ByVal crewTxt As String, ByVal crewFrom As Date, _
                                  ByVal phone As String, ByVal email As String, ByVal seniority As Variant, ByRef codes() As String, _
-                                 ByRef report As String) As Boolean
+                                 ByRef report As String, Optional ByVal payrollNo As String = "~") As Boolean
+    ' payrollNo (v28, item 2): the Payroll # typed in the pop-up ("" clears it); "~" = not given, left as it is
     If Not RequireAdmin() Then Exit Function
     If Not RequireWritable() Then Exit Function
     Dim ws As Worksheet: Set ws = RosterSheet()
@@ -1871,9 +1876,10 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
     mBusy = True
     ' v27 (item 13, A11): every detail changed in place leaves a Grade Log row (Field / Old / New) - the old values first
     Dim oldHome As String, oldPhone As String, oldEmail As String, oldSen As String, nFld As Long
-    Dim fldName(1 To 5) As String, fldOld(1 To 5) As String, fldNew(1 To 5) As String
+    Dim fldName(1 To 6) As String, fldOld(1 To 6) As String, fldNew(1 To 6) As String     ' v28: + payroll #
     oldHome = Trim$(SafeStr(ws.Cells(r, C_HOME).Value)): oldPhone = Trim$(SafeStr(ws.Cells(r, C_PHONE).Value))
     oldEmail = Trim$(SafeStr(ws.Cells(r, C_EMAIL).Value))
+    Dim oldPay As String: oldPay = PayrollText(ws.Cells(r, C_PAYROLL).Value)
     If IsDate(ws.Cells(r, C_SENIORITY).Value) Then oldSen = Format$(CDate(ws.Cells(r, C_SENIORITY).Value), "mmm d, yyyy") Else oldSen = Trim$(SafeStr(ws.Cells(r, C_SENIORITY).Value))   ' (review) a text seniority is kept as text, never CDate'd
     UnlockSheet ws
     If homeUnit <> "" Then
@@ -1889,6 +1895,13 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
     If oldEmail <> Trim$(email) Then
         ws.Cells(r, C_EMAIL).Value = Trim$(email): changed = changed & "email; "
         nFld = nFld + 1: fldName(nFld) = "email": fldOld(nFld) = oldEmail: fldNew(nFld) = Trim$(email)
+    End If
+    If payrollNo <> "~" Then                                     ' v28 (item 2): the key, typed in the pop-up
+        If oldPay <> Trim$(payrollNo) Then
+            ws.Cells(r, C_PAYROLL).NumberFormat = "@"
+            ws.Cells(r, C_PAYROLL).Value = Trim$(payrollNo): changed = changed & "payroll #; "
+            nFld = nFld + 1: fldName(nFld) = "payroll #": fldOld(nFld) = oldPay: fldNew(nFld) = Trim$(payrollNo)
+        End If
     End If
     If IsDate(seniority) Then
         If Not IsDate(ws.Cells(r, C_SENIORITY).Value) Or Int(CDate(seniority)) <> Int(NumOr0(ws.Cells(r, C_SENIORITY).Value2)) Then
@@ -1933,6 +1946,9 @@ Public Function SaveEmployeeEdit(ByVal emp As String, ByVal homeUnit As String, 
         report = emp & " updated: " & Left$(changed, Len(changed) - 2) & "." & _
                  IIf(InStr(changed, "(cleared)") > 0 Or InStr(changed, "home unit") > 0, _
                      vbNewLine & "The call lists follow from the next load; an open posting's frozen list does not change.", "")
+    End If
+    If payrollNo <> "~" Then
+        If oldPay <> Trim$(payrollNo) Then FillPayrollKeys True   ' v28 (item 2): a new or corrected number reaches that person's rows
     End If
     SaveEmployeeEdit = True
     Exit Function

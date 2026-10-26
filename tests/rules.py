@@ -1384,6 +1384,30 @@ def request_status(kind: str, agree_login: str, requester_login: str, refused: b
     return RQ_ST_WAITING
 
 
+# ---- v28 (item 2): the Payroll # key (modKeys PayrollValid / KeyMatchCore; suites payroll / keymatch) ----
+KEY_MAX_DIGITS = 10
+
+
+def payroll_valid(txt: str) -> str:
+    """modKeys.PayrollValid: '' when fine (blank allowed), else why not."""
+    txt = txt.strip(" ")
+    if txt == "":
+        return ""
+    if len(txt) > KEY_MAX_DIGITS:
+        return f"at most {KEY_MAX_DIGITS} digits"
+    if not all("0" <= ch <= "9" for ch in txt):
+        return "digits only"
+    return ""
+
+
+def key_match(key_a: str, key_b: str, name_a: str, name_b: str) -> bool:
+    """modKeys.KeyMatchCore: both keys present -> the keys agree; else the names agree (trimmed, any case, not blank)."""
+    key_a, key_b = key_a.strip(" "), key_b.strip(" ")
+    if key_a != "" and key_b != "":
+        return key_a == key_b
+    return name_a.strip(" ") != "" and name_a.strip(" ").lower() == name_b.strip(" ").lower()
+
+
 def capped_posting_hours(post_hours: float, max_hours: float, max_set: bool) -> float:
     """modPostings.CappedPostingHours: the hours a listed person is charged on - the posting's, or their 16 h rule
     maximum when the award pop-up worked one out and it is lower (0 = they could take none: not charged)."""

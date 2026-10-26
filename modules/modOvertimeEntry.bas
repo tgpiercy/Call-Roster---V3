@@ -192,7 +192,8 @@ Public Const L_USER As Long = 18        ' Logged By
 Public Const L_STAMP As Long = 19       ' Timestamp
 Public Const L_STATUS As Long = 20      ' Status
 Public Const L_VOIDNOTE As Long = 21    ' Void Note
-Public Const L_NCOLS As Long = 21
+Public Const L_PAYROLL As Long = 22     ' v28 (item 2): Payroll # - the key, on the end (modKeys stamps it; AppendLogRows adds the column to an older log)
+Public Const L_NCOLS As Long = 22
 
 ' --------------------------------------------------------------------
 '  EMPLOYEE RECORD used by both forms and the printed outputs
@@ -212,6 +213,7 @@ Public Type EmpRec
     RosterHrs As Double         ' v24.3: Total Hours on the roster (set by LoadEligible)
     EstHrs As Boolean           ' v24.3: TotalHrs is a planned mover's hours AFTER the top-up, an estimate for call order
     MaxHours As Double          ' v26.5.5 (item 9): the most OT they may take on the listed shift under the 16 h rule (FilterNotFree sets it)
+    PayrollNo As String         ' v28 (item 2): the roster's Payroll # (column A; "" until known) - the key
 End Type
 
 ' Session flags
@@ -263,7 +265,7 @@ Public Function LogHeaders() As Variant
     LogHeaders = Array("Ref ID", "Type", "Shift Date", "Unit", "Shift", "Crew", _
                        "Reason", "Hours", "Call Order", "Employee", "Dept Code", _
                        "Total Hrs Then", "Outcome", "Note", "Hours Charged", "Period Start", _
-                       "Entry ID", "Logged By", "Timestamp", "Status", "Void Note")
+                       "Entry ID", "Logged By", "Timestamp", "Status", "Void Note", "Payroll #")     ' v28: + the key, on the end
 End Function
 
 Public Function DeptList() As Variant
@@ -566,6 +568,7 @@ Public Function LoadEligible(ByVal dept As String, ByVal shiftSel As String, _
                         If provLive Then .ProvHrs = NumOr0(v(i, C_PROV)) Else .ProvHrs = 0
                         .Seniority = SeniorityKey(v(i, C_SENIORITY))
                         .Phone = Trim$(SafeStr(v(i, C_PHONE)))
+                        .PayrollNo = PayrollText(v(i, C_PAYROLL))        ' v28 (item 2): the key
                         .EmpShift = crewTxt
                         .Outcome = ""
                         .Reason = ""
@@ -1757,6 +1760,7 @@ Public Function SaveIfWritable() As Boolean
     Dim en As Long, em As String, before As Date, after As Date
     ' (review) one box per failed submit, not one per save inside it: a box shown within the last ten seconds is not repeated
     Dim toldBefore As Boolean: toldBefore = (mSaveBoxAt > 0 And (Now - mSaveBoxAt) * 86400# < 10)
+    KeysBeforeSave                                  ' v28 (item 2): the people tables' Payroll # keys stamped from the roster (never raises)
     On Error Resume Next
     before = FileDateTime(ThisWorkbook.FullName)
     Err.Clear
@@ -2324,8 +2328,17 @@ Public Function AppendLogRows(data As Variant) As Boolean
 
     Dim firstId As Long: firstId = NextEntryID()
     Dim r As Long
+    ' v28 (item 2): an older log gets its Payroll # column before the first write that is L_NCOLS wide; every row
+    ' carries the person's key (blank until the roster knows the number - FillPayrollKeys stamps it later)
+    If lo.ListColumns.Count < L_NCOLS Then
+        If EnsureKeyColumn(lo, KEY_HEADER) = 0 Then Exit Function
+    End If
+    Dim keyMap As Object: Set keyMap = PayrollMap()
     For r = 1 To n
         data(r, L_ENTRY) = firstId + r - 1
+        If PayrollText(data(r, L_PAYROLL)) = "" Then
+            If keyMap.Exists(Trim$(SafeStr(data(r, L_EMP)))) Then data(r, L_PAYROLL) = CStr(keyMap(Trim$(SafeStr(data(r, L_EMP)))))
+        End If
     Next r
 
     Dim ws As Worksheet: Set ws = lo.Parent

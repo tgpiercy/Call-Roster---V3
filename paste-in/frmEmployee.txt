@@ -1,6 +1,6 @@
 Option Explicit
 Private mBefore As Object                     ' v27 (item 7): the roster's Total Hours before a save (the receipt's before -> after)
-' @version v27.1 (Oct 22)
+' @version v28 (Oct 25)
 
 ' ================================================================
 ' EMPLOYEE (v24, admin) - six jobs in one pop-up (v26.5: + Edit)
@@ -49,6 +49,7 @@ Private mEdCrew As String               ' v26.5: what the Edit boxes were filled
 Private mEdHome As String
 Private mEdPhone As String
 Private mEdEmail As String
+Private mEdPay As String                ' v28 (item 2): the Payroll # the Edit box was filled with
 Private mEdSen As String
 Private mEdCodes() As String
 Private mEdN As Long                    ' unit columns
@@ -170,7 +171,9 @@ Private Sub UserForm_Initialize()
     AddText "eEmail", BOX_L + 158, RowT(5), 180, "E"
     AddLabel "eLSen", "Seniority date", LBL_L, RowT(6) + 3, 110, "E"
     AddText "eSen", BOX_L, RowT(6), 110, "E"
-    AddLabel "eHSen", "with the year, e.g. Mar 3, 2011", BOX_L + 118, RowT(6) + 3, 220, "E"
+    AddLabel "eHSen", "e.g. Mar 3, 2011", BOX_L + 118, RowT(6) + 3, 100, "E"
+    AddLabel "eLPay", "Payroll #", BOX_L + 222, RowT(6) + 3, 56, "E"          ' v28 (item 2): the key (Kronos' Global ID)
+    AddText "ePay", BOX_L + 280, RowT(6), 80, "E"
     Dim u As Long, colX As Single
     mEdN = UnitColLast() - UnitColFirst() + 1
     For u = 0 To mEdN - 1
@@ -204,6 +207,9 @@ Private Sub UserForm_Initialize()
     AddLabel "aLStart", "Start date", LBL_L, RowT(5) + 3, 110, "A"
     Set o = AddText("aStart", BOX_L, RowT(5), 110, "A")
     o.Text = Format$(Date, "mmm d, yyyy")
+    AddLabel "aLPay", "Payroll #", BOX_L + 122, RowT(5) + 3, 56, "A"          ' v28 (item 2): typed at Add; the Kronos import confirms it
+    AddText "aPay", BOX_L + 182, RowT(5), 80, "A"
+    AddLabel "aHPay", "Kronos' digits; blank until known", BOX_L + 268, RowT(5) + 3, 180, "A"
 
     ' ---- Move to unit ----
     AddLabel "mLEmp", "Employee", LBL_L, RowT(1) + 3, 110, "M"
@@ -322,19 +328,19 @@ End Sub
 
 Private Sub FillEdit()
     Dim u As Long
-    mEdHome = "": mEdCrew = "": mEdPhone = "": mEdEmail = "": mEdSen = ""
+    mEdHome = "": mEdCrew = "": mEdPhone = "": mEdEmail = "": mEdSen = "": mEdPay = ""
     ReDim mEdCodes(0 To mEdN - 1)
     C("eHEmp").Caption = ""
     If mEditEmp.ListIndex < 0 Then
         C("eHome").ListIndex = -1: C("eCrew").ListIndex = -1
-        C("ePhone").Text = "": C("eEmail").Text = "": C("eSen").Text = ""
+        C("ePhone").Text = "": C("eEmail").Text = "": C("eSen").Text = "": C("ePay").Text = ""
         For u = 0 To mEdN - 1
             C("eC" & u).Text = ""
         Next u
         Exit Sub
     End If
     Dim codes() As String
-    If Not PersonDetails(mEditEmp.Text, mEdHome, mEdCrew, mEdPhone, mEdEmail, mEdSen, codes) Then Exit Sub
+    If Not PersonDetails(mEditEmp.Text, mEdHome, mEdCrew, mEdPhone, mEdEmail, mEdSen, codes, mEdPay) Then Exit Sub
     C("eHEmp").Caption = PersonSummary(mEditEmp.Text)
     C("eHome").ListIndex = -1: C("eCrew").ListIndex = -1    ' a blank or unknown value must not keep the previous person's
     SelectIn C("eHome"), mEdHome
@@ -342,6 +348,7 @@ Private Sub FillEdit()
     C("ePhone").Text = mEdPhone
     C("eEmail").Text = mEdEmail
     C("eSen").Text = mEdSen
+    C("ePay").Text = mEdPay                          ' v28 (item 2)
     C("eFrom").Text = Format$(Date, "mmm d, yyyy")
     For u = 0 To mEdN - 1
         mEdCodes(u) = codes(u)
@@ -538,6 +545,11 @@ Private Sub SaveEdit()
     End If
     If Trim$(C("ePhone").Text) <> mEdPhone Then what = what & "- phone: " & IIf(mEdPhone = "", "(none)", mEdPhone) & " -> " & IIf(Trim$(C("ePhone").Text) = "", "(none)", Trim$(C("ePhone").Text)) & vbNewLine
     If Trim$(C("eEmail").Text) <> mEdEmail Then what = what & "- email: " & IIf(mEdEmail = "", "(none)", mEdEmail) & " -> " & IIf(Trim$(C("eEmail").Text) = "", "(none)", Trim$(C("eEmail").Text)) & vbNewLine
+    ' v28 (item 2): the Payroll # - digits only, not on another row
+    Dim payTxt As String: payTxt = Trim$(C("ePay").Text)
+    If PayrollValid(payTxt) <> "" Then MsgBox "Payroll #: " & PayrollValid(payTxt) & ".", vbExclamation, "Edit employee": Exit Sub
+    If payTxt <> "" And PayrollTaken(payTxt, emp) Then MsgBox "Payroll # " & payTxt & " is already on another roster row.", vbExclamation, "Edit employee": Exit Sub
+    If payTxt <> mEdPay Then what = what & "- payroll #: " & IIf(mEdPay = "", "(none)", mEdPay) & " -> " & IIf(payTxt = "", "(cleared)", payTxt) & vbNewLine
     sen = ""
     If Trim$(C("eSen").Text) <> "" And Trim$(C("eSen").Text) <> mEdSen Then     ' unchanged text (even a text value the roster holds) is left alone
         If Not ParseFullDate(C("eSen").Text, senDate) Then
@@ -559,7 +571,7 @@ Private Sub SaveEdit()
               vbOKCancel + vbQuestion, "Confirm changes") <> vbOK Then Exit Sub
     Dim report As String
     Me.MousePointer = fmMousePointerHourGlass
-    Dim ok As Boolean: ok = SaveEmployeeEdit(emp, homeUnit, crewTxt, crewFrom, C("ePhone").Text, C("eEmail").Text, sen, codes, report)
+    Dim ok As Boolean: ok = SaveEmployeeEdit(emp, homeUnit, crewTxt, crewFrom, C("ePhone").Text, C("eEmail").Text, sen, codes, report, payTxt)
     Me.MousePointer = fmMousePointerDefault
     If Not ok Then Exit Sub
     FillEdit                                     ' the boxes show what is saved now
@@ -614,6 +626,10 @@ Private Sub SaveAdd()
         If why = "" Then MsgBox "An override needs a reason (it goes in the OT Log).", vbExclamation, "Add employee": Exit Sub
     End If
 
+    ' v28 (item 2): the Payroll # - digits only, not on another row (blank until known: the Kronos import fills it)
+    Dim payAdd As String: payAdd = Trim$(C("aPay").Text)
+    If PayrollValid(payAdd) <> "" Then MsgBox "Payroll #: " & PayrollValid(payAdd) & ".", vbExclamation, "Add employee": Exit Sub
+    If payAdd <> "" And PayrollTaken(payAdd, nm) Then MsgBox "Payroll # " & payAdd & " is already on a roster row.", vbExclamation, "Add employee": Exit Sub
     Dim msg As String
     msg = "Add " & nm & "?" & vbNewLine & vbNewLine & _
           "Crew " & C("aCrew").Text & "   |   " & C("aUnit").Text & " " & Trim$(C("aCode").Text) & vbNewLine & _
@@ -627,8 +643,8 @@ Private Sub SaveAdd()
 
     Dim report As String
     If Not SaveNewHire(nm, C("aPhone").Text, C("aEmail").Text, C("aCrew").Text, sen, C("aUnit").Text, _
-                       C("aCode").Text, startDate, pc, hrs, why, report) Then Exit Sub
-    C("aName").Text = "": C("aPhone").Text = "": C("aEmail").Text = "": C("aSen").Text = ""
+                       C("aCode").Text, startDate, pc, hrs, why, report, payAdd) Then Exit Sub
+    C("aName").Text = "": C("aPhone").Text = "": C("aEmail").Text = "": C("aSen").Text = "": C("aPay").Text = ""
     C("aOver").Text = "": C("aWhy").Text = ""
     C("result").Caption = ""
     Finished report, "Add employee"

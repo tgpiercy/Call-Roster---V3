@@ -1201,13 +1201,14 @@ def fatigue_block_core(h_prev_prev: float, h_prev: float, h_next1: float, h_next
 # ---- v27.1: the shift-switch hard stops as pure words (modShiftSwitch SwitchStopsCore; suite switchstop) ----
 SF_KEYS = ["bkoff", "gaveoff", "workoff", "bkworks", "workworks", "fat",
            "p_bkworks", "p_gaveworks", "p_workworks", "p_bkoff", "p_workoff", "p_fat",
-           "s_bkoff", "s_bkworks", "s_bkoff2", "s_bkworks1", "s_offon", "s_workson"]     # = the SF_* positions 0..17
+           "s_bkoff", "s_bkworks", "s_bkoff2", "s_bkworks1", "s_offon", "s_workson",
+           "s_fatworks", "s_fatoff"]                   # = the SF_* positions 0..19 (v27.5: the two same-day 16 h facts)
 SF_BOOKED = {"bkoff", "bkworks", "p_bkworks", "p_bkoff", "s_bkoff", "s_bkworks", "s_bkoff2", "s_bkworks1"}
 SF_ON = {"s_offon", "s_workson"}
 
 
 def switch_facts(spec: str) -> list[str]:
-    """modSelfTest.SwitchFacts: 'key=value;...' -> the 18 facts (a booked fact '+type', an 'on' fact '+')."""
+    """modSelfTest.SwitchFacts: 'key=value;...' -> the 20 facts (a booked fact '+type', an 'on' fact '+')."""
     f = [""] * len(SF_KEYS)
     for part in spec.split(";") if spec else []:
         k, _, v = part.partition("=")
@@ -1241,9 +1242,10 @@ def fatigue_stop_text(works: str, d_txt: str, shift: str, reason: str) -> str:
     """modShiftSwitch.FatigueStopText: the 16 h stop from NotFreeReason's answer ('' = fine)."""
     if shift == "":
         return ""
-    if reason == "16 h rule":
-        return (f"- {works} would go past {_num(FATIGUE_MAX_HOURS)} h of work with the OT accepted around "
-                f"{d_txt} {shift.lower()} (the 16 h rule)\n")
+    if reason == "16 h rule":                   # v27.5 (item 1): a scheduled shift beside it counts too
+        return (f"- {works} can't work {d_txt} {shift.lower()} under the 16 h rule (with the shifts beside it - "
+                f"scheduled / OT / a switch - it would run past {_num(FATIGUE_MAX_HOURS)} h or leave under "
+                f"{_num(FATIGUE_MIN_REST)} h rest)\n")
     if reason == "on OT":
         return f"- {works} already has OT accepted on {d_txt} {shift.lower()}\n"
     return ""
@@ -1252,7 +1254,8 @@ def fatigue_stop_text(works: str, d_txt: str, shift: str, reason: str) -> str:
 def switch_stops_core(off: str, works: str, d_txt: str, shift: str, two_way: bool, same_day: bool,
                       d2_txt: str, sh2: str, f: list[str]) -> str:
     """modShiftSwitch.SwitchStopsCore: one-way = eligibility + the 16 h stop for the one working it; two-way on another
-    day = the same for the payback, roles swapped; a same-day sister swap = only bookings and switches that day."""
+    day = the same for the payback, roles swapped; a same-day sister swap = bookings and switches that day, then (v27.5)
+    the 16 h stop for each one on the shift they work."""
     stops = eligibility_text(off, works, d_txt, *f[0:5]) + fatigue_stop_text(works, d_txt, shift, f[5])
     if two_way:
         if same_day:
@@ -1269,6 +1272,7 @@ def switch_stops_core(off: str, works: str, d_txt: str, shift: str, two_way: boo
                 stops += f"- {off} is already on a switch that day\n"
             if f[17]:
                 stops += f"- {works} is already on a switch that day\n"
+            stops += fatigue_stop_text(works, d_txt, shift, f[18]) + fatigue_stop_text(off, d_txt, sh2, f[19])
         else:
             stops += eligibility_text(works, off, d2_txt, *f[6:11]) + fatigue_stop_text(off, d2_txt, sh2, f[11])
     return stops

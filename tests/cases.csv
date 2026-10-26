@@ -883,7 +883,7 @@ switchstop,giver-booked-type-blank,Nov 2|Days,none,bkoff=,,,- Ann is booked off 
 switchstop,giver-already-gave-up,Nov 2|Days,none,gaveoff=SS-0003,,,- Ann already switched off that day (SS-0003)
 switchstop,giver-working-a-switch,Nov 2|Days,none,workoff=SS-0004,,,- Ann is already working a switch that day (SS-0004)
 switchstop,worker-booked-and-on-a-switch,Nov 2|Days,none,bkworks=Sick;workworks=SS-0005,,,- Bob is booked off (Sick) on Nov 2;- Bob is already working a switch that day (SS-0005)
-switchstop,worker-16h,Nov 2|Days,none,fat=16 h rule,,,- Bob would go past 16 h of work with the OT accepted around Nov 2 days (the 16 h rule)
+switchstop,worker-16h,Nov 2|Days,none,fat=16 h rule,,,- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
 switchstop,worker-on-ot-nights,Nov 2|Nights,none,fat=on OT,,,- Bob already has OT accepted on Nov 2 nights
 switchstop,worker-scheduled-is-only-a-warning,Nov 2|Days,none,fat=scheduled,,,none
 switchstop,no-shift-named-no-16h-stop,Nov 2|,none,fat=16 h rule,,,none
@@ -894,11 +894,18 @@ switchstop,payback-worker-gave-up-that-day,Nov 2|Days,Nov 9|Nights,p_gaveworks=S
 switchstop,payback-worker-on-a-switch,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0011,,,- Bob is already working a switch that day (SS-0011)
 switchstop,payback-giver-booked,Nov 2|Days,Nov 9|Nights,p_bkoff=LV,,,- Ann is booked off (LV) on Nov 9
 switchstop,payback-giver-on-a-switch,Nov 2|Days,Nov 9|Nights,p_workoff=SS-0009,,,- Ann is already working a switch that day (SS-0009)
-switchstop,payback-giver-16h,Nov 2|Days,Nov 9|Nights,p_fat=16 h rule,,,- Ann would go past 16 h of work with the OT accepted around Nov 9 nights (the 16 h rule)
-switchstop,switch-then-payback-in-order,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0010;fat=16 h rule;bkoff=Vac,,,- Ann is booked off (Vac) on Nov 2;- Bob would go past 16 h of work with the OT accepted around Nov 2 days (the 16 h rule);- Bob is already working a switch that day (SS-0010)
+switchstop,payback-giver-16h,Nov 2|Days,Nov 9|Nights,p_fat=16 h rule,,,- Ann can't work Nov 9 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
+switchstop,switch-then-payback-in-order,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0010;fat=16 h rule;bkoff=Vac,,,- Ann is booked off (Vac) on Nov 2;- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest);- Bob is already working a switch that day (SS-0010)
 switchstop,one-way-ignores-payback-facts,Nov 2|Days,none,p_bkoff=Vac;s_offon=y,,,none
 switchstop,same-day-clean,Nov 2|Days,same|Nights,,,,none
 switchstop,same-day-sets-the-one-way-stops-aside,Nov 2|Days,same|Nights,bkoff=Vac;workoff=SS-0001;fat=16 h rule,,,none
+switchstop,same-day-worker-16h,Nov 2|Days,same|Nights,s_fatworks=16 h rule,,,- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
+switchstop,same-day-giver-16h-on-the-shift-they-work,Nov 2|Days,same|Nights,s_fatoff=16 h rule,,,- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
+switchstop,same-day-giver-on-ot,Nov 2|Days,same|Nights,s_fatoff=on OT,,,- Ann already has OT accepted on Nov 2 nights
+switchstop,same-day-16h-after-the-bookings,Nov 2|Days,same|Nights,s_fatoff=16 h rule;s_fatworks=on OT;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob already has OT accepted on Nov 2 days;- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)
+switchstop,same-day-scheduled-or-rest-is-no-stop,Nov 2|Days,same|Nights,s_fatworks=scheduled;s_fatoff=rest,,,none
+switchstop,one-way-ignores-the-same-day-16h-facts,Nov 2|Days,none,s_fatworks=16 h rule;s_fatoff=on OT,,,none
+switchstop,payback-ignores-the-same-day-16h-facts,Nov 2|Days,Nov 9|Nights,s_fatworks=16 h rule;s_fatoff=on OT,,,none
 switchstop,same-day-booked,Nov 2|Days,same|Nights,s_bkworks=Sick;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob is booked off (Sick)
 switchstop,same-day-cant-work-the-other-shift,Nov 2|Days,same|Nights,s_bkoff2=Sick;s_bkworks1=Trn,,,- Ann can't work the nights shift (Sick);- Bob can't work the days shift (Trn)
 switchstop,same-day-on-a-switch,Nov 2|Days,same|Nights,s_workson=y;s_offon=y,,,- Ann is already on a switch that day;- Bob is already on a switch that day

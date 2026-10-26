@@ -475,6 +475,8 @@ Private Function SwitchFacts(ByVal spec As String) As String()
                 Case "s_bkworks1": f(SF_S_BKWORKS1) = "+" & v
                 Case "s_offon": f(SF_S_OFFON) = "+"
                 Case "s_workson": f(SF_S_WORKSON) = "+"
+                Case "s_fatworks": f(SF_S_FATWORKS) = v              ' v27.5 (item 1)
+                Case "s_fatoff": f(SF_S_FATOFF) = v
                 Case Else: Err.Raise 5, , "switchstop: unknown fact " & k
             End Select
         Next i
@@ -1987,7 +1989,7 @@ Private Sub LoadCases5()
     AddCase "switchstop,giver-already-gave-up,Nov 2|Days,none,gaveoff=SS-0003,,,- Ann already switched off that day (SS-0003)"
     AddCase "switchstop,giver-working-a-switch,Nov 2|Days,none,workoff=SS-0004,,,- Ann is already working a switch that day (SS-0004)"
     AddCase "switchstop,worker-booked-and-on-a-switch,Nov 2|Days,none,bkworks=Sick;workworks=SS-0005,,,- Bob is booked off (Sick) on Nov 2;- Bob is already working a switch that day (SS-0005)"
-    AddCase "switchstop,worker-16h,Nov 2|Days,none,fat=16 h rule,,,- Bob would go past 16 h of work with the OT accepted around Nov 2 days (the 16 h rule)"
+    AddCase "switchstop,worker-16h,Nov 2|Days,none,fat=16 h rule,,,- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
     AddCase "switchstop,worker-on-ot-nights,Nov 2|Nights,none,fat=on OT,,,- Bob already has OT accepted on Nov 2 nights"
     AddCase "switchstop,worker-scheduled-is-only-a-warning,Nov 2|Days,none,fat=scheduled,,,none"
     AddCase "switchstop,no-shift-named-no-16h-stop,Nov 2|,none,fat=16 h rule,,,none"
@@ -1998,11 +2000,18 @@ Private Sub LoadCases5()
     AddCase "switchstop,payback-worker-on-a-switch,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0011,,,- Bob is already working a switch that day (SS-0011)"
     AddCase "switchstop,payback-giver-booked,Nov 2|Days,Nov 9|Nights,p_bkoff=LV,,,- Ann is booked off (LV) on Nov 9"
     AddCase "switchstop,payback-giver-on-a-switch,Nov 2|Days,Nov 9|Nights,p_workoff=SS-0009,,,- Ann is already working a switch that day (SS-0009)"
-    AddCase "switchstop,payback-giver-16h,Nov 2|Days,Nov 9|Nights,p_fat=16 h rule,,,- Ann would go past 16 h of work with the OT accepted around Nov 9 nights (the 16 h rule)"
-    AddCase "switchstop,switch-then-payback-in-order,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0010;fat=16 h rule;bkoff=Vac,,,- Ann is booked off (Vac) on Nov 2;- Bob would go past 16 h of work with the OT accepted around Nov 2 days (the 16 h rule);- Bob is already working a switch that day (SS-0010)"
+    AddCase "switchstop,payback-giver-16h,Nov 2|Days,Nov 9|Nights,p_fat=16 h rule,,,- Ann can't work Nov 9 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
+    AddCase "switchstop,switch-then-payback-in-order,Nov 2|Days,Nov 9|Nights,p_workworks=SS-0010;fat=16 h rule;bkoff=Vac,,,- Ann is booked off (Vac) on Nov 2;- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest);- Bob is already working a switch that day (SS-0010)"
     AddCase "switchstop,one-way-ignores-payback-facts,Nov 2|Days,none,p_bkoff=Vac;s_offon=y,,,none"
     AddCase "switchstop,same-day-clean,Nov 2|Days,same|Nights,,,,none"
     AddCase "switchstop,same-day-sets-the-one-way-stops-aside,Nov 2|Days,same|Nights,bkoff=Vac;workoff=SS-0001;fat=16 h rule,,,none"
+    AddCase "switchstop,same-day-worker-16h,Nov 2|Days,same|Nights,s_fatworks=16 h rule,,,- Bob can't work Nov 2 days under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
+    AddCase "switchstop,same-day-giver-16h-on-the-shift-they-work,Nov 2|Days,same|Nights,s_fatoff=16 h rule,,,- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
+    AddCase "switchstop,same-day-giver-on-ot,Nov 2|Days,same|Nights,s_fatoff=on OT,,,- Ann already has OT accepted on Nov 2 nights"
+    AddCase "switchstop,same-day-16h-after-the-bookings,Nov 2|Days,same|Nights,s_fatoff=16 h rule;s_fatworks=on OT;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob already has OT accepted on Nov 2 days;- Ann can't work Nov 2 nights under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)"
+    AddCase "switchstop,same-day-scheduled-or-rest-is-no-stop,Nov 2|Days,same|Nights,s_fatworks=scheduled;s_fatoff=rest,,,none"
+    AddCase "switchstop,one-way-ignores-the-same-day-16h-facts,Nov 2|Days,none,s_fatworks=16 h rule;s_fatoff=on OT,,,none"
+    AddCase "switchstop,payback-ignores-the-same-day-16h-facts,Nov 2|Days,Nov 9|Nights,s_fatworks=16 h rule;s_fatoff=on OT,,,none"
     AddCase "switchstop,same-day-booked,Nov 2|Days,same|Nights,s_bkworks=Sick;s_bkoff=Vac,,,- Ann is booked off (Vac);- Bob is booked off (Sick)"
     AddCase "switchstop,same-day-cant-work-the-other-shift,Nov 2|Days,same|Nights,s_bkoff2=Sick;s_bkworks1=Trn,,,- Ann can't work the nights shift (Sick);- Bob can't work the days shift (Trn)"
     AddCase "switchstop,same-day-on-a-switch,Nov 2|Days,same|Nights,s_workson=y;s_offon=y,,,- Ann is already on a switch that day;- Bob is already on a switch that day"

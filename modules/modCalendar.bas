@@ -119,6 +119,7 @@ Public Const RS_VOIDNOTE As Long = 9
 Public Const RS_N As Long = 9
 Public mShiftMap As Object
 Private mOt As Object               ' v26.5.5 (item 9): "name|yyyymmdd|D/N" -> OT hours accepted / awarded (non-void log rows)
+Private mPendOff(1 To 2) As String  ' v27.5 (item 1): "name|yyyymmdd|Days/Nights" x 2 - the shifts a switch being saved gives up (SetPendingGiveUp)
 Private mTestMode As Boolean        ' v21: SelfTest feeds mAbs from memory - the tables are never read
 
 ' ====================================================================
@@ -959,7 +960,36 @@ Public Function WorkedHoursOn(ByVal empName As String, ByVal crewCode As String,
     Dim full As Double: full = DefaultShiftHours(d, isNight, USUAL_SHIFT_HOURS)
     If SwitchWorkingOn(empName, d, lbl) <> "" Then WorkedHoursOn = full: Exit Function
     If SwitchOffOn(empName, d, lbl) <> "" Then Exit Function
+    If PendingGiveUp(empName, d, lbl) Then Exit Function          ' v27.5 (item 1): given up in the switch being saved
     If CrewShiftOn(CrewOn(empName, d, crewCode), d) = lbl Then WorkedHoursOn = full
+End Function
+
+' v27.5 (item 1): a switch being saved is not in the table yet, so the shift its giver GIVES UP still reads as worked by
+' the rotation (and a same-day sister swap gives up two). SwitchSaveStops names them here while it reads the 16 h facts;
+' WorkedHoursOn then gives each 0 h. Cleared on every exit of SwitchSaveStops - never left set.
+Public Sub SetPendingGiveUp(ByVal slot As Long, ByVal empName As String, ByVal d As Date, ByVal shiftLbl As String)
+    If slot < 1 Or slot > 2 Then Exit Sub
+    If shiftLbl = "" Then mPendOff(slot) = "" Else mPendOff(slot) = Trim$(empName) & "|" & Format$(d, "yyyymmdd") & "|" & shiftLbl
+End Sub
+
+Public Sub ClearPendingGiveUp()
+    mPendOff(1) = "": mPendOff(2) = ""
+End Sub
+
+Private Function PendingGiveUp(ByVal empName As String, ByVal d As Date, ByVal lbl As String) As Boolean
+    Dim k As String: k = Trim$(empName) & "|" & Format$(d, "yyyymmdd") & "|" & lbl
+    PendingGiveUp = (StrComp(mPendOff(1), k, vbTextCompare) = 0 Or StrComp(mPendOff(2), k, vbTextCompare) = 0)
+End Function
+
+' v27.5 (item 1): the 16 h rule for a WHOLE shift someone would work in a switch - the arithmetic alone, so a scheduled
+' shift beside it counts the same as OT accepted or a switch (NotFreeReason stops at "scheduled" / "rest" first, which
+' is right for an OT list and wrong for a swap, where the person IS scheduled that day). "on OT" = OT already held on
+' the shift; "16 h rule" = the whole shift does not fit (FatigueMaxFor); "" = fits, or no shift named.
+Public Function FatigueShiftReason(ByVal empName As String, ByVal crewCode As String, ByVal d As Date, ByVal shiftLbl As String) As String
+    If shiftLbl = "" Then Exit Function
+    Dim night As Boolean: night = IsNightShift(shiftLbl)
+    If OtWorkedOn(empName, d, night) > 0 Then FatigueShiftReason = "on OT": Exit Function
+    If FatigueMaxFor(empName, crewCode, d, shiftLbl) < DefaultShiftHours(d, night, USUAL_SHIFT_HOURS) - 0.001 Then FatigueShiftReason = "16 h rule"
 End Function
 
 ' The four shifts around the offer and the hours worked on each, then the pure core

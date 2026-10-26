@@ -40,7 +40,7 @@ Private Function RuleList() As Variant
         "EL-1|Not free: scheduled on that shift (the crew of that date), coming off nights that morning, or starting days the next morning.|rotation|v20", _
         "EL-2|Not free: booked off, sick, or inside the 24 h after a sick shift ends.|attendocc|v22", _
         "EL-3|Not free: working a shift switch that day, or gave the shift up in one (a shift given up relieves the next day's rest rule).|fatigue|v25", _
-        "EL-4|The 16 h rule: the work that ends when the offer starts plus the offer may not pass " & FATIGUE_MAX_HOURS & " h, and " & FATIGUE_MIN_REST & " h must remain before the next work; a capped person is offered their maximum.|fatigue|v26.5.5", _
+        "EL-4|The 16 h rule: the work that ends when the offer starts plus the offer may not pass " & FATIGUE_MAX_HOURS & " h, and " & FATIGUE_MIN_REST & " h must remain before the next work; a capped person is offered their maximum. Every switch must fit on the shift worked, a same-day sister swap included; the shift given up is not worked (v27.5).|fatigue|v26.5.5", _
         "EL-5|OT restricted by an admin: not listed between the dates, never charged.|-|v27", _
         "WK-1|The weekly cap is OFF: the 48 h is a limit on scheduled work and overtime is requested (Graeme, Oct 22). An admin may turn a warning on with a number on the Settings sheet: then an acceptance or award that takes a person's overtime past it in the 7 days before the shift asks for a reason; it never blocks.|weekcap|v27", _
         "CH-1|A call-out refusal or a message left is charged the hours offered x " & CHARGE_MULTIPLIER & " (grade " & CHARGE_MAX_GRADE & " and below).|calloffer|v20", _

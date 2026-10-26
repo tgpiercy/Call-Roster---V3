@@ -1,0 +1,21 @@
+# Groups 3 and 4 of install-steps.txt for v28 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
+# VERSION / EXPECT / MEMBER / FORMS header, and fills {CASES} {SUITES} {MODULES} {STEPS} from the code).
+# member/ CHANGED: the members' template is rebuilt by hand (Members M5) - see the INSTALL note. ThisWorkbook re-pasted
+# (open step 14). Two NEW modules (modRequests, modKeys) imported by the swap; three forms re-pasted (frmTimeOff,
+# frmShiftSwitch, frmEmployee). No ApplyRosterLayout (no bar button moved).
+# Never a "|" inside a field: it is the panel's separator.
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+
+[3. Run once]
+macro   | System check (expect {MODULES} of {MODULES} on v28, ThisWorkbook v28, frmTimeOff / frmShiftSwitch / frmEmployee v28, frmOvertimeEntry and frmPostingEntry v27, the other forms v27.1) | SystemCheckOK
+macro   | Self test (expect {CASES} passed, {SUITES} suites)                 | SelfTestOK
+macro   | Payroll # keys: the column on every people table, filled from the roster (expect the receipt: N key cells stamped; nobody's Total Hours changed) | AssignPayrollKeys | confirm
+
+[4. Checks]
+macro   | Make a practice copy (red PRACTICE COPY banner; leave it for the next rows) | MakePracticeCopy | confirm
+manual  | Smoke test ({STEPS} steps)                                        | In the practice copy: Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, {STEPS} steps, the same steps as v27.5. CLOSE THAT COPY WITHOUT SAVING and come back. Click Done.
+manual  | The Requests folder                                               | Beside the members' file a Requests folder exists (the publish makes it; Member View once if not). Members need the same rights on it as on Signups. Click Done.
+manual  | A request end to end                                              | On a members' PC (or the rebuilt template filled by one publish): Home > MY REQUESTS; Kind Time off, From +7, leave To blank, Note "test"; SEND REQUEST; My requests shows "Sent - waiting for the roster". On the roster (admin): Desk > the requests tile (or reopen) - Needs Attention lists it under MEMBERS' REQUESTS; RIGHT-click it, reason "test - declined"; the receipt. Publish the members' file: the member's My requests shows Declined with the reason. Then the same with Kind Switch for +7 Days naming a partner: the partner's PC shows it under ASKED OF ME; Agree there; the roster now lists it; DOUBLE-click: the switch pop-up opens prefilled; Cancel it (or save it on the practice copy only). Click Done.
+manual  | The Employee pop-up's Payroll # box                                | ADMIN > Employee > Edit: double-click a roster row; the Payroll # box shows the number from column A; type letters: refused; type another person's number: refused; Cancel. Add: the box is there, blank allowed. Click Done.
+manual  | The What's New box                                                | Close and reopen the roster: the v28 box shows once (three lines: requests, the Payroll # key, IntegrityCheck 16). Reopen: not shown again. Click Done.
+macro   | Integrity check (expect the same lines as before the install + check 16 Keys; no PROBLEM) | IntegrityCheck

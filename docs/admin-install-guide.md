@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v27.5 (Oct 25, 2026).
+Current as of v28 (Oct 25, 2026).
 
 ## 1. Before you start
 
@@ -105,6 +105,8 @@ Most releases need no one-time macro: the Planned Moves, Error Log and Refusal R
 | `SetSetting` (v27) | Overrides one of the six tunable settings (Kronos stale days, the weekly cap, members stale days, sign-up stale days, payback warning days, posting close days) on the Settings sheet, keeping the old value. |
 | `RaiseDispute` / `CloseDispute` (v27) | A dispute against a Ref ID, kept on the Evidence sheet until closed with its outcome; Needs Attention lists the open ones. |
 | `ShowHolidayEditor` / `ShowMinStaffEditor` (v27) | The Holidays and the Min Staff pop-ups (the admin Desk's Holidays / minimum staffing). |
+| `ImportRequests` (v28) | Reads the members' request files now and says how many wait for an admin (the Desk's tile does the same). |
+| `AssignPayrollKeys` (v28) | Run ONCE at the v28 install: adds the Payroll # column to every people table and fills it from the roster and the Former sheet, verified (the totals before and after). Safe to run again: it only fills blanks. |
 | `ShowErrorLog` | Opens the Error Log sheet and marks every line seen. `ErrorLogTest` writes one test line so you can see the box a supervisor gets. |
 | `ApplyPlannedMoves` | Applies the planned unit moves that are due (the open asks the same question). |
 | `ApplyPlannedMoves` / Needs Attention > Planned unit moves | Cancel a planned move, or apply one that is due. |
@@ -155,7 +157,7 @@ After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)"
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v27.5: 1010 cases in 109 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v28: 1053 cases in 113 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|
@@ -354,6 +356,8 @@ Restore the backup only if the reopened file is wrong.
 | **Employee history** (FIND group, the Desk; v26) | One person and a date range -> the History Report tab and a PDF: every log row with its call-order place, outcome, charge and Why line, then the pay-period totals. An admin picks **Full** (Logged by, When, Status, Void note, void rows struck through; the admin-only `History Report (admin)` tab) or **member-safe** (the members' My history columns, row for row); a supervisor gets member-safe only. Since v26.5 the pay-period block shows the charged hours, the posting refusals, the call-out refusals and Worked (Kronos). |
 | **Board** (Calendar's top row; v26) | The two-week board: today and the next 13 days, one page per unit group, PDF beside the month calendars, then print |
 | **Min Staff** sheet (v26) | The minimum operators per unit and shift (Unit, Shift, Minimum, Note; v27: + Call-out note, shown on the call-out pop-up). Made with the plant's numbers on an admin's first open after the install; since v27 changed through the Holidays / minimum staffing pop-up only; blank = no minimum on that shift. The calendar's date cells (a red "N short" flag; click the date for which) and Needs Attention (BELOW MINIMUM STAFFING) flag a short shift for the next 14 days. It only reads. The short flag and Needs Attention count every unit whatever group is shown (v26.5). |
+| **Requests** sheet (v28) | Members' requests from their file (tblRequests): id, kind (Time off / Switch), who, the dates, the partner and when they agreed, the note (admin only), the status, who decided and when, the answer the member sees, the AB- / SS- id it became. Read from the `Requests\` folder beside the members' file on an admin's open and from the Desk's tile (`ImportRequests`). Needs Attention lists the waiting ones: double-click books (the pop-up prefilled), right-click declines |
+| **Payroll #** columns (v28) | Every people table's last column (the OT Log, posting lists, Absences, Shift Switches x2, Grade Log, Hours History, Crew History, Planned Moves, Restrictions, Evidence, Requests): the key, stamped from the roster's column A before every save; `AssignPayrollKeys` (run once at the v28 install) adds and fills them; IntegrityCheck 16 names what is left |
 | **Worked Periods** sheet (v26.5) | Each person's premium hours per pay period from the Kronos export, rebuilt at every import; what the members' My history shows as Worked (Kronos). v27.5: a missed morning's hours sit in a **gap** row on Worked Changes ("no one-day report for ...") and count here only until that day's report is imported - never twice |
 | `RepairIdMarks` (Alt+F8; v26) | Raises the hidden ID counters (`IdMark_*`) to the highest number in the archived years and the live log when IntegrityCheck's IDs line says one is below an archive. It never lowers a counter. |
 | **Convert imports** | Turns imported old-calendar vacation lines into real bookings |

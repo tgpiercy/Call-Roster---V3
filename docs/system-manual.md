@@ -2,7 +2,7 @@
 
 This manual states the current rules of the overtime call-out system, for supervisors and the union committee.
 
-Current as of v27.5 (Oct 25, 2026; v27.5 changes three rules: every switch's 16 h stop, the Kronos gap rows in Worked Periods, the staffing count's partial covers). It replaces the rules in all older guides.
+Current as of v28 (Oct 25, 2026; v28 adds members' requests - time off and switches asked for from the members' file, booked or declined by an admin - and the Payroll # as the key on every people table; v27.5 changed three rules: every switch's 16 h stop, the Kronos gap rows in Worked Periods, the staffing count's partial covers). It replaces the rules in all older guides.
 
 ## 1. What the system is
 
@@ -185,6 +185,9 @@ Needs Attention lists every payback still owed, oldest first; one owed for more 
 
 ### Minimum staffing (v26)
 The Min Staff sheet (admin) holds the minimum operators per unit and shift: Phosphine 2 (1 per train, which the roster cannot tell apart), Derivatives 3, Cypure 1, Material Handler 1, QC Derivatives 1, QC Gases 1 on days (the roster has no afternoon shift), Utilities 1 on days, SBP 1 on days; blank = no minimum on that shift. For today and the next 13 days a unit's shift is **short** when staffed is below the minimum, where staffed = the people on the crew that is on that shift who hold a code in the unit, minus those booked off, sick for that shift or off in a shift switch, plus every coverage line a named person covers (a switch's own S/S line counts the one working it; an OPEN, NO TAKERS, POSTED or NCN line adds nobody). v27.5: a partial cover ("Joe D 6h") is 6 of the shift's hours (12; 11 or 13 on a clock-change night) of a person - the shares of every line on the shift are added once and rounded down (two covers of one absence, joined with "; " on the line, are two parts), a blank part or a POSTED / NO TAKERS / NCN part adds nobody, and the date's details and Needs Attention say **(part)** ("SHORT 1/2 (part)") when a fraction was dropped; a switch saved over the "isn't on that shift" warning counts its worker (they are on the shift). A short shift shows a red "N short" flag in the calendar's date cell (click the date for which) and a row under BELOW MINIMUM STAFFING on Needs Attention. The check only reads; a short shift is fixed the usual way (a call-out, a posting, a switch).
+
+### Members' requests (v28)
+A member asks from the members' file (Home > MY REQUESTS): time off between two dates, or a shift switch on one date with the partner who would work it. The request is one small file in the `Requests\` folder beside the members' file; a switch request waits there until the named partner clicks **Agree** on their own PC (an Agree from the requester's own login does not count). An admin sees the waiting requests on the Desk and under MEMBERS' REQUESTS on Needs Attention: a double-click opens the time-off or switch pop-up prefilled - every rule of those pop-ups applies (bookings, the sick window, the 16 h stop) - and the save marks the request Booked with its AB- / SS- id; a right-click declines with a reason. **A request books nothing by itself.** The member sees the status (Sent / Waiting for partner / Waiting / Booked / Declined / Declined by partner / Withdrawn / Expired), the admin's answer and the decided date under My requests after the next update, and may withdraw a request while it waits. The member's note is read by the admin only; the kind is published as "Time off" or "Switch", never a leave type.
 
 ## 10. Time off and privacy
 
@@ -425,6 +428,9 @@ The steps are in docs/rollover-one-pager.md.
 - Phone numbers and email addresses are hidden from people not on the admin list.
 - The file is always saved in the restricted view, and so is every copy the system makes (pre-change backups, practice copies, the updater's backup).
 - Every sheet is protected in both views. Since v26.5 nothing on the roster is typed into (a person's details change through Employee > Edit; Worked comes from the Kronos import); since v27 the Holidays and the minimum staffing have their own pop-up too, so only the Reconcile sheet's typed paper order and the Rules sheet's Basis column take typing; totals, pay-period cells and every other sheet are written by the buttons. Sheets can't be added, deleted or unhidden by hand.
+
+## 18a. The Payroll # key (v28)
+Every people table (the OT Log, the posting lists, Absences, Shift Switches, the Grade Log, Hours History, Crew History, Planned Moves, Restrictions, Evidence, Requests) carries the person's **Payroll #** (Kronos' Global ID, the roster's column A) in a column on its end, filled from the roster and the Former sheet before every save, after a Kronos import and after an Add / Edit; `AssignPayrollKeys` fills every row once at the v28 install. **A rename follows the number** where a row carries it, so a row whose name was mistyped by hand is renamed too. The Employee pop-up takes the number at Add and Edit (digits only; never on another row; the Kronos import confirms or fills it). IntegrityCheck 16 names a number on two roster rows, a key the roster and Former do not hold, and rows without a key. The roster's pay-period totals, the call order, the lists and the calendar still work by name; **members never see the number** (the publish refuses any 7+ digit run).
 
 ## 19. Safeguards
 

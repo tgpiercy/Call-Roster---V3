@@ -27,11 +27,11 @@ Public Const SYS_VERSION As String = "System v28 (Oct 25)"
 Public Const EXPECTED_RELEASE As String = "v28"
 ' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
 ' release with nothing new for them (v27.1 was the behaviour-free refactor; v27.5 changes three rules, so its box shows)
-Public Const WHATS_NEW_RELEASE As String = "v27.5"
+Public Const WHATS_NEW_RELEASE As String = "v28"
 ' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
-Public Const WHATS_NEW As String = "v27.5: three rule fixes. A shift switch now STOPS when the one working it would run past 16 h with the shift beside it - a scheduled shift counts like overtime (nights last night, then days today) - and the shift each one gives up is not counted. The same-day swap of both shifts between sister crews stays allowed (the only way an A/B pair can swap); it is stopped only when one of them already has OT on the shift they would work.|" & _
-                                   "The staffing count treats a partial cover (Joe D 6h) as half a person: the shares on a shift are added once and rounded down, and the date's details and Needs Attention say (part) when some of the shift is still uncovered.|" & _
-                                   "For admins: a missed Kronos morning is named at the year-to-date import (a gap row in Worked Changes) and no longer counts twice in Worked Periods once that day's report is imported."
+Public Const WHATS_NEW As String = "v28: members can ASK from their file. The members' file gets a Requests page: time off between two dates, or a shift switch with the partner who would work it (the partner clicks Agree on their own PC first). The request books nothing by itself: it lands on the admin Desk and Needs Attention (MEMBERS' REQUESTS), where a double-click opens the time-off or switch pop-up prefilled and a right-click declines with a reason; the answer reaches the member at the next update.|" & _
+                                   "The Payroll # is now the key: every people table carries it (filled from the roster at the install and before every save), a rename follows the number, and the Employee pop-up takes it at Add and Edit (digits only). Nothing is published: members never see the number.|" & _
+                                   "Also: IntegrityCheck 16 'Keys' names a number on two rows or a row without one; the new Requests and Keys macros are listed in the admin guide. v27.5's three rule fixes (the 16 h stop on switches, the Kronos gap rows, the staffing count's partial covers) are in this install if v27.5 was skipped."
 Private Const N_MODULES As Long = 43           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 14 (RequestsOnOpen)

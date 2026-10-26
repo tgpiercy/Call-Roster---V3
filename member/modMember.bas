@@ -36,6 +36,7 @@ Private Const SH_POST As String = "Postings"
 Private Const SH_HIST As String = "My history"
 Private Const SH_LISTS As String = "dLists"       ' picker lists, rebuilt by MemberRefreshAll
 Private Const SH_HELP As String = "How it works"  ' M4: the rules in plain words, inside the file
+Private Const SH_REQ As String = "Requests"       ' M5 (v28 item 1): ask for time off or a switch, the partner's Agree, My requests
 Private Const APP_KEY As String = "CallOutRoster"  ' M4: Excel's per-user setting store (this PC user), never the shared file
 Private Const APP_SEC As String = "Members"
 Private Const LAYOUT_CELL As String = "Z1"        ' M4: where BuildMemberTemplate writes the version (Home; was B19)
@@ -69,6 +70,13 @@ Private Const CAL_UNIT As String = "G2"            ' a calendar group (the maste
 Private Const HIST_NAME As String = "B2"
 Private Const HOME_FIND As String = "C6"          ' M4: me first - the name sits at the top
 Private Const POST_PICK As String = "C2"           ' Postings: "show the list for"
+Private Const REQ_KIND As String = "C3"            ' M5: the request's typed cells (their labels sit one column left)
+Private Const REQ_FROM As String = "E3"
+Private Const REQ_TO As String = "G3"
+Private Const REQ_SHIFT As String = "C4"
+Private Const REQ_PARTNER As String = "E4"
+Private Const REQ_NOTE As String = "C5"
+Private Const REQ_FIRST_ROW As Long = 8            ' M5: the lists start here (rows 3-6 are the ask)
 Private Const CARD_ROW As Long = 21                ' Home: the rest of the card starts here, under the tiles (rows 7-12) and the buttons (14-20)
 Private Const CAL_COLW As Double = 17              ' calendar: width of each half of a day
 Private Const CAL_MAX_LINES As Long = 6            ' calendar: lines shown per day half; the rest become "... and N more"
@@ -377,6 +385,7 @@ Public Sub BuildMemberTemplate()
     LayoutCalendar
     LayoutPostings
     LayoutHistory
+    LayoutRequests                                   ' M5
     LayoutHelp                                       ' M4
     For Each nm In ViewSheets()                      ' M4: one header band on every sheet but Home, the version in every footer
         Set ws = WsOf(CStr(nm))
@@ -449,15 +458,16 @@ Private Sub LayoutHome()
         .Value = "Remembered on this PC, never in the shared file."
         .Font.Size = 8: .Font.Italic = True: .Font.Color = RGB(130, 135, 145)
     End With
-    ' the six buttons below the tiles
+    ' the seven buttons below the tiles (M5: four and three; MY REQUESTS opens the Requests page)
     Dim top As Double: top = ws.Range("B14").Top
     Dim lft As Double: lft = ws.Range("B14").Left
-    Btn ws, "mb_roster", "ROSTER", "MemberGoRoster", lft, top, 150, 44, NAVY, vbWhite
-    Btn ws, "mb_next", "WHO'S NEXT", "MemberGoNext", lft + 160, top, 150, 44, GREEN, vbWhite
-    Btn ws, "mb_cal", "CALENDAR", "MemberGoCalendar", lft + 320, top, 150, 44, RGB(31, 56, 100), vbWhite
-    Btn ws, "mb_post", "OPEN POSTINGS", "MemberGoPostings", lft, top + 54, 150, 44, RGB(93, 64, 55), vbWhite
-    Btn ws, "mb_hist", "MY HISTORY", "MemberGoHistory", lft + 160, top + 54, 150, 44, RGB(106, 27, 154), vbWhite
-    Btn ws, "mb_helpbig", "HOW IT WORKS", "MemberGoHelp", lft + 320, top + 54, 150, 44, LIGHT, INK
+    Btn ws, "mb_roster", "ROSTER", "MemberGoRoster", lft, top, 115, 44, NAVY, vbWhite
+    Btn ws, "mb_next", "WHO'S NEXT", "MemberGoNext", lft + 125, top, 115, 44, GREEN, vbWhite
+    Btn ws, "mb_cal", "CALENDAR", "MemberGoCalendar", lft + 250, top, 115, 44, RGB(31, 56, 100), vbWhite
+    Btn ws, "mb_post", "OPEN POSTINGS", "MemberGoPostings", lft + 375, top, 115, 44, RGB(93, 64, 55), vbWhite
+    Btn ws, "mb_hist", "MY HISTORY", "MemberGoHistory", lft, top + 54, 115, 44, RGB(106, 27, 154), vbWhite
+    Btn ws, "mb_req", "MY REQUESTS", "MemberGoRequests", lft + 125, top + 54, 115, 44, RGB(0, 110, 90), vbWhite
+    Btn ws, "mb_helpbig", "HOW IT WORKS", "MemberGoHelp", lft + 250, top + 54, 115, 44, LIGHT, INK
     With ws.Range(LAYOUT_CELL)                       ' the layout version: only the build writes it (MemberLayoutVersion)
         .Value = MEM_VERSION
         .Font.Size = 6: .Font.Color = vbWhite
@@ -645,6 +655,8 @@ Public Sub MemberRefreshAll()
         DrawHistory ""
         stepTxt = "the Home card"
         DrawHomeCard
+        stepTxt = "the Requests"
+        MemberShowRequests                           ' M5
         stepTxt = "How it works"
         DrawHelp                                     ' M4
     End If
@@ -746,6 +758,9 @@ Private Sub BuildLists()
     SetList WsOf(SH_HIST), HIST_NAME, ListRef("A", nNames)
     SetList WsOf(SH_HOME), HOME_FIND, ListRef("A", nNames)
     SetList WsOf(SH_POST), POST_PICK, ListRef("F", nPosts)
+    SetList WsOf(SH_REQ), REQ_KIND, "Time off,Switch"              ' M5: the request's pickers
+    SetList WsOf(SH_REQ), REQ_SHIFT, "Days,Nights"
+    SetList WsOf(SH_REQ), REQ_PARTNER, ListRef("A", nNames)
 End Sub
 
 Private Function ListRef(ByVal col As String, ByVal n As Long) As String
@@ -2573,6 +2588,7 @@ Public Sub MemberGoNext(): WsOf(SH_NEXT).Activate: End Sub
 Public Sub MemberGoCalendar(): WsOf(SH_CAL).Activate: End Sub
 Public Sub MemberGoPostings(): WsOf(SH_POST).Activate: End Sub
 Public Sub MemberGoHistory(): WsOf(SH_HIST).Activate: End Sub
+Public Sub MemberGoRequests(): WsOf(SH_REQ).Activate: End Sub     ' M5
 
 Public Sub MemberOnOpen()
     On Error Resume Next
@@ -2621,7 +2637,7 @@ End Sub
 ' ====================================================================
 ' The view sheets in tab order (Home first, How it works last)
 Private Function ViewSheets() As Variant
-    ViewSheets = Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST, SH_HELP)
+    ViewSheets = Array(SH_HOME, SH_ROSTER, SH_NEXT, SH_CAL, SH_POST, SH_HIST, SH_REQ, SH_HELP)     ' M5: + Requests
 End Function
 
 ' < Home, Larger type, How it works and the published stamp, on row 1 to the right of the title (row 1 is made taller)
@@ -2714,6 +2730,7 @@ Private Sub DrawHelp()
     HelpPara ws, r, "~ and *", "~ = the hours someone will have after a planned unit move (used for their place only). * = the total includes overtime accepted but not yet in Kronos."
     HelpPara ws, r, "Sign-ups", "Sign me up drops a request for the supervisors' roster; the supervisor confirms it when the posting is awarded. The posted paper sheet still counts. A sign-up for part of the shift is awarded only when nobody takes the whole shift."
     HelpPara ws, r, "Who is free", "Not free: scheduled on that shift, coming off nights that morning or starting days the next morning (the rest rule), booked off, on a shift switch, inside the 24 h after a sick shift, or when the 16 h rule leaves nothing (no more than 16 h of work in a row, and 11 h rest before the next work)."
+    HelpPara ws, r, "Asking for time off or a switch", "The Requests page sends a request to the supervisors' roster: time off between two dates, or a shift switch on one date with the partner who would work it. A switch waits until that partner clicks Agree on their own PC. An admin then books it through the roster's own rules or declines it with a reason; the answer shows under My requests after the next update. A request books nothing by itself, and your note is read by the admin only."
     HelpPara ws, r, "The calendar", Txt(Meta("Legend calendar"))
     HelpPara ws, r, "The log and the lists", Txt(Meta("Legend log"))
     ws.Cells(r + 1, 1).Value = IIf(HasData(), "As published " & Format$(Dt(Meta("Published at")), "ddd mmm d, h:mm AM/PM") & ".  " & Txt(Meta("Trust strip")), "Not published yet.")     ' (review) the template has no date
@@ -2731,3 +2748,597 @@ Private Sub HelpPara(ByVal ws As Worksheet, ByRef r As Long, ByVal head As Strin
     ws.Rows(r + 1).AutoFit
     r = r + 3
 End Sub
+
+
+' ====================================================================
+'  M5 (v28 item 1): REQUESTS - ask for time off or a shift switch; the partner's Agree / No; My requests; Withdraw.
+'  One small text file per click into the Requests folder beside this file (as the sign-ups): the master's
+'  modRequests reads them. This file reads the same folder so the named partner sees "asked of me" at once and a
+'  sent request shows as waiting before the roster has published its answer. No rule lives here: the admin books
+'  through the roster's own pop-ups.
+' ====================================================================
+Private Const RQ_TTL As String = "Members' requests"
+' dRequests, as the master publishes it (the contract test ties these to modRequests.PublishRequestsTable)
+Private Const DQ_EMP As Long = 1
+Private Const DQ_KIND As Long = 2
+Private Const DQ_FROM As Long = 3
+Private Const DQ_TO As Long = 4
+Private Const DQ_SHIFT As Long = 5
+Private Const DQ_PARTNER As Long = 6
+Private Const DQ_STATUS As Long = 7
+Private Const DQ_ANSWER As Long = 8
+Private Const DQ_DECIDED As Long = 9
+' a request file read back (ReadRequestFolder rows)
+Private Const FQ_ID As Long = 1
+Private Const FQ_ACTION As Long = 2
+Private Const FQ_KIND As Long = 3
+Private Const FQ_EMP As Long = 4
+Private Const FQ_FROM As Long = 5
+Private Const FQ_TO As Long = 6
+Private Const FQ_SHIFT As Long = 7
+Private Const FQ_PARTNER As Long = 8
+Private Const FQ_NOTE As Long = 9
+Private Const FQ_LOGIN As Long = 10
+Private Const FQ_STAMP As Long = 11
+Private Const FQ_N As Long = 11
+
+Private Function RequestsOn() As Boolean
+    RequestsOn = (LCase$(Txt(Meta("Requests"))) = "on")
+End Function
+
+' the folder as published (".\Requests" = beside this file), resolved here
+Private Function RequestFolderPath() As String
+    Dim folder As String: folder = Txt(Meta("Request folder"))
+    If folder = "." Then
+        folder = ThisWorkbook.Path
+    ElseIf Left$(folder, 2) = ".\" Then
+        folder = ThisWorkbook.Path & Mid$(folder, 2)
+    End If
+    If folder <> "" Then
+        If Right$(folder, 1) <> Application.PathSeparator Then folder = folder & Application.PathSeparator
+    End If
+    RequestFolderPath = folder
+End Function
+
+Private Sub LayoutRequests()
+    Dim ws As Worksheet: Set ws = WsOf(SH_REQ, True)
+    UnprotectWs ws
+    Dim sk As Long
+    For sk = ws.Shapes.Count To 1 Step -1
+        If Left$(ws.Shapes(sk).Name, 3) = "mb_" Then ws.Shapes(sk).Delete
+    Next sk
+    ws.Cells.Clear
+    ws.Cells.Font.Name = "Segoe UI": ws.Cells.Font.Size = 10: ws.Cells.Font.Color = INK
+    Title ws, "REQUESTS", "Ask for time off, or a shift switch with a partner. An admin books it through the roster's rules or declines it; the answer shows below after the next update."
+    ws.Columns("A").ColumnWidth = 16
+    ws.Columns("B").ColumnWidth = 9
+    ws.Columns("C").ColumnWidth = 22
+    ws.Columns("D").ColumnWidth = 9
+    ws.Columns("E").ColumnWidth = 22
+    ws.Columns("F").ColumnWidth = 9
+    ws.Columns("G").ColumnWidth = 22
+    ws.Columns("H").ColumnWidth = 26
+    ws.Columns("I").ColumnWidth = 16
+    ws.Columns("J").ColumnWidth = 10
+    ws.Columns("K").ColumnWidth = 10
+    ws.Rows(3).RowHeight = 20: ws.Rows(4).RowHeight = 20: ws.Rows(5).RowHeight = 20
+    Picker ws, REQ_KIND, "", "Kind:"
+    Picker ws, REQ_FROM, "", "From:"
+    Picker ws, REQ_TO, "", "To:"
+    Picker ws, REQ_SHIFT, "", "Shift:"
+    Picker ws, REQ_PARTNER, "", "Partner:"
+    Picker ws, REQ_NOTE, "", "Note:"
+    ws.Range("C5:G5").Merge
+    With ws.Range("A6")
+        .Value = "Dates like Nov 3, Nov 3 2026 or 2026-11-03; To blank = the one day. A switch is ONE shift: pick Days or Nights and the partner who would work it - they click Agree on their PC before the roster sees it. No leave words in the note."
+        .Font.Size = 8: .Font.Italic = True: .Font.Color = RGB(100, 100, 100)
+    End With
+    ws.Range("A6:K6").Merge: ws.Range("A6").WrapText = True: ws.Rows(6).RowHeight = 26
+    Btn ws, "mb_rq_send", "SEND REQUEST", "MemberSendRequest", ws.Range("I3").Left, ws.Range("I3").Top, 120, 44, GREEN, vbWhite
+    ProtectWs ws
+End Sub
+
+' the folder's REQ__*.txt files as rows (FQ_*), or Empty (no folder, nothing in it, or it can't be reached)
+Private Function ReadRequestFolder() As Variant
+    Dim folder As String: folder = RequestFolderPath()
+    If folder = "" Then Exit Function
+    Dim ok As Boolean
+    On Error Resume Next
+    ok = (Len(Dir$(folder, vbDirectory)) > 0)
+    On Error GoTo 0
+    If Not ok Then Exit Function
+    Dim files() As String, n As Long, f As String
+    On Error Resume Next
+    f = Dir$(folder & "REQ__*.txt")
+    Do While f <> "" And Err.Number = 0
+        n = n + 1
+        ReDim Preserve files(1 To n)
+        files(n) = f
+        f = Dir$()
+    Loop
+    On Error GoTo 0
+    If n = 0 Then Exit Function
+    Dim rows() As Variant: ReDim rows(1 To n, 1 To FQ_N)
+    Dim i As Long, k As Long, fx() As String
+    For i = 1 To n
+        If ReadRequestFile(folder & files(i), fx) Then
+            If fx(FQ_ID) <> "" And fx(FQ_ACTION) <> "" Then
+                k = k + 1
+                Dim c As Long
+                For c = 1 To FQ_N
+                    rows(k, c) = fx(c)
+                Next c
+            End If
+        End If
+    Next i
+    If k = 0 Then Exit Function
+    Dim out() As Variant: ReDim out(1 To k, 1 To FQ_N)
+    Dim j As Long
+    For i = 1 To k
+        For j = 1 To FQ_N
+            out(i, j) = rows(i, j)
+        Next j
+    Next i
+    ReadRequestFolder = out
+End Function
+
+' one file's key=value lines (False = it could not be opened: still being written, antivirus)
+Private Function ReadRequestFile(ByVal fullPath As String, ByRef fx() As String) As Boolean
+    ReDim fx(1 To FQ_N)
+    Dim ff As Integer, ln As String, p As Long, valTxt As String, opened As Boolean, nLines As Long
+    On Error GoTo Quit
+    ff = FreeFile
+    Open fullPath For Input Access Read Shared As #ff
+    opened = True
+    Do While Not EOF(ff) And nLines < 60
+        Line Input #ff, ln
+        nLines = nLines + 1
+        p = InStr(ln, "=")
+        If p > 1 Then
+            valTxt = Trim$(Mid$(ln, p + 1))
+            Select Case LCase$(Trim$(Left$(ln, p - 1)))
+                Case "request": fx(FQ_ID) = valTxt
+                Case "action": fx(FQ_ACTION) = LCase$(valTxt)
+                Case "kind": fx(FQ_KIND) = valTxt
+                Case "employee": fx(FQ_EMP) = valTxt
+                Case "from": fx(FQ_FROM) = valTxt
+                Case "to": fx(FQ_TO) = valTxt
+                Case "shift": fx(FQ_SHIFT) = valTxt
+                Case "partner": fx(FQ_PARTNER) = valTxt
+                Case "note": fx(FQ_NOTE) = valTxt
+                Case "login": fx(FQ_LOGIN) = valTxt
+                Case "stamp": fx(FQ_STAMP) = valTxt
+            End Select
+        End If
+    Loop
+    Close #ff
+    ReadRequestFile = True
+    Exit Function
+Quit:
+    On Error Resume Next
+    If opened Then Close #ff
+End Function
+
+' the folder's answer files for one request: agree by another login ("" = none), refused, withdrawn
+Private Sub FolderAnswers(ByRef fv As Variant, ByVal rid As String, ByVal requesterLogin As String, _
+                          ByRef agreeLogin As String, ByRef refused As Boolean, ByRef withdrawn As Boolean)
+    agreeLogin = "": refused = False: withdrawn = False
+    If Not IsArray(fv) Then Exit Sub
+    Dim i As Long
+    For i = 1 To UBound(fv, 1)
+        If StrComp(Txt(fv(i, FQ_ID)), rid, vbTextCompare) = 0 Then
+            Select Case Txt(fv(i, FQ_ACTION))
+                Case "agree"
+                    If StrComp(Txt(fv(i, FQ_LOGIN)), requesterLogin, vbTextCompare) <> 0 Then agreeLogin = Txt(fv(i, FQ_LOGIN))
+                Case "refuse": refused = True
+                Case "withdraw": withdrawn = True
+            End Select
+        End If
+    Next i
+End Sub
+
+' a published dRequests row for this request (by name, kind, dates, shift and partner), 0 = none yet
+Private Function PublishedRow(ByRef dq As Variant, ByVal who As String, ByVal kind As String, ByVal fromIso As String, _
+                              ByVal toIso As String, ByVal shiftLbl As String, ByVal partner As String) As Long
+    If Not IsArray(dq) Then Exit Function
+    Dim i As Long
+    For i = UBound(dq, 1) To 2 Step -1               ' the newest row of the same ask wins
+        If StrComp(Txt(dq(i, DQ_EMP)), who, vbTextCompare) = 0 And StrComp(Txt(dq(i, DQ_KIND)), kind, vbTextCompare) = 0 Then
+            If Format$(Dt(dq(i, DQ_FROM)), "yyyy-mm-dd") = fromIso And Format$(Dt(dq(i, DQ_TO)), "yyyy-mm-dd") = toIso Then
+                If StrComp(Txt(dq(i, DQ_SHIFT)), shiftLbl, vbTextCompare) = 0 And StrComp(Txt(dq(i, DQ_PARTNER)), partner, vbTextCompare) = 0 Then
+                    PublishedRow = i: Exit Function
+                End If
+            End If
+        End If
+    Next i
+End Function
+
+Public Sub MemberShowRequests()
+    If LayoutProblem() <> "" Or DataProblem() <> "" Then Exit Sub      ' the note on Home says why
+    Dim ws As Worksheet: Set ws = WsOf(SH_REQ)
+    If ws Is Nothing Then Exit Sub
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    UnprotectWs ws
+    On Error GoTo Finish
+    ClearBelow ws, REQ_FIRST_ROW - 1
+    Dim i As Long, k As Long, nBtn As Long
+    For i = ws.Shapes.Count To 1 Step -1
+        If Left$(ws.Shapes(i).Name, 6) = "mb_rqb" Then ws.Shapes(i).Delete
+    Next i
+    Dim who As String: who = WhoAmI()
+    Dim r As Long: r = REQ_FIRST_ROW
+    If Not RequestsOn() Then
+        ws.Cells(r, 1).Value = "Requests from this file aren't switched on. Ask your supervisor the usual way."
+        ws.Cells(r, 1).Font.Italic = True
+        Err.Clear
+        GoTo Finish
+    End If
+    If who = "" Then
+        ws.Cells(r, 1).Value = "Pick your name on Home (Find me) to ask, or to see your requests."
+        ws.Cells(r, 1).Font.Italic = True
+        Err.Clear
+        GoTo Finish
+    End If
+    Dim fv As Variant: fv = ReadRequestFolder()
+    Dim dq As Variant: dq = Data("dRequests")
+    Dim myLogin As String: myLogin = Environ$("USERNAME")
+    Dim agreeLogin As String, refused As Boolean, withdrawn As Boolean, st As String, pr As Long
+
+    ' ---- 1. asked of me: switch requests naming me as the partner, still waiting for my answer ----
+    SectionBar ws, r, "ASKED OF " & UCase$(who) & "  -  switches where you would work the shift (Agree, or No)"
+    r = r + 1
+    Header ws, r, Array("Asked by", "Shift date", "Shift", "Their note", "", "", "", "", "", "", "")
+    r = r + 1
+    Dim nAsked As Long, dF As Date
+    If IsArray(fv) Then
+        For i = 1 To UBound(fv, 1)
+            If Txt(fv(i, FQ_ACTION)) = "request" And StrComp(Txt(fv(i, FQ_KIND)), "Switch", vbTextCompare) = 0 Then
+                If StrComp(Txt(fv(i, FQ_PARTNER)), who, vbTextCompare) = 0 And StrComp(Txt(fv(i, FQ_EMP)), who, vbTextCompare) <> 0 Then
+                    FolderAnswers fv, Txt(fv(i, FQ_ID)), Txt(fv(i, FQ_LOGIN)), agreeLogin, refused, withdrawn
+                    If agreeLogin = "" And Not refused And Not withdrawn And IsoDay(Txt(fv(i, FQ_FROM)), dF) Then
+                        If dF >= Date Then
+                            nAsked = nAsked + 1
+                            ws.Cells(r, 1).Value = Txt(fv(i, FQ_EMP))
+                            ws.Cells(r, 2).Value = dF: ws.Cells(r, 2).NumberFormat = "ddd mmm d"
+                            ws.Cells(r, 3).Value = Txt(fv(i, FQ_SHIFT))
+                            ws.Cells(r, 4).Value = Left$(Txt(fv(i, FQ_NOTE)), 80)
+                            ws.Rows(r).RowHeight = 19
+                            nBtn = nBtn + 1
+                            Btn ws, "mb_rqb" & nBtn, "Agree", "'MemberAgreeRequest """ & Txt(fv(i, FQ_ID)) & """'", _
+                                ws.Cells(r, 9).Left + 2, ws.Cells(r, 9).Top + 2, 60, 15, GREEN, vbWhite
+                            nBtn = nBtn + 1
+                            Btn ws, "mb_rqb" & nBtn, "No", "'MemberRefuseRequest """ & Txt(fv(i, FQ_ID)) & """'", _
+                                ws.Cells(r, 10).Left + 2, ws.Cells(r, 10).Top + 2, 50, 15, LIGHT, INK
+                            r = r + 1
+                        End If
+                    End If
+                End If
+            End If
+        Next i
+    End If
+    If nAsked = 0 Then
+        ws.Cells(r, 1).Value = "Nothing waiting for your answer."
+        ws.Cells(r, 1).Font.Italic = True
+        r = r + 1
+    End If
+    r = r + 1
+
+    ' ---- 2. my requests: the folder's (sent, maybe not yet in the roster) and the published answers ----
+    SectionBar ws, r, "MY REQUESTS"
+    r = r + 1
+    Header ws, r, Array("Kind", "From", "To", "Shift", "Partner", "Status", "Answer", "Decided", "", "", "")
+    r = r + 1
+    Dim nMine As Long, shown As String, kind As String, fromIso As String, toIso As String, dTo As Date, keyTxt As String
+    If IsArray(fv) Then
+        For i = 1 To UBound(fv, 1)
+            If Txt(fv(i, FQ_ACTION)) = "request" And StrComp(Txt(fv(i, FQ_EMP)), who, vbTextCompare) = 0 Then
+                kind = Txt(fv(i, FQ_KIND)): fromIso = Txt(fv(i, FQ_FROM)): toIso = Txt(fv(i, FQ_TO))
+                FolderAnswers fv, Txt(fv(i, FQ_ID)), Txt(fv(i, FQ_LOGIN)), agreeLogin, refused, withdrawn
+                pr = PublishedRow(dq, who, kind, fromIso, toIso, Txt(fv(i, FQ_SHIFT)), Txt(fv(i, FQ_PARTNER)))
+                If pr > 0 Then
+                    st = Txt(dq(pr, DQ_STATUS))
+                    shown = shown & "|" & pr & "|"
+                ElseIf withdrawn Then
+                    st = "Withdrawn"
+                ElseIf refused Then
+                    st = "Declined by partner"
+                ElseIf StrComp(kind, "Switch", vbTextCompare) = 0 And agreeLogin = "" Then
+                    st = "Waiting for partner"
+                Else
+                    st = "Sent - waiting for the roster"
+                End If
+                If st = "Waiting" And withdrawn Then st = "Withdrawn"           ' withdrawn after the roster read it: the roster catches up at its next open
+                nMine = nMine + 1
+                ws.Cells(r, 1).Value = kind
+                If IsoDay(fromIso, dF) Then ws.Cells(r, 2).Value = dF: ws.Cells(r, 2).NumberFormat = "ddd mmm d"
+                If IsoDay(toIso, dTo) Then ws.Cells(r, 3).Value = dTo: ws.Cells(r, 3).NumberFormat = "ddd mmm d"
+                ws.Cells(r, 4).Value = Txt(fv(i, FQ_SHIFT))
+                ws.Cells(r, 5).Value = Txt(fv(i, FQ_PARTNER))
+                ws.Cells(r, 6).Value = st
+                If pr > 0 Then
+                    ws.Cells(r, 7).Value = Txt(dq(pr, DQ_ANSWER))
+                    If Dt(dq(pr, DQ_DECIDED)) > 0 Then ws.Cells(r, 8).Value = Dt(dq(pr, DQ_DECIDED)): ws.Cells(r, 8).NumberFormat = "ddd mmm d"
+                End If
+                ws.Rows(r).RowHeight = 19
+                If st = "Waiting" Or st = "Waiting for partner" Or st = "Sent - waiting for the roster" Then
+                    nBtn = nBtn + 1
+                    Btn ws, "mb_rqb" & nBtn, "Withdraw", "'MemberWithdrawRequest """ & Txt(fv(i, FQ_ID)) & """'", _
+                        ws.Cells(r, 9).Left + 2, ws.Cells(r, 9).Top + 2, 72, 15, LIGHT, INK
+                End If
+                r = r + 1
+            End If
+        Next i
+    End If
+    If IsArray(dq) Then                               ' the published rows no folder file matched (their files are archived)
+        For i = 2 To UBound(dq, 1)
+            If StrComp(Txt(dq(i, DQ_EMP)), who, vbTextCompare) = 0 And InStr(shown, "|" & i & "|") = 0 Then
+                nMine = nMine + 1
+                ws.Cells(r, 1).Value = Txt(dq(i, DQ_KIND))
+                If Dt(dq(i, DQ_FROM)) > 0 Then ws.Cells(r, 2).Value = Dt(dq(i, DQ_FROM)): ws.Cells(r, 2).NumberFormat = "ddd mmm d"
+                If Dt(dq(i, DQ_TO)) > 0 Then ws.Cells(r, 3).Value = Dt(dq(i, DQ_TO)): ws.Cells(r, 3).NumberFormat = "ddd mmm d"
+                ws.Cells(r, 4).Value = Txt(dq(i, DQ_SHIFT))
+                ws.Cells(r, 5).Value = Txt(dq(i, DQ_PARTNER))
+                ws.Cells(r, 6).Value = Txt(dq(i, DQ_STATUS))
+                ws.Cells(r, 7).Value = Txt(dq(i, DQ_ANSWER))
+                If Dt(dq(i, DQ_DECIDED)) > 0 Then ws.Cells(r, 8).Value = Dt(dq(i, DQ_DECIDED)): ws.Cells(r, 8).NumberFormat = "ddd mmm d"
+                ws.Rows(r).RowHeight = 19
+                r = r + 1
+            End If
+        Next i
+    End If
+    If nMine = 0 Then
+        ws.Cells(r, 1).Value = "No requests yet. Fill in the cells above and click SEND REQUEST."
+        ws.Cells(r, 1).Font.Italic = True
+        r = r + 1
+    End If
+    ws.Cells(r + 1, 1).Value = "A request books nothing by itself: an admin books it through the roster's own rules, or declines it with a reason. " & _
+                               "Statuses: Sent / Waiting for partner / Waiting (for an admin) / Booked / Declined / Withdrawn / Expired. Your note is read by the admin only."
+    ws.Cells(r + 1, 1).Font.Size = 8: ws.Cells(r + 1, 1).Font.Italic = True: ws.Cells(r + 1, 1).Font.Color = RGB(100, 100, 100)
+Finish:
+    If Err.Number <> 0 Then mViewErr = "the Requests: " & Err.Description
+    On Error Resume Next
+    ProtectWs ws
+    Application.ScreenUpdating = True
+    Application.EnableEvents = evWas
+End Sub
+
+' "yyyy-mm-dd" -> a date (digits in every place, no roll-over); False = not one
+Private Function IsoDay(ByVal s As String, ByRef d As Date) As Boolean
+    s = Trim$(s): d = 0
+    If Len(s) <> 10 Then Exit Function
+    If Not (s Like "####-##-##") Then Exit Function
+    Dim m As Long, dd As Long: m = CLng(Mid$(s, 6, 2)): dd = CLng(Right$(s, 2))
+    If m < 1 Or m > 12 Or dd < 1 Or dd > 31 Then Exit Function
+    d = DateSerial(CLng(Left$(s, 4)), m, dd)
+    IsoDay = (Day(d) = dd)
+End Function
+
+' A typed day: "2026-11-03", "11/3" or "11/3/2026" (month first), "Nov 3", "Nov 3 2026", "Nov 3, 2026". A date with no
+' year lands in the year that puts it inside today - 90 .. today + 275 (the roster's own typed-date rule). No CDate.
+Private Function ReadTypedDay(ByVal s As String, ByRef d As Date) As Boolean
+    s = Trim$(Replace(s, ",", " ")): d = 0
+    Do While InStr(s, "  ") > 0
+        s = Replace(s, "  ", " ")
+    Loop
+    If s = "" Then Exit Function
+    If IsoDay(s, d) Then ReadTypedDay = True: Exit Function
+    Dim m As Long, dd As Long, y As Long, parts As Variant, mons As String, p As Long
+    mons = "janfebmaraprmayjunjulaugsepoctnovdec"
+    If InStr(s, "/") > 0 Then
+        parts = Split(s, "/")
+        If UBound(parts) < 1 Or UBound(parts) > 2 Then Exit Function
+        If Not IsNumeric(parts(0)) Or Not IsNumeric(parts(1)) Then Exit Function
+        m = CLng(Val(parts(0))): dd = CLng(Val(parts(1)))
+        If UBound(parts) = 2 Then
+            If Not IsNumeric(parts(2)) Then Exit Function
+            y = CLng(Val(parts(2))): If y < 100 Then y = y + 2000
+        End If
+    Else
+        parts = Split(s, " ")
+        If UBound(parts) < 1 Or UBound(parts) > 2 Then Exit Function
+        p = InStr(mons, LCase$(Left$(CStr(parts(0)), 3)))
+        If p = 0 Or Len(CStr(parts(0))) < 3 Then
+            p = InStr(mons, LCase$(Left$(CStr(parts(1)), 3)))     ' "3 Nov"
+            If p = 0 Or Not IsNumeric(parts(0)) Then Exit Function
+            dd = CLng(Val(parts(0)))
+        Else
+            If Not IsNumeric(parts(1)) Then Exit Function
+            dd = CLng(Val(parts(1)))
+        End If
+        m = (p - 1) \ 3 + 1
+        If UBound(parts) = 2 Then
+            If Not IsNumeric(parts(2)) Then Exit Function
+            y = CLng(Val(parts(2))): If y < 100 Then y = y + 2000
+        End If
+    End If
+    If m < 1 Or m > 12 Or dd < 1 Or dd > 31 Then Exit Function
+    If y = 0 Then
+        y = Year(Date)
+        d = DateSerial(y, m, dd)
+        If d < Date - 90 Then d = DateSerial(y + 1, m, dd)
+        If d > Date + 275 Then d = DateSerial(y - 1, m, dd)
+    Else
+        d = DateSerial(y, m, dd)
+    End If
+    ReadTypedDay = (Day(d) = dd)
+End Function
+
+' the roster's leave words, as the master screens them (LeaveWordsIn): a note holding one is never sent
+Private Function LeaveWordIn(ByVal s As String) As String
+    Dim up As String: up = " " & UCase$(s) & " "
+    Dim ch As Long, i As Long
+    For i = 1 To Len(up)
+        ch = Asc(Mid$(up, i, 1))
+        If Not ((ch >= 65 And ch <= 90) Or (ch >= 48 And ch <= 57)) Then Mid$(up, i, 1) = " "
+    Next i
+    Dim w As Variant
+    For Each w In Array("STD", "LOA", "WSIB", "LTD", "OLV", "PAR", "PARENTAL", "DISABILITY", "SICK", "PERSONAL")
+        If InStr(up, " " & CStr(w) & " ") > 0 Then LeaveWordIn = CStr(w): Exit Function
+    Next w
+    If InStr(up, " LEAVE OF ABSENCE ") > 0 Then LeaveWordIn = "LEAVE OF ABSENCE"
+End Function
+
+' the folder, reachable from this PC ("" = not): the one message when it is not
+Private Function ReachableRequestFolder() As String
+    Dim folder As String: folder = RequestFolderPath()
+    Dim ok As Boolean
+    On Error Resume Next
+    If folder <> "" Then ok = (Len(Dir$(folder, vbDirectory)) > 0)
+    On Error GoTo 0
+    If ok Then ReachableRequestFolder = folder
+End Function
+
+Public Sub MemberSendRequest()
+    Dim who As String: who = WhoAmI()
+    If who = "" Then MsgBox "Pick your name in Find me on the Home sheet first.", vbInformation, RQ_TTL: Exit Sub
+    Dim rv As Variant: rv = Data("dRoster")
+    If RosterRowOf(rv, who) = 0 Then
+        MsgBox "'" & who & "' isn't on the published roster, so nothing was sent. Pick your name from the Find me list on the Home sheet.", vbExclamation, RQ_TTL
+        Exit Sub
+    End If
+    If Not RequestsOn() Then MsgBox "Requests from this file aren't switched on. Ask your supervisor the usual way.", vbInformation, RQ_TTL: Exit Sub
+    Dim ws As Worksheet: Set ws = WsOf(SH_REQ)
+    Dim kind As String: kind = Trim$(Txt(ws.Range(REQ_KIND).Value))
+    If kind <> "Time off" And kind <> "Switch" Then MsgBox "Pick the Kind: Time off or Switch.", vbExclamation, RQ_TTL: Exit Sub
+    Dim dF As Date, dTo As Date
+    If Not ReadTypedDay(Txt(ws.Range(REQ_FROM).Value), dF) Then MsgBox "Type the From date (Nov 3, Nov 3 2026 or 2026-11-03).", vbExclamation, RQ_TTL: Exit Sub
+    If Trim$(Txt(ws.Range(REQ_TO).Value)) = "" Then
+        dTo = dF
+    ElseIf Not ReadTypedDay(Txt(ws.Range(REQ_TO).Value), dTo) Then
+        MsgBox "Type the To date, or leave it blank for the one day.", vbExclamation, RQ_TTL: Exit Sub
+    End If
+    If dTo < dF Then MsgBox "The To date is before the From date.", vbExclamation, RQ_TTL: Exit Sub
+    If dF < Date Then MsgBox "The From date is in the past.", vbExclamation, RQ_TTL: Exit Sub
+    Dim shiftLbl As String, partner As String
+    If kind = "Switch" Then
+        shiftLbl = Trim$(Txt(ws.Range(REQ_SHIFT).Value))
+        partner = Trim$(Txt(ws.Range(REQ_PARTNER).Value))
+        If shiftLbl <> "Days" And shiftLbl <> "Nights" Then MsgBox "A switch is one shift: pick Days or Nights.", vbExclamation, RQ_TTL: Exit Sub
+        If dTo <> dF Then MsgBox "A switch is one shift: leave the To date blank.", vbExclamation, RQ_TTL: Exit Sub
+        If partner = "" Then MsgBox "Pick the partner who would work the shift.", vbExclamation, RQ_TTL: Exit Sub
+        If RosterRowOf(rv, partner) = 0 Then MsgBox "'" & partner & "' isn't on the published roster.", vbExclamation, RQ_TTL: Exit Sub
+        If StrComp(partner, who, vbTextCompare) = 0 Then MsgBox "The partner is you.", vbExclamation, RQ_TTL: Exit Sub
+    End If
+    Dim note As String: note = Trim$(Txt(ws.Range(REQ_NOTE).Value))
+    Dim lw As String: lw = LeaveWordIn(note)
+    If lw <> "" Then MsgBox "The note holds '" & lw & "'. The roster never shows leave words to anyone - word it another way (or leave the note out).", vbExclamation, RQ_TTL: Exit Sub
+    Dim folder As String: folder = ReachableRequestFolder()
+    If folder = "" Then
+        MsgBox "The Requests folder can't be reached from this PC, so nothing was sent. Ask your supervisor the usual way.", vbExclamation, RQ_TTL
+        Exit Sub
+    End If
+    Dim what As String
+    If kind = "Switch" Then
+        what = "Shift switch " & Format$(dF, "dddd mmm d, yyyy") & " " & shiftLbl & "  -  " & partner & " would work your shift" & vbNewLine & _
+               "(" & partner & " must click Agree on their PC before the roster sees it)"
+    Else
+        what = "Time off " & Format$(dF, "dddd mmm d, yyyy") & IIf(dTo > dF, " to " & Format$(dTo, "dddd mmm d, yyyy"), "")
+    End If
+    If MsgBox("Send this request for " & who & "?" & vbNewLine & vbNewLine & what & IIf(note <> "", vbNewLine & "Note: " & note, "") & vbNewLine & vbNewLine & _
+              "It goes to the supervisors' roster with this PC's login (" & Environ$("USERNAME") & "). An admin books or declines it.", _
+              vbOKCancel + vbQuestion, RQ_TTL) <> vbOK Then Exit Sub
+    Dim stamp As Date: stamp = Now
+    Dim login As String: login = SafeName(Environ$("USERNAME"))
+    Dim rid As String: rid = login & "-" & Format$(stamp, "yyyymmddhhnnss")
+    If WriteRequestFile(folder, rid, "request", who, kind, dF, dTo, shiftLbl, partner, note, stamp) Then
+        UnprotectWs ws
+        ws.Range(REQ_KIND).Value = "": ws.Range(REQ_FROM).Value = "": ws.Range(REQ_TO).Value = ""
+        ws.Range(REQ_SHIFT).Value = "": ws.Range(REQ_PARTNER).Value = "": ws.Range(REQ_NOTE).Value = ""
+        ProtectWs ws
+        MemberShowRequests
+        MsgBox "Request sent." & vbNewLine & vbNewLine & who & vbNewLine & what & vbNewLine & Format$(stamp, "ddd mmm d, h:nn AM/PM") & vbNewLine & vbNewLine & _
+               IIf(kind = "Switch", "It reaches the roster once " & partner & " has clicked Agree. ", "") & _
+               "The answer shows under My requests after the roster's next update.", vbInformation, RQ_TTL
+    End If
+End Sub
+
+' the partner's Agree / No, the requester's Withdraw (buttons on the Requests page)
+Public Sub MemberAgreeRequest(ByVal rid As String)
+    AnswerRequest rid, "agree"
+End Sub
+
+Public Sub MemberRefuseRequest(ByVal rid As String)
+    AnswerRequest rid, "refuse"
+End Sub
+
+Public Sub MemberWithdrawRequest(ByVal rid As String)
+    AnswerRequest rid, "withdraw"
+End Sub
+
+Private Sub AnswerRequest(ByVal rid As String, ByVal action As String)
+    Dim who As String: who = WhoAmI()
+    If who = "" Then MsgBox "Pick your name in Find me on the Home sheet first.", vbInformation, RQ_TTL: Exit Sub
+    Dim fv As Variant: fv = ReadRequestFolder()
+    Dim i As Long, k As Long
+    If IsArray(fv) Then
+        For i = 1 To UBound(fv, 1)
+            If StrComp(Txt(fv(i, FQ_ID)), rid, vbTextCompare) = 0 And Txt(fv(i, FQ_ACTION)) = "request" Then k = i: Exit For
+        Next i
+    End If
+    If k = 0 Then MsgBox "That request is no longer in the folder (the roster has taken it, or it was withdrawn). Nothing was sent.", vbInformation, RQ_TTL: Exit Sub
+    Dim emp As String: emp = Txt(fv(k, FQ_EMP))
+    Dim dF As Date: IsoDay Txt(fv(k, FQ_FROM)), dF
+    Dim what As String: what = Txt(fv(k, FQ_KIND)) & " " & Format$(dF, "dddd mmm d, yyyy") & " " & Txt(fv(k, FQ_SHIFT))
+    Dim askTxt As String
+    Select Case action
+        Case "agree", "refuse"
+            If StrComp(Txt(fv(k, FQ_PARTNER)), who, vbTextCompare) <> 0 Then MsgBox "This switch was asked of " & Txt(fv(k, FQ_PARTNER)) & ", not of " & who & ".", vbExclamation, RQ_TTL: Exit Sub
+            If StrComp(Txt(fv(k, FQ_LOGIN)), Environ$("USERNAME"), vbTextCompare) = 0 Then
+                MsgBox "The same PC login sent this request, so its Agree would not count. " & Txt(fv(k, FQ_PARTNER)) & " agrees from their own PC.", vbExclamation, RQ_TTL
+                Exit Sub
+            End If
+            askTxt = IIf(action = "agree", "Agree to work " & emp & "'s shift?" & vbNewLine & what & vbNewLine & vbNewLine & "The admin still checks the rules (the 16 h rule, bookings) and saves the switch.", _
+                      "Say no to " & emp & "'s switch?" & vbNewLine & what)
+        Case "withdraw"
+            If StrComp(emp, who, vbTextCompare) <> 0 Then MsgBox "Only " & emp & " can withdraw this request.", vbExclamation, RQ_TTL: Exit Sub
+            askTxt = "Withdraw your request?" & vbNewLine & what & vbNewLine & vbNewLine & "If the roster has already booked it, tell your supervisor."
+    End Select
+    If MsgBox(askTxt & vbNewLine & vbNewLine & "Sent with this PC's login (" & Environ$("USERNAME") & ").", vbOKCancel + vbQuestion, RQ_TTL) <> vbOK Then Exit Sub
+    Dim folder As String: folder = ReachableRequestFolder()
+    If folder = "" Then MsgBox "The Requests folder can't be reached from this PC, so nothing was sent.", vbExclamation, RQ_TTL: Exit Sub
+    Dim dTo As Date: IsoDay Txt(fv(k, FQ_TO)), dTo
+    If WriteRequestFile(folder, rid, action, who, Txt(fv(k, FQ_KIND)), dF, dTo, Txt(fv(k, FQ_SHIFT)), Txt(fv(k, FQ_PARTNER)), "", Now) Then
+        MemberShowRequests
+        MsgBox Choose(InStr("agree  refuse withdraw", action) \ 7 + 1, "Agreed - the request now goes to the admin.", "Sent: you said no. The requester sees it under My requests.", "Withdrawn.") & vbNewLine & vbNewLine & what, vbInformation, RQ_TTL
+    End If
+End Sub
+
+' one new file; never an existing one. The master's modRequests reads these lines (the contract test ties the keys).
+Private Function WriteRequestFile(ByVal folder As String, ByVal rid As String, ByVal action As String, ByVal who As String, _
+                                  ByVal kind As String, ByVal dF As Date, ByVal dTo As Date, ByVal shiftLbl As String, _
+                                  ByVal partner As String, ByVal note As String, ByVal stamp As Date) As Boolean
+    Dim login As String: login = SafeName(Environ$("USERNAME"))
+    Dim pc As String: pc = SafeName(Environ$("COMPUTERNAME"))
+    Dim path As String, n As Long, ff As Integer, em As String
+    path = folder & "REQ__" & rid & "__" & action & "__" & login & "__" & pc & "__" & Format$(stamp, "yyyymmdd-hhnnss") & ".txt"
+    Do While Len(Dir$(path)) > 0 And n < 20
+        n = n + 1
+        path = folder & "REQ__" & rid & "__" & action & "__" & login & "__" & pc & "__" & Format$(stamp, "yyyymmdd-hhnnss") & "-" & n & ".txt"
+    Loop
+    On Error GoTo Failed
+    ff = FreeFile
+    Open path For Output As #ff
+    Print #ff, "request=" & rid
+    Print #ff, "action=" & action
+    Print #ff, "kind=" & kind
+    Print #ff, "employee=" & who
+    Print #ff, "from=" & Format$(dF, "yyyy-mm-dd")
+    Print #ff, "to=" & Format$(IIf(dTo > 0, dTo, dF), "yyyy-mm-dd")
+    Print #ff, "shift=" & shiftLbl
+    Print #ff, "partner=" & partner
+    Print #ff, "note=" & Replace(Replace(note, vbCr, " "), vbLf, " ")
+    Print #ff, "login=" & Environ$("USERNAME")
+    Print #ff, "machine=" & Environ$("COMPUTERNAME")
+    Print #ff, "stamp=" & Format$(stamp, "yyyy-mm-dd hh:nn:ss")
+    Close #ff
+    On Error GoTo 0
+    WriteRequestFile = True
+    Exit Function
+Failed:
+    em = Err.Description
+    On Error Resume Next
+    Close #ff
+    MsgBox "The request could NOT be sent (" & em & ")." & vbNewLine & vbNewLine & "Ask your supervisor the usual way.", vbExclamation, RQ_TTL
+End Function

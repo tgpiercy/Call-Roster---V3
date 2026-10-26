@@ -17,6 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PUB = (ROOT / "modules" / "modPublish.bas").read_text(encoding="ascii")
 SIGN = (ROOT / "modules" / "modSignups.bas").read_text(encoding="ascii")
+REQ = (ROOT / "modules" / "modRequests.bas").read_text(encoding="ascii")      # v28 (M5): members' requests
 MEM = (ROOT / "member" / "modMember.bas").read_text(encoding="ascii")
 
 
@@ -81,3 +82,44 @@ def test_every_signup_key_the_master_reads_is_written_by_the_members_file():
     written = set(re.findall(r'Print #ff, "(\w+)="', MEM))
     assert read, "ReadOneSignup's keys not found"
     assert read <= written, f"the master reads {sorted(read - written)} that the members' file never writes"
+
+
+# ---- v28 (Members M5): the requests contract ----
+def test_drequests_columns_match_the_members_constants():
+    """modRequests.PublishRequestsTable writes out(1, k); the members' DQ_* constants read dRequests by those columns."""
+    got = headers(REQ, "PublishRequestsTable", "out")
+    want = ["Employee", "Kind", "From", "To", "Shift", "Partner", "Status", "Answer", "Decided"]
+    assert got == want, got
+    dq = {k: int(v) for k, v in re.findall(r"Private Const DQ_(\w+) As Long = (\d+)", MEM)}
+    assert dq == {"EMP": 1, "KIND": 2, "FROM": 3, "TO": 4, "SHIFT": 5, "PARTNER": 6, "STATUS": 7, "ANSWER": 8, "DECIDED": 9}, dq
+
+
+def test_every_request_key_the_master_reads_is_written_by_the_members_file():
+    body = proc_body(REQ, "RequestFileRead")
+    read = set(re.findall(r'Case "(\w+)"', body))
+    wbody = proc_body(MEM, "WriteRequestFile")
+    written = set(re.findall(r'Print #ff, "(\w+)="', wbody))
+    assert read, "RequestFileRead's keys not found"
+    assert read <= written, f"the master reads {sorted(read - written)} that the members' file never writes"
+    # and the members' own reader (the partner's "asked of me") understands every key it writes but machine
+    mbody = proc_body(MEM, "ReadRequestFile")
+    mread = set(re.findall(r'Case "(\w+)"', mbody))
+    assert written - {"machine"} <= mread, sorted((written - {"machine"}) - mread)
+
+
+def test_request_status_words_are_one_list_on_both_sides():
+    master = set(re.findall(r'Public Const RQ_ST_\w+ As String = "([^"]+)"', REQ))
+    shown = set(re.findall(r'(?:st = |Or st = |st <> )"([^"]+)"', proc_body(MEM, "MemberShowRequests")))
+    # the members' file adds one word of its own for a request the roster has not read yet
+    assert shown - master == {"Sent - waiting for the roster"}, sorted(shown - master)
+
+
+def test_the_leave_words_are_one_list_on_both_sides():
+    """The members' file screens a request's note with the master's leave-word list (LeaveWordsIn) mirrored as text."""
+    master_body = proc_body(PUB, "LeaveWordsIn")
+    master_line = re.search(r'Case ("STD"[^\r\n]*)', master_body).group(1)
+    master = set(master_line.replace('"', "").replace(" ", "").split(","))
+    member_body = proc_body(MEM, "LeaveWordIn")
+    member = set(re.search(r'Array\((.*?)\)', member_body).group(1).replace('"', "").replace(" ", "").split(","))
+    assert master == member, (sorted(master - member), sorted(member - master))
+    assert "LEAVE OF ABSENCE" in member_body and "LEAVE OF ABSENCE" in master_body

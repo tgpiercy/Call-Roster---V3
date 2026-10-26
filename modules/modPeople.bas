@@ -1398,24 +1398,27 @@ End Sub
 ' ====================================================================
 ' The tables and columns a person's full name lives in. Fills los / cols /
 ' labels (1..n) and returns n. Tables that don't exist yet are left out.
-Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, ByRef labels() As String) As Long
-    ReDim los(1 To 16): ReDim cols(1 To 16): ReDim labels(1 To 16)      ' v27 review H1: 13 tables now (room for more)
+' v28 (item 2): keyCols(i) = the table's Payroll # column for that name column (0 = none): the Kronos tables carry
+' the number in their own column 1 or 2 since v27; the rest got theirs with modKeys (on the end)
+Private Function NameColumns(ByRef los() As ListObject, ByRef cols() As Long, ByRef labels() As String, ByRef keyCols() As Long) As Long
+    ReDim los(1 To 18): ReDim cols(1 To 18): ReDim labels(1 To 18): ReDim keyCols(1 To 18)      ' v27 review H1: room for more; v28: + Requests
     Dim n As Long
-    AddNameCol los, cols, labels, n, TableOn(LOG_SHEET, LOG_TABLE), L_EMP, "OT Log"
-    AddNameCol los, cols, labels, n, TableOn(POSTINGS_SHEET, PL_TABLE), PL_EMP, "Posting lists"
-    AddNameCol los, cols, labels, n, AbsTable(False), AB_EMP, "Absences"
-    AddNameCol los, cols, labels, n, SwitchTable(False), SW_OFF, "Shift switches (gives up)"
-    AddNameCol los, cols, labels, n, SwitchTable(False), SW_WORKS, "Shift switches (works)"
-    AddNameCol los, cols, labels, n, GradeLogTable(False), 2, "Grade Log"
-    AddNameCol los, cols, labels, n, HoursHistoryTable(False), 4, "Hours History"
-    AddNameCol los, cols, labels, n, CrewTable(False), CH_EMP, "Crew History"
-    AddNameCol los, cols, labels, n, PlannedTable(False), PM_EMP, "Planned moves"     ' v24.3
-    AddNameCol los, cols, labels, n, WorkedPeriodsTable(False), 2, "Worked Periods"  ' v26.5.5 (A8): the per-period Kronos hours
-    AddNameCol los, cols, labels, n, WorkedDaysTable(False), 2, "Worked Days"        ' v27: the Kronos ledger, snapshot and change log
-    AddNameCol los, cols, labels, n, KronosTotalsTable(False), 2, "Kronos Totals"
-    AddNameCol los, cols, labels, n, WorkedChangesTable(False), 3, "Worked Changes"
-    AddNameCol los, cols, labels, n, RstTable(False), RS_EMP, "OT restrictions"      ' v27 (item 21, review M3)
-    AddNameCol los, cols, labels, n, EvidenceTable(False), 3, "Evidence"                ' v27 (item 23, review L16): a dispute's Who
+    AddNameCol los, cols, labels, keyCols, n, TableOn(LOG_SHEET, LOG_TABLE), L_EMP, "OT Log", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, TableOn(POSTINGS_SHEET, PL_TABLE), PL_EMP, "Posting lists", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, AbsTable(False), AB_EMP, "Absences", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, SwitchTable(False), SW_OFF, "Shift switches (gives up)", KEY_HEADER_OFF
+    AddNameCol los, cols, labels, keyCols, n, SwitchTable(False), SW_WORKS, "Shift switches (works)", KEY_HEADER_WORKS
+    AddNameCol los, cols, labels, keyCols, n, GradeLogTable(False), 2, "Grade Log", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, HoursHistoryTable(False), 4, "Hours History", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, CrewTable(False), CH_EMP, "Crew History", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, PlannedTable(False), PM_EMP, "Planned moves", KEY_HEADER     ' v24.3
+    AddNameCol los, cols, labels, keyCols, n, WorkedPeriodsTable(False), 2, "Worked Periods", KEY_HEADER  ' v26.5.5 (A8): the per-period Kronos hours (column 1 = Payroll #)
+    AddNameCol los, cols, labels, keyCols, n, WorkedDaysTable(False), 2, "Worked Days", KEY_HEADER        ' v27: the Kronos ledger, snapshot and change log
+    AddNameCol los, cols, labels, keyCols, n, KronosTotalsTable(False), 2, "Kronos Totals", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, WorkedChangesTable(False), 3, "Worked Changes", KEY_HEADER
+    AddNameCol los, cols, labels, keyCols, n, RstTable(False), RS_EMP, "OT restrictions", KEY_HEADER      ' v27 (item 21, review M3)
+    AddNameCol los, cols, labels, keyCols, n, EvidenceTable(False), 3, "Evidence", KEY_HEADER                ' v27 (item 23, review L16): a dispute's Who
+    AddNameCol los, cols, labels, keyCols, n, RequestsTable(False), RQ_EMP, "Requests", KEY_HEADER           ' v28 (item 1)
     NameColumns = n
 End Function
 
@@ -1424,7 +1427,8 @@ End Function
 Public Function CountNameEverywhere(ByVal nameTxt As String, Optional ByRef whereTxt As String) As Long
     whereTxt = ""
     Dim los() As ListObject, cols() As Long, labels() As String, n As Long, i As Long, a As Long
-    n = NameColumns(los, cols, labels)
+    Dim kcUnused() As Long                           ' v28: the key columns (not needed here)
+    n = NameColumns(los, cols, labels, kcUnused)
     For i = 1 To n
         a = CountName(los(i), cols(i), Trim$(nameTxt))
         If a > 0 Then
@@ -1434,14 +1438,15 @@ Public Function CountNameEverywhere(ByVal nameTxt As String, Optional ByRef wher
     Next i
 End Function
 
-Private Sub AddNameCol(ByRef los() As ListObject, ByRef cols() As Long, ByRef labels() As String, ByRef n As Long, _
-                       ByVal lo As ListObject, ByVal col As Long, ByVal label As String)
+Private Sub AddNameCol(ByRef los() As ListObject, ByRef cols() As Long, ByRef labels() As String, ByRef keyCols() As Long, ByRef n As Long, _
+                       ByVal lo As ListObject, ByVal col As Long, ByVal label As String, ByVal keyHead As String)
     If lo Is Nothing Then Exit Sub
     If col > lo.ListColumns.Count Then Exit Sub
     n = n + 1
     Set los(n) = lo
     cols(n) = col
     labels(n) = label
+    keyCols(n) = KeyColumnOf(lo, keyHead)             ' v28 (item 2): 0 when the table has no such column (yet)
 End Sub
 
 ' Cells in one table column holding nameTxt (trimmed; exact = same capitals too)
@@ -1457,17 +1462,40 @@ End Function
 
 ' Rewrites the matching cells one by one (so a filter on the table can't
 ' hide a row from it). The sheet must be unprotected. Returns how many.
-Private Function RenameColumn(ByVal lo As ListObject, ByVal col As Long, ByVal oldName As String, ByVal newName As String) As Long
+' v28 (item 2): a row is theirs by KEY when both the row and the person carry a Payroll # (KeyMatchCore), by name
+' otherwise (keyCol 0 = the table has no key column; key "" = the person has no number yet)
+Private Function RenameColumn(ByVal lo As ListObject, ByVal col As Long, ByVal oldName As String, ByVal newName As String, _
+                              ByVal keyCol As Long, ByVal key As String) As Long
     If lo.DataBodyRange Is Nothing Then Exit Function
     Dim rng As Range: Set rng = lo.ListColumns(col).DataBodyRange
     Dim v As Variant: v = RangeTo2D(rng)
+    Dim kv As Variant
+    If keyCol > 0 Then kv = RangeTo2D(lo.ListColumns(keyCol).DataBodyRange)
     Dim i As Long
     For i = 1 To UBound(v, 1)
-        If StrComp(Trim$(SafeStr(v(i, 1))), oldName, vbTextCompare) = 0 Then
-            rng.Cells(i, 1).Value = newName
-            RenameColumn = RenameColumn + 1
+        If RowIsTheirs(SafeStr(v(i, 1)), IIf(keyCol > 0, PayrollText(kv(i, 1)), ""), oldName, key) Then
+            If StrComp(Trim$(SafeStr(v(i, 1))), newName, vbBinaryCompare) <> 0 Then
+                rng.Cells(i, 1).Value = newName
+                RenameColumn = RenameColumn + 1
+            End If
         End If
     Next i
+End Function
+
+' the rows that are this person's (by key where both sides have one, by name otherwise)
+Private Function CountTheirs(ByVal lo As ListObject, ByVal col As Long, ByVal keyCol As Long, ByVal nameTxt As String, ByVal key As String) As Long
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    Dim v As Variant: v = RangeTo2D(lo.ListColumns(col).DataBodyRange)
+    Dim kv As Variant
+    If keyCol > 0 Then kv = RangeTo2D(lo.ListColumns(keyCol).DataBodyRange)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If RowIsTheirs(SafeStr(v(i, 1)), IIf(keyCol > 0, PayrollText(kv(i, 1)), ""), nameTxt, key) Then CountTheirs = CountTheirs + 1
+    Next i
+End Function
+
+Private Function RowIsTheirs(ByVal rowName As String, ByVal rowKey As String, ByVal nameTxt As String, ByVal key As String) As Boolean
+    RowIsTheirs = KeyMatchCore(rowKey, key, rowName, nameTxt)
 End Function
 
 ' What ties a calendar line to one person (v24 rename). Two people can share a
@@ -1548,7 +1576,8 @@ Public Function RenamePreview(ByVal oldName As String, ByVal newName As String, 
         If IsFormer(newName) Then txt = newName & " is on the Former sheet.": Exit Function
     End If
     Dim los() As ListObject, cols() As Long, labels() As String, n As Long, i As Long, a As Long, b As Long, mergeTxt As String
-    n = NameColumns(los, cols, labels)
+    Dim kcUnused() As Long                           ' v28: the key columns (not needed here)
+    n = NameColumns(los, cols, labels, kcUnused)
     txt = oldName & "  ->  " & newName & vbNewLine & vbNewLine & "Rows that will change:" & vbNewLine & "  Roster: 1" & vbNewLine
     For i = 1 To n
         a = CountName(los(i), cols(i), oldName)
@@ -1597,12 +1626,16 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     Dim bk As String
     If Not PeopleBackup("rename", bk) Then Exit Function
 
-    Dim los() As ListObject, cols() As Long, labels() As String, n As Long, i As Long
+    ' v28 (item 2): the rename goes BY KEY where a row carries the Payroll # - a row whose name was mistyped by hand
+    ' is found too - and by name where the row (or the person) has none; the keys are stamped first
+    FillPayrollKeys True
+    Dim key As String: key = PayrollText(ws.Cells(r, C_PAYROLL).Value)
+    Dim los() As ListObject, cols() As Long, labels() As String, keyCols() As Long, n As Long, i As Long
     Dim aBefore() As Long, bBefore() As Long, done As Long, total As Long
-    n = NameColumns(los, cols, labels)
+    n = NameColumns(los, cols, labels, keyCols)
     ReDim aBefore(1 To IIf(n > 0, n, 1)): ReDim bBefore(1 To IIf(n > 0, n, 1))
     For i = 1 To n
-        aBefore(i) = CountName(los(i), cols(i), oldName)
+        aBefore(i) = CountTheirs(los(i), cols(i), keyCols(i), oldName, key)
         If Not sameName Then bBefore(i) = CountName(los(i), cols(i), newName)
     Next i
 
@@ -1627,7 +1660,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     For i = 1 To n
         If aBefore(i) > 0 Then
             UnlockSheet los(i).Parent
-            done = RenameColumn(los(i), cols(i), oldName, newName)
+            done = RenameColumn(los(i), cols(i), oldName, newName, keyCols(i), key)
             ProtectSheet los(i).Parent
             total = total + done
         End If
@@ -1687,7 +1720,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
         If sameName Then
             If CountName(los(i), cols(i), newName, True) <> aBefore(i) Then diff = diff & "  " & labels(i) & ": not every row took the new spelling" & vbNewLine
         Else
-            If CountName(los(i), cols(i), oldName) <> 0 Then diff = diff & "  " & labels(i) & ": the old name is still there" & vbNewLine
+            If CountTheirs(los(i), cols(i), keyCols(i), oldName, key) <> 0 Then diff = diff & "  " & labels(i) & ": the old name is still there" & vbNewLine
             If CountName(los(i), cols(i), newName) <> aBefore(i) + bBefore(i) Then
                 diff = diff & "  " & labels(i) & ": " & CountName(los(i), cols(i), newName) & " rows under the new name, expected " & _
                        (aBefore(i) + bBefore(i)) & vbNewLine
@@ -1718,7 +1751,7 @@ Public Function RenameEverywhere(ByVal oldName As String, ByVal newName As Strin
     RefreshGradeSnapshot
     AfterPeopleChange
     SaveIfWritable
-    report = "Renamed to " & newName & "." & vbNewLine & total & " row(s) updated in the tables" & _
+    report = "Renamed to " & newName & "." & vbNewLine & total & " row(s) updated in the tables" & IIf(key <> "", " (by Payroll # " & key & " where a row carries it)", "") & _
              IIf(awardDone > 0, ", " & awardDone & " posting award(s)", "") & IIf(covDone > 0, ", " & covDone & " calendar line(s)", "") & _
              ". Roster totals and the OT Log are unchanged." & _
              IIf(covLeft <> "", vbNewLine & vbNewLine & "These calendar lines mention '" & oldShort & "' but aren't tied to this person, so they were left alone:" & vbNewLine & covLeft, "") & _

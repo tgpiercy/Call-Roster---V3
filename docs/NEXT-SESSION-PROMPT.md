@@ -13,11 +13,13 @@ rounds down, says "(part)"; a switch saved over the warning counts its worker. R
 had a HIGH (SerialSet called itself - callcheck SELFCALL now flags a Function's own name with an argument list on the
 left of =), item 3 two HIGHs (the switch-giver no-op, the "; " join). 1010 cases / 109 suites, pytest 1066, SmokeTest
 22, checkers + docscheck clean. Every stamp v27.5, EXPECTED_RELEASE v27.5, the What's New box shows (a rule change).
-NEXT: (a) the re-review of the fix commit 8a3914b (running at the end of the Oct 25 session - take its findings if any
-fix commit is missing after it); (b) tag v27.5 (annotated), tests/build_zip.py v27.5 v27.1, push main + the tag from
-Graeme's Terminal panel with his approval; (c) his install on a practice copy, then the real roster (steps-v27.5.txt
-group 4: the one-way switch stops, the same-day swap does not, the What's New box); (d) the alpha Nov 1-15 -> v27.5.5;
-item 39 (the email digest) when he gives the wording; the Reconcile differences for the Nov 15 pack.
+DONE Oct 25 (late): the re-review's 2 MED / 6 LOW taken (1814e88); TAGGED v27.5 = 1814e88 (annotated); ZIPPED
+dist/Callout_Roster_v27.5.zip (67 files, sent to Graeme); main + the tag PUSHED to origin from his Terminal. NOT
+installed yet.
+NEXT: (a) his install on a practice copy, then the real roster (steps-v27.5.txt group 4: the one-way switch stops, the
+same-day swap does not, the What's New box shows once) - when he says "it doesn't work", ask which file and version is
+on screen first; fixes go in v27.5.5, never alone; (b) the alpha Nov 1-15 -> v27.5.5; item 39 (the email digest) when
+he gives the wording; the Reconcile differences for the Nov 15 pack; the December rollover dry run on v27.5.
 ```
 
 ```

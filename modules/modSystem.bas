@@ -23,15 +23,15 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v27.1 (Oct 22)"
-Public Const EXPECTED_RELEASE As String = "v27.1"
+Public Const SYS_VERSION As String = "System v27.5 (Oct 25)"
+Public Const EXPECTED_RELEASE As String = "v27.5"
 ' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
-' release with nothing new for them (v27.1 is the behaviour-free refactor)
-Public Const WHATS_NEW_RELEASE As String = "v27"
+' release with nothing new for them (v27.1 was the behaviour-free refactor; v27.5 changes three rules, so its box shows)
+Public Const WHATS_NEW_RELEASE As String = "v27.5"
 ' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
-Public Const WHATS_NEW As String = "v27: the Desk shows what is waiting (tiles you can click: cover, award, paybacks, the members' file, This morning, Since you were last here) and a receipt card after every save says what was recorded, whose Total Hours moved (the cells are marked amber) and how to undo it.|" & _
-                                   "The call-out pop-up keeps a draft (a crash loses minutes, not the session), says who is not listed and why, and covers its own calendar line; a second call-out for the same shift asks first; the calendar's menu fills a shift from the line.|" & _
-                                   "New for admins: OT restrictions and the 48 h weekly warning, the Rules and Settings sheets, the period close with its hash, Withdraw an award / Edit a posting / Post all lines, the Holidays and minimum staffing pop-ups (nothing is typed into any sheet), the shift handover and the payback ledger. The members' file opens on the member."
+Public Const WHATS_NEW As String = "v27.5: three rule fixes. A shift switch now STOPS when the one working it would run past 16 h with the shift beside it - a scheduled shift counts like overtime (nights last night, then days today) - and a same-day swap of days for nights is checked for both people on the shift each one works; the shift each gives up is not counted.|" & _
+                                   "The staffing count treats a partial cover (Joe D 6h) as half a person: the shares on a shift are added once and rounded down, and the N short flag says (part) when some of the shift is still uncovered.|" & _
+                                   "For admins: a missed Kronos morning is named at the year-to-date import (a gap row in Worked Changes) and no longer counts twice in Worked Periods once that day's report is imported."
 Private Const N_MODULES As Long = 41           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v27"

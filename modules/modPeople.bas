@@ -49,7 +49,7 @@ Option Explicit
 '  data check.
 ' ====================================================================
 
-Public Const PPL_VERSION As String = "People v27.1 (Oct 22)"
+Public Const PPL_VERSION As String = "People v27.5 (Oct 25)"
 Public Const CH_SHEET As String = "Crew History"
 Public Const CH_TABLE As String = "tblCrewHistory"
 Public Const CH_EMP As Long = 1

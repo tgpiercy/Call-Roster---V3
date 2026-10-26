@@ -20,7 +20,7 @@ Option Explicit
 ' ====================================================================
 
 ' ---------------- configuration ----------------
-Public Const POST_VERSION As String = "Postings v27.1 (Oct 22)"
+Public Const POST_VERSION As String = "Postings v27.5 (Oct 25)"
 Public Const POSTINGS_SHEET As String = "Postings"
 Public Const PT_TABLE As String = "tblPostings"
 Public Const PL_TABLE As String = "tblPostingList"

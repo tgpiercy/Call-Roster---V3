@@ -1,6 +1,6 @@
 # Call Out Roster: Supervisor Quick Guide
 
-How to do each everyday job in the roster. Current as of v27.1 (Oct 22, 2026; v27.1 changes nothing in these jobs). The same text is on the roster's **Help** tab (Desk > How do I ...).
+How to do each everyday job in the roster. Current as of v27.5 (Oct 25, 2026; v27.5 changes one job here - the shift switch's 16 h stop - and the staffing flag's (part) word). The same text is on the roster's **Help** tab (Desk > How do I ...).
 
 The buttons are in the bar at the top of the **OT Roster** tab. **Log Call-Out** and **Calendar** show for everyone. **Sick Call**, **New Posting**, **Award Posting**, **Call Out Roster**, **Member View** and **Find a person** show for supervisors (a login on the supervisor list) and admins (v25.5). The other buttons show only for logins on the admin list. If a button is missing, ask the admin. Keys while the roster is the active workbook: Ctrl+Shift+S sick call, Ctrl+Shift+C call-out, Ctrl+Shift+K calendar, Ctrl+Shift+D the Desk.
 
@@ -66,7 +66,7 @@ Members can sign up from the members' file: on its Postings sheet, **Sign me up*
 ## Shift switch and payback
 1. Click **Shift Switch**. Type the Shift date and pick the Unit.
 2. Pick "Gives up shift" and "Works the shift". The Shift fills in.
-3. Read the hint lines. "NOT ELIGIBLE" stops the save. "check" is a warning only. Someone inside the 24 hours after a sick shift can neither work nor give up a shift (the pick list leaves them out). A shift given up in a switch still keeps the person off the other shift that day.
+3. Read the hint lines. "NOT ELIGIBLE" stops the save. "check" is a warning only. v27.5: the save also stops when the one WORKING the shift would run past 16 h with the shift beside it - a scheduled shift counts (nights last night, then days today); in a same-day days-for-nights swap both people are checked on the shift each one works, and the shift each gives up does not count. Someone inside the 24 hours after a sick shift can neither work nor give up a shift (the pick list leaves them out). A shift given up in a switch still keeps the person off the other shift that day.
 4. Click **SAVE SWITCH**, then OK. It stays on the OWED list until paid back.
 
 - **Payback:** click the switch in the OWED list. Type the payback date. Click **SAVE SWITCH**.
@@ -140,7 +140,7 @@ The three lines above the roster show the pay period, the Kronos date and the lo
 - `~` = an estimate, because the admin has entered a unit move for the person for a later date. `?` = left a message (the call-back pile). `S/S` = working a shift switch that shift.
 - **NCN** = no cover needed. **PHA** = hazard-analysis coverage. **OPEN** = the line still needs cover. **POSTED** = a posting is out for it. **DAYS** = the Monday-to-Friday day crew.
 - A sick call or a personal day shows to members as **Off**, never why.
-- The calendar's words: OPEN (red) = nobody on it yet, POSTED (orange) = waiting for sign-ups, NO TAKERS = posted, nobody signed up, NCN = no coverage needed, a name = covered, S/S = shift switch, N short = below minimum staffing. Help > Words on the roster has the full glossary.
+- The calendar's words: OPEN (red) = nobody on it yet, POSTED (orange) = waiting for sign-ups, NO TAKERS = posted, nobody signed up, NCN = no coverage needed, a name = covered, S/S = shift switch, N short = below minimum staffing ((part) after it, v27.5 = a partial cover is counted as a share of a person, not a whole one). Help > Words on the roster has the full glossary.
 
 ## Close the file
 - Saving is automatic after each entry, and again when you close. Just close the file.

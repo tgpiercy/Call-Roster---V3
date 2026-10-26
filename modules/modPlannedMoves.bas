@@ -1,7 +1,7 @@
 Attribute VB_Name = "modPlannedMoves"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): planned unit moves (tblPlannedMoves), from modPeople; moved unchanged (tests/movecheck.py proves it)
-Public Const PLANMOVE_VERSION As String = "Planned moves v27.1 (Oct 22)"
+Public Const PLANMOVE_VERSION As String = "Planned moves v27.5 (Oct 25)"
 
 Private mPlan As Variant            ' v24.3: the Planned rows of tblPlannedMoves (Empty = none)
 Private mPlanLoaded As Boolean

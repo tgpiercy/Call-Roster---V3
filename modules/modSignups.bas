@@ -31,7 +31,7 @@ Option Explicit
 '  Pure (mirrored in tests/rules.py, checked by SelfTest): ReduceSignups.
 ' ====================================================================
 
-Public Const SG_VERSION As String = "Sign-ups v27.1 (Oct 22)"
+Public Const SG_VERSION As String = "Sign-ups v27.5 (Oct 25)"
 
 ' rows read from the inbox
 Public Const SG_EMP As Long = 1

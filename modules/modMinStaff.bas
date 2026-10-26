@@ -1,7 +1,7 @@
 Attribute VB_Name = "modMinStaff"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): minimum staffing (StaffCounts / StaffCountsCore, the short flag, the Min Staff pop-up), from modCalendar; moved unchanged (tests/movecheck.py proves it)
-Public Const MINSTAFF_VERSION As String = "Min staff v27.1 (Oct 22)"
+Public Const MINSTAFF_VERSION As String = "Min staff v27.5 (Oct 25)"
 
 Private mStaffMin As Object         ' v26: "unit|Days" -> minimum, read once per sweep (StaffSweepBegin)
 Private mStaffNames As Object       ' v26: unit (or unit|date) -> the names holding a code, one LoadEligible each per sweep

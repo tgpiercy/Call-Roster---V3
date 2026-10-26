@@ -34,7 +34,7 @@ Option Explicit
 '  rights: a UI-only redraw.
 ' ====================================================================
 
-Public Const DESK_VERSION As String = "Desk v27.1 (Oct 22)"
+Public Const DESK_VERSION As String = "Desk v27.5 (Oct 25)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
 Public Const HELP_SHEET As String = "Help"           ' v25.5: the Help sheet (ShowHelp / DrawHelp below)

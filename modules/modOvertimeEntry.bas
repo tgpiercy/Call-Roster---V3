@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v27.5 (Oct 25)"
+Public Const CORE_VERSION As String = "Core v28 (Oct 25)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -68,6 +68,8 @@ Public Const EXCEPTION_REASON As String = "Plant upset (exception: nobody charge
 Public Const WEEK_MAX_HOURS As Double = 0         ' v27 (item 21): 0 = OFF (Graeme, Oct 22: the 48 h is a limit on SCHEDULED work; overtime is requested). A number on the Settings sheet (SetSetting WEEK_MAX_HOURS) turns a warning back on: an accept or award past it in the trailing 7 days of OT then asks for a reason (never blocks)
 Public Const RS_SHEET As String = "Restrictions"  ' v27 (item 21): OT restrictions (tblRestrictions): not listed while restricted, never charged; admin-only, never published
 Public Const RS_TABLE As String = "tblRestrictions"
+Public Const RQ_SHEET As String = "Requests"       ' v28 (item 1): members' requests (tblRequests): time off and switches asked for from the members' file; admin-only (modRequests)
+Public Const RQ_TABLE As String = "tblRequests"
 Public Const CLOSED_FOLDER As String = ".\Closed"   ' v27 (item 23): the period close's CSV + PDF ("." = beside the roster; a network folder later)
 Public Const SCAN_FOLDER As String = ".\Scans"      ' v27 (item 23): the scanned sign-up sheets, one per posting
 ' v26.5.5 (item 9, Graeme Oct 19-21): the plant's fatigue rule. At most FATIGUE_MAX_HOURS of consecutive
@@ -101,6 +103,11 @@ Public Const PUB_NAME As String = "MembersPublishedAt"
 Public Const SIGNUPS_ON As Boolean = True       ' v26.5 (Graeme, Oct 19): on for the beta - members' Sign me up / Withdraw write into the Signups folder beside the members' file
 Public Const SIGNUP_FOLDER As String = ".\Signups"
 Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox files this old for a closed posting
+' v28 (item 1, Graeme Oct 25): members' REQUESTS - time off and shift switches asked for from the members' file, one
+' small file per click into this folder (".\Requests" = beside the members' file, as the sign-ups); an admin books or
+' declines from Needs Attention; a switch request waits until the named partner has agreed in the file (another login)
+Public Const REQUESTS_ON As Boolean = True
+Public Const REQUEST_FOLDER As String = ".\Requests"
 Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"   ' v27: the FOLDER the Kronos reports are saved in (ending in \: every report newer than the last import is read, oldest first), or one report file; the processing workbook ("Sorted Data Here") still works as the fall-back
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
@@ -2045,7 +2052,7 @@ End Sub
 ' ApplyViewCore and by the daily CSV export (which never writes these tables beside the roster).
 Public Function AdminOnlySheets() As Variant
     AdminOnlySheets = Array(POSTING_SHEET, AB_SHEET, CV_SHEET, NA_SHEET, HOL_SHEET, HH_SHEET, GL_SHEET, AT_SHEET, IC_SHEET, YE_SHEET, CH_SHEET, FM_SHEET, PM_SHEET, REFUSAL_SHEET, EL_SHEET, IL_SHEET, _
-                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET, CP_SHEET & " print", OP_SHEET)      ' v27 (item 32): + the Opens table
+                         HISTORY_ADMIN_SHEET, MINSTAFF_SHEET, WP_SHEET, KT_SHEET, WD_SHEET, WC_SHEET, KF_SHEET, RECON_SHEET, STATS_SHEET, FB_SHEET, RS_SHEET, RULES_SHEET, SETTINGS_SHEET, EV_SHEET, CP_SHEET, CP_SHEET & " print", OP_SHEET, RQ_SHEET)      ' v27 (item 32): + the Opens table; v28: + Requests
 End Function
 
 ' v25 review: the work itself, raising to its caller (SaveRestrictedCopy refuses the copy on an error;

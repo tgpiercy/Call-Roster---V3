@@ -34,7 +34,7 @@ Option Explicit
 '  rights: a UI-only redraw.
 ' ====================================================================
 
-Public Const DESK_VERSION As String = "Desk v27.5 (Oct 25)"
+Public Const DESK_VERSION As String = "Desk v28 (Oct 25)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
 Public Const HELP_SHEET As String = "Help"           ' v25.5: the Help sheet (ShowHelp / DrawHelp below)
@@ -217,7 +217,7 @@ Public Sub DrawDesk()
     '      under the three band columns (cover, award, owed / members' file, this morning); a supervisor's in one row ----
     DeskLabel ws, "dk_lbl_today", "TODAY", x0, y0
     yy = y0 + 16
-    Dim nTiles As Long: nTiles = IIf(sup, 4, 6)         ' v27 (item 3): + Since you were last here
+    Dim nTiles As Long: nTiles = IIf(sup, 4, IIf(REQUESTS_ON, 7, 6))         ' v27 (item 3): + Since you were last here; v28: + members' requests (admin)
     Dim k As Long, tw As Double, tileX As Double, tileY As Double
     Dim nextTxt As String                          ' v25.5 (A8): the next uncovered shift under the count
     If nCover > 0 Then nextTxt = NextOpenLine(DESK_AHEAD_DAYS)
@@ -262,6 +262,12 @@ Public Sub DrawDesk()
     DeskTile ws, "dk_tile_since", nSince, IIf(prevAt = 0, "first open on record for you", _
              IIf(nSince = 1, "entry", "entries") & " by others since you were last here (" & Format$(prevAt, "ddd h:mm AM/PM") & ")"), _
              "modDesk.DeskSince", tileX, tileY, tw, IIf(nSince > 0, dkNavy(), 0), IIf(nSince = 0, "", "See what changed")
+    If Not sup And REQUESTS_ON Then                  ' v28 (item 1): members' requests waiting for an admin (time off, switches)
+        k = k + 1: TilePos k, sup, nTiles, x0, yy, bandW, tileX, tileY, tw
+        Dim nReq As Long: nReq = RequestsWaitingCount()
+        DeskTile ws, "dk_tile_requests", nReq, IIf(nReq = 1, "member's request waiting (time off or a switch)", "members' requests waiting (time off, switches)"), _
+                 "modDesk.DeskRequests", tileX, tileY, tw, IIf(nReq > 0, dkGreen(), 0), IIf(nReq = 0, "", "Open Needs Attention")
+    End If
 
     ' ---- the three bands side by side: NOW (orange) | PLAN (green) | FINISH (navy) - colour says WHEN, not which pop-up ----
     yy = yy + TileRows(sup, nTiles) * (TILE_H + GAP) - GAP + 18
@@ -763,6 +769,16 @@ Public Sub DeskNeeds()
     Exit Sub
 Oops:
     ReportError "DeskNeeds"
+End Sub
+
+' v28 (item 1): the requests tile - the folder read again, then Needs Attention (its MEMBERS' REQUESTS section)
+Public Sub DeskRequests()
+    On Error GoTo Oops
+    If REQUESTS_ON And IsAdmin() And IsLiveRoster() Then ReadRequests False
+    ShowNeedsAttention
+    Exit Sub
+Oops:
+    ReportError "DeskRequests"
 End Sub
 
 Public Sub DeskPost()

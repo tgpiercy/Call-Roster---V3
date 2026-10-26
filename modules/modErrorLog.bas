@@ -28,7 +28,7 @@ Option Explicit
 '  published.
 ' ====================================================================
 
-Public Const EL_VERSION As String = "Error log v27.5 (Oct 25)"
+Public Const EL_VERSION As String = "Error log v28 (Oct 25)"
 Public Const EL_SHEET As String = "Error Log"
 Public Const EL_TABLE As String = "tblErrorLog"
 Private Const EL_N As Long = 7

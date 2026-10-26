@@ -1312,6 +1312,78 @@ def fatigue_shift_reason_fixture(code: str, d: date, shift_lbl: str, pending_lbl
     return "16 h rule" if fatigue_max_hours(wb, htn) < default_shift_hours(d, night) - 0.001 else ""
 
 
+# ---- v28 (item 1): members' requests (modRequests RequestCheckCore / RequestStatusCore; suites reqcheck / reqstatus) ----
+RQ_ST_PARTNER = "Waiting for partner"
+RQ_ST_WAITING = "Waiting"
+RQ_ST_BOOKED = "Booked"
+RQ_ST_DECLINED = "Declined"
+RQ_ST_REFUSED = "Declined by partner"
+RQ_ST_WITHDRAWN = "Withdrawn"
+RQ_ST_EXPIRED = "Expired"
+
+
+def iso_date(s: str) -> date | None:
+    """modRequests.IsoDate: 'yyyy-mm-dd' with digits in every place, month 1-12, day 1-31, no roll-over (Feb 31 = not a date)."""
+    s = s.strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return None
+    y, m, d_ = int(s[0:4]), int(s[5:7]), int(s[8:10])
+    if not (1 <= m <= 12 and 1 <= d_ <= 31):
+        return None
+    try:
+        return date(y, m, d_)
+    except ValueError:
+        return None
+
+
+def request_check(kind: str, emp: str, from_txt: str, to_txt: str, shift_lbl: str, partner: str, action: str) -> str:
+    """modRequests.RequestCheckCore: '' (taken) or why a request file is not."""
+    if action in ("agree", "refuse", "withdraw"):
+        return ""
+    if action != "request":
+        return f"unknown action '{action}'"
+    if kind not in ("Time off", "Switch"):
+        return f"unknown kind '{kind}'"
+    if emp.strip(" ") == "":
+        return "no name"
+    d_f, d_t = iso_date(from_txt), iso_date(to_txt)
+    if d_f is None:
+        return "the From date can't be read"
+    if d_t is None:
+        return "the To date can't be read"
+    if d_t < d_f:
+        return "To is before From"
+    if kind == "Switch":
+        if d_t != d_f:
+            return "a switch is one shift"
+        if shift_lbl not in ("Days", "Nights"):
+            return "a switch names Days or Nights"
+        if partner.strip(" ") == "":
+            return "a switch names a partner"
+        if partner.strip(" ").lower() == emp.strip(" ").lower():
+            return "the partner is the requester"
+    return ""
+
+
+def request_status(kind: str, agree_login: str, requester_login: str, refused: bool, withdrawn: bool, decided: str,
+                   to_txt: str, today_txt: str) -> str:
+    """modRequests.RequestStatusCore: an admin's word wins; withdrawn / refused end it; past To = Expired; a switch without an
+    agree from ANOTHER login waits for the partner; else Waiting."""
+    if decided in (RQ_ST_BOOKED, RQ_ST_DECLINED):
+        return decided
+    if withdrawn:
+        return RQ_ST_WITHDRAWN
+    if refused:
+        return RQ_ST_REFUSED
+    d_t, d_n = iso_date(to_txt), iso_date(today_txt)
+    if d_t is not None and d_n is not None and d_t < d_n:
+        return RQ_ST_EXPIRED
+    if kind == "Switch":
+        if agree_login.strip(" ") == "" or agree_login.strip(" ").lower() == requester_login.strip(" ").lower():
+            return RQ_ST_PARTNER
+    return RQ_ST_WAITING
+
+
 def capped_posting_hours(post_hours: float, max_hours: float, max_set: bool) -> float:
     """modPostings.CappedPostingHours: the hours a listed person is charged on - the posting's, or their 16 h rule
     maximum when the award pop-up worked one out and it is lower (0 = they could take none: not charged)."""

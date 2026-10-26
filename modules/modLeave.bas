@@ -21,7 +21,7 @@ Option Explicit
 '  "Leave return", Note = the calculation), undone with Void Entry.
 ' ====================================================================
 
-Public Const LV_VERSION As String = "Leave v27.5 (Oct 25)"
+Public Const LV_VERSION As String = "Leave v28 (Oct 25)"
 Public Const PEER_MAX_GRADE As Double = 2        ' leave top-up peers: grade 2 and below
 Public Const SNAPSHOT_WARN_DAYS As Long = 7      ' flag a snapshot this far from the date wanted
 Public Const IMPORT_WATCH_DAYS As Long = 56      ' Needs Attention: imported lines not yet booked

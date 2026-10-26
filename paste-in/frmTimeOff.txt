@@ -1,5 +1,5 @@
 Option Explicit
-' @version v27.1 (Oct 22)
+' @version v28 (Oct 25)
 
 ' ================================================================
 ' BOOK TIME OFF  /  ADD A NEED
@@ -185,6 +185,23 @@ Private Sub UserForm_Initialize()
     mOptPerson.Value = True
     SetMode True
     mSave.Default = True
+End Sub
+
+' v28 (item 1): opened from a member's request (modRequests.RequestAct): the person, the dates and a note naming the
+' request; the type is the admin's to pick. The save marks the request Booked (RequestBooked, with the AB- id).
+Public Sub Prefill(ByVal emp As String, ByVal dFrom As Date, ByVal dTo As Date, ByVal requestId As String)
+    On Error Resume Next
+    mOptPerson.Value = True
+    SetMode True
+    mEmp.Value = emp
+    C("cboUnit").Value = HomeUnitCached(emp)
+    mStart.Text = DateText(dFrom)
+    If dTo > dFrom Then mEnd.Text = DateText(dTo) Else mEnd.Text = DateText(dFrom)
+    mOpen.Value = False
+    C("txtNote").Text = "Members' request " & requestId
+    C("status").Caption = "From " & requestId & " in the members' file: pick the type, check the dates, then Save."
+    Me.Caption = "Book Time Off - from " & requestId
+    On Error GoTo 0
 End Sub
 
 Private Sub SetMode(ByVal person As Boolean)
@@ -389,6 +406,7 @@ Private Sub mSave_Click()
     id = SaveAbsence(mEmp.Text, C("cboUnit").Text, C("cboType").Text, ds, de, HoursValue(), _
                      Trim$(C("txtTimes").Text), Trim$(C("txtNote").Text))
     If id = "" Then Exit Sub
+    RequestBooked id                               ' v28 (item 1): a member's request this pop-up was opened for is Booked with this id
     LoadList
     C("status").Caption = "Saved: " & mEmp.Text & ", " & Left$(C("cboType").Text, 3) & ", " & _
                           Format$(ds, "mmm d") & " to " & IIf(mOpen.Value, "open", Format$(de, "mmm d")) & "  (" & id & ")."

@@ -1,5 +1,5 @@
 Option Explicit
-' @version v27.1 (Oct 22)
+' @version v28 (Oct 25)
 
 ' ================================================================
 ' SHIFT SWITCH (S/S)
@@ -189,6 +189,25 @@ Private Sub UserForm_Initialize()
         C(CStr(h)).Font.Size = 9: C(CStr(h)).ForeColor = RGB(120, 120, 120)   ' v27 (item 20): the field hints at 9
     Next h
     ScaleForm Me                                 ' v25.5: x UI_SCALE (modUI)
+End Sub
+
+' v28 (item 1): opened from a member's switch request (modRequests.RequestAct): the date, the unit, who gives up (the
+' member), who works (the partner who agreed in the members' file) and the shift; the admin checks both and saves.
+' The save marks the request Booked (RequestBooked, with the SS- id). A name the lists do not offer stays blank.
+Public Sub Prefill(ByVal offName As String, ByVal worksName As String, ByVal d As Date, ByVal shiftLbl As String, _
+                   ByVal unit As String, ByVal requestId As String)
+    On Error Resume Next
+    mDate.Text = DateText(d)
+    If unit <> "" Then mUnit.Value = unit
+    RefillPeople
+    mOff.Value = offName
+    mShift.Value = shiftLbl
+    RefillWorks
+    mWorks.Value = worksName
+    C("txtNote").Text = "Members' request " & requestId & " (the partner agreed in the members' file)"
+    C("status").Caption = "From " & requestId & ": " & offName & " gives up, " & worksName & " works " & shiftLbl & ". Check both names and the shift, then Save."
+    Me.Caption = "Shift Switch - from " & requestId
+    On Error GoTo 0
 End Sub
 
 
@@ -624,6 +643,7 @@ Private Sub mSave_Click()
     Dim offNm As String, worksNm As String: offNm = mOff.Text: worksNm = mWorks.Text   ' (review M1) the boxes are cleared below, the receipt reads these
     id = SaveSwitch(d, mShift.Text, C("cboUnit").Text, mOff.Text, mWorks.Text, payFor, Trim$(C("txtNote").Text))
     If id = "" Then Exit Sub
+    RequestBooked id                     ' v28 (item 1): a member's request this pop-up was opened for is Booked with this id
     If twoWay Then
         id2 = SaveSwitch(d2, sh2, C("cboUnit").Text, mWorks.Text, mOff.Text, id, Trim$(C("txtNote").Text))
         If id2 = "" Then MsgBox "The switch was saved (" & id & ") but its payback wasn't - it stays on the owed list.", vbExclamation, "Call Out Roster"

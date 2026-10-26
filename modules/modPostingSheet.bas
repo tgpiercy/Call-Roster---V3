@@ -1,7 +1,7 @@
 Attribute VB_Name = "modPostingSheet"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the printed Overtime Posting sheet, from modPostings; moved unchanged (tests/movecheck.py proves it)
-Public Const PSHEET_VERSION As String = "Posting sheet v27.5 (Oct 25)"
+Public Const PSHEET_VERSION As String = "Posting sheet v28 (Oct 25)"
 
 ' ====================================================================
 '  THE OVERTIME POSTING SHEET  (output only - redrawn every time)

@@ -349,6 +349,16 @@ def evaluate(row: dict) -> str:
     if suite == "kgapdays":                      # v27.5: old Through|none, new Through, the ledger's days ; -> the missed days text or none
         held = {int(rules._ser(d(x.strip()))) for x in i3.split(";") if x.strip()}
         return rules.gap_days_text(d_or_none(i1), d(i2), held) or "none"
+    if suite == "reqcheck":                      # v28: kind|action, name, from|to (ISO), shift|partner -> ok / why not
+        kind, _, action = (i1 + "|").partition("|")
+        f_, _, t_ = (i3 + "|").partition("|")
+        sh, _, pt = (i4 + "|").partition("|")
+        return rules.request_check(kind, i2, f_, t_.rstrip("|"), sh, pt.rstrip("|"), action.rstrip("|")) or "ok"
+    if suite == "reqstatus":                     # v28: kind, agree login|requester login, refused;withdrawn;decided, to|today -> the status
+        al, _, rl = (i2 + "|").partition("|")
+        flags = (i3 + ";;").split(";")
+        t_, _, n_ = (i4 + "|").partition("|")
+        return rules.request_status(i1, al, rl.rstrip("|"), flags[0] == "refused", flags[1] == "withdrawn", flags[2], t_, n_.rstrip("|"))
     if suite == "fatshift":                      # v27.5: crew code, date, the shift worked, the shift given up on it|none -> 16 h rule / fits
         return rules.fatigue_shift_reason_fixture(i1, d(i2), i3, "" if i4 in ("", "none") else i4) or "fits"
     if suite == "kname":                         # v27.1: roster name by Payroll #, by name -> clash / number / name / none

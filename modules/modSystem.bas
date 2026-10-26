@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v27.5 (Oct 25)"
-Public Const EXPECTED_RELEASE As String = "v27.5"
+Public Const SYS_VERSION As String = "System v28 (Oct 25)"
+Public Const EXPECTED_RELEASE As String = "v28"
 ' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
 ' release with nothing new for them (v27.1 was the behaviour-free refactor; v27.5 changes three rules, so its box shows)
 Public Const WHATS_NEW_RELEASE As String = "v27.5"
@@ -32,16 +32,16 @@ Public Const WHATS_NEW_RELEASE As String = "v27.5"
 Public Const WHATS_NEW As String = "v27.5: three rule fixes. A shift switch now STOPS when the one working it would run past 16 h with the shift beside it - a scheduled shift counts like overtime (nights last night, then days today) - and the shift each one gives up is not counted. The same-day swap of both shifts between sister crews stays allowed (the only way an A/B pair can swap); it is stopped only when one of them already has OT on the shift they would work.|" & _
                                    "The staffing count treats a partial cover (Joe D 6h) as half a person: the shares on a shift are added once and rounded down, and the date's details and Needs Attention say (part) when some of the shift is still uncovered.|" & _
                                    "For admins: a missed Kronos morning is named at the year-to-date import (a gap row in Worked Changes) and no longer counts twice in Worked Periods once that day's report is imported."
-Private Const N_MODULES As Long = 41           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings
+Private Const N_MODULES As Long = 42           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v27"
+Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 14 (RequestsOnOpen)
 Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
 Private Const OP_TABLE As String = "tblOpens"
 Private Const OP_N As Long = 7
 Private Const OPENS_KEEP_DAYS As Long = 90
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v27,frmNewPosting|v27.1,frmPostingEntry|v27,frmShiftSwitch|v27.1," & _
-                                        "frmTimeOff|v27.1,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v27.1,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v27,frmNewPosting|v27.1,frmPostingEntry|v27,frmShiftSwitch|v28," & _
+                                        "frmTimeOff|v28,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v27.1,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
 
 Private mBackupWarned As Boolean
 Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time
@@ -83,6 +83,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     VerCheck "modReceipt", RCPT_VERSION, warn, nOk           ' v27: the receipt card after every save
     VerCheck "modRules", RULES_VERSION, warn, nOk            ' v27 (item 22): the Rules and Settings sheets
     VerCheck "modEvidence", EVID_VERSION, warn, nOk          ' v27 (item 23): the period close, scans, disputes
+    VerCheck "modRequests", RQ_VERSION, warn, nOk            ' v28 (item 1): members' requests
     VerCheck "modSignups", SG_VERSION, warn, nOk
     VerCheck "modErrorLog", EL_VERSION, warn, nOk
     VerCheck "modSmokeTest", SMK_VERSION, warn, nOk

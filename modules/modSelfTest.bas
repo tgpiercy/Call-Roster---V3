@@ -20,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v27.5 (Oct 25)"
+Public Const ST_VERSION As String = "Self test v28 (Oct 25)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -232,7 +232,7 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read
+        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -445,6 +445,16 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             If RunCaseV271 = "" Then RunCaseV271 = "none"
         Case "fatshift"                            ' v27.5 (item 1, review): crew code, date, the shift worked, the shift given up on it|none -> 16 h rule / on OT / fits
             RunCaseV271 = CaseFatShift(i1, ParseD(i2), i3, i4)
+        Case "reqcheck"                            ' v28 (item 1): kind|action, name, from|to (ISO), shift|partner -> ok / why not
+            Dim rcA As Variant, rcD As Variant, rcS As Variant
+            rcA = Split(i1 & "|", "|"): rcD = Split(i3 & "|", "|"): rcS = Split(i4 & "|", "|")
+            RunCaseV271 = RequestCheckCore(CStr(rcA(0)), i2, CStr(rcD(0)), CStr(rcD(1)), CStr(rcS(0)), CStr(rcS(1)), CStr(rcA(1)))
+            If RunCaseV271 = "" Then RunCaseV271 = "ok"
+        Case "reqstatus"                           ' v28 (item 1): kind, agree login|requester login, flags (refused;withdrawn;decided), to|today (ISO) -> the status
+            Dim rsL As Variant, rsF As Variant, rsD As Variant
+            rsL = Split(i2 & "|", "|"): rsF = Split(i3 & ";;", ";"): rsD = Split(i4 & "|", "|")
+            RunCaseV271 = RequestStatusCore(i1, CStr(rsL(0)), CStr(rsL(1)), (CStr(rsF(0)) = "refused"), (CStr(rsF(1)) = "withdrawn"), CStr(rsF(2)), _
+                                            CStr(rsD(0)), CStr(rsD(1)))
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
             If i1 <> "" Then scP = Split(i1, ";")
@@ -2063,6 +2073,34 @@ Private Sub LoadCases5()
     AddCase "fatshift,last-day-of-the-block-takes-nights-fits,B,2026-11-29,Nights,Days,,fits"
     AddCase "fatshift,no-shift-named-fits,A,2026-11-27,,none,,fits"
     AddCase "fatshift,pending-for-the-other-shift-does-not-relieve,A,2026-11-27,Days,Days,,16 h rule"
+    AddCase "reqcheck,time-off-ok,Time off|request,Ann B,2026-11-03|2026-11-05,|,,ok"
+    AddCase "reqcheck,time-off-one-day,Time off|request,Ann B,2026-11-03|2026-11-03,|,,ok"
+    AddCase "reqcheck,time-off-to-before-from,Time off|request,Ann B,2026-11-05|2026-11-03,|,,To is before From"
+    AddCase "reqcheck,bad-from-date,Time off|request,Ann B,2026-13-03|2026-11-05,|,,the From date can't be read"
+    AddCase "reqcheck,bad-to-date-feb-31,Time off|request,Ann B,2026-02-20|2026-02-31,|,,the To date can't be read"
+    AddCase "reqcheck,no-name,Time off|request,,2026-11-03|2026-11-05,|,,no name"
+    AddCase "reqcheck,unknown-kind,Vacation|request,Ann B,2026-11-03|2026-11-05,|,,unknown kind 'Vacation'"
+    AddCase "reqcheck,unknown-action,Time off|cancel,Ann B,2026-11-03|2026-11-05,|,,unknown action 'cancel'"
+    AddCase "reqcheck,switch-ok,Switch|request,Ann B,2026-11-03|2026-11-03,Days|Bob K,,ok"
+    AddCase "reqcheck,switch-two-days,Switch|request,Ann B,2026-11-03|2026-11-04,Days|Bob K,,a switch is one shift"
+    AddCase "reqcheck,switch-no-shift,Switch|request,Ann B,2026-11-03|2026-11-03,|Bob K,,a switch names Days or Nights"
+    AddCase "reqcheck,switch-no-partner,Switch|request,Ann B,2026-11-03|2026-11-03,Nights|,,a switch names a partner"
+    AddCase "reqcheck,switch-partner-is-me,Switch|request,Ann B,2026-11-03|2026-11-03,Nights|ann b,,the partner is the requester"
+    AddCase "reqcheck,agree-needs-nothing-else,|agree,,|,|,,ok"
+    AddCase "reqcheck,withdraw-needs-nothing-else,|withdraw,,|,|,,ok"
+    AddCase "reqcheck,refuse-needs-nothing-else,|refuse,,|,|,,ok"
+    AddCase "reqstatus,time-off-waiting,Time off,|annb,;;,2026-11-05|2026-10-25,,Waiting"
+    AddCase "reqstatus,switch-waits-for-partner,Switch,|annb,;;,2026-11-03|2026-10-25,,Waiting for partner"
+    AddCase "reqstatus,switch-agreed-by-another-login,Switch,bobk|annb,;;,2026-11-03|2026-10-25,,Waiting"
+    AddCase "reqstatus,switch-agreed-by-the-requester-does-not-count,Switch,ANNB|annb,;;,2026-11-03|2026-10-25,,Waiting for partner"
+    AddCase "reqstatus,partner-refused,Switch,|annb,refused;;,2026-11-03|2026-10-25,,Declined by partner"
+    AddCase "reqstatus,withdrawn-beats-refused,Switch,bobk|annb,refused;withdrawn;,2026-11-03|2026-10-25,,Withdrawn"
+    AddCase "reqstatus,booked-wins,Time off,|annb,refused;withdrawn;Booked,2026-11-03|2026-12-25,,Booked"
+    AddCase "reqstatus,declined-wins,Switch,|annb,;;Declined,2026-11-03|2026-12-25,,Declined"
+    AddCase "reqstatus,expired-when-to-is-past,Time off,|annb,;;,2026-10-20|2026-10-25,,Expired"
+    AddCase "reqstatus,to-today-is-not-expired,Time off,|annb,;;,2026-10-25|2026-10-25,,Waiting"
+    AddCase "reqstatus,expired-switch-even-if-agreed,Switch,bobk|annb,;;,2026-10-20|2026-10-25,,Expired"
+    AddCase "reqstatus,no-dates-waiting,Time off,|annb,;;,|,,Waiting"
     AddCase "kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
     AddCase "kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196"
     AddCase "kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182"
@@ -2116,6 +2154,9 @@ Private Sub LoadCases5()
     AddCase "kday,row-date-not-a-date-kept,notadate,2026-10-11,Ann Lee,Y,,keep"
     AddCase "kday,row-date-with-a-time-same-day,2026-10-11-15-30,2026-10-11,Ann Lee,Y,,drop"
     AddCase "kname,number-only,Ann Lee,,,,,number"
+End Sub
+
+Private Sub LoadCases6()
     AddCase "kname,name-only,,Ann Lee,,,,name"
     AddCase "kname,both-agree-exactly,Ann Lee,Ann Lee,,,,number"
     AddCase "kname,both-agree-any-case,Ann Lee,ann lee,,,,number"
@@ -2144,9 +2185,6 @@ Private Sub LoadCases5()
     AddCase "staffcount,fraction-dropped-but-not-short-no-flag,S;S,Joe D 6h,1,,,2|0|0|ok"
     AddCase "staffcount,eleven-h-is-not-a-whole-person,S;SA,Sam K 11h,2,,,2|1|0|SHORT 1/2 (part)"
     AddCase "staffcount,whole-plus-eleven-h-rounds-down,S;S;SA,Ann B / Sam K 11h,3,,,3|1|1|ok"
-End Sub
-
-Private Sub LoadCases6()
     AddCase "staffcount,partial-across-two-lines-with-a-whole,SA;SA;S,Joe D 6h;Sam K 6h / Eve F,3,,,3|2|2|ok"
     AddCase "staffcount,lone-slash-is-a-text-counts-one,S,  / ,1,,,1|0|1|ok"
     AddCase "staffcount,two-covers-of-one-absence-joined-with-semicolon,SA;S,Joe D 6h~Sam K 6h,2,,,2|1|1|ok"

@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M4 (Oct 22)"     ' v27 (M4, items 34-36): me first - remember me, the four tiles, since you last looked, the header band, How it works (the template is rebuilt)
+Public Const MEM_VERSION As String = "Members M5 (Oct 25)"     ' v28 (M5, item 1): members' requests - ask for time off or a switch, the partner's Agree, My requests (the template is rebuilt); v27 (M4): me first, the tiles, since you last looked, the header band, How it works
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -344,7 +344,7 @@ Public Sub BuildMemberTemplate()
     Application.ScreenUpdating = False
     Dim nm As Variant, ws As Worksheet
     ' data sheets (very hidden)
-    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", "dAttend", "dWorked", "dNotFree", SH_LISTS)   ' M3.1: + dWorked; M4: + dNotFree
+    For Each nm In Array("dMeta", "dRoster", "dNext", "dCal", "dPost", "dPostList", "dLog", "dAttend", "dWorked", "dNotFree", "dRequests", SH_LISTS)   ' M3.1: + dWorked; M4: + dNotFree; M5: + dRequests
         Set ws = WsOf(CStr(nm), True)
         UnprotectWs ws
         ws.Visible = xlSheetVeryHidden

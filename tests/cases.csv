@@ -919,6 +919,34 @@ fatshift,days-crew-takes-nights-then-days-tomorrow,B,2026-11-27,Nights,Days,,16 
 fatshift,last-day-of-the-block-takes-nights-fits,B,2026-11-29,Nights,Days,,fits
 fatshift,no-shift-named-fits,A,2026-11-27,,none,,fits
 fatshift,pending-for-the-other-shift-does-not-relieve,A,2026-11-27,Days,Days,,16 h rule
+reqcheck,time-off-ok,Time off|request,Ann B,2026-11-03|2026-11-05,|,,ok
+reqcheck,time-off-one-day,Time off|request,Ann B,2026-11-03|2026-11-03,|,,ok
+reqcheck,time-off-to-before-from,Time off|request,Ann B,2026-11-05|2026-11-03,|,,To is before From
+reqcheck,bad-from-date,Time off|request,Ann B,2026-13-03|2026-11-05,|,,the From date can't be read
+reqcheck,bad-to-date-feb-31,Time off|request,Ann B,2026-02-20|2026-02-31,|,,the To date can't be read
+reqcheck,no-name,Time off|request,,2026-11-03|2026-11-05,|,,no name
+reqcheck,unknown-kind,Vacation|request,Ann B,2026-11-03|2026-11-05,|,,unknown kind 'Vacation'
+reqcheck,unknown-action,Time off|cancel,Ann B,2026-11-03|2026-11-05,|,,unknown action 'cancel'
+reqcheck,switch-ok,Switch|request,Ann B,2026-11-03|2026-11-03,Days|Bob K,,ok
+reqcheck,switch-two-days,Switch|request,Ann B,2026-11-03|2026-11-04,Days|Bob K,,a switch is one shift
+reqcheck,switch-no-shift,Switch|request,Ann B,2026-11-03|2026-11-03,|Bob K,,a switch names Days or Nights
+reqcheck,switch-no-partner,Switch|request,Ann B,2026-11-03|2026-11-03,Nights|,,a switch names a partner
+reqcheck,switch-partner-is-me,Switch|request,Ann B,2026-11-03|2026-11-03,Nights|ann b,,the partner is the requester
+reqcheck,agree-needs-nothing-else,|agree,,|,|,,ok
+reqcheck,withdraw-needs-nothing-else,|withdraw,,|,|,,ok
+reqcheck,refuse-needs-nothing-else,|refuse,,|,|,,ok
+reqstatus,time-off-waiting,Time off,|annb,;;,2026-11-05|2026-10-25,,Waiting
+reqstatus,switch-waits-for-partner,Switch,|annb,;;,2026-11-03|2026-10-25,,Waiting for partner
+reqstatus,switch-agreed-by-another-login,Switch,bobk|annb,;;,2026-11-03|2026-10-25,,Waiting
+reqstatus,switch-agreed-by-the-requester-does-not-count,Switch,ANNB|annb,;;,2026-11-03|2026-10-25,,Waiting for partner
+reqstatus,partner-refused,Switch,|annb,refused;;,2026-11-03|2026-10-25,,Declined by partner
+reqstatus,withdrawn-beats-refused,Switch,bobk|annb,refused;withdrawn;,2026-11-03|2026-10-25,,Withdrawn
+reqstatus,booked-wins,Time off,|annb,refused;withdrawn;Booked,2026-11-03|2026-12-25,,Booked
+reqstatus,declined-wins,Switch,|annb,;;Declined,2026-11-03|2026-12-25,,Declined
+reqstatus,expired-when-to-is-past,Time off,|annb,;;,2026-10-20|2026-10-25,,Expired
+reqstatus,to-today-is-not-expired,Time off,|annb,;;,2026-10-25|2026-10-25,,Waiting
+reqstatus,expired-switch-even-if-agreed,Switch,bobk|annb,;;,2026-10-20|2026-10-25,,Expired
+reqstatus,no-dates-waiting,Time off,|annb,;;,|,,Waiting
 kledger,unbroken-run,2026-10-10,2025-12-28,2026-10-11;2026-10-12;2026-10-13,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
 kledger,days-in-any-order,2026-10-10,2025-12-28,2026-10-13;2026-10-11;2026-10-12,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-12:CA OVERTIME=4;2026-10-13:CA OVERTIME=4,2026-10-13|196
 kledger,gap-of-one-day-stops-the-run,2026-10-10,2025-12-28,2026-10-11;2026-10-13;2026-10-14,CA OVERTIME=100,2026-10-11:CA OVERTIME=4;2026-10-13:CA OVERTIME=8,2026-10-11|182

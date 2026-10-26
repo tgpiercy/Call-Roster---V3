@@ -19,7 +19,7 @@ Option Explicit
 '  when it last published. The members' file never reads the master.
 ' ====================================================================
 
-Public Const PUB_VERSION As String = "Publish v27.5 (Oct 25)"
+Public Const PUB_VERSION As String = "Publish v28 (Oct 25)"
 
 Public Const DS_META As String = "dMeta"
 Public Const DS_ROSTER As String = "dRoster"
@@ -32,8 +32,9 @@ Public Const DS_ATT As String = "dAttend"     ' v24.1 / M2: sick time COUNTS onl
 Public Const DS_NOTFREE As String = "dNotFree"  ' v27 (M4 item 37): who is not listed and why (reason words only) for the Who's next days
 Private Const NF_CAP As Long = 30000             ' v27 (M4): dNotFree's row cap
 Public Const DS_WORKED As String = "dWorked"  ' v26.5 / M3.1: premium hours worked per pay period, from the Kronos export (Employee, Period Start, Hours)
+Public Const DS_REQ As String = "dRequests"   ' v28 / M5 (item 1): members' requests and their status (Employee, Kind, From, To, Shift, Partner, Status, Answer, Decided) - no note, no login
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
-Private Const MEMBER_NEEDS As String = "Members M4"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends)
+Private Const MEMBER_NEEDS As String = "Members M5"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends; v28: M5 = + dRequests, two dMeta rows)
 
 ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
 Private Const ROSTER_FIXED As Long = 10
@@ -247,7 +248,9 @@ Public Sub PublishMembers()
     lg = BuildLog(nL)
     att = BuildAttend(nA)
     Dim wkd As Variant: wkd = BuildWorked()               ' v26.5: the per-period Kronos hours (an empty table until an export is imported)
+    Dim req As Variant: req = PublishRequestsTable()      ' v28 (M5, item 1): the members' requests and their status
     If SIGNUPS_ON And Not gSmokeRun Then EnsureSignupFolder
+    If REQUESTS_ON And Not gSmokeRun Then EnsureRequestFolder
     On Error GoTo 0
 
     ' ---- 2. privacy check (nothing has been opened or written yet) ----
@@ -264,6 +267,8 @@ Public Sub PublishMembers()
     If why = "" Then why = AttendPrivacy(att)
     If why = "" Then why = PrivateDataIn(wkd, DS_WORKED)
     If why = "" Then why = PrivateDataIn(nf, DS_NOTFREE)       ' v27 (M4): reason words only, but screened as every table
+    If why = "" Then why = PrivateDataIn(req, DS_REQ)          ' v28 (M5): no login, no note leaves the master
+    If why = "" Then why = RequestWordsIn(req)                 ' v28 (M5): an admin's answer holding a leave word
     If why <> "" Then
         Application.StatusBar = False
         Application.ScreenUpdating = True
@@ -326,6 +331,7 @@ Public Sub PublishMembers()
     WriteTable wb, DS_ATT, att
     WriteTable wb, DS_WORKED, wkd
     WriteTable wb, DS_NOTFREE, nf                  ' v27 (M4 item 37)
+    WriteTable wb, DS_REQ, req                     ' v28 (M5 item 1)
 
     ' the members' own code draws Home and the Roster (so the file reads right even with macros off);
     ' it is saved on the Roster, A-Z, so a macros-off open lands on something useful
@@ -463,7 +469,7 @@ Private Function BuildMeta() As Variant
     Dim yFrom As Variant, yTo As Variant
     yFrom = ws.Cells(PStartRow(), C_PERIOD1).Value
     yTo = ws.Cells(PEndRow(), PeriodLastCol()).Value
-    Dim a(1 To 24, 1 To 2) As Variant              ' v27 (M4): + 21-24
+    Dim a(1 To 26, 1 To 2) As Variant              ' v27 (M4): + 21-24; v28 (M5): + 25-26
     a(1, 1) = "Key": a(1, 2) = "Value"
     a(14, 1) = "Posting close time": a(14, 2) = POSTING_CLOSE_TIME
     a(15, 1) = "Crews": a(15, 2) = Join(ShiftList(), "|")
@@ -492,6 +498,10 @@ Private Function BuildMeta() As Variant
     a(22, 1) = "Trust strip": a(22, 2) = TrustStrip()
     a(23, 1) = "Legend calendar": a(23, 2) = CalLegendText()
     a(24, 1) = "Legend log": a(24, 2) = OutcomeLegendText()
+    ' v28 (Members M5, item 1): requests from the members' file - on / off, and the folder as the setting reads
+    ' (".\Requests" = beside the members' file, which resolves it against its own folder; never a resolved path)
+    a(25, 1) = "Requests": a(25, 2) = IIf(REQUESTS_ON, "on", "off")
+    a(26, 1) = "Request folder": a(26, 2) = IIf(REQUESTS_ON, REQUEST_FOLDER, "")
     BuildMeta = a
 End Function
 
@@ -1149,7 +1159,7 @@ End Function
 ' ====================================================================
 Private Function HasDataSheets(ByVal wb As Workbook) As Boolean
     Dim nm As Variant, sh As Object
-    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG, DS_ATT, DS_WORKED, DS_NOTFREE)
+    For Each nm In Array(DS_META, DS_ROSTER, DS_NEXT, DS_CAL, DS_POST, DS_PLIST, DS_LOG, DS_ATT, DS_WORKED, DS_NOTFREE, DS_REQ)
         Set sh = Nothing
         On Error Resume Next
         Set sh = wb.Worksheets(CStr(nm))

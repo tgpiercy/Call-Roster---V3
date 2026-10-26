@@ -1,7 +1,7 @@
 Attribute VB_Name = "modCalMenus"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the double-click / right-click menus on the Calendar and Needs Attention, from modCalendar; moved unchanged (tests/movecheck.py proves it)
-Public Const CALMENU_VERSION As String = "Calendar menus v27.5 (Oct 25)"
+Public Const CALMENU_VERSION As String = "Calendar menus v28 (Oct 25)"
 
 Private mMenuKey As String          ' line (or "P:P-0001") the double-click menu is for
 Private Const MENU_NAME As String = "CalLineMenu"
@@ -75,6 +75,10 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "F:" Then              ' v27 (item 9): the receipt answers - open the Feedback sheet
         ShowFeedback
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "R:" Then              ' v28 (item 1): a member's request - book it through the prefilled pop-up
+        RequestAct Mid$(keyTxt, 3), False
         Exit Sub
     End If
     If Left$(keyTxt, 2) = "V:" Then              ' v24.3: a planned unit move - cancel it, or apply it when due
@@ -152,6 +156,10 @@ Public Sub NARightClick(ByVal Target As Range, ByRef Cancel As Boolean)
     End If
     If Left$(keyTxt, 2) = "F:" Then
         ShowFeedback
+        Exit Sub
+    End If
+    If Left$(keyTxt, 2) = "R:" Then              ' v28 (item 1): a member's request - decline it with a reason
+        RequestAct Mid$(keyTxt, 3), True
         Exit Sub
     End If
     If Left$(keyTxt, 2) = "V:" Then

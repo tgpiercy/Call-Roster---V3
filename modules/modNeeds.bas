@@ -1,7 +1,7 @@
 Attribute VB_Name = "modNeeds"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the Needs Attention tab (DrawNeeds and its steps), from modCalendar; moved unchanged (tests/movecheck.py proves it)
-Public Const NEEDS_VERSION As String = "Needs Attention v27.5 (Oct 25)"
+Public Const NEEDS_VERSION As String = "Needs Attention v28 (Oct 25)"
 
 ' one row on the Needs Attention tab
 Private Type NARow
@@ -209,8 +209,9 @@ Public Sub DrawNeeds()
     Dim ir() As NARow, nI As Long, mr() As NARow, nM As Long, er() As NARow, nE As Long
     Dim ur() As NARow, nU As Long, dcR() As NARow, nDc As Long, vr() As NARow, nV As Long
     Dim tr() As NARow, nT As Long
+    Dim rq() As NARow, nRq As Long                    ' v28 (item 1): members' requests waiting for an admin
     NAGatherWork grp, nDays, plV, pr, nP, nReady, lr, nL, shortRows, nShort, sr, nS, br, nB, hr, nH, hLook
-    NAGatherAdmin grp, ir, nI, mr, nM, er, nE, ur, nU, dcR, nDc, vr, nV, tr, nT
+    NAGatherAdmin grp, ir, nI, mr, nM, er, nE, ur, nU, dcR, nDc, vr, nV, tr, nT, rq, nRq
 
     tA = Timer                                      ' gathered
     NADrawHead ws, grp, nDays                       ' v27.1: the sheet wiped, the columns, rows 1-6
@@ -252,6 +253,11 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "DATA CHECK  -  roster details that look wrong (double-click: the roster row; Employee > Edit fixes it)", _
                       nDc, thMuted(), Array("", "", "Crew", "", "Who and what", "Type", "Status", ""))
         r = NARows(ws, r, dcR, nDc, "")
+    End If
+    If nRq > 0 Then                                   ' v28 (item 1): members' requests waiting for an admin
+        r = NASection(ws, r, "MEMBERS' REQUESTS  -  waiting for an admin (double-click: book it through the pop-up; right-click: decline with a reason)", _
+                      nRq, thPosted(), Array("From", "", "Crew", "Unit", "Who and what", "Kind", "Status", "Received"))
+        r = NARows(ws, r, rq, nRq, "")
     End If
     If nE > 0 Then
         r = NASection(ws, r, "ERRORS  -  something didn't finish (double-click to open the Error Log)", _
@@ -481,8 +487,29 @@ End Sub
 Private Sub NAGatherAdmin(ByVal grp As String, ByRef ir() As NARow, ByRef nI As Long, _
                           ByRef mr() As NARow, ByRef nM As Long, ByRef er() As NARow, ByRef nE As Long, _
                           ByRef ur() As NARow, ByRef nU As Long, ByRef dcR() As NARow, ByRef nDc As Long, _
-                          ByRef vr() As NARow, ByRef nV As Long, ByRef tr() As NARow, ByRef nT As Long)
+                          ByRef vr() As NARow, ByRef nV As Long, ByRef tr() As NARow, ByRef nT As Long, _
+                          ByRef rq() As NARow, ByRef nRq As Long)
     Dim i As Long
+    ' R. members' requests waiting for an admin (v28, item 1): time off and switches asked for from the members' file
+    ReDim rq(1 To 20)
+    Dim rqv As Variant, rEmp As String, rFrom As Date, rHome As String
+    If REQUESTS_ON Then rqv = RequestRows()
+    If IsArray(rqv) Then
+        For i = 1 To UBound(rqv, 1)
+            If SafeStr(rqv(i, RQ_STATUS)) = RQ_ST_WAITING Then
+                rEmp = SafeStr(rqv(i, RQ_EMP))
+                rHome = HomeUnitCached(rEmp)
+                If rHome = "" Or UnitInGroup(rHome, grp) Then
+                    rFrom = Dt2(rqv(i, RQ_FROM))
+                    NAAdd rq, nRq, Format$(rFrom, "ddd mmm d"), "", EmpCrewOf(rEmp), rHome, _
+                          CalName(rEmp) & "   " & RequestLineText(rqv, i), SafeStr(rqv(i, RQ_KIND)), RQ_ST_WAITING, _
+                          Format$(Dt2(rqv(i, RQ_RECEIVED)), "ddd mmm d"), "R:" & SafeStr(rqv(i, RQ_ID)), CDbl(Int(rFrom)), _
+                          thPosted(), thOpen(), thOpenFill(), WhenColor(rFrom)
+                End If
+            End If
+        Next i
+        NASort rq, nRq
+    End If
     ' H. imported vacation lines not yet booked (v22) - they don't keep people off call lists
     Dim iv As Variant
     ReDim ir(1 To 20)

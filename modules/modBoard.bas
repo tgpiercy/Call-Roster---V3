@@ -1,7 +1,7 @@
 Attribute VB_Name = "modBoard"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the two-week board (BoardPrint), from modCalendar; moved unchanged (tests/movecheck.py proves it)
-Public Const BOARD_VERSION As String = "Board v27.5 (Oct 25)"
+Public Const BOARD_VERSION As String = "Board v28 (Oct 25)"
 
 ' ====================================================================
 '  THE TWO-WEEK BOARD (v26, kit item 3)

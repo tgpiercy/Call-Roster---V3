@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (updated Oct 22, 2026, late: **v27.1 the behaviour-free refactor is TAGGED (v27.1 = 3abdc92), ZIPPED (dist/Callout_Roster_v27.1.zip) and PUSHED; NOT installed yet - next is Graeme's rehearsal on a practice copy**; see "v27.1" below. The older block under it is the v27 hand-off.)
+# Paste this into a fresh session to carry on (updated Oct 25, 2026: **v27.1 the behaviour-free refactor is TAGGED (v27.1 = 3abdc92), ZIPPED (dist/Callout_Roster_v27.1.zip), PUSHED, and INSTALLED - Graeme reported it passed testing on Oct 25; next is the v27.5 bundle**; see "v27.1" below. The older block under it is the v27 hand-off.)
 
 ```
 v27.1 STATE (Oct 22, 2026): read docs/v27.1-report-back.md (the plan, the maps, Graeme's eight decisions), the
@@ -12,12 +12,14 @@ v271/b1-calendar, b1-wave2, b2-people, b3-postings, b4-kronos, b5-forms are merg
 .claude/worktrees can be cleaned up).
 
 DONE Oct 22-23: Graeme chose no What's New box for v27.1 (as built) and OK'd the release; tagged, zipped, pushed.
-NEXT: his Phase 5 on a practice copy: modSnapshot (zip's test-only/) imported on
-v27, TakeSnapshot, install v27.1, TakeSnapshot + CompareSnapshots (IDENTICAL but the one dk_lnk_preview line),
-SystemCheck 41 of 41, SelfTest 962, SmokeTest 22, IntegrityCheck; then the real roster. v27.5 = the alpha fixes +
-the three gaps found while reading (the same-day swap's 16 h stop - ask Graeme first; the missed-morning double count
-in Worked Periods; the staffing count's partial-line rounding / empty " / " part), built ON v27.1 (a v27 zip cannot
-go over v27.1).
+DONE Oct 25 (Graeme's answers): **v27.1 IS ON THE REAL ROSTER** and passed his testing; **the Kronos section-0
+re-import is DONE** (Worked H on the real roster is correct; nothing owed there any more). The merged v271/*
+builder branches and their .claude/worktrees were removed with his OK.
+NEXT (he chose it Oct 25): v27.5 = the alpha fixes + the three gaps found while reading (the same-day swap's 16 h
+stop - put to Graeme first; the missed-morning double count in Worked Periods; the staffing count's partial-line
+rounding / empty " / " part), built ON v27.1 (a v27 zip cannot go over v27.1); report back before code. Still
+open: item 39's digest wording + recipients (ask when he is ready), the alpha testing Nov 1-15 with paper
+alongside, the Reconcile differences for the Nov 15 pack.
 ```
 
 ```

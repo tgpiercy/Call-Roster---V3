@@ -1324,6 +1324,11 @@ Full runbook: docs/alpha-data-reset.md. On the MOCK file first:
 """
 
 
+def cell(x) -> str:
+    """A pipe inside a markdown table cell would break the row."""
+    return str(x).replace("|", "\\|")
+
+
 def write_plan(steps: list[dict], exp: list[list]) -> None:
     by_step: dict = {}
     for sid, what, fig in exp:
@@ -1334,9 +1339,9 @@ def write_plan(steps: list[dict], exp: list[list]) -> None:
         if st["date"] != cur:
             cur = st["date"]
             out.append(f"\n## {DAY_TITLES[cur]}\n\n| id | when | who | where | inputs | EXPECT | CHECK | tick |\n|---|---|---|---|---|---|---|---|\n")
-        ex = "<br>".join(f"**{w}:** {f}" for w, f in by_step.get(st["id"], []))
-        inputs = st["inputs"].replace(";", "; ")
-        out.append(f"| {st['id']} | {st['when']} | {st['who']} | {st['where']} | {inputs} | {ex} | {st['check']} | [ ] |\n")
+        ex = "<br>".join(f"**{cell(w)}:** {cell(f)}" for w, f in by_step.get(st["id"], []))
+        inputs = cell(st["inputs"].replace(";", "; "))
+        out.append(f"| {st['id']} | {st['when']} | {st['who']} | {cell(st['where'])} | {inputs} | {ex} | {cell(st['check'])} | [ ] |\n")
     out.append("\n## Coverage matrix - every canonical rule x the steps that exercise it\n\n| rule | steps |\n|---|---|\n")
     hits: dict = {}
     for st in steps:

@@ -1111,3 +1111,20 @@ reqref,wrong-person,Switch|Booked,SS-0040,Y|Active|N,2026-11-09|2026-11-03,,Chec
 reqref,void-beats-wrong-person,Switch|Booked,SS-0040,Y|VOID|N,2026-11-09|2026-11-03,,Check|void
 reqref,to-today-is-check,Time off|Booked,AB-0120,Y|VOID|Y,2026-11-03|2026-11-03,,Check|void
 reqref,no-dates-is-check,Time off|Booked,AB-0120,Y|VOID|Y,|,,Check|void
+mvstored,live-honours-l,L|P:\Members\,N,,,,P:\Members\
+mvstored,live-ignores-r,R|C:\Test\Members\,N,,,,none
+mvstored,copy-honours-r,R|C:\Test\Members\,Y,,,,C:\Test\Members\
+mvstored,copy-ignores-l,L|P:\Members\,Y,,,,none
+mvstored,lower-case-flag,l|P:\Members\,N,,,,P:\Members\
+mvstored,blank,,N,,,,none
+mvstored,no-flag,P:\Members\,N,,,,none
+mvstored,flag-no-path,L|,N,,,,none
+mvstored,path-trimmed,L| P:\Members ,N,,,,P:\Members
+mvtarget,fine,C:\Old\,P:\Super\,P:\Members\,Y|Y,,ok
+mvtarget,fine-no-slashes,C:\Old,P:\Super,P:\Members,Y|Y,,ok
+mvtarget,no-master,C:\Old\,,P:\Members\,Y|Y,,no master folder was given
+mvtarget,no-members,C:\Old\,P:\Super\,,Y|Y,,no members' folder was given
+mvtarget,same-master-case-and-slash,C:\Old\,c:\old,P:\Members\,Y|Y,,the new master folder is the folder the roster is in now
+mvtarget,master-unreachable,C:\Old\,P:\Super\,P:\Members\,N|Y,,the new master folder can't be reached or written: p:\super\
+mvtarget,members-unreachable,C:\Old\,P:\Super\,P:\Members\,Y|N,,the new members' folder can't be reached or written: p:\members\
+mvtarget,members-may-equal-master,C:\Old\,P:\Super\,P:\Super\,Y|Y,,ok

@@ -615,13 +615,19 @@ Private Sub LayoutHistory()
     ProtectWs ws
 End Sub
 
-' M3: My history as a PDF beside this file ("History <name> <date>.pdf"), then "print as well?"
+' M3: My history as a PDF ("History <name> <date>.pdf"), then "print as well?". M6 (v29; Graeme, Oct 27): the PDF goes to the
+' signed-in user's Downloads folder - the members' folder is read-only to members once the files split - beside this file
+' only when there is no Downloads folder.
 Public Sub MemberHistoryPrint()
     Dim ws As Worksheet: Set ws = WsOf(SH_HIST)
     Dim nm As String: nm = Txt(ws.Range(HIST_NAME).Value)
     If nm = "" Then MsgBox "Pick a name above first.", vbInformation, "My history": Exit Sub
-    Dim pdfPath As String, em As String
-    pdfPath = ThisWorkbook.Path & Application.PathSeparator & "History " & SafeName(Replace(nm, " ", "_")) & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
+    Dim pdfPath As String, em As String, folder As String
+    folder = Environ$("USERPROFILE") & Application.PathSeparator & "Downloads"
+    On Error Resume Next
+    If Dir$(folder, vbDirectory) = "" Then folder = ThisWorkbook.Path
+    On Error GoTo 0
+    pdfPath = folder & Application.PathSeparator & "History " & SafeName(Replace(nm, " ", "_")) & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
     On Error Resume Next
     With ws.PageSetup
         .Orientation = xlLandscape

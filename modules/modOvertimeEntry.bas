@@ -1696,7 +1696,9 @@ Public Function RequireSupervisor() As Boolean
 End Function
 
 Public Function RequireWritable() As Boolean
-    If ThisWorkbook.ReadOnly Then
+    If MovedToPath() <> "" Then                     ' v29 (item 1): the old copy of a moved roster is frozen whatever its file attributes
+        MsgBox "This copy of the roster moved to" & vbNewLine & MovedToPath() & vbNewLine & "Nothing can be changed here: close it and open the new file.", vbExclamation, "Moved roster"
+    ElseIf ThisWorkbook.ReadOnly Then
         MsgBox "This copy is open read-only, so nothing can be logged or saved." & vbNewLine & _
                "Close it and reopen with edit access.", vbExclamation, "Read-only"
     Else

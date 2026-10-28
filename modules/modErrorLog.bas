@@ -130,6 +130,13 @@ Private Function AsCellText(ByVal s As String) As String
     AsCellText = s
 End Function
 
+' v29 (item 1): where the text file lives - beside the master (it moves with it); "" on an http path. SystemCheck's path line.
+Public Function ErrorLogFilePath() As String
+    Dim p As String: p = ThisWorkbook.Path
+    If p = "" Or LCase$(Left$(p, 4)) = "http" Then Exit Function
+    ErrorLogFilePath = EnsureSlash(p) & EL_FILE
+End Function
+
 ' One line appended to "Roster error log.txt" beside the workbook. Quiet on any failure.
 Private Sub LogErrorToFile(ByVal proc As String, ByVal errNumber As Long, ByVal errText As String, ByVal detail As String)
     Dim ff As Integer, p As String

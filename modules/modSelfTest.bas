@@ -233,7 +233,7 @@ Private Function RunCase(f() As String) As String
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
         Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch", _
-             "litelogin", "postexc", "litemark", "litedaily", "litebar", "reqref"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite Desk's cores
+             "litelogin", "postexc", "litemark", "litedaily", "litebar", "reqref", "mvstored", "mvtarget"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite Desk's cores
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -482,6 +482,13 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             rrK = Split(i1 & "|", "|"): rrT = Split(i3 & "||", "|"): rrD = Split(i4 & "|", "|")
             rrS = RequestRefProblem(CStr(rrK(0)), CStr(rrK(1)), i2, (CStr(rrT(0)) = "Y"), CStr(rrT(1)), (CStr(rrT(2)) = "Y"), CStr(rrD(0)), CStr(rrD(1)))
             RunCaseV271 = IIf(rrS = "", "none", rrS)
+        Case "mvstored"                            ' v29 (item 1): the stored members' folder value, this file is a COPY Y/N -> the path / none
+            Dim msS As String: msS = StoredPathCore(i1, (i2 = "Y"))
+            RunCaseV271 = IIf(msS = "", "none", msS)
+        Case "mvtarget"                            ' v29 (item 1): master now, master new, members new, master ok Y/N|members ok Y/N -> ok / why not
+            Dim mtO As Variant: mtO = Split(i4 & "|", "|")
+            Dim mtS As String: mtS = MoveTargetProblem(i1, i2, i3, (CStr(mtO(0)) = "Y"), (CStr(mtO(1)) = "Y"))
+            RunCaseV271 = IIf(mtS = "", "ok", mtS)
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
             If i1 <> "" Then scP = Split(i1, ";")
@@ -2295,5 +2302,22 @@ Private Sub LoadCases6()
     AddCase "reqref,void-beats-wrong-person,Switch|Booked,SS-0040,Y|VOID|N,2026-11-09|2026-11-03,,Check|void"
     AddCase "reqref,to-today-is-check,Time off|Booked,AB-0120,Y|VOID|Y,2026-11-03|2026-11-03,,Check|void"
     AddCase "reqref,no-dates-is-check,Time off|Booked,AB-0120,Y|VOID|Y,|,,Check|void"
+    AddCase "mvstored,live-honours-l,L|P:\Members\,N,,,,P:\Members\"
+    AddCase "mvstored,live-ignores-r,R|C:\Test\Members\,N,,,,none"
+    AddCase "mvstored,copy-honours-r,R|C:\Test\Members\,Y,,,,C:\Test\Members\"
+    AddCase "mvstored,copy-ignores-l,L|P:\Members\,Y,,,,none"
+    AddCase "mvstored,lower-case-flag,l|P:\Members\,N,,,,P:\Members\"
+    AddCase "mvstored,blank,,N,,,,none"
+    AddCase "mvstored,no-flag,P:\Members\,N,,,,none"
+    AddCase "mvstored,flag-no-path,L|,N,,,,none"
+    AddCase "mvstored,path-trimmed,L| P:\Members ,N,,,,P:\Members"
+    AddCase "mvtarget,fine,C:\Old\,P:\Super\,P:\Members\,Y|Y,,ok"
+    AddCase "mvtarget,fine-no-slashes,C:\Old,P:\Super,P:\Members,Y|Y,,ok"
+    AddCase "mvtarget,no-master,C:\Old\,,P:\Members\,Y|Y,,no master folder was given"
+    AddCase "mvtarget,no-members,C:\Old\,P:\Super\,,Y|Y,,no members' folder was given"
+    AddCase "mvtarget,same-master-case-and-slash,C:\Old\,c:\old,P:\Members\,Y|Y,,the new master folder is the folder the roster is in now"
+    AddCase "mvtarget,master-unreachable,C:\Old\,P:\Super\,P:\Members\,N|Y,,the new master folder can't be reached or written: p:\super\"
+    AddCase "mvtarget,members-unreachable,C:\Old\,P:\Super\,P:\Members\,Y|N,,the new members' folder can't be reached or written: p:\members\"
+    AddCase "mvtarget,members-may-equal-master,C:\Old\,P:\Super\,P:\Super\,Y|Y,,ok"
 ' <<< CASES
 End Sub

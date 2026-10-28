@@ -1326,6 +1326,9 @@ Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
         If ff.Ref <> UCase$(fbRef) Or ff.Text = "" Then why = "FixEntryFacts gave nothing for " & fbRef: Exit Function
         ff = FixEntryFacts("ZZ-9999")
         If ff.Found Then why = "FixEntryFacts found a made-up Ref": Exit Function
+        ' v29 (item 1): the move's readers on this copy - it never moved, its own folder takes a write check
+        If MovedToPath() <> "" Then why = "this practice copy says it moved to " & MovedToPath(): Exit Function
+        If Not FolderWritable(ThisWorkbook.Path) Then why = "FolderWritable says the copy's own folder is not writable": Exit Function
     Else
         st.Note = st.Note & "; no receipt Ref on screen - the resolve round trip skipped"
     End If

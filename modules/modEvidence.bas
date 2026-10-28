@@ -158,7 +158,7 @@ Public Sub AddScan(ByVal postingId As String)
     Dim ext As String
     If InStrRev(baseName, ".") > 0 Then ext = LCase$(Mid$(baseName, InStrRev(baseName, ".")))
     Dim folder As String: folder = EnsureFolderPath(SCAN_FOLDER)
-    If folder = "" Then MsgBox "The scans folder (" & SCAN_FOLDER & ") could not be made beside the roster.", vbExclamation, "Scan": Exit Sub
+    If folder = "" Then MsgBox "The scans folder could not be made or reached: " & ResolveFolder(SCAN_FOLDER) & " (SCAN_FOLDER; SystemCheck lists every path).", vbExclamation, "Scan": Exit Sub
     Dim target As String: target = folder & postingId & ext
     Dim n As Long
     Do While Len(Dir$(target)) > 0                 ' a second scan of the same posting keeps the first
@@ -370,7 +370,7 @@ Public Sub ClosePeriod()
         If MsgBox("The period starting " & Format$(ps, "ddd mmm d") & " is not over yet. Close it anyway (a later close of the same period writes a second row)?", vbYesNo + vbQuestion + vbDefaultButton2, "Close the pay period") = vbNo Then Exit Sub
     End If
     Dim folder As String: folder = EnsureFolderPath(CLOSED_FOLDER)
-    If folder = "" Then MsgBox "The folder " & CLOSED_FOLDER & " could not be made beside the roster.", vbExclamation, "Close the pay period": Exit Sub
+    If folder = "" Then MsgBox "The closed-periods folder could not be made or reached: " & ResolveFolder(CLOSED_FOLDER) & " (CLOSED_FOLDER; SystemCheck lists every path).", vbExclamation, "Close the pay period": Exit Sub
     Dim prevHash As String, prevPeriod As Date: prevHash = LastClosedHash(prevPeriod)
 
     Application.ScreenUpdating = False

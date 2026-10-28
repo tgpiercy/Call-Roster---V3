@@ -32,7 +32,7 @@ Public Const WHATS_NEW_RELEASE As String = "v28"
 Public Const WHATS_NEW As String = "v28: members can ASK from their file. The members' file gets a Requests page: time off between two dates, or a shift switch with the partner who would work it (the partner clicks Agree on their own PC first). The request books nothing by itself: it lands on the admin Desk and Needs Attention (MEMBERS' REQUESTS), where a double-click opens the time-off or switch pop-up prefilled and a right-click declines with a reason; the answer reaches the member at the next update.|" & _
                                    "The Payroll # is now the key: every people table carries it (filled from the roster at the install and before every save), a rename follows the number, and the Employee pop-up takes it at Add and Edit (digits only). Nothing is published: members never see the number.|" & _
                                    "Also: IntegrityCheck 16 'Keys' names a number on two rows or a row without one; the new Requests and Keys macros are listed in the admin guide. v27.5's three rule fixes (the 16 h stop on switches, the Kronos gap rows, the staffing count's partial covers) are in this install if v27.5 was skipped."
-Private Const N_MODULES As Long = 44           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys; v29: + modLite
+Private Const N_MODULES As Long = 45           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys; v29: + modLite, modMove
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 10 (RequestsOnOpen; the later steps moved down one)
 Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
@@ -86,6 +86,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     VerCheck "modRequests", RQ_VERSION, warn, nOk            ' v28 (item 1): members' requests
     VerCheck "modKeys", KEY_VERSION, warn, nOk               ' v28 (item 2): the Payroll # key
     VerCheck "modLite", LITE_VERSION, warn, nOk              ' v29 (item 3): the Admin Lite Desk's data and drawing
+    VerCheck "modMove", MV_VERSION, warn, nOk                ' v29 (item 1): the folder split and the guided move
     VerCheck "modSignups", SG_VERSION, warn, nOk
     VerCheck "modErrorLog", EL_VERSION, warn, nOk
     VerCheck "modSmokeTest", SMK_VERSION, warn, nOk
@@ -263,7 +264,8 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     info = info & OpensSummaryText() & vbNewLine     ' v27 (item 32): errors this release, opens this week
     ' v26.5.5 (A13): where the members' file goes (PUBLISH_FOLDER resolved; "." = beside the master until the folder is named)
     If FolderExists(PublishFolderPath()) Then
-        info = info & "Members' folder: " & PublishFolderPath() & IIf(Trim$(PUBLISH_FOLDER) = ".", " (beside the master: PUBLISH_FOLDER not named yet)", "") & vbNewLine
+        info = info & "Members' folder: " & PublishFolderPath() & IIf(StoredMembersFolder() <> "", " (set by the guided move)", _
+                      IIf(Trim$(PUBLISH_FOLDER) = ".", " (beside the master: PUBLISH_FOLDER not named yet)", "")) & vbNewLine
     Else
         warn = warn & "- members' folder can't be reached: " & PublishFolderPath() & " (PUBLISH_FOLDER in modOvertimeEntry; Member View will refuse)" & vbNewLine
     End If
@@ -277,6 +279,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     Else
         info = info & "Sign-ups: off (SIGNUPS_ON in modOvertimeEntry)" & vbNewLine
     End If
+    MovePathLines warn, info                        ' v29 (item 1): one line per path - reachable, writable; the members' file; what a move left behind (modMove)
     ' v29 (briefs/v29.md item 2): the first login lines - who is what, and a Lite login that is not an admin (the Lite Desk is
     ' for an admin: ViewModeFor gives such a login "user" or "supervisor", never "lite", so it would not see the Lite Desk)
     info = info & "Logins: admins " & LCase$(Replace(ADMIN_USERS, ",", ", ")) & "; Lite " & IIf(Trim$(LITE_DESK_USERS) = "", "(none)", LCase$(Replace(LITE_DESK_USERS, ",", ", ")) & " (" & LITE_FIRST_NAME & ")") & _
@@ -618,6 +621,13 @@ End Function
 ' ---------------- opening checks ----------------
 Public Sub OpenChecks()
     On Error Resume Next                            ' never raises
+    If MovedToPath() <> "" Then                     ' v29 (item 1): the old copy of a moved roster - frozen, whoever opens it
+        MsgBox "This roster MOVED to" & vbNewLine & MovedToPath() & vbNewLine & "on " & MovedToWhen() & "." & vbNewLine & vbNewLine & _
+               "This copy is frozen: nothing can be logged, saved or published in it. Close it and open the new one. " & _
+               "If this file still has the live name, rename it MOVED - ... so nobody opens it by mistake.", vbExclamation, "Moved roster"
+        Exit Sub
+    End If
+    MoveFirstOpen                                   ' v29 (item 1): the first admin open after a move (modMove)
     If ThisWorkbook.ReadOnly Then
         Dim who As String: who = LockOwner()
         Dim onDisk As Boolean: onDisk = False
@@ -759,6 +769,7 @@ End Function
 ' backup. The one test for "may this file change anything beside itself".
 Public Function IsLiveRoster() As Boolean
     If ThisWorkbook.ReadOnly Then Exit Function
+    If MovedToPath() <> "" Then Exit Function      ' v29 (item 1): the old copy of a moved roster is frozen
     If Not IsAdmin() Then Exit Function
     If IsDryRunName(ThisWorkbook.Name) Then Exit Function
     If IsBackupCopyName(ThisWorkbook.Name) Then Exit Function
@@ -807,7 +818,8 @@ Private Function BackupOff() As Boolean
     ' a practice copy (COPY / DRY RUN in its name) never takes the day's backup slot from the real roster;
     ' nor does a backup, FINAL or pre-change copy opened to look at (v24.3.1, review I1).
     ' v27 (item 12, Graeme Oct 19-20): ANY writable open of the live file backs up, not only an admin's
-    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name))
+    BackupOff = (Trim$(BACKUP_FOLDER) = "" Or ThisWorkbook.ReadOnly Or IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) _
+                 Or MovedToPath() <> "")           ' v29 (item 1): nor the frozen old copy of a moved roster
 End Function
 
 ' v27 (item 2): today's daily backup - 1 taken, 0 not in the folder, -1 this copy takes none (a practice, backup or

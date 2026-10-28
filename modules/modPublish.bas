@@ -131,6 +131,11 @@ End Function
 
 ' PUBLISH_FOLDER with "." (the roster's own folder) and ".\sub" resolved
 Public Function PublishFolderPath() As String
+    ' v29 (item 1): the members' folder the guided move stored in the file wins (modMove.StoredMembersFolder: a live
+    ' roster honours only a live move's value, a practice copy only a rehearsal's - so a copy of a moved roster still
+    ' publishes beside itself); PUBLISH_FOLDER is the default when nothing is stored
+    Dim stored As String: stored = StoredMembersFolder()
+    If stored <> "" Then PublishFolderPath = stored: Exit Function
     ' v24.2: a practice copy (COPY / DRY RUN in its name) only ever uses its own folder, wherever
     ' PUBLISH_FOLDER points - so its publish and its sign-up inbox can't reach the real ones
     If IsDryRunName(ThisWorkbook.Name) Then

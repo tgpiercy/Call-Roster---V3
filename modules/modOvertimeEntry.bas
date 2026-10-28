@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v29.0.1 (Oct 28)"
+Public Const CORE_VERSION As String = "Core v29.0.2 (Oct 28)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -116,6 +116,14 @@ Public Const REQUESTS_ON As Boolean = True
 Public Const REQUEST_FOLDER As String = ".\Requests"
 Public Const KRONOS_PATH As String = "C:\Users\piercyg\Desktop\Kronos mock\\"   ' v29.0.1 (Graeme, Oct 28, 2026 - THE ALPHA ONLY, on the MOCK file): the local folder the mock Kronos reports are copied into each morning (tests/mock/make_kronos.py; docs/alpha-test-plan.md). v27's rule: a FOLDER (ending in \: every report newer than the last import is read, oldest first) or one report file; the processing workbook ("Sorted Data Here") still works as the fall-back. The real roster (v29) keeps "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm" - put that back (or the real reports' folder) in the release after the alpha
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
+' ---- v29.0.2 (Graeme, Oct 28, 2026 - THE ALPHA ONLY; the release after the alpha removes this block, ActAs / ActAsClear and the
+' ActAsChair read in CurrentUser): "Act as" - an admin types CHAIR_PASSWORD and picks a chair (a login on LITE_DESK_USERS or
+' SUPERVISOR_USERS); CurrentUser() answers that login until ActAsClear, so every gate, the Desk, Logged By and the receipts follow
+' it. The chair sits in the hidden name ACTAS_NAME (it survives a reopen: reopen the file after ActAs / ActAsClear so the open
+' steps land on that chair's Desk) and is ignored after ALPHA_END_ISO. Only the REAL Windows login (an admin) may set or clear it.
+Public Const CHAIR_PASSWORD As String = "alpha2026"
+Public Const ALPHA_END_ISO As String = "2026-11-20"
+Private Const ACTAS_NAME As String = "ActAsChair"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)
 ' v27 (briefs/v27-kronos.md): the Kronos report "Employee Transactions and Totals" - its TOTALS block (one row per person per
@@ -1657,8 +1665,94 @@ End Function
 '  ACCESS / PROTECTION
 ' ====================================================================
 Public Function CurrentUser() As String
-    CurrentUser = Environ$("USERNAME")
+    Dim chair As String: chair = ActAsChair()           ' v29.0.2 (the alpha): an admin acting as a chair
+    If chair <> "" Then CurrentUser = chair Else CurrentUser = Environ$("USERNAME")
 End Function
+
+' v29.0.2 (the alpha only): the Windows login whatever chair is set
+Public Function RealUser() As String
+    RealUser = Environ$("USERNAME")
+End Function
+
+Private Function AlphaEnd() As Date
+    AlphaEnd = DateSerial(CLng(Left$(ALPHA_END_ISO, 4)), CLng(Mid$(ALPHA_END_ISO, 6, 2)), CLng(Mid$(ALPHA_END_ISO, 9, 2)))
+End Function
+
+Private Function RealIsAdmin() As Boolean
+    RealIsAdmin = (ActAsCheck("", Environ$("USERNAME"), ADMIN_USERS, "", Date, AlphaEnd()) <> "not an admin")
+End Function
+
+' The stored chair while it is allowed (the real login an admin, the chair on the lists, the alpha not over), else "".
+' Never raises: CurrentUser runs inside every gate and every open step.
+Public Function ActAsChair() As String
+    On Error Resume Next
+    Dim nmObj As Name
+    Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
+    If nmObj Is Nothing Then Exit Function
+    Dim s As String: s = Trim$(Replace(Replace(nmObj.RefersTo, "=", ""), """", ""))
+    If ActAsCheck(s, Environ$("USERNAME"), ADMIN_USERS, LITE_DESK_USERS & "," & SUPERVISOR_USERS, Date, AlphaEnd()) <> "" Then Exit Function
+    ActAsChair = LCase$(s)
+End Function
+
+' PURE (SelfTest "actas"; mirrored in tests/rules.py): "" when realLogin (an admin on adminList) may act as chair (a login on
+' chairList) on today, else why: expired (today after alphaEnd) / not an admin / not a chair. Lower case, spaces dropped.
+Public Function ActAsCheck(ByVal chair As String, ByVal realLogin As String, ByVal adminList As String, ByVal chairList As String, _
+                           ByVal today As Date, ByVal alphaEnd As Date) As String
+    Dim c As String: c = LCase$(Replace(chair, " ", ""))
+    Dim r As String: r = LCase$(Replace(realLogin, " ", ""))
+    If Int(today) > Int(alphaEnd) Then ActAsCheck = "expired": Exit Function
+    If r = "" Or InStr(1, "," & LCase$(Replace(adminList, " ", "")) & ",", "," & r & ",", vbBinaryCompare) = 0 Then ActAsCheck = "not an admin": Exit Function
+    If c = "" Or InStr(1, "," & LCase$(Replace(chairList, " ", "")) & ",", "," & c & ",", vbBinaryCompare) = 0 Then ActAsCheck = "not a chair": Exit Function
+End Function
+
+' Alt+F8 (an admin's own login): the password, then the chair; the file is saved and reopened by hand
+Public Sub ActAs()
+    On Error GoTo Oops
+    If Not RealIsAdmin() Then MsgBox "Only an admin's own Windows login may set a chair (yours is " & Environ$("USERNAME") & ").", vbExclamation, "Act as (alpha test)": Exit Sub
+    If Int(Date) > Int(AlphaEnd()) Then MsgBox "Act as ended on " & Format$(AlphaEnd(), "mmm d, yyyy") & " (ALPHA_END_ISO in modOvertimeEntry).", vbExclamation, "Act as (alpha test)": Exit Sub
+    Dim typed As String: typed = InputBox("Act as another chair for the alpha test. Password:", "Act as (alpha test)")
+    If typed = "" Then Exit Sub
+    If StrComp(typed, CHAIR_PASSWORD, vbBinaryCompare) <> 0 Then MsgBox "Wrong password. Nothing changed.", vbExclamation, "Act as (alpha test)": Exit Sub
+    Dim chairs As String: chairs = LITE_DESK_USERS & "," & SUPERVISOR_USERS
+    Dim chair As String: chair = Trim$(InputBox("Which chair? One of: " & Replace(chairs, ",", ", ") & vbNewLine & "(blank = cancel)", "Act as (alpha test)"))
+    If chair = "" Then Exit Sub
+    Dim why As String: why = ActAsCheck(chair, Environ$("USERNAME"), ADMIN_USERS, chairs, Date, AlphaEnd())
+    If why <> "" Then MsgBox "Not set: " & why & ".", vbExclamation, "Act as (alpha test)": Exit Sub
+    SetActAsName LCase$(chair)
+    SaveIfWritable
+    MsgBox "Acting as " & LCase$(chair) & " (Windows still knows you as " & Environ$("USERNAME") & ")." & vbNewLine & vbNewLine & _
+           "Close and reopen the roster: it lands on that chair's Desk with that chair's rights, and every row logged says that login. " & _
+           "Alt+F8 > ActAsClear, then reopen, puts you back. SystemCheck names the chair while it is set.", vbInformation, "Act as (alpha test)"
+    Exit Sub
+Oops:
+    ReportError "ActAs"
+End Sub
+
+Public Sub ActAsClear()
+    On Error GoTo Oops
+    If Not RealIsAdmin() Then MsgBox "Only an admin's own Windows login may clear the chair (yours is " & Environ$("USERNAME") & ").", vbExclamation, "Act as (alpha test)": Exit Sub
+    On Error Resume Next
+    ThisWorkbook.Names(ACTAS_NAME).Delete
+    On Error GoTo Oops
+    SaveIfWritable
+    MsgBox "Cleared: you are " & Environ$("USERNAME") & " again. Close and reopen the roster.", vbInformation, "Act as (alpha test)"
+    Exit Sub
+Oops:
+    ReportError "ActAsClear"
+End Sub
+
+Private Sub SetActAsName(ByVal chair As String)
+    Dim nmObj As Name
+    On Error Resume Next
+    Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
+    On Error GoTo 0
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=ACTAS_NAME, RefersTo:="=""" & chair & """", Visible:=False
+    Else
+        nmObj.RefersTo = "=""" & chair & """"
+        nmObj.Visible = False
+    End If
+End Sub
 
 Public Function IsAdmin() As Boolean
     Dim u As String: u = LCase$(Trim$(CurrentUser()))

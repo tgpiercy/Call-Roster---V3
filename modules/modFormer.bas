@@ -1,7 +1,7 @@
 Attribute VB_Name = "modFormer"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the Former sheet, Remove and Bring back, from modPeople; moved unchanged (tests/movecheck.py proves it)
-Public Const FORMER_VERSION As String = "Former v29.0.1 (Oct 28)"
+Public Const FORMER_VERSION As String = "Former v29.0.2 (Oct 28)"
 
 ' tblFormer (v24): one row per person taken off the roster, as values
 Public Const FM_SHEET As String = "Former"

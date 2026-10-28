@@ -28,6 +28,12 @@ the Reconcile sheet holds ONE paper order per page (D12 types two pages); the Da
 lands in Kronos the day the night ends (the D + 1 report). A RULE QUESTION for Graeme (not a plan error): the leave return's
 peers include someone who moved INTO the unit during the leave (Arden Glassford, D9.4: LoadEligible reads the roster as it
 stands; PeerEligible has no whole-window test) - his 69.5 h gain lifts the average from 50.2 to 52.7.
+v29.0.2 BUILT (Oct 28, later still; supersedes v29.0.1, never installed): + ACT AS, Graeme's "password login for supervisor access and member
+access temporarily during the testing so I can do the testing myself without interference" - ActAs / ActAsClear (master: CurrentUser answers the
+stored chair ActAsChair while ActAsCheck allows it: a real admin, a chair on the Lite / supervisor lists, before ALPHA_END_ISO Nov 20; pure, suite
+actas), MemberActAs / MemberActAsClear (members' file: MemberLogin() in every file name and login= line), CHAIR_PASSWORD alpha2026 in both files,
+SystemCheck's ACTING AS line; TEMPORARY - the release after the alpha removes every piece. Members' code changed (template rebuilt by the panel,
+stamp Members M6 unchanged). Tagged v29.0.2, zip built, pushed.
 v29.0.1 BUILT (Oct 28, later; Graeme: "make the path local on my desktop for now, we will worry about that when I get back to work"):
 KRONOS_PATH = C:\Users\piercyg\Desktop\Kronos mock\ (piercyg = his Windows login at work; if that PC's login differs, the one constant moves),
 every stamp v29.0.1, EXPECTED_RELEASE v29.0.1, WHATS_NEW_RELEASE stays v29 (no box), docs/INSTALL-v29.0.1.md, briefs/steps-v29.0.1.txt, the

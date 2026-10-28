@@ -22,7 +22,7 @@ Option Explicit
 '  An Observed on date also overrides a weekday holiday if ever needed.
 ' ====================================================================
 
-Public Const HOL_VERSION As String = "Holidays v29.0.1 (Oct 28)"
+Public Const HOL_VERSION As String = "Holidays v29.0.2 (Oct 28)"
 Public Const HOL_SHEET As String = "Holidays"
 Public Const HOL_TABLE As String = "tblHoliday"
 Public Const HOL_CONFIRM_DAYS As Long = 90     ' look-ahead for weekend holidays still to confirm

@@ -419,6 +419,13 @@ class Runner:
         self.say(sid, "Worked (H) sum over the roster", fmt(sum(pl.worked.values())))
         self.say(sid, "totals still carrying provisional OT", "; ".join(f"{nm} {fmt(pl.provisional(nm))}" for nm in pl.people if pl.provisional(nm) > 0) or "none")
 
+    def do_actas(self, sid, d, now, a, login, st):
+        chair = a["chair"]
+        why = rules.act_as_check(chair, "piercyg", "piercyg,lanthierr", "lanthierr,mihaychukc,sheltond,campeauc", d, date(2026, 11, 20))
+        self.say(sid, "ActAsCheck", why or "ok (an admin's own login, a listed chair, before Nov 20)")
+        self.say(sid, "after the reopen", f"the Desk of {chair} ({'the Admin Lite Desk' if chair == 'lanthierr' else 'the supervisor Desk'}); SystemCheck: ACTING AS {chair} (Windows login piercyg; ...)")
+        self.say(sid, "after ActAsClear + reopen", "your own admin Desk; no ACTING AS line")
+
     def do_systemcheck(self, sid, d, now, a, login, st):
         self.say(sid, "modules line (the real file, v29)", "Modules: 45 of 45 on v29 - the mock file reads v29.0.1 after D0.1's install")
         self.say(sid, "logins line", "Logins: admins piercyg, lanthierr; Lite lanthierr (Ray); supervisors mihaychukc, sheltond, campeauc")
@@ -1245,6 +1252,12 @@ cumulative pulled on a Saturday morning covers through Friday), then one one-day
 before, plus the re-pulled Nov 3 report on the morning of Nov 6, and the close-out cumulative through Sat Nov 14.
 They are copied into the folder v29.0.1's `KRONOS_PATH` names: `C:\\Users\\piercyg\\Desktop\\Kronos mock\\` (Graeme, Oct 28: a local path for now).
 
+**Testing alone (Graeme, Oct 28, later).** v29.0.2's Act as lets your own login play any chair: Alt+F8 > ActAs,
+the password, the chair (lanthierr for Ray's steps; mihaychukc / sheltond / campeauc for a supervisor's), close and
+reopen; ActAsClear + reopen to come back. On the members' file, MemberActAs (any login text) sends as that login, so a
+switch request and its partner's Agree can both come from your PC. The plan's who column still names the chair, so it
+reads the same whether a real person or you-as-that-chair sits in it. Act as dies after Nov 20 and goes in the next release.
+
 **Who does what (D7).** Ray's steps are the Lite Desk's cards end to end (the three daily checks every morning,
 request -> book, exception -> no takers, correction -> Fix an entry, returning -> leave return) and the paths box on
 SystemCheck; Graeme and the supervisors do the rest. A member step names the login that plays the member.
@@ -1309,6 +1322,7 @@ RULES = {
     "reconcile": "Reconcile: the paper order against the roster's", "refused-split": "Refused by kind (call-out / posting / other)",
     "history": "Employee history (member-safe and FULL)", "integrity": "IntegrityCheck's 17 checks", "ids": "ID counters (NextRefID / IdMark)",
     "paybacks": "The Paybacks ledger (over 42 days in amber)", "stats": "The Stats report (groups A-D)",
+    "actas": "Act as - an admin plays a chair with the password (v29.0.2, the alpha only)",
 }
 NOT_IN_PLAN = ["The year-end rollover (RolloverYear) - December", "The guided move (MoveRoster) - the January cutover rehearsal",
                "The Exception outcome (plant upset) - exercised only by the loaded Oct 20 history row", "LTC / LOA top-ups other than STD (the same LV- path)",

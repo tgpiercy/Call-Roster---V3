@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v29.0.1 (Oct 28, 2026; v29.0.1 = v29 with one setting changed for the alpha of Nov 1-14 - `KRONOS_PATH` names the local Kronos mock folder - on the MOCK file only; v29 adds the Admin Lite Desk for the second admin, Fix an entry, the members' requests' Booking voided status with IntegrityCheck 17, SystemCheck's path and login lines, and the guided move that splits the folders at the January cutover).
+Current as of v29.0.2 (Oct 28, 2026; v29.0.2 = v29 with two changes for the alpha of Nov 1-14 on the MOCK file only - `KRONOS_PATH` names the local Kronos mock folder, and Act as lets an admin play a chair with a password; v29 adds the Admin Lite Desk for the second admin, Fix an entry, the members' requests' Booking voided status with IntegrityCheck 17, SystemCheck's path and login lines, and the guided move that splits the folders at the January cutover).
 
 ## 1. Before you start
 
@@ -157,7 +157,7 @@ After a rollover the Kronos line reads "Kronos: awaiting 2027 data (Worked = 0)"
 
 ## 5. SelfTest
 
-SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v28: 1133 cases in 121 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
+SelfTest runs known-answer cases against the rules: rotation, holidays, clock-change nights, call order, charging, who is free, provisional hours, leave top-ups, attendance, the pay-period year, ID numbering, the integrity helpers and, since v25, the typed-date parser, the time-off trim, partial hours, the posting closing test, grade codes, the people-change comparator, file-name and heading rules. v28: 1140 cases in 122 suites, compared exactly (upper / lower case counts). It works in memory. It writes nothing and saves nothing.
 
 | Line | Meaning |
 |---|---|

@@ -12,7 +12,7 @@ Option Explicit
 '  and their rules apply. The publish carries dRequests (no note, no login). Graeme, Oct 25, 2026: admins only;
 '  a switch request reaches the admin only once a DIFFERENT login than the requester's has agreed in the file.
 ' ====================================================================
-Public Const RQ_VERSION As String = "Requests v29.0.1 (Oct 28)"
+Public Const RQ_VERSION As String = "Requests v29.0.2 (Oct 28)"
 
 ' tblRequests columns
 Public Const RQ_ID As Long = 1          ' Request ID  RQ-0001

@@ -316,6 +316,9 @@ def evaluate(row: dict) -> str:
     if suite == "litelogin":                     # v29: LITE_DESK_USERS, ADMIN_USERS (; for ,) -> the lite logins that are not admins (; joined) / none
         lp = rules.lite_login_problems(i1.replace(";", ","), i2.replace(";", ","))
         return lp.replace(", ", ";") if lp else "none"
+    if suite == "actas":                         # v29.0.2 (the alpha): chair, real login, admins (; for ,), chairs (; for ,), today;alphaEnd -> ok / expired / not an admin / not a chair
+        t, e = i5.split(";")
+        return rules.act_as_check(i1, i2, i3.replace(";", ","), i4.replace(";", ","), d(t), d(e)) or "ok"
     if suite == "postexc":                       # v29: posting status, closed Y/N, hours to the closing moment, sign-ups -> no takers / closing soon / none
         return rules.posting_exception(i1, i2 == "Y", float(i3), int(i4)) or "none"
     if suite == "litemark":                      # v29: a daily-check mark (yyyy-mm-dd hh:nn~login; ~ for |), today -> hh:nn (login) / none

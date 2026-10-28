@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v29.0.1 (Oct 28)"
-Public Const EXPECTED_RELEASE As String = "v29.0.1"   ' v29.0.1: ONE setting changed for the alpha (KRONOS_PATH); WHATS_NEW_RELEASE stays v29, so no box is shown again
+Public Const SYS_VERSION As String = "System v29.0.2 (Oct 28)"
+Public Const EXPECTED_RELEASE As String = "v29.0.2"   ' v29.0.2: two changes for the alpha (KRONOS_PATH, Act as); WHATS_NEW_RELEASE stays v29, so no box is shown again
 ' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
 ' release with nothing new for them (v27.1 was the behaviour-free refactor; v27.5 changes three rules, so its box shows)
 Public Const WHATS_NEW_RELEASE As String = "v29"
@@ -285,6 +285,8 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     ' for an admin: ViewModeFor gives such a login "user" or "supervisor", never "lite", so it would not see the Lite Desk)
     info = info & "Logins: admins " & LCase$(Replace(ADMIN_USERS, ",", ", ")) & "; Lite " & IIf(Trim$(LITE_DESK_USERS) = "", "(none)", LCase$(Replace(LITE_DESK_USERS, ",", ", ")) & " (" & LITE_FIRST_NAME & ")") & _
                   "; supervisors " & IIf(Trim$(SUPERVISOR_USERS) = "", "(none)", LCase$(Replace(SUPERVISOR_USERS, ",", ", "))) & vbNewLine
+    Dim chairNow As String: chairNow = ActAsChair()      ' v29.0.2 (the alpha only): the chair an admin acts as, while one is set
+    If chairNow <> "" Then info = info & "ACTING AS " & chairNow & " (Windows login " & RealUser() & "; Alt+F8 > ActAsClear then reopen; Act as ends " & ALPHA_END_ISO & ")" & vbNewLine
     Dim liteBad As String: liteBad = LiteLoginProblems(LITE_DESK_USERS, ADMIN_USERS)
     If liteBad <> "" Then warn = warn & "- LITE_DESK_USERS: " & liteBad & " is not on ADMIN_USERS (the Lite Desk is for an admin): add the login there or take it off the Lite list (modOvertimeEntry)" & vbNewLine
     Dim prInfo As String, prWarn As String          ' v25: every sheet protected, totals locked

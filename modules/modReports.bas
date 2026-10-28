@@ -22,7 +22,7 @@ Option Explicit
 '  SplitTotals.
 ' ====================================================================
 
-Public Const REP_VERSION As String = "Reports v29.0.1 (Oct 28)"
+Public Const REP_VERSION As String = "Reports v29.0.2 (Oct 28)"
 
 ' what SplitTotals keeps per person: a Variant array with these indexes
 Public Const SP_CALLOUT As Long = 0     ' hours

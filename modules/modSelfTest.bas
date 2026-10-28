@@ -20,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v29.0.1 (Oct 28)"
+Public Const ST_VERSION As String = "Self test v29.0.2 (Oct 28)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -233,7 +233,7 @@ Private Function RunCase(f() As String) As String
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
         Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch", _
-             "litelogin", "postexc", "litemark", "litedaily", "litebar", "reqref", "mvstored", "mvtarget"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite Desk's cores
+             "litelogin", "postexc", "litemark", "litedaily", "litebar", "reqref", "mvstored", "mvtarget", "actas"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite Desk's cores
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -485,6 +485,12 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
         Case "mvstored"                            ' v29 (item 1): the stored members' folder value, this file is a COPY Y/N -> the path / none
             Dim msS As String: msS = StoredPathCore(i1, (i2 = "Y"))
             RunCaseV271 = IIf(msS = "", "none", msS)
+        Case "actas"                               ' v29.0.2 (the alpha): chair, real login, admins (; for ,), chairs (; for ,), today;alphaEnd -> ok / expired / not an admin / not a chair
+            Dim aaD As Variant: aaD = Split(i5, ";")
+            Dim aaT As Date: aaT = DateSerial(CLng(Left$(CStr(aaD(0)), 4)), CLng(Mid$(CStr(aaD(0)), 6, 2)), CLng(Mid$(CStr(aaD(0)), 9, 2)))
+            Dim aaE As Date: aaE = DateSerial(CLng(Left$(CStr(aaD(1)), 4)), CLng(Mid$(CStr(aaD(1)), 6, 2)), CLng(Mid$(CStr(aaD(1)), 9, 2)))
+            Dim aaS As String: aaS = ActAsCheck(i1, i2, Replace(i3, ";", ","), Replace(i4, ";", ","), aaT, aaE)
+            RunCaseV271 = IIf(aaS = "", "ok", aaS)
         Case "mvtarget"                            ' v29 (item 1): master now, master new, members new, master ok Y/N|members ok Y/N, members now -> ok / why not
             Dim mtO As Variant: mtO = Split(i4 & "|", "|")
             Dim mtS As String: mtS = MoveTargetProblem(i1, i2, i3, (CStr(mtO(0)) = "Y"), (CStr(mtO(1)) = "Y"), i5)
@@ -2324,5 +2330,12 @@ Private Sub LoadCases6()
     AddCase "mvtarget,members-same-as-master-now,C:\Old\,P:\Super\,c:\old,Y|Y,P:\OldMembers\,the new members' folder is the folder the roster is in now (the inbox would be moved onto itself)"
     AddCase "mvtarget,members-same-as-current-members,C:\Old\,P:\Super\,p:\oldmembers,Y|Y,P:\OldMembers\,the new members' folder is the members' folder in use now"
     AddCase "mvtarget,members-now-blank-is-no-test,C:\Old\,P:\Super\,P:\Members\,Y|Y,,ok"
+    AddCase "actas,ok,lanthierr,piercyg,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-10;2026-11-20,ok"
+    AddCase "actas,on-the-last-day,lanthierr,piercyg,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-20;2026-11-20,ok"
+    AddCase "actas,expired,lanthierr,piercyg,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-21;2026-11-20,expired"
+    AddCase "actas,real-login-not-admin,lanthierr,sheltond,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,not an admin"
+    AddCase "actas,not-a-chair,piercyg,piercyg,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,not a chair"
+    AddCase "actas,case-and-spaces, Sheltond ,PIERCYG,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,ok"
+    AddCase "actas,blank-chair,,piercyg,piercyg;lanthierr,lanthierr,2026-11-10;2026-11-20,not a chair"
 ' <<< CASES
 End Sub

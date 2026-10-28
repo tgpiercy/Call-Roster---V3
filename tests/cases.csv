@@ -1133,3 +1133,10 @@ reqref,time-off-with-lower-case-ss,Time off|Booked,ss-0040,Y|Active|Y,2026-11-09
 mvtarget,members-same-as-master-now,C:\Old\,P:\Super\,c:\old,Y|Y,P:\OldMembers\,the new members' folder is the folder the roster is in now (the inbox would be moved onto itself)
 mvtarget,members-same-as-current-members,C:\Old\,P:\Super\,p:\oldmembers,Y|Y,P:\OldMembers\,the new members' folder is the members' folder in use now
 mvtarget,members-now-blank-is-no-test,C:\Old\,P:\Super\,P:\Members\,Y|Y,,ok
+actas,ok,lanthierr,piercyg,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-10;2026-11-20,ok
+actas,on-the-last-day,lanthierr,piercyg,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-20;2026-11-20,ok
+actas,expired,lanthierr,piercyg,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-21;2026-11-20,expired
+actas,real-login-not-admin,lanthierr,sheltond,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,not an admin
+actas,not-a-chair,piercyg,piercyg,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,not a chair
+actas,case-and-spaces, Sheltond ,PIERCYG,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,ok
+actas,blank-chair,,piercyg,piercyg;lanthierr,lanthierr,2026-11-10;2026-11-20,not a chair

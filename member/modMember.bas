@@ -27,6 +27,12 @@ Option Explicit
 
 Public Const MEM_VERSION As String = "Members M6 (Oct 27)"     ' v29 (M6): the status word "Booking voided", My history's PDF to the user's Downloads; v28 (M5, item 1): members' requests - ask for time off or a switch, the partner's Agree, My requests (the template is rebuilt); v27 (M4): me first, the tiles, since you last looked, the header band, How it works
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
+' v29.0.2 (the alpha only; removed in the release after): Act as - MemberLogin() stands in for the PC's login in every file
+' name and login= line while a chair is stored in this file (Alt+F8 > MemberActAs with CHAIR_PASSWORD; MemberActAsClear);
+' ignored after ALPHA_END_ISO; a freshly published file holds no chair
+Public Const CHAIR_PASSWORD As String = "alpha2026"
+Public Const ALPHA_END_ISO As String = "2026-11-20"
+Private Const ACTAS_NAME As String = "ActAsChair"
 
 Private Const SH_HOME As String = "Home"
 Private Const SH_ROSTER As String = "Roster"
@@ -2055,13 +2061,13 @@ Private Sub SendSignup(ByVal postId As String, ByVal action As String)
         End If
         If Not ConfirmFor(who, "Sign up {who} for" & vbNewLine & what & vbNewLine & _
                           IIf(hrs > 0, "for " & NumTxt(hrs) & " of the " & NumTxt(Num(p(k, 5))) & " hours?", "for the whole shift?") & vbNewLine & vbNewLine & _
-                          "The request goes to the supervisors' roster with this PC's login (" & Environ$("USERNAME") & ").", TTL) Then Exit Sub
+                          "The request goes to the supervisors' roster with this PC's login (" & MemberLogin() & ").", TTL) Then Exit Sub
     Else
         If Not ConfirmFor(who, "Withdraw {who}'s sign-up for" & vbNewLine & what & "?", TTL) Then Exit Sub
     End If
 
     ' one new file; never an existing one
-    Dim login As String: login = SafeName(Environ$("USERNAME"))
+    Dim login As String: login = SafeName(MemberLogin())
     Dim pc As String: pc = SafeName(Environ$("COMPUTERNAME"))      ' M3 (M12): two PCs on one login never share a name
     Dim stamp As Date: stamp = Now
     Dim path As String, n As Long, ff As Integer, em As String
@@ -2077,7 +2083,7 @@ Private Sub SendSignup(ByVal postId As String, ByVal action As String)
     Print #ff, "employee=" & who
     Print #ff, "hours=" & IIf(hrs > 0, Replace(CStr(hrs), ",", "."), "")
     Print #ff, "action=" & action
-    Print #ff, "login=" & Environ$("USERNAME")
+    Print #ff, "login=" & MemberLogin()
     Print #ff, "machine=" & Environ$("COMPUTERNAME")
     Print #ff, "stamp=" & Format$(stamp, "yyyy-mm-dd hh:nn:ss")
     Close #ff
@@ -3019,7 +3025,7 @@ Public Sub MemberShowRequests()
     End If
     Dim fv As Variant: fv = ReadRequestFolder()
     Dim dq As Variant: dq = Data("dRequests")
-    Dim myLogin As String: myLogin = Environ$("USERNAME")
+    Dim myLogin As String: myLogin = MemberLogin()
     Dim agreeLogin As String, refused As Boolean, withdrawn As Boolean, st As String, pr As Long
 
     ' ---- 1. asked of me: switch requests naming me as the partner, still waiting for my answer ----
@@ -3282,10 +3288,10 @@ Public Sub MemberSendRequest()
         what = "Time off " & Format$(dF, "dddd mmm d, yyyy") & IIf(dTo > dF, " to " & Format$(dTo, "dddd mmm d, yyyy"), "")
     End If
     If MsgBox("Send this request for " & who & "?" & vbNewLine & vbNewLine & what & IIf(note <> "", vbNewLine & "Note: " & note, "") & vbNewLine & vbNewLine & _
-              "It goes to the supervisors' roster with this PC's login (" & Environ$("USERNAME") & "). An admin books or declines it.", _
+              "It goes to the supervisors' roster with this PC's login (" & MemberLogin() & "). An admin books or declines it.", _
               vbOKCancel + vbQuestion, RQ_TTL) <> vbOK Then Exit Sub
     Dim stamp As Date: stamp = Now
-    Dim login As String: login = SafeName(Environ$("USERNAME"))
+    Dim login As String: login = SafeName(MemberLogin())
     Dim rid As String: rid = login & "-" & Format$(stamp, "yyyymmddhhnnss")
     If WriteRequestFile(folder, rid, "request", who, kind, dF, dTo, shiftLbl, partner, note, stamp) Then
         UnprotectWs ws
@@ -3330,7 +3336,7 @@ Private Sub AnswerRequest(ByVal rid As String, ByVal action As String)
     Select Case action
         Case "agree", "refuse"
             If StrComp(Txt(fv(k, FQ_PARTNER)), who, vbTextCompare) <> 0 Then MsgBox "This switch was asked of " & Txt(fv(k, FQ_PARTNER)) & ", not of " & who & ".", vbExclamation, RQ_TTL: Exit Sub
-            If StrComp(Txt(fv(k, FQ_LOGIN)), Environ$("USERNAME"), vbTextCompare) = 0 Then
+            If StrComp(Txt(fv(k, FQ_LOGIN)), MemberLogin(), vbTextCompare) = 0 Then
                 MsgBox "The same PC login sent this request, so its Agree would not count. " & Txt(fv(k, FQ_PARTNER)) & " agrees from their own PC.", vbExclamation, RQ_TTL
                 Exit Sub
             End If
@@ -3338,13 +3344,13 @@ Private Sub AnswerRequest(ByVal rid As String, ByVal action As String)
                       "Say no to " & emp & "'s switch?" & vbNewLine & what)
         Case "withdraw"
             If StrComp(emp, who, vbTextCompare) <> 0 Then MsgBox "Only " & emp & " can withdraw this request.", vbExclamation, RQ_TTL: Exit Sub
-            If StrComp(Txt(fv(k, FQ_LOGIN)), Environ$("USERNAME"), vbTextCompare) <> 0 Then
+            If StrComp(Txt(fv(k, FQ_LOGIN)), MemberLogin(), vbTextCompare) <> 0 Then
                 MsgBox "This request was sent from the PC login " & Txt(fv(k, FQ_LOGIN)) & "; withdraw it from that login (the roster counts no other).", vbExclamation, RQ_TTL
                 Exit Sub
             End If
             askTxt = "Withdraw your request?" & vbNewLine & what & vbNewLine & vbNewLine & "If the roster has already booked it, tell your supervisor."
     End Select
-    If MsgBox(askTxt & vbNewLine & vbNewLine & "Sent with this PC's login (" & Environ$("USERNAME") & ").", vbOKCancel + vbQuestion, RQ_TTL) <> vbOK Then Exit Sub
+    If MsgBox(askTxt & vbNewLine & vbNewLine & "Sent with this PC's login (" & MemberLogin() & ").", vbOKCancel + vbQuestion, RQ_TTL) <> vbOK Then Exit Sub
     Dim folder As String: folder = ReachableRequestFolder()
     If folder = "" Then MsgBox "The Requests folder can't be reached from this PC, so nothing was sent.", vbExclamation, RQ_TTL: Exit Sub
     Dim dTo As Date: IsoDay Txt(fv(k, FQ_TO)), dTo
@@ -3358,7 +3364,7 @@ End Sub
 Private Function WriteRequestFile(ByVal folder As String, ByVal rid As String, ByVal action As String, ByVal who As String, _
                                   ByVal kind As String, ByVal dF As Date, ByVal dTo As Date, ByVal shiftLbl As String, _
                                   ByVal partner As String, ByVal note As String, ByVal stamp As Date) As Boolean
-    Dim login As String: login = SafeName(Environ$("USERNAME"))
+    Dim login As String: login = SafeName(MemberLogin())
     Dim pc As String: pc = SafeName(Environ$("COMPUTERNAME"))
     Dim path As String, n As Long, ff As Integer, em As String
     path = folder & "REQ__" & rid & "__" & action & "__" & login & "__" & pc & "__" & Format$(stamp, "yyyymmdd-hhnnss") & ".txt"
@@ -3378,7 +3384,7 @@ Private Function WriteRequestFile(ByVal folder As String, ByVal rid As String, B
     Print #ff, "shift=" & shiftLbl
     Print #ff, "partner=" & partner
     Print #ff, "note=" & Replace(Replace(note, vbCr, " "), vbLf, " ")
-    Print #ff, "login=" & Environ$("USERNAME")
+    Print #ff, "login=" & MemberLogin()
     Print #ff, "machine=" & Environ$("COMPUTERNAME")
     Print #ff, "stamp=" & Format$(stamp, "yyyy-mm-dd hh:nn:ss")
     Close #ff
@@ -3391,3 +3397,52 @@ Failed:
     Close #ff
     MsgBox "The request could NOT be sent (" & em & ")." & vbNewLine & vbNewLine & "Ask your supervisor the usual way.", vbExclamation, RQ_TTL
 End Function
+
+' ====================================================================
+'  ACT AS (v29.0.2, the alpha only - removed in the release after the alpha)
+' ====================================================================
+' The login this file sends as: the stored chair while the alpha runs, else the PC's login. Never raises.
+Public Function MemberLogin() As String
+    On Error Resume Next
+    MemberLogin = Environ$("USERNAME")
+    Dim nmObj As Name
+    Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
+    If nmObj Is Nothing Then Exit Function
+    If Int(Date) > Int(DateSerial(CLng(Left$(ALPHA_END_ISO, 4)), CLng(Mid$(ALPHA_END_ISO, 6, 2)), CLng(Mid$(ALPHA_END_ISO, 9, 2)))) Then Exit Function
+    Dim s As String: s = Trim$(Replace(Replace(nmObj.RefersTo, "=", ""), """", ""))
+    If s <> "" Then MemberLogin = s
+End Function
+
+' Alt+F8: the password, then any login name (letters, digits, . _ -), e.g. tester2 - so one tester can send a switch request as
+' one member and Agree as another (the Agree must come from a login other than the request's)
+Public Sub MemberActAs()
+    On Error GoTo Failed
+    Dim typed As String: typed = InputBox("Act as another member login for the alpha test. Password:", "Act as (alpha test)")
+    If typed = "" Then Exit Sub
+    If StrComp(typed, CHAIR_PASSWORD, vbBinaryCompare) <> 0 Then MsgBox "Wrong password. Nothing changed.", vbExclamation, "Act as (alpha test)": Exit Sub
+    Dim chair As String: chair = Trim$(InputBox("Login to send as (letters, digits, . _ - only; e.g. tester2; blank = cancel):", "Act as (alpha test)"))
+    If chair = "" Then Exit Sub
+    If StrComp(chair, SafeName(chair), vbBinaryCompare) <> 0 Then MsgBox "Letters, digits, . _ - only.", vbExclamation, "Act as (alpha test)": Exit Sub
+    Dim nmObj As Name
+    On Error Resume Next
+    Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
+    On Error GoTo Failed
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=ACTAS_NAME, RefersTo:="=""" & chair & """", Visible:=False
+    Else
+        nmObj.RefersTo = "=""" & chair & """"
+        nmObj.Visible = False
+    End If
+    MsgBox "This file now sends sign-ups and requests as " & chair & " (the PC's login is " & Environ$("USERNAME") & "). " & _
+           "MemberActAsClear puts it back; a freshly published members' file starts with no chair.", vbInformation, "Act as (alpha test)"
+    Exit Sub
+Failed:
+    MsgBox "Act as stopped: " & Err.Description, vbExclamation, "Act as (alpha test)"
+End Sub
+
+Public Sub MemberActAsClear()
+    On Error Resume Next
+    ThisWorkbook.Names(ACTAS_NAME).Delete
+    On Error GoTo 0
+    MsgBox "This file sends as the PC's login again (" & Environ$("USERNAME") & ").", vbInformation, "Act as (alpha test)"
+End Sub

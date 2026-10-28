@@ -1,7 +1,7 @@
 Attribute VB_Name = "modDates"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the one typed-date parser (ParseTypedDate / TypedDateCore / DateText), from modPeople; moved unchanged (tests/movecheck.py proves it)
-Public Const DATES_VERSION As String = "Typed dates v29.0.1 (Oct 28)"
+Public Const DATES_VERSION As String = "Typed dates v29.0.2 (Oct 28)"
 
 ' ====================================================================
 '  TYPED DATES

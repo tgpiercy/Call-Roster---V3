@@ -1,0 +1,16 @@
+# Groups 3 and 4 of install-steps.txt for v29.0.2 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
+# VERSION / EXPECT / MEMBER / FORMS header, and fills {CASES} {SUITES} {MODULES} {STEPS} from the code).
+# Two changes for the alpha, on the MOCK file only: KRONOS_PATH = the local Kronos mock folder; Act as (an admin plays a chair
+# with the password). member/ changed (MemberActAs): the panel's template step rebuilds the members' template (the layout and
+# its "Members M6" stamp are unchanged). No form, no run-once macro, no What's New box. test-only/modMockData.bas is imported
+# BY HAND after the panel (INSTALL note). Never a "|" inside a field: it is the panel's separator.
+# Format: kind | caption | argument | flag or expected result.
+
+[3. Run once]
+macro   | System check (expect {MODULES} of {MODULES} on v29.0.2; the paths box: Kronos reports = C:\Users\piercyg\Desktop\Kronos mock\ - reachable; no ACTING AS line yet) | SystemCheckOK
+macro   | Self test (expect {CASES} passed, {SUITES} suites; the new suite actas)  | SelfTestOK
+
+[4. Checks]
+manual  | The Kronos mock folder                                            | Windows Explorer: the folder C:\Users\piercyg\Desktop\Kronos mock\ exists and holds the Day-0 report "00 cumulative 2026-01-11 to 2026-10-30.xlsx" (from the Kronos mock reports zip). On the Desk the Kronos pill reads 1 new file. Do NOT import it yet: the plan's D0.3 does, after LoadMockData. Click Done.
+manual  | Act as (on a practice copy)                                       | On a practice copy: Alt+F8 > ActAs, the password, chair lanthierr; close and reopen the copy: it lands on Ray's Admin Lite Desk; SystemCheck shows ACTING AS lanthierr; Alt+F8 > ActAsClear, reopen: your own Desk. Then ActAs with chair sheltond: the supervisor Desk, no admin buttons; ActAsClear. Close the copy without saving. Click Done.
+manual  | The mock-plant loader imported                                    | VBA editor: File > Import test-only/modMockData.bas from the unzipped folder into THIS file only (the one the real roster was set aside from). Debug > Compile: no error. SystemCheck still says {MODULES} of {MODULES} (the module is not counted). Click Done.

@@ -1,7 +1,7 @@
 Attribute VB_Name = "modNeeds"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the Needs Attention tab (DrawNeeds and its steps), from modCalendar; moved unchanged (tests/movecheck.py proves it)
-Public Const NEEDS_VERSION As String = "Needs Attention v29.0.1 (Oct 28)"
+Public Const NEEDS_VERSION As String = "Needs Attention v29.0.2 (Oct 28)"
 
 ' one row on the Needs Attention tab
 Private Type NARow

@@ -2113,6 +2113,23 @@ def lite_login_problems(lite_list: str, admin_list: str) -> str:
     return ", ".join(x for x in lite_list.replace(" ", "").lower().split(",") if x and x not in admins)
 
 
+def act_as_check(chair: str, real_login: str, admin_list: str, chair_list: str, today: date, alpha_end: date) -> str:
+    """v29.0.2 modOvertimeEntry.ActAsCheck (the alpha only): '' when real_login (an admin on admin_list) may act as chair
+    (a login on chair_list) on today, else 'expired' (today after alpha_end) / 'not an admin' / 'not a chair'.
+    Lower case, spaces dropped."""
+    def norm(x: str) -> str:
+        return x.replace(" ", "").lower()
+    if today > alpha_end:
+        return "expired"
+    admins = [x for x in norm(admin_list).split(",") if x]
+    if not norm(real_login) or norm(real_login) not in admins:
+        return "not an admin"
+    chairs = [x for x in norm(chair_list).split(",") if x]
+    if not norm(chair) or norm(chair) not in chairs:
+        return "not a chair"
+    return ""
+
+
 LITE_CLOSING_HOURS = 24.0        # modLite.LITE_CLOSING_HOURS
 
 

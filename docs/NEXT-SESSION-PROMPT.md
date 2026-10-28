@@ -31,9 +31,8 @@ stands; PeerEligible has no whole-window test) - his 69.5 h gain lifts the avera
 v29.0.1 BUILT (Oct 28, later; Graeme: "make the path local on my desktop for now, we will worry about that when I get back to work"):
 KRONOS_PATH = C:\Users\piercyg\Desktop\Kronos mock\ (piercyg = his Windows login at work; if that PC's login differs, the one constant moves),
 every stamp v29.0.1, EXPECTED_RELEASE v29.0.1, WHATS_NEW_RELEASE stays v29 (no box), docs/INSTALL-v29.0.1.md, briefs/steps-v29.0.1.txt, the
-CHANGELOG entry; tagged v29.0.1; dist/Callout_Roster_v29.0.1.zip built (packs test-only/modMockData.bas + modSnapshot.bas); the PUSH of
-main + the tag runs from his Terminal. Installed on the MOCK file only, Oct 31, AFTER the real file is set aside.
-WHAT IS NOT DONE: (1) the push of main + the tag if not yet done; (2) the rehearsal on a practice copy by Graeme before Oct 31 (plan step D-1.1: MakePracticeCopy ->
+CHANGELOG entry; tagged v29.0.1; dist/Callout_Roster_v29.0.1.zip built (packs test-only/modMockData.bas + modSnapshot.bas); main + the tag PUSHED from his Terminal (d483afa..be12344, the tag v29.0.1). Installed on the MOCK file only, Oct 31, AFTER the real file is set aside.
+WHAT IS NOT DONE: (1) nothing on the repo side; (2) the rehearsal on a practice copy by Graeme before Oct 31 (plan step D-1.1: MakePracticeCopy ->
 LoadMockData -> the verify box -> SystemCheck -> IntegrityCheck -> the Desk per chair -> ResetRosterData -> LoadMockData again);
 (3) make_kronos.py's 17 .xlsx files handed to Graeme (tests/mock/kronos, gitignored; run it on his PC: openpyxl is on py -3.14).
 NEXT SESSION: (a) if the folder path is known, build v29.0.1 (above) and zip it; (b) whatever his rehearsal turns up (a verify

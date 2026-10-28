@@ -76,15 +76,16 @@ def main() -> int:
             z.writestr(top + p.replace("\\", "/"), data)
         # v27.1: the test-only snapshot module rides along OUTSIDE modules/ (the Install panel reads modules\, paste-in\
         # and member\ only), so a practice copy can take the before / after snapshot; it is never installed
-        snap = ROOT / "tests" / "snapshot" / "modSnapshot.bas"
+        # P9: the alpha's mock-plant loader rides along the same way (tests/mock/modMockData.bas)
         extras = []
-        if snap.is_file():
-            data = snap.read_bytes()
-            if b"\n" in data.replace(b"\r\n", b""):
-                raise SystemExit("tests/snapshot/modSnapshot.bas: not CRLF")
-            data.decode("ascii")
-            z.writestr(top + "test-only/modSnapshot.bas", data)
-            extras.append(("test-only/modSnapshot.bas", data))
+        for snap in (ROOT / "tests" / "snapshot" / "modSnapshot.bas", ROOT / "tests" / "mock" / "modMockData.bas"):
+            if snap.is_file():
+                data = snap.read_bytes()
+                if b"\n" in data.replace(b"\r\n", b""):
+                    raise SystemExit(f"{snap.relative_to(ROOT)}: not CRLF")
+                data.decode("ascii")
+                z.writestr(top + "test-only/" + snap.name, data)
+                extras.append(("test-only/" + snap.name, data))
         describe = subprocess.run(["git", "describe", "--tags", "--always", "--dirty"], cwd=ROOT,
                                   capture_output=True, text=True, check=True).stdout.strip()
         stamp = f"\n\n---\nBuilt from `{describe}` by tests/build_zip.py.\n"      # v25 (T11): the note names the commit it came from

@@ -6,7 +6,8 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-files = sorted(list((root / "modules").glob("*.bas")) + list((root / "paste-in").glob("*.txt")) + list((root / "member").glob("*.bas")) + list((root / "updater").glob("*.bas")) + list((root / "member").glob("*.txt")))
+files = sorted(list((root / "modules").glob("*.bas")) + list((root / "paste-in").glob("*.txt")) + list((root / "member").glob("*.bas")) + list((root / "updater").glob("*.bas")) + list((root / "member").glob("*.txt"))
+              + list((root / "tests" / "snapshot").glob("*.bas")) + list((root / "tests" / "mock").glob("*.bas")))   # P9: the test-only modules too
 problems = []
 publics = {}
 procs = {}          # name -> file (all procedures, any scope)

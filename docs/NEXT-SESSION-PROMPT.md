@@ -1,4 +1,4 @@
-# Paste this into a fresh session to carry on (updated Oct 28, 2026: **v29 - the go-live kit - is BUILT, REVIEWED (4 reviews + 2 re-reviews + a final read, every finding taken) and RELEASE-PREPPED on main; NOT tagged / zipped / pushed until Graeme's OK; NOT installed until the Nov 18-20 slot after the alpha closes.** v28 is on the real roster since Oct 27. See "v29 STATE" first; the older blocks are history.)
+# Paste this into a fresh session to carry on (updated Oct 28, 2026, later: **v29 is TAGGED on 4b6eb17, ZIPPED, PUSHED and INSTALLED on the real roster the same day ("v29 executed well no issues"). THE ALPHA (Nov 1-14) RUNS ON v29.** An alpha S1 is a v29.0.x hotfix; S2 / S3 rows go to docs/alpha-findings.md for v29.5 (or v28.1's slot). v28.1 (the second refactor) may now be built on v29 - report-back first, never installed during the alpha. See "v29 STATE" first; the older blocks are history.)
 
 ```
 v29 STATE (Oct 28, 2026): BUILT on main in eight item commits (2cac2bf, e5ffc90, 412dead, 9a61bde, 2ebd706, e6def18, 8fceb66 + the
@@ -16,11 +16,12 @@ KEY DESIGN FACTS: the move stores the members' folder IN the file (hidden name M
 rehearsal; PublishFolderPath reads it; a COPY honours only R); MoveRoster = Alt+F8 admin, a CUTOVER step (Jan 11-15), never an
 install step; the frozen old file (MovedTo) never saves; IntegrityCheck 17 Requests never PROBLEM; the void reason is NEVER
 published (Answer = 'booking voided'); the Lite Desk draws on the FULL admin view (his call).
-NEXT: (1) Graeme's OK -> tag v29 (annotated) on the release-prep commit, `py -3.14 tests/build_zip.py v29 v28`, push main + tag
-from his Terminal; (2) his practice-copy install per INSTALL-v29.md with the snapshot (expect: the admin Desk's preview link
-differs, Desk[supervisor]'s link macro differs, Desk[lite] is new); (3) the alpha Nov 1-14 on v28 (P1 triage, S1 -> v28.0.x);
-(4) the alpha close-out Nov 16-17 on v28, then v29 installed Nov 18-20; the S2/S3 fixes become a v29.0.x or ride in v28.1's
-slot - decide with him; (5) v28.1 (the second refactor) built ON v29 once v29 has run: report-back by the P2 pattern;
+DONE Oct 28 (later): tagged v29 on 4b6eb17, dist/Callout_Roster_v29.zip built, main + tag pushed (e446b42..4b6eb17), INSTALLED
+on the real roster by Graeme the same day, no issues. THE ALPHA RUNS ON v29.
+NEXT: (3) the alpha Nov 1-14 on v29 (P1 triage into docs/alpha-findings.md; S1 -> a v29.0.x hotfix through a practice copy);
+(4) the alpha close-out Nov 16-17 on v29 (ClosePeriod Nov 1-14 on v29); the Nov 18-20 install slot is free - v28.1 if its
+review is clean and Graeme says so, else nothing; the S2/S3 fixes become v29.5 (or ride with v28.1) - decide with him;
+(5) v28.1 (the second refactor) built ON v29 (v29 has run): report-back by the P2 pattern, build during the alpha, NO install in it;
 (6) docs/december-rehearsal.md (P6) and docs/go-live-runbook.md (P7, by Jan 5; it must say: rename the old roster and
 members' file MOVED, the IT rights, the two test folders for the rehearsal).
 ```

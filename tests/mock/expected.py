@@ -1009,7 +1009,7 @@ class Runner:
                 a_, _, _ = pl.hours_as_of(p.name, window_from)
                 b_, _, _ = pl.hours_as_of(p.name, ret)
                 deltas.append(b_ - a_)
-                names.append(f"{p.name} {a_:.1f} -> {b_:.1f}")
+                names.append(f"{p.name} {fmt(a_)} -> {fmt(b_)}")
         avg = rules.leave_average(deltas)
         before, _, _ = pl.hours_as_of(emp, ret)
         grp = pl.next_ref("LV")
@@ -1022,9 +1022,11 @@ class Runner:
         self.events.append((now, login, "log", grp))
         ab["end"] = ret - timedelta(days=1)
         ab["group"] = grp
-        self.say(sid, "peers (grade <=2, not on leave, with history before the first day off) and their Total Hours", f"{len(deltas)}: " + "; ".join(names))
+        self.say(sid, "peers (grade <=2, not on leave, with history before the first day off) and their Total Hours at Oct 5 -> Nov 9 (not on screen: the pop-up names them and shows the average only)", f"{len(deltas)}: " + "; ".join(names))
         self.say(sid, "average gain", f"{avg:.1f} h")
-        self.say(sid, "LV- row", f"{grp}: {emp} {fmt(before)} -> {fmt(before + avg)}")
+        self.say(sid, "the pop-up's Add line", f"Add {avg:.1f} h to {emp} ({before:.1f} -> {before + avg:.1f})")
+        self.say(sid, "LV- row", f"{grp}: Hours Charged {fmt(avg)}; Total Hrs Then {fmt(before)}")
+        self.say(sid, "note on the peers", "Arden Glassford counts (he holds D2 in Derivatives since the Nov 8 move: LoadEligible reads the roster as it stands, and PeerEligible has no whole-window test); without him the average would be lower - a rule question for Graeme, not a plan error"),
         self.say(sid, f"{emp} Total Hours after", fmt(pl.total(emp)))
         self.say(sid, f"{a['abs']} after", f"End {dtxt(ab['end'])}, Leave Group {grp}")
 
@@ -1245,6 +1247,10 @@ They are copied into the folder v29.0.1's `KRONOS_PATH` names (`<the roster's fo
 **Who does what (D7).** Ray's steps are the Lite Desk's cards end to end (the three daily checks every morning,
 request -> book, exception -> no takers, correction -> Fix an entry, returning -> leave return) and the paths box on
 SystemCheck; Graeme and the supervisors do the rest. A member step names the login that plays the member.
+
+**Night shifts in the Kronos mock.** A night's hours are dated the day the night ENDS (Kronos's day, and the roster's
+coverage rule: a night on D is covered once Data Through reaches D + 1), so an accepted night shows up in the morning
+report two days on, and its provisional hours leave Total Hours the same morning its weighted hours join Worked (H).
 
 **Corrections to the brief (found while building the plan):** a posting WITH member sign-ups is never a Lite
 exception (the card counts postings with no sign-up), so Day 0's exception is P-0004 (closing soon), not P-0003; the

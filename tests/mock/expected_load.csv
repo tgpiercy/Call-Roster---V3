@@ -28,7 +28,7 @@ Parker Brightwater,124.00,66.00,66.00,58,0
 Remy Coldstream,231.00,206.00,206.00,25,0
 Shay Dovetail,200.00,172.00,172.00,28,0
 Tatum Ellery,156.50,107.50,107.50,49,0
-Wren Fenwick,167.50,108.50,108.50,59,0
+Wren Fenwick,165.50,94.50,94.50,59,12
 Arden Glassford,251.00,241.00,241.00,10,0
 Bryn Hartwell,314.50,298.50,298.50,16,0
 Corin Islington,169.00,125.00,125.00,44,0
@@ -41,7 +41,7 @@ Indy Pennyworth,276.00,208.00,208.00,68,0
 Jules Ravenscroft,148.25,118.25,118.25,30,0
 Kit Saltmarsh,208.00,181.00,181.00,27,0
 Linden Tillingham,231.50,187.50,187.50,44,0
-Merritt Vauxhall,164.50,96.50,96.50,56,12
+Merritt Vauxhall,163.50,107.50,107.50,56,0
 Nico Whitlock,171.00,147.00,147.00,24,0
 Odell Amberley,237.25,220.25,220.25,17,0
 Perry Birchwood,318.00,261.00,261.00,57,0
@@ -68,4 +68,4 @@ Pat Yeoman,139.00,101.00,101.00,38,0
 Robin Ashworth,222.00,179.00,179.00,43,0
 Sam Bramble,125.50,85.50,85.50,40,0
 Teal Copperfield,197.00,131.00,131.00,54,12
-(log total Hours Charged),11867.25,,,,
+(log total Hours Charged),11864.25,,,,

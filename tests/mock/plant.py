@@ -50,8 +50,9 @@ def iso(d: date | None) -> str:
 
 
 def hours_text(x: float) -> str:
-    """modPostings.HoursText: a whole number without the .0."""
-    return f"{x:g}"
+    """modPostings.HoursText = CStr(Round(x, 2)): two decimals at most, no trailing zeros, never a significant-digit cut."""
+    s = f"{round(x, 2):.2f}".rstrip("0").rstrip(".")
+    return "0" if s in ("", "-0") else s
 
 
 def shift_matches(emp_shift: str, sel: str, include_days: bool = True) -> bool:

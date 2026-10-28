@@ -65,13 +65,13 @@ SENIORITY = [
 ]
 
 # Opening Total Hours G per person (same order), hit through the OB- row: G = H + OB + historic charges.
-# Ties: index 28 (C Phosphine P1) and 42 (D Phosphine P1) both 171.5, seniority 2014-03-03 before 2016-08-15;
+# Ties: index 28 (C Phosphine P1, Tatum Ellery) and 29 (C Phosphine P1, Wren Fenwick) both 171.5, seniority 2014-03-03 before 2017-07-10;
 # index 5 (A Derivatives D1) and 18 (B Derivatives D1) both 203 with the SAME seniority 2011-05-02: the name decides.
 TARGETS = [
     224, 161, 298.25, 350, 189, 203, 243.25, 310.5, 402, 176.5, 288, 154, 231, 267,
     205.25, 142, 266, 319, 203, 181.75, 258.5, 301, 388, 196, 275.5, 149, 240, 212,
-    171.5, 185.5, 272, 338.5, 177, 199.25, 251, 294.75, 365, 163, 283, 158.25, 221, 247.5,
-    171.5, 193, 262.25, 327, 169, 207.5, 236, 289, 379.5, 182, 296, 147, 229.75, 254,
+    171.5, 171.5, 272, 338.5, 177, 199.25, 251, 294.75, 365, 163, 283, 158.25, 221, 247.5,
+    182.5, 193, 262.25, 327, 169, 207.5, 236, 289, 379.5, 182, 296, 147, 229.75, 254,
     133, 188, 241.5, 126, 174, 219.5, 139, 195.5, 228, 151, 237, 143.5, 206,
 ]
 
@@ -330,25 +330,29 @@ def main() -> int:
     return 0
 
 
-# (report, day, person, pay code, hours): the OT the plan's accepted call-outs and awards produce on their day, plus fillers
+# (report, day, person, pay code, hours): the OT the plan's accepted call-outs and awards produce, plus fillers. A NIGHT
+# shift's hours are dated the day the night ENDS (Kronos's day; the roster's coverage rule: a night on D is covered when
+# D + 1 <= Data Through): Merritt's Oct 30 night -> Oct 31, his Oct 31 night (6 h) -> Nov 1, Odell's Nov 4 night -> Nov 5,
+# Finley's Nov 11 night -> Nov 12; Teal's Oct 31 DAY -> Oct 31.
 KRONOS_DAYS = [
-    ("day", "2026-10-31", "Merritt Vauxhall", "CALLIN OT", 6), ("day", "2026-10-31", "Rowan Oakhurst", "OVERTIME", 4),
-    ("day", "2026-10-31", "Hollis Orchard", "MIN 4", 4),
-    ("day", "2026-11-01", "Avery Ashgrove", "OVERTIME", 2), ("day", "2026-11-01", "Casey Cardwell", "MIN 4", 4),
-    ("day", "2026-11-01", "Jules Ravenscroft", "LIEU OT", 4),
+    ("day", "2026-10-31", "Merritt Vauxhall", "CALLIN OT", 12), ("day", "2026-10-31", "Teal Copperfield", "OVERTIME", 12),
+    ("day", "2026-10-31", "Rowan Oakhurst", "OVERTIME", 4), ("day", "2026-10-31", "Hollis Orchard", "MIN 4", 4),
+    ("day", "2026-11-01", "Merritt Vauxhall", "CALLIN OT", 6), ("day", "2026-11-01", "Avery Ashgrove", "OVERTIME", 2),
+    ("day", "2026-11-01", "Casey Cardwell", "MIN 4", 4), ("day", "2026-11-01", "Jules Ravenscroft", "LIEU OT", 4),
     ("day", "2026-11-02", "Hayden Underhill", "OVERTIME", 12), ("day", "2026-11-02", "Kit Saltmarsh", "OVERTIME", 3),
     ("day", "2026-11-03", "Harper Greenlaw", "OVERTIME", 12), ("day", "2026-11-03", "Cary Jarrow", "MIN 4", 4),
     ("re", "2026-11-03", "Harper Greenlaw", "OVERTIME", 10), ("re", "2026-11-03", "Cary Jarrow", "MIN 4", 4),
-    ("day", "2026-11-04", "Tatum Ellery", "OVERTIME", 12), ("day", "2026-11-04", "Nico Whitlock", "OVERTIME", 12),
-    ("day", "2026-11-04", "Parker Brightwater", "OVERTIME", 2),
-    ("day", "2026-11-05", "Dale Kelsall", "OVERTIME", 2), ("day", "2026-11-05", "Gale Norwood", "MIN 4", 4),
+    ("day", "2026-11-04", "Nico Whitlock", "OVERTIME", 12), ("day", "2026-11-04", "Parker Brightwater", "OVERTIME", 2),
+    ("day", "2026-11-05", "Odell Amberley", "OVERTIME", 12), ("day", "2026-11-05", "Dale Kelsall", "OVERTIME", 2),
+    ("day", "2026-11-05", "Gale Norwood", "MIN 4", 4),
     ("day", "2026-11-06", "Tobin Eastwick", "MIN 4", 4), ("day", "2026-11-06", "Max Upton", "OVERTIME", 3),
     ("day", "2026-11-07", "Hayden Underhill", "OVERTIME", 12), ("day", "2026-11-07", "Ash Hawthorne", "LIEU ST", 4),
     ("day", "2026-11-08", "Sidney Dalrymple", "LIEU ST", 6), ("day", "2026-11-08", "Frankie Mallory", "OVERTIME", 2),
     ("day", "2026-11-09", "Hollis Orchard", "CALLIN OT", 12), ("day", "2026-11-09", "Wynn Goldfinch", "OVERTIME", 2),
     ("day", "2026-11-10", "Jamie Rushmore", "MIN 4", 4), ("day", "2026-11-10", "Reese Marsden", "OVERTIME", 3),
-    ("day", "2026-11-11", "Sam Bramble", "STATWK 2.0", 12), ("day", "2026-11-11", "Finley Fairbanks", "OVERTIME", 12),
-    ("day", "2026-11-12", "Perry Birchwood", "MIN 4", 4), ("day", "2026-11-12", "Noel Wainwright", "OVERTIME", 2),
+    ("day", "2026-11-11", "Sam Bramble", "STATWK 2.0", 12),
+    ("day", "2026-11-12", "Finley Fairbanks", "OVERTIME", 12), ("day", "2026-11-12", "Perry Birchwood", "MIN 4", 4),
+    ("day", "2026-11-12", "Noel Wainwright", "OVERTIME", 2),
     ("day", "2026-11-13", "Greer Nettleton", "OVERTIME", 3), ("day", "2026-11-13", "Quinn Lockridge", "MIN 4", 4),
     ("cum", "2026-11-14", "Taylor Redfern", "OVERTIME", 2),
 ]

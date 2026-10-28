@@ -25,8 +25,11 @@ then `py -3.14 -m pytest tests/test_mock.py -q`.
 QC Derivatives 1) on the 28-day rotation (day 1 = Sun Dec 28, 2025) and 13 on DAYS (QC Gases 3, Utilities 3, SBP 3,
 QC Derivatives 2, Phosphine 1, Derivatives 1). Every unit has grades 1-3 (grade 3 listed, never charged). Two
 cross-coded people (Marlow Yardley: Cypure G1 + Material Handler M2; Teal Copperfield: Derivatives D1 + QC Derivatives
-Q2). Two exact Total Hours ties broken by seniority (Tatum Ellery / Merritt Vauxhall at 171.5) and one by name (Devon
-Stonebridge / Finley Fairbanks at 203, the same seniority date). `roles.csv` names the people the plan's steps lean on.
+Q2). An exact Total Hours tie broken by seniority (Tatum Ellery / Wren Fenwick at 171.5, on the D1.5 list), one by
+name (Devon Stonebridge / Finley Fairbanks at 203, the same seniority date, on P-0003's list) and one more by seniority
+that the plan reaches on Day 12 (Arden Glassford / Jordan Hollins at 310.5 after the unit move). The frozen posting
+lists and the historic rows' "Total Hrs Then" carry the Oct 30 figures (the mock has no earlier roster state): the
+call orders are the same, the figures a little higher than a real Oct 20 list would have shown. `roles.csv` names the people the plan's steps lean on.
 
 Opening Total Hours per person is designed (`TARGETS` in make_plant.py) and reached through the `OB-` opening-balance
 row: `G = H + OB + the historic charges`. H is the weighted Kronos year to date (`kronos_totals.csv`, the multipliers of

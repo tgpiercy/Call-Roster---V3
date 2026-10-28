@@ -1,4 +1,38 @@
-# Paste this into a fresh session to carry on (updated Oct 26, 2026: **v28 - members' requests + the Payroll # key - is BUILT, REVIEWED, TAGGED, ZIPPED and PUSHED (Oct 27), NOT installed; see "v28 STATE" first.** v27.5 is tagged, zipped and pushed, NOT installed; v27.1 is on the real roster since Oct 25. The older blocks below are the v27.5, v27.1 and v27 hand-offs.)
+# Paste this into a fresh session to carry on (updated Oct 27, 2026: **v28 IS ON THE REAL ROSTER (Oct 27, v27.5 inside; v27.1 since Oct 25); the alpha runs Nov 1-14 on it; next builds are v28.1 (the second refactor) then v29 (the go-live kit + the alpha fixes) - see "v28 INSTALLED" first.** The older blocks below are the v28, v27.5, v27.1 and v27 hand-offs, kept as history.)
+
+```
+v28 INSTALLED (Oct 27, 2026): Graeme: "V28 executed flawlessly." v28 is on the REAL roster; v27.5 rode in; v27.1 has been on it
+since Oct 25. Every check passed: SystemCheck 43 of 43 on v28, SelfTest 1053 cases / 113 suites, SmokeTest 22 steps, the group 4
+rows, AssignPayrollKeys clean, the members' template rebuilt (Members M5). In code: ADMIN_USERS = piercyg, lanthierr; DESK_USERS =
+lanthierr; SUPERVISOR_USERS = mihaychukc, sheltond, campeauc. NOT in v28 (the go-live kit, now v29): the folder split, the final
+logins, Ray's Admin Lite Desk. CLAUDE.md's roadmap and "Decisions already made" carry the Oct 27 decisions (the first bullet).
+THE CHAIN: v28 (real, Oct 27) -> alpha Nov 1-14 -> v28.1 (the refactor, installed Nov 18-20) -> v29 (the go-live kit + the alpha
+fixes, installed Dec 14-18) -> the real rollover on v29 in the freeze -> the cutover Jan 11-15 -> v29.5 (Feb). There is NO v28.5.
+THE CALENDAR: Oct 27-31 housekeeping (this commit) + the alpha gate re-run on v28 (Graeme's runbook, project-side) | Nov 1-14 the
+alpha on v28: paper governs, the daily admin check (Ray when Graeme is on nights), findings triaged into docs/alpha-findings.md as
+they come (S1 = broken -> a v28.0.x hotfix through a practice copy; S2 = wrong hours / charge / order -> void and re-enter now, the
+code fix in v29; S3 = confusing / slow / cosmetic -> v29 or later); NO other install during it | Nov 2-6 the v28.1 report-back
+(maps by read-only agents: modMember's sections and cut lines, the 116 Consts' readers, every by-name lookup and where KeyMatchCore
+goes, TableByName vs TableData; multiple choice; NO code until his go) | Nov 6-13 v28.1 build + review + tag (v27.1's method:
+splitmodule.py + movecheck.py, R3 its own commit with cases + a Python mirror, builders in isolation worktrees, five read-only
+reviewers, modSnapshot before / after; stamps v28.1, no What's New box, INSTALL-v28.1.md + steps-v28.1.txt, build_zip v28.1 v28;
+ask before the push; NOT installed until the alpha closes) | Nov 9-13 the v29 report-back part A (the kit; save his updated
+brief-admin-lite.md into briefs/admin-lite.md first) | Nov 16-17 the alpha close-out on v28 (the cumulative Kronos report ->
+import -> IntegrityCheck -> ClosePeriod Nov 1-14 -> Reconcile -> Stats -> Feedback) | Nov 18-20 v28.1 installed (practice copy with
+the snapshot, then the real roster; SystemCheck "N of N on v28.1") | Nov 18 the v29 report-back part B (the S2 / S3 rows) ->
+briefs/v29.md | Nov 20 - Dec 4 v29 build + review + tag on v28.1 | Dec 1 supervisor training on v28.1 | Dec 4-7 write
+docs/december-rehearsal.md | Dec 7-11 the rehearsal on a v29 practice copy (install, rollover dry run, RestoreDrill, Ray's first
+week, the guided move into test folders); CUT-OFF Dec 12: a fail moves v29 to Jan 5-8 and the rollover runs on v28.1 | Dec 14-18
+v29 on the real roster, folders at "." | Dec 20 - Jan 4 the freeze, the real rollover (2027 period 1 starts Sun Dec 27) | Jan 5-8
+the first January Kronos export (year-to-date or cumulative?) | by Jan 5 docs/go-live-runbook.md | Jan 11-15 the cutover | Jan
+16-22 no installs, Ray's solo check | Jan 23-30 Graeme away | Feb v29.5.
+STILL OPEN (defaults in CLAUDE.md's Still-open table): G1 the go-live date (Jan 11-15); G2 the P: paths + members' write rights
+from IT by Nov 20; G3 who else goes on SUPERVISOR_USERS (the four shift supervisors only); G4 paper past Nov 14 (stop after the
+pack if the Reconcile differences are explained); G5 item 39's wording (not built until signed); G6 signing the VBA project (ask IT
+in November). Ask each ONCE, as multiple choice, when its phase comes.
+NEXT SESSION: alpha triage as he brings findings (no code; file:line, roster-or-paper against the canonical rules, S1 / S2 / S3,
+a row in docs/alpha-findings.md; an S1 stops and puts the hotfix choice to him), and from Nov 2 the v28.1 report-back.
+```
 
 ```
 v28 STATE (Oct 26, 2026): read docs/v28-report-back.md (Graeme's decisions: build now - the pre-release rule waived -,

@@ -337,9 +337,6 @@ Private Sub WriteTable(ByVal lo As ListObject, ByVal key As String, ByVal typeLi
     UnlockSheet ws
     lo.Resize lo.HeaderRowRange.Resize(cnt + 1 + n)
     With lo.HeaderRowRange.Offset(cnt + 1, 0).Resize(n, nCols)
-        For c = 1 To nCols
-            If types(c - 1) = "T" Or types(c - 1) = "R" Then .Columns(c).NumberFormat = "@"
-        Next c
         .Value = data
         For c = 1 To nCols
             If types(c - 1) = "D" Then .Columns(c).NumberFormat = "ddd mmm d, yyyy"
@@ -361,7 +358,8 @@ Private Sub WriteMarks()
     SetIdMark "ENTRY", LogRowCount()
 End Sub
 
-' T text, R a Reason (text; the real writers prefix an apostrophe into a General cell, the "@" format here does the same job),
+' T text, R a Reason (the real writers prefix an apostrophe into a General cell so Excel never reads the text as a date or
+' a formula; the same here - the cells stay General, so a later in-place edit by the roster shows no stray apostrophe),
 ' D date, S date and time, N number
 Private Function MockValue(ByVal s As String, ByVal t As String) As Variant
     Select Case t
@@ -370,7 +368,7 @@ Private Function MockValue(ByVal s As String, ByVal t As String) As Variant
         Case "N"
             If s = "" Then MockValue = Empty Else MockValue = Val(s)
         Case "R"
-            MockValue = s                               ' the column is formatted "@" first: the text stays text with no prefix character
+            If s = "" Then MockValue = "" Else MockValue = "'" & s     ' into a General cell, as the real writers do: Excel keeps the apostrophe as the prefix, not a character
         Case Else
             MockValue = s
     End Select
@@ -846,7 +844,7 @@ End Sub
 
 Private Sub Data_coverage_1()
     MockRow "CV-0001|2026-11-02|Days|Derivatives|AB-0001|Vale Fairweather (Vac)|VAC|||AB-0001|Active|piercyg|2026-11-02 08:00:00|"
-    MockRow "CV-0002|2026-11-03|Days|Derivatives||Vale Fairweather (Vac)|VAC|POSTED P-0003||P-0003|Active|piercyg|2026-11-03 08:00:00|"
+    MockRow "CV-0002|2026-11-03|Days|Derivatives|AB-0001|Vale Fairweather (Vac)|VAC|POSTED P-0003||P-0003|Active|piercyg|2026-11-03 08:00:00|"
     MockRow "CV-0003|2026-11-10|Days|Phosphine|AB-0003|Skyler Quarrie (Personal)|PER|||AB-0003|Active|piercyg|2026-11-10 08:00:00|"
     MockRow "CV-0004|2026-09-12|Days|Cypure||Hollis Orchard S/S|SS|Logan Juniper S/S||SS-0001|Active|piercyg|2026-09-12 08:00:00|"
     MockRow "CV-0005|2026-10-06|Nights|Phosphine||Call-out S-0001|SUP|Taylor Redfern||S-0001|Active|piercyg|2026-10-06 08:00:00|"

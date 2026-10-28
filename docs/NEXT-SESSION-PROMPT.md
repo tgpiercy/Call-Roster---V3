@@ -19,7 +19,9 @@ Fenwick 171.5; D4.6 never charges below a whole acceptance; night OT in the Kron
 the frozen lists, POSTED / NO TAKERS calendar lines, no apostrophe into a text cell, a backup copy refused by the guard; LOWs: the
 verify checks every person's home unit and codes, a table with no rows stops the load, LogError in the handlers, the sick dates
 and the owed switch on the rotation, Type "Opening Balance", only the log-based ID marks, the runbook's csv exports and the
-Practice\ subfolder for the rehearsal). Suite 1207 -> 1218 green (test_mock.py = 11), the four checkers + docscheck clean.
+Practice\ subfolder for the rehearsal); the RE-REVIEW of those fixes (one MED taken: the Nov 3 vacation line keeps its Absence ID beside
+its POSTED source; the Reason columns go into General cells with the apostrophe prefix as the real writers do). Suite 1207 green
+(test_mock.py = 11), the four checkers + docscheck clean.
 CORRECTIONS TO THE P9 BRIEF (recorded at the top of the plan): a posting WITH member sign-ups is never a Lite exception (Day 0's
 exception is P-0004 closing soon, not P-0003); the payback warning needs a switch older than 42 days (SS-0001 is dated Sep 12);
 the Reconcile sheet holds ONE paper order per page (D12 types two pages); the Day-0 cumulative runs through Fri Oct 30; night OT

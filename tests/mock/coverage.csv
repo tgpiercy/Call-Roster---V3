@@ -1,6 +1,6 @@
 Line ID,Date,Shift,Unit,Absence ID,Off / Need,Type,Covered By,Hours,Source,Status,Logged By,Timestamp,Note
 CV-0001,2026-11-02,Days,Derivatives,AB-0001,Vale Fairweather (Vac),VAC,,,AB-0001,Active,piercyg,2026-11-02 08:00:00,
-CV-0002,2026-11-03,Days,Derivatives,,Vale Fairweather (Vac),VAC,POSTED P-0003,,P-0003,Active,piercyg,2026-11-03 08:00:00,
+CV-0002,2026-11-03,Days,Derivatives,AB-0001,Vale Fairweather (Vac),VAC,POSTED P-0003,,P-0003,Active,piercyg,2026-11-03 08:00:00,
 CV-0003,2026-11-10,Days,Phosphine,AB-0003,Skyler Quarrie (Personal),PER,,,AB-0003,Active,piercyg,2026-11-10 08:00:00,
 CV-0004,2026-09-12,Days,Cypure,,Hollis Orchard S/S,SS,Logan Juniper S/S,,SS-0001,Active,piercyg,2026-09-12 08:00:00,
 CV-0005,2026-10-06,Nights,Phosphine,,Call-out S-0001,SUP,Taylor Redfern,,S-0001,Active,piercyg,2026-10-06 08:00:00,

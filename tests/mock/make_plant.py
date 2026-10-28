@@ -251,7 +251,7 @@ def main() -> int:
     # P-0004 and P-0005, and P-0002's NO TAKERS line (CreatePostingFrom -> CalendarPosted; the award / no-takers outcome)
     for c in cov_rows:
         if c[6] == "AB-0001" and c[1] == "2026-11-03":
-            c[5], c[6] = "POSTED P-0003", "P-0003"
+            c[5], c[6], c[8] = "POSTED P-0003", "P-0003", "AB-0001"      # the line keeps its absence (CV_ABS): SlotsFor joins them by it
     for pid, p in plant.postings.items():
         if p["status"] == "Open" and pid != "P-0003":
             n_cv += 1
@@ -294,7 +294,7 @@ def main() -> int:
               [[a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], "Active", a[13], a[14], "", a[9], a[10], a[11]] for a in abs_rows])
     write_csv(out / "coverage.csv", ["Line ID", "Date", "Shift", "Unit", "Absence ID", "Off / Need", "Type", "Covered By", "Hours", "Source",
                                      "Status", "Logged By", "Timestamp", "Note"],
-              [[c[0], c[1], c[2], c[3], c[6] if c[6].startswith("AB-") else "", c[4], c[7], c[5], "", c[6], "Active", "piercyg", c[1] + " 08:00:00", ""] for c in cov_rows])
+              [[c[0], c[1], c[2], c[3], c[8] or (c[6] if c[6].startswith("AB-") else ""), c[4], c[7], c[5], "", c[6], "Active", "piercyg", c[1] + " 08:00:00", ""] for c in cov_rows])
     write_csv(out / "switches.csv", ["SS ID", "Shift Date", "Shift", "Unit", "Gives Up", "Off Crew", "Works", "Works Crew", "Payback For",
                                      "Paid Back By", "Note", "Status", "Logged By", "Timestamp", "Void Note"], [r + [""] for r in sw_rows])
     write_csv(out / "restrictions.csv", ["Restriction ID", "Employee", "From", "To", "Reason", "Status", "Entered By", "Entered At", "Void Note"], rs_rows)

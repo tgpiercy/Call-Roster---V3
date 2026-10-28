@@ -276,6 +276,12 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     Else
         info = info & "Sign-ups: off (SIGNUPS_ON in modOvertimeEntry)" & vbNewLine
     End If
+    ' v29 (briefs/v29.md item 2): the first login lines - who is what, and a Lite login that is not an admin (the Lite Desk is
+    ' for an admin: ViewModeFor gives such a login "user" or "supervisor", never "lite", so it would not see the Lite Desk)
+    info = info & "Logins: admins " & LCase$(Replace(ADMIN_USERS, ",", ", ")) & "; Lite " & IIf(Trim$(LITE_DESK_USERS) = "", "(none)", LCase$(Replace(LITE_DESK_USERS, ",", ", ")) & " (" & LITE_FIRST_NAME & ")") & _
+                  "; supervisors " & IIf(Trim$(SUPERVISOR_USERS) = "", "(none)", LCase$(Replace(SUPERVISOR_USERS, ",", ", "))) & vbNewLine
+    Dim liteBad As String: liteBad = LiteLoginProblems(LITE_DESK_USERS, ADMIN_USERS)
+    If liteBad <> "" Then warn = warn & "- LITE_DESK_USERS: " & liteBad & " is not on ADMIN_USERS (the Lite Desk is for an admin): add the login there or take it off the Lite list (modOvertimeEntry)" & vbNewLine
     Dim prInfo As String, prWarn As String          ' v25: every sheet protected, totals locked
     prWarn = ProtectionStatus(prInfo)
     info = info & prInfo & vbNewLine
@@ -1230,7 +1236,7 @@ Public Sub OpensOnOpen()
     Dim v(1 To 1, 1 To OP_N) As Variant
     v(1, 1) = Now
     v(1, 2) = CurrentUser()
-    v(1, 3) = ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS)
+    v(1, 3) = ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS, LITE_DESK_USERS)
     v(1, 4) = EXPECTED_RELEASE
     v(1, 5) = "no"
     Dim nProb As Long: nProb = IntegrityProblemCount()

@@ -80,20 +80,26 @@ End Function
 ' ====================================================================
 '  WHO
 ' ====================================================================
-' The one pure decision: "desk" = on both ADMIN_USERS and DESK_USERS (admin rights, lands on the Desk), "admin" = on
-' ADMIN_USERS only (today's layout), "supervisor" (v25.5) = on SUPERVISOR_USERS and not an admin (the supervisor's
-' jobs, the supervisor Desk), "user" = none of them (a desk-only login has no admin rights; a plain user logs
-' call-outs and looks at the calendar). Lists are comma separated, any case, spaces ignored. Mirrored in
-' tests/rules.py (suite viewmode).
-Public Function ViewModeFor(ByVal login As String, ByVal adminList As String, ByVal deskList As String, ByVal supList As String) As String
+' The one pure decision: "lite" (v29) = on ADMIN_USERS and LITE_DESK_USERS (admin rights, opens on the Admin Lite Desk
+' drawn on the full admin view - Graeme, Oct 27, 2026; it beats "desk"), "desk" = on both ADMIN_USERS and DESK_USERS
+' (admin rights, lands on the Desk in desk mode), "admin" = on ADMIN_USERS only (today's layout), "supervisor" (v25.5) = on
+' SUPERVISOR_USERS and not an admin (the supervisor's jobs, the supervisor Desk), "user" = none of them (a desk-only or
+' lite-only login has no admin rights; a plain user logs call-outs and looks at the calendar). "lite" is NEVER given to a
+' login that is not an admin: IsSupervisor treats every answer but "user" as a supervisor. Lists are comma separated, any
+' case, spaces ignored. Mirrored in tests/rules.py (suite viewmode). liteList is Optional so the older call sites compile.
+Public Function ViewModeFor(ByVal login As String, ByVal adminList As String, ByVal deskList As String, ByVal supList As String, _
+                            Optional ByVal liteList As String = "") As String
     Dim u As String: u = LCase$(Trim$(login))
     ViewModeFor = "user"
     If u = "" Then Exit Function
-    Dim inA As Boolean, inD As Boolean, inS As Boolean
+    Dim inA As Boolean, inD As Boolean, inS As Boolean, inL As Boolean
     inA = (InStr(1, "," & LCase$(Replace(adminList, " ", "")) & ",", "," & u & ",", vbBinaryCompare) > 0)
     inD = (InStr(1, "," & LCase$(Replace(deskList, " ", "")) & ",", "," & u & ",", vbBinaryCompare) > 0)
     inS = (InStr(1, "," & LCase$(Replace(supList, " ", "")) & ",", "," & u & ",", vbBinaryCompare) > 0)
-    If inA And inD Then
+    inL = (InStr(1, "," & LCase$(Replace(liteList, " ", "")) & ",", "," & u & ",", vbBinaryCompare) > 0)
+    If inA And inL Then
+        ViewModeFor = "lite"
+    ElseIf inA And inD Then
         ViewModeFor = "desk"
     ElseIf inA Then
         ViewModeFor = "admin"
@@ -102,8 +108,30 @@ Public Function ViewModeFor(ByVal login As String, ByVal adminList As String, By
     End If
 End Function
 
+' v29: the logins on the Lite list that are NOT admins, as "a, b" in the list's order (lower case, spaces dropped);
+' "" when every one is an admin or the list is empty. SystemCheck's warn line. Pure; mirrored in tests/rules.py
+' (suite litelogin).
+Public Function LiteLoginProblems(ByVal liteList As String, ByVal adminList As String) As String
+    Dim admins As String: admins = "," & LCase$(Replace(adminList, " ", "")) & ","
+    Dim parts() As String, i As Long, u As String, out As String
+    parts = Split(LCase$(Replace(liteList, " ", "")), ",")
+    For i = LBound(parts) To UBound(parts)
+        u = parts(i)
+        If u <> "" Then
+            If InStr(1, admins, "," & u & ",", vbBinaryCompare) = 0 Then out = out & IIf(out = "", "", ", ") & u
+        End If
+    Next i
+    LiteLoginProblems = out
+End Function
+
 Public Function IsDeskUser() As Boolean
-    IsDeskUser = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS) = "desk")
+    IsDeskUser = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS, LITE_DESK_USERS) = "desk")
+End Function
+
+' v29: this login opens on the Admin Lite Desk (an admin on LITE_DESK_USERS). Not a desk-mode user: the Lite Desk draws on
+' the full admin view (Graeme, Oct 27, 2026), so IsDeskUser is False for a lite login and the open applies the admin view.
+Public Function IsLiteUser() As Boolean
+    IsLiteUser = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS, LITE_DESK_USERS) = "lite")
 End Function
 
 ' ====================================================================

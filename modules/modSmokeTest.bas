@@ -1196,11 +1196,13 @@ End Function
 ' ---- 20. the Desk (v25.3; step 21 until v25.5, 19 until v26.5): its four figures come from the roster's own functions. A vacation
 ' for the peer on a day shift inside the window adds at least one open line; a posting closing today adds one ready to award
 ' once the closing moment has passed; both are taken back and the figures return; ViewModeFor on four logins (v25.5:
-' + a named supervisor).
+' + a named supervisor; v29: + a lite admin, and a lite-only login that stays a plain user).
 Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
     If ViewModeFor("boss", "ann,boss", "boss", "sue") <> "desk" Or ViewModeFor("ann", "ann,boss", "boss", "sue") <> "admin" Or _
-       ViewModeFor("boss", "ann", "boss", "sue") <> "user" Or ViewModeFor("sue", "ann,boss", "boss", "sue") <> "supervisor" Then _
+       ViewModeFor("boss", "ann", "boss", "sue") <> "user" Or ViewModeFor("sue", "ann,boss", "boss", "sue") <> "supervisor" Or _
+       ViewModeFor("ray", "ann,boss,ray", "boss,ray", "sue", "ray") <> "lite" Or ViewModeFor("ray", "ann,boss", "boss", "sue", "ray") <> "user" Then _
        why = "ViewModeFor gives the wrong view for a made-up login": Exit Function
+    If LiteLoginProblems("ray,tom", "ann,ray") <> "tom" Then why = "LiteLoginProblems missed a lite login that is not an admin": Exit Function
     Dim c0 As Long, r0 As Long, o0 As Long, c1 As Long, r1 As Long, o1 As Long, c2 As Long, r2 As Long, o2 As Long, pubAt As Date
     DeskCounts c0, r0, o0, pubAt
     Dim d As Date, dd As Long, found As Boolean
@@ -1231,7 +1233,7 @@ Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
     MarkCalDirty
     DeskCounts c2, r2, o2, pubAt
     If c2 <> c0 Or (r2 <> r0 And Not nearClose) Or o2 <> o0 Then why = "after the cancel and the void the figures read " & c2 & " / " & r2 & " / " & o2 & "; expected " & c0 & " / " & r0 & " / " & o0: Exit Function
-    st.Note = "cover " & c0 & " -> " & c1 & " -> " & c2 & ", ready " & r0 & " -> " & r1 & " -> " & r2 & IIf(nearClose, " (not compared: the closing moment)", "") & ", owed " & o0 & "; ViewModeFor desk / admin / user / supervisor"
+    st.Note = "cover " & c0 & " -> " & c1 & " -> " & c2 & ", ready " & r0 & " -> " & r1 & " -> " & r2 & IIf(nearClose, " (not compared: the closing moment)", "") & ", owed " & o0 & "; ViewModeFor desk / admin / user / supervisor / lite"
     SmkDesk = True
     Exit Function
 Undo:

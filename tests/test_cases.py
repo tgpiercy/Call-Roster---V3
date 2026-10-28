@@ -311,8 +311,11 @@ def evaluate(row: dict) -> str:
         return "yes" if rules.is_dry_run_name(i1) else "no"
     if suite == "backupname":                    # v24.3.1: file name -> yes / no (a backup, FINAL or pre-change copy)
         return "yes" if rules.is_backup_copy_name(i1) else "no"
-    if suite == "viewmode":                      # v25.3: login, ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS (v25.5; ; for ,) -> desk / admin / supervisor / user
-        return rules.view_mode_for(i1, i2.replace(";", ","), i3.replace(";", ","), i4.replace(";", ","))
+    if suite == "viewmode":                      # v25.3: login, ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS (v25.5; ; for ,), LITE_DESK_USERS (v29) -> lite / desk / admin / supervisor / user
+        return rules.view_mode_for(i1, i2.replace(";", ","), i3.replace(";", ","), i4.replace(";", ","), i5.replace(";", ","))
+    if suite == "litelogin":                     # v29: LITE_DESK_USERS, ADMIN_USERS (; for ,) -> the lite logins that are not admins (; joined) / none
+        lp = rules.lite_login_problems(i1.replace(";", ","), i2.replace(";", ","))
+        return lp.replace(", ", ";") if lp else "none"
     if suite == "backupdate":                    # v25: file name -> the date a daily backup carries / none
         bd = rules.backup_file_date(i1)
         return iso(bd) if bd else "none"

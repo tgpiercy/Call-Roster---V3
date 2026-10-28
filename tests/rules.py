@@ -2023,10 +2023,11 @@ def reconcile_diff(paper: str, roster: str) -> str:
     return "|".join(";".join(part) if part else "-" for part in (diff, missing, extra))
 
 
-def view_mode_for(login: str, admin_list: str, desk_list: str, sup_list: str = "") -> str:
-    """v25.3 modDesk.ViewModeFor: 'desk' = on ADMIN_USERS and DESK_USERS, 'admin' = ADMIN_USERS only,
-    'supervisor' (v25.5) = on SUPERVISOR_USERS and not an admin, 'user' = none of them (a desk-only login
-    has no admin rights). Lists comma separated, any case, spaces ignored."""
+def view_mode_for(login: str, admin_list: str, desk_list: str, sup_list: str = "", lite_list: str = "") -> str:
+    """v25.3 modDesk.ViewModeFor: 'lite' (v29) = on ADMIN_USERS and LITE_DESK_USERS (it beats 'desk'), 'desk' = on
+    ADMIN_USERS and DESK_USERS, 'admin' = ADMIN_USERS only, 'supervisor' (v25.5) = on SUPERVISOR_USERS and not an
+    admin, 'user' = none of them (a desk-only or lite-only login has no admin rights). Lists comma separated,
+    any case, spaces ignored. The tests run in the same order as the VBA."""
     u = login.strip().lower()
     if not u:
         return "user"
@@ -2034,8 +2035,15 @@ def view_mode_for(login: str, admin_list: str, desk_list: str, sup_list: str = "
     def in_list(lst: str) -> bool:
         return u in [x for x in lst.replace(" ", "").lower().split(",") if x]
 
-    a, d, s = in_list(admin_list), in_list(desk_list), in_list(sup_list)
-    return "desk" if a and d else "admin" if a else "supervisor" if s else "user"
+    a, d, s, lt = in_list(admin_list), in_list(desk_list), in_list(sup_list), in_list(lite_list)
+    return "lite" if a and lt else "desk" if a and d else "admin" if a else "supervisor" if s else "user"
+
+
+def lite_login_problems(lite_list: str, admin_list: str) -> str:
+    """v29 modDesk.LiteLoginProblems: the logins on the Lite list that are not admins, 'a, b' in the list's
+    order (lower case, spaces dropped); '' when every one is an admin or the list is empty."""
+    admins = [x for x in admin_list.replace(" ", "").lower().split(",") if x]
+    return ", ".join(x for x in lite_list.replace(" ", "").lower().split(",") if x and x not in admins)
 
 
 def data_shape_problem(kind: str, v: str) -> str:

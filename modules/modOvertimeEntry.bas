@@ -38,6 +38,12 @@ Public Const DESK_USERS As String = "lanthierr"
 ' supervisor's jobs (sick call, new posting, award to the list, print, publish) and lands on the supervisor Desk
 ' (SUPERVISOR_DESK); every other login is a plain user (log a call-out, the calendar, the sorts) on the roster.
 Public Const SUPERVISOR_USERS As String = "mihaychukc,sheltond,campeauc"
+' v29 (briefs/admin-lite.md; Graeme, Oct 27, 2026): the ADMIN who opens on the Admin Lite Desk (modDesk.DrawLiteDesk) - a
+' simpler Desk with only his jobs, drawn on the full admin view. A login here must ALSO be on ADMIN_USERS: Lite changes what
+' is on screen, never what the login may do (ViewModeFor gives "lite" only to an admin; SystemCheck flags a lite login that is
+' not an admin). The Lite header greets LITE_FIRST_NAME. A login on this list is "lite" even when it is on DESK_USERS too.
+Public Const LITE_DESK_USERS As String = "lanthierr"
+Public Const LITE_FIRST_NAME As String = "Ray"
 Public Const PRIMARY_ADMIN_NAME As String = "Graeme"                       ' named by the Desk's help buttons
 Public Const PRIMARY_ADMIN_EMAIL As String = "graeme.piercy@syensqo.com"   ' "Something went wrong" writes to this address
 Public Const GUIDE_PATH As String = ""                                    ' the quick guide as a PDF on the plant PC; "" until go-live
@@ -1677,7 +1683,7 @@ End Function
 ' CanFinalize) stays behind RequireAdmin. v25.5 (Graeme, Oct 18): a supervisor is a login on SUPERVISOR_USERS or
 ' an admin (ViewModeFor, modDesk), with edit access; anyone else is refused by name, a read-only copy as before.
 Public Function IsSupervisor() As Boolean
-    IsSupervisor = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS) <> "user")
+    IsSupervisor = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS, LITE_DESK_USERS) <> "user")
 End Function
 
 Public Function RequireSupervisor() As Boolean

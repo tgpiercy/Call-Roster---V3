@@ -196,8 +196,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(IsDryRunName(i1), "yes", "no")
         Case "backupname"                          ' v24.3.1: a backup, FINAL or pre-change copy by its name
             RunCase = IIf(IsBackupCopyName(i1), "yes", "no")
-        Case "viewmode"                            ' v25.3: login, ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS (v25.5; ; for ,) -> desk / admin / supervisor / user
-            RunCase = ViewModeFor(i1, Replace(i2, ";", ","), Replace(i3, ";", ","), Replace(i4, ";", ","))
+        Case "viewmode"                            ' v25.3: login, ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS (v25.5; ; for ,), LITE_DESK_USERS (v29) -> lite / desk / admin / supervisor / user
+            RunCase = ViewModeFor(i1, Replace(i2, ";", ","), Replace(i3, ";", ","), Replace(i4, ";", ","), Replace(i5, ";", ","))
         Case "backupdate"                          ' v25: file name -> the date a daily backup carries / none
             Dim bdD As Date: bdD = BackupFileDate(i1)
             RunCase = IIf(bdD = 0, "none", FmtD(bdD))
@@ -232,7 +232,7 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests
+        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch", "litelogin"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite logins
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -462,6 +462,9 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             rsL = Split(i2 & "|", "|"): rsF = Split(i3 & ";;", ";"): rsD = Split(i4 & "|", "|")
             RunCaseV271 = RequestStatusCore(i1, CStr(rsL(0)), CStr(rsL(1)), (CStr(rsF(0)) = "refused"), (CStr(rsF(1)) = "withdrawn"), CStr(rsF(2)), _
                                             CStr(rsD(0)), CStr(rsD(1)))
+        Case "litelogin"                           ' v29 (item 2): LITE_DESK_USERS, ADMIN_USERS (; for ,) -> the lite logins that are not admins (; joined) / none
+            Dim llP As String: llP = LiteLoginProblems(Replace(i1, ";", ","), Replace(i2, ";", ","))
+            RunCaseV271 = IIf(llP = "", "none", Replace(llP, ", ", ";"))
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
             If i1 <> "" Then scP = Split(i1, ";")
@@ -2217,5 +2220,18 @@ Private Sub LoadCases6()
     AddCase "staffcount,dst-thirteen-h-night-twelve-h-is-part,S,Ann B 12h,2,13,,1|0|0|SHORT 1/2 (part)"
     AddCase "staffcount,six-two-hour-parts-one-person,S,Ann B 2h / Bo C 2h / Cy D 2h / Di E 2h / Ed F 2h / Fa G 2h,2,,,1|0|1|ok"
     AddCase "staffcount,nobody-holds-a-code,,,1,,,0|0|0|SHORT 0/1"
+    AddCase "viewmode,lite-admin,ray,ann;ray,boss,,ray,lite"
+    AddCase "viewmode,lite-admin-and-desk,ray,ann;ray,ray,,ray,lite"
+    AddCase "viewmode,lite-only-is-a-user,ray,ann;boss,boss,,ray,user"
+    AddCase "viewmode,lite-only-supervisor,ray,ann;boss,boss,ray;sue,ray,supervisor"
+    AddCase "viewmode,admin-not-lite,ann,ann;ray,boss,,ray,admin"
+    AddCase "viewmode,lite-case-and-spaces,RAY,ann;ray,boss,, Ray ,lite"
+    AddCase "viewmode,empty-lite-list-is-desk,ray,ann;ray,ray,,,desk"
+    AddCase "litelogin,all-admins,ray,ann;ray,,,,none"
+    AddCase "litelogin,one-not-admin,ray;tom,ann;ray,,,,tom"
+    AddCase "litelogin,two-not-admin-in-order,ray;tom;sue,ann,,,,ray;tom;sue"
+    AddCase "litelogin,case-and-spaces, Ray ;TOM,ann;ray,,,,tom"
+    AddCase "litelogin,empty-lite-list,,ann;ray,,,,none"
+    AddCase "litelogin,empty-admin-list,ray,,,,,ray"
 ' <<< CASES
 End Sub

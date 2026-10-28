@@ -1053,3 +1053,16 @@ staffcount,dst-eleven-h-night-whole-cover,S,Ann B 11h,2,11,,1|0|1|ok
 staffcount,dst-thirteen-h-night-twelve-h-is-part,S,Ann B 12h,2,13,,1|0|0|SHORT 1/2 (part)
 staffcount,six-two-hour-parts-one-person,S,Ann B 2h / Bo C 2h / Cy D 2h / Di E 2h / Ed F 2h / Fa G 2h,2,,,1|0|1|ok
 staffcount,nobody-holds-a-code,,,1,,,0|0|0|SHORT 0/1
+viewmode,lite-admin,ray,ann;ray,boss,,ray,lite
+viewmode,lite-admin-and-desk,ray,ann;ray,ray,,ray,lite
+viewmode,lite-only-is-a-user,ray,ann;boss,boss,,ray,user
+viewmode,lite-only-supervisor,ray,ann;boss,boss,ray;sue,ray,supervisor
+viewmode,admin-not-lite,ann,ann;ray,boss,,ray,admin
+viewmode,lite-case-and-spaces,RAY,ann;ray,boss,, Ray ,lite
+viewmode,empty-lite-list-is-desk,ray,ann;ray,ray,,,desk
+litelogin,all-admins,ray,ann;ray,,,,none
+litelogin,one-not-admin,ray;tom,ann;ray,,,,tom
+litelogin,two-not-admin-in-order,ray;tom;sue,ann,,,,ray;tom;sue
+litelogin,case-and-spaces, Ray ;TOM,ann;ray,,,,tom
+litelogin,empty-lite-list,,ann;ray,,,,none
+litelogin,empty-admin-list,ray,,,,,ray

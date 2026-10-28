@@ -18,6 +18,23 @@ Private Const DAILY_KRONOS As String = "DailyKronos"
 Private Const DAILY_NEEDS As String = "DailyNeeds"
 Private Const DAILY_PUBLISH As String = "DailyPublish"
 
+' Fix an entry (item 4): what the card shows and the re-entry needs, read by FixEntryFacts
+Public Type FixFacts
+    Ref As String
+    Kind As String          ' the prefix: S, P, ADJ, SS, AB, SC, LV, UM, NH, MAN, OB ...
+    Found As Boolean
+    Rows As Long            ' live rows (1 for a switch or an absence)
+    Text As String          ' the read-only view
+    Unit As String
+    ShiftDate As Date
+    ShiftLbl As String
+    Hours As Double
+    Emp As String
+    Partner As String       ' a switch: who works it
+    DFrom As Date           ' an absence
+    DTo As Date
+End Type
+
 ' ====================================================================
 '  PURE
 ' ====================================================================
@@ -252,6 +269,177 @@ Public Function UnitChargedThisPeriod() As Variant
     End If
 Quit:
 End Function
+
+' ====================================================================
+'  FIX AN ENTRY (item 4; briefs/admin-lite.md): the guided correction - a Ref's rows read-only, Void through the
+'  existing void path (VoidRef for OT Log refs, VoidSwitch for an SS-, VoidAbsence for an AB- / SC-; an award is
+'  withdrawn through WithdrawAward, never voided raw), "Re-enter it now?" through the pop-ups' Prefill, then the
+'  Feedback rows for the old Ref marked resolved with the new one ("void" when not re-entered). frmFixEntry is the card;
+'  this is its work. Nothing new writes to the roster or the log: the voids and the pop-ups' own saves do.
+' ====================================================================
+' (the FixFacts Type sits at the top of the module: a Type must come before the first procedure)
+
+Public Function FixEntryKind(ByVal ref As String) As String
+    Dim p As Long: p = InStr(ref, "-")
+    If p > 1 Then FixEntryKind = UCase$(Left$(ref, p - 1))
+End Function
+
+' Everything the card shows and the re-entry needs, read-only. Found = live rows exist for the Ref. Never raises.
+Public Function FixEntryFacts(ByVal ref As String) As FixFacts
+    Dim f As FixFacts
+    On Error GoTo Quit
+    f.Ref = UCase$(Trim$(ref)): f.Kind = FixEntryKind(f.Ref)
+    Dim v As Variant, i As Long, t As String, who As Object, k As Variant
+    Select Case f.Kind
+        Case "SS"
+            v = TableData(SwitchTable(False))
+            If IsArray(v) Then
+                For i = 1 To UBound(v, 1)
+                    If UCase$(Trim$(SafeStr(v(i, SW_ID)))) = f.Ref Then
+                        f.Found = (UCase$(SafeStr(v(i, SW_STATUS))) <> "VOID"): f.Rows = 1
+                        f.Emp = SafeStr(v(i, SW_OFF)): f.Partner = SafeStr(v(i, SW_WORKS)): f.Unit = SafeStr(v(i, SW_UNIT))
+                        f.ShiftDate = AsDate(v(i, SW_DATE)): f.ShiftLbl = SafeStr(v(i, SW_SHIFT))
+                        t = "Shift switch " & f.Ref & IIf(f.Found, "", " (already VOID)") & vbNewLine & _
+                            "  " & f.Emp & " gives up " & Format$(f.ShiftDate, "ddd mmm d") & " " & f.ShiftLbl & " (" & f.Unit & "); " & f.Partner & " works it." & vbNewLine & _
+                            IIf(SafeStr(v(i, SW_PAYFOR)) <> "", "  Payback for " & SafeStr(v(i, SW_PAYFOR)) & vbNewLine, "") & _
+                            IIf(SafeStr(v(i, SW_PAIDBY)) <> "", "  Paid back by " & SafeStr(v(i, SW_PAIDBY)) & vbNewLine, "") & _
+                            "  Changes nobody's Total Hours; it changes who is free and the 16 h rule's reading."
+                        Exit For
+                    End If
+                Next i
+            End If
+        Case "AB", "SC"
+            v = AbsTableData()
+            If IsArray(v) Then
+                For i = 1 To UBound(v, 1)
+                    If UCase$(Trim$(SafeStr(v(i, 1)))) = f.Ref Then
+                        f.Found = (UCase$(SafeStr(v(i, AB_STATUS))) <> "VOID"): f.Rows = 1
+                        f.Emp = SafeStr(v(i, AB_EMP)): f.Unit = SafeStr(v(i, AB_UNIT))
+                        f.DFrom = AsDate(v(i, AB_START)): f.DTo = AsDate(v(i, AB_END))
+                        t = IIf(f.Kind = "SC", "Sick call ", "Time off ") & f.Ref & IIf(f.Found, "", " (already VOID)") & vbNewLine & _
+                            "  " & f.Emp & "  " & SafeStr(v(i, AB_TYPE)) & "  " & Format$(f.DFrom, "ddd mmm d") & _
+                            IIf(f.DTo > 0, " - " & Format$(f.DTo, "ddd mmm d"), " - open-ended") & " (" & f.Unit & ")" & vbNewLine & _
+                            "  Changes nobody's Total Hours; its calendar lines and covers stay (release them on the Calendar if the cover was wrong)."
+                        Exit For
+                    End If
+                Next i
+            End If
+        Case Else
+            v = LogRowsNow()
+            If IsArray(v) Then
+                Set who = CreateObject("Scripting.Dictionary"): who.CompareMode = vbTextCompare
+                For i = 1 To UBound(v, 1)
+                    If UCase$(Trim$(SafeStr(v(i, L_REF)))) = f.Ref And UCase$(SafeStr(v(i, L_STATUS))) <> "VOID" Then
+                        f.Rows = f.Rows + 1
+                        If f.Rows = 1 Then
+                            f.Unit = SafeStr(v(i, L_DEPT)): f.ShiftDate = AsDate(v(i, L_DATE)): f.ShiftLbl = SafeStr(v(i, L_SHIFTLBL))
+                            f.Hours = Val(SafeStr(v(i, L_BASEHRS))): f.Emp = SafeStr(v(i, L_EMP))
+                            t = SafeStr(v(i, L_TYPE)) & " " & f.Ref & "  -  " & Format$(f.ShiftDate, "ddd mmm d") & "  " & f.Unit & "  " & f.ShiftLbl & _
+                                IIf(f.Hours > 0, "  " & Format$(f.Hours, "0.##") & " h", "") & IIf(SafeStr(v(i, L_TASK)) <> "", "  (" & SafeStr(v(i, L_TASK)) & ")", "") & vbNewLine
+                        End If
+                        If f.Rows <= 25 Then t = t & "  " & SafeStr(v(i, L_EMP)) & "  " & SafeStr(v(i, L_OUTCOME)) & _
+                                                IIf(Val(SafeStr(v(i, L_CHARGED))) > 0, "  " & Format$(Val(SafeStr(v(i, L_CHARGED))), "0.##") & " h charged", "") & vbNewLine
+                        who(SafeStr(v(i, L_EMP))) = who(SafeStr(v(i, L_EMP))) + Val(SafeStr(v(i, L_CHARGED)))
+                    End If
+                Next i
+                If f.Rows > 25 Then t = t & "  ...and " & (f.Rows - 25) & " more" & vbNewLine
+                f.Found = (f.Rows > 0)
+                If f.Found Then
+                    t = t & "What it changed (Total Hours):" & vbNewLine
+                    Dim anyHit As Boolean
+                    For Each k In who.Keys
+                        If who(k) <> 0 Then t = t & "  " & k & "  +" & Format$(who(k), "0.##") & " h" & vbNewLine: anyHit = True
+                    Next k
+                    If Not anyHit Then t = t & "  nobody's (no hours charged)" & vbNewLine
+                End If
+            End If
+    End Select
+    If Not f.Found And t = "" Then t = "No live entry with the Ref " & f.Ref & " (a typo, or already voided)."
+    f.Text = t
+Quit:
+    FixEntryFacts = f
+End Function
+
+' The void, by kind, through the existing paths; msg says what happened. False when nothing was voided. The P- case is
+' refused here: an award is withdrawn (the refusals stay charged) - the card points at Withdraw an award.
+Public Function FixEntryVoid(ByRef f As FixFacts, ByVal why As String, ByRef msg As String) As Boolean
+    msg = ""
+    If Trim$(why) = "" Then msg = "A reason is required.": Exit Function
+    If Not f.Found Then msg = "Nothing live to void for " & f.Ref & ".": Exit Function
+    Select Case f.Kind
+        Case "P"
+            msg = "An award is not voided here: use Withdraw an award / edit a posting (the refusals stay charged, the line is released, then a call-out is offered)."
+        Case "SS"
+            If VoidSwitch(f.Ref, why) Then FixEntryVoid = True: msg = "Switch " & f.Ref & " is VOID."
+        Case "AB", "SC"
+            If VoidAbsence(f.Ref, why) Then FixEntryVoid = True: msg = "Absence " & f.Ref & " is VOID (its calendar lines stay)."
+        Case Else
+            Dim calN As Long, n As Long
+            n = VoidRef(f.Ref, why, calN)
+            If n > 0 Then FixEntryVoid = True: msg = n & " row" & IIf(n = 1, "", "s") & " of " & f.Ref & " VOID" & IIf(calN > 0, "; " & calN & " calendar line" & IIf(calN = 1, "", "s") & " released", "") & "."
+        End Select
+    If Not FixEntryVoid And msg = "" Then msg = "The void did not go through (the box said why)."
+End Function
+
+' "Re-enter it now?": the right pop-up, pre-filled from the voided facts. Returns the Ref ID the re-entry got ("" when
+' nothing was saved, or the kind has no pop-up to pre-fill: the message names the button to use).
+Public Function FixEntryReenter(ByRef f As FixFacts, ByRef msg As String) As String
+    Dim rec0 As String: rec0 = gReceipt.Recorded
+    msg = ""
+    Select Case f.Kind
+        Case "S"
+            If LogTable() Is Nothing Then Exit Function
+            Load frmOvertimeEntry
+            frmOvertimeEntry.Prefill f.Unit, f.ShiftDate, f.ShiftLbl, "Re-entered after " & f.Ref, IIf(f.Hours > 0, f.Hours, 0), ""
+            frmOvertimeEntry.Show
+            RefreshCalendar
+        Case "ADJ"
+            Dim r As Long: r = RosterRowOf(f.Emp)
+            If r = 0 Then msg = f.Emp & " is not on the roster: Add Adjustment from the roster by hand.": Exit Function
+            RosterSheet().Activate
+            RosterSheet().Cells(r, C_NAME).Select
+            AddAdjustment
+        Case "SS"
+            If SwitchTable(True) Is Nothing Then Exit Function
+            frmShiftSwitch.Prefill f.Emp, f.Partner, f.ShiftDate, f.ShiftLbl, f.Unit, "Fix an entry (was " & f.Ref & ")"
+            frmShiftSwitch.Show
+        Case "AB", "SC"
+            If AbsTable(True) Is Nothing Then Exit Function
+            If CovTable(True) Is Nothing Then Exit Function
+            frmTimeOff.Prefill f.Emp, f.DFrom, IIf(f.DTo > 0, f.DTo, f.DFrom), "Fix an entry (was " & f.Ref & ")"
+            frmTimeOff.Show
+            RefreshCalendar
+        Case "LV"
+            msg = "Re-enter the leave through Leave: going or returning (no pre-fill for a leave return)."
+            Exit Function
+        Case "UM", "NH"
+            msg = "Re-enter it through Change a person (the Employee pop-up: a move or a new hire)."
+            Exit Function
+        Case Else
+            msg = "No pop-up re-enters a " & f.Kind & "- entry; " & PRIMARY_ADMIN_NAME & " enters it by hand."
+            Exit Function
+    End Select
+    If gReceipt.Recorded <> rec0 Then FixEntryReenter = FirstRefIn(gReceipt.Recorded)
+    If FixEntryReenter = "" Then msg = "Nothing was saved from the pop-up."
+End Function
+
+' the Feedback rows for the old Ref: resolved with the new Ref, or "void" when it was not re-entered
+Public Sub FixEntryDone(ByVal oldRef As String, ByVal newRef As String)
+    On Error Resume Next                            ' never raises
+    ResolveFeedback oldRef, IIf(Trim$(newRef) = "", "void", Trim$(newRef))
+End Sub
+
+' Alt+F8 / the Lite Desk's Corrections card: the card
+Public Sub ShowFixEntry()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If LogTable() Is Nothing Then Exit Sub
+    frmFixEntry.Show
+    Exit Sub
+Oops:
+    ReportError "ShowFixEntry"
+End Sub
 
 ' ====================================================================
 '  HELPERS

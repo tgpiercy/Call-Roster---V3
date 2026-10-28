@@ -1321,6 +1321,11 @@ Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
         If ResolveFeedback(fbRef, "SMK-" & fbRef) < 1 Then why = "ResolveFeedback marked no row for " & fbRef: Exit Function
         If UnresolvedNoCount() <> un0 Then why = "ResolveFeedback left the No unresolved": Exit Function
         st.Note = st.Note & "; a No on " & fbRef & " resolved"
+        ' v29 (item 4): Fix an entry reads the Ref's facts (the rows are VOID by now or live: either reads); a made-up Ref is not found
+        Dim ff As FixFacts: ff = FixEntryFacts(fbRef)
+        If ff.Ref <> UCase$(fbRef) Or ff.Text = "" Then why = "FixEntryFacts gave nothing for " & fbRef: Exit Function
+        ff = FixEntryFacts("ZZ-9999")
+        If ff.Found Then why = "FixEntryFacts found a made-up Ref": Exit Function
     Else
         st.Note = st.Note & "; no receipt Ref on screen - the resolve round trip skipped"
     End If

@@ -1,0 +1,200 @@
+Option Explicit
+' @version v28 (Oct 27)
+
+' ================================================================
+' FIX AN ENTRY (v29, item 4; briefs/admin-lite.md): the guided correction
+'  for the Admin Lite Desk's Corrections card, for any admin. Pick a Ref ID
+'  from the receipts answered No / Not sure, or type one; see every row it
+'  wrote and whose Total Hours it moved; Void with a reason (the existing
+'  void path: VoidRef / VoidSwitch / VoidAbsence, their backup, verify and
+'  NoSave); "Re-enter it now?" opens the right pop-up pre-filled; the
+'  Feedback rows are marked resolved with the new Ref ("void" if not
+'  re-entered). The work is modLite's FixEntry* functions. Every control is
+'  built in code below (new form: Insert > UserForm, name it frmFixEntry,
+'  paste this).
+' ================================================================
+
+Private WithEvents mShow As MSForms.CommandButton
+Private WithEvents mVoid As MSForms.CommandButton
+Private WithEvents mReenter As MSForms.CommandButton
+Private WithEvents mClose As MSForms.CommandButton
+Private WithEvents mPick As MSForms.ComboBox
+Private mRef As Object
+Private mView As Object
+Private mWhy As Object
+Private mHint As Object
+Private mFacts As FixFacts
+Private mVoided As Boolean
+Private mResolved As Boolean
+
+Private Const LBL_L As Long = 14
+Private Const BOX_W As Long = 500
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, ByVal L As Single, ByVal T As Single, _
+                        ByVal W As Single, ByVal H As Single) As Object
+    Set AddCtl = FormAddCtl(Me, progId, "fx_" & nm, L, T, W, H)          ' the shared builder (modUI)
+End Function
+
+Private Function AddLabel(ByVal nm As String, ByVal cap As String, ByVal L As Single, ByVal T As Single, ByVal W As Single) As Object
+    Set AddLabel = FormAddLabel(Me, "fx_" & nm, cap, L, T, W)
+End Function
+
+Private Sub UserForm_Initialize()
+    Dim old As Object
+    For Each old In Me.Controls
+        old.Visible = False: old.Enabled = False
+    Next old
+    Me.Caption = "Fix an entry"
+    Me.Width = 530
+
+    Dim o As Object, y As Single
+    Set o = AddLabel("hdr", "FIX AN ENTRY", LBL_L, 8, BOX_W)
+    o.Font.Bold = True: o.Font.Size = 11: o.ForeColor = RGB(30, 56, 100)
+    Set o = AddLabel("sub", "Void a wrong entry (a reason is required), then re-enter it. The void and the re-entry are the roster's own: nothing is edited in place.", LBL_L, 26, BOX_W)
+    o.Height = 26: o.WordWrap = True: o.Font.Size = 8: o.ForeColor = RGB(120, 130, 140)
+    y = 56
+    AddLabel "lPick", "Asked for:", LBL_L, y + 3, 70
+    Set mPick = AddCtl("Forms.ComboBox.1", "cboPick", LBL_L + 74, y, BOX_W - 74, 20)
+    mPick.Style = 2                              ' pick from the receipts answered No / Not sure
+    mPick.ListRows = 10
+    Dim v As Variant, i As Long
+    v = UnresolvedNoRefs()
+    If IsArray(v) Then
+        For i = 1 To UBound(v, 1)
+            mPick.AddItem v(i, 1) & "  -  " & v(i, 2) & IIf(Trim$(CStr(v(i, 3))) <> "", "  """ & Left$(Trim$(CStr(v(i, 3))), 50) & """", "") & "  (" & Format$(v(i, 4), "ddd mmm d") & ")"
+        Next i
+    Else
+        mPick.AddItem "(no receipt answered No or Not sure is waiting)"
+        mPick.Enabled = False
+    End If
+    y = y + 26
+    AddLabel "lRef", "or a Ref ID:", LBL_L, y + 3, 70
+    Set mRef = AddCtl("Forms.TextBox.1", "txtRef", LBL_L + 74, y, 120, 20)
+    mRef.ControlTipText = "S-0012, ADJ-0003, SS-0040, AB-0120 ..."
+    Set mShow = AddCtl("Forms.CommandButton.1", "cmdShow", LBL_L + 202, y - 1, 90, 22)
+    mShow.Caption = "Show it"
+    y = y + 28
+    Set o = AddLabel("hView", "WHAT IT WROTE, AND WHOSE HOURS IT MOVED", LBL_L, y, BOX_W)
+    o.Font.Bold = True: o.ForeColor = RGB(30, 56, 100)
+    Set mView = AddCtl("Forms.TextBox.1", "txtView", LBL_L, y + 16, BOX_W, 150)
+    mView.MultiLine = True: mView.WordWrap = True: mView.Locked = True: mView.ScrollBars = 2
+    mView.BackColor = RGB(250, 250, 252): mView.Font.Size = 9.5
+    mView.Text = "Pick an entry above, or type its Ref ID, then Show it."
+    y = y + 16 + 150 + 10
+    AddLabel "lWhy", "Reason:", LBL_L, y + 3, 70
+    Set mWhy = AddCtl("Forms.TextBox.1", "txtWhy", LBL_L + 74, y, BOX_W - 74, 20)
+    mWhy.MaxLength = 120
+    mWhy.ControlTipText = "Required: goes into the Void Note with your login and the time"
+    y = y + 30
+    Set mVoid = AddCtl("Forms.CommandButton.1", "cmdVoid", LBL_L, y, 150, 28)
+    mVoid.Caption = "Void this entry"
+    mVoid.Enabled = False
+    Set mReenter = AddCtl("Forms.CommandButton.1", "cmdReenter", LBL_L + 158, y, 150, 28)
+    mReenter.Caption = "Re-enter it now?"
+    mReenter.Enabled = False
+    Set mClose = AddCtl("Forms.CommandButton.1", "cmdClose", LBL_L + BOX_W - 90, y, 90, 28)
+    mClose.Caption = "Close"
+    mClose.Cancel = True
+    y = y + 34
+    Set mHint = AddLabel("hint", "Step 1: Show it.  Step 2: a reason, then Void.  Step 3: Re-enter it now? opens the right pop-up pre-filled; its receipt shows the new entry.", LBL_L, y, BOX_W)
+    mHint.Height = 26: mHint.WordWrap = True: mHint.Font.Size = 8: mHint.ForeColor = RGB(120, 130, 140)
+    Me.Height = y + 26 + 36
+
+    ApplyFormTheme Me
+    mVoid.BackColor = RGB(176, 0, 32): mVoid.ForeColor = vbWhite
+    mReenter.BackColor = RGB(0, 128, 70): mReenter.ForeColor = vbWhite
+    mClose.BackColor = RGB(30, 56, 100): mClose.ForeColor = vbWhite
+    ScaleForm Me                                 ' x UI_SCALE (modUI), the last line
+End Sub
+
+Private Function PickedRef() As String
+    Dim s As String: s = Trim$(mRef.Text)
+    If s = "" And mPick.ListIndex >= 0 And mPick.Enabled Then
+        s = mPick.List(mPick.ListIndex)
+        If InStr(s, "  -  ") > 0 Then s = Left$(s, InStr(s, "  -  ") - 1)
+    End If
+    PickedRef = UCase$(Trim$(s))
+End Function
+
+Private Sub ShowFacts()
+    Dim ref As String: ref = PickedRef()
+    If ref = "" Then mView.Text = "Pick an entry above, or type its Ref ID.": Exit Sub
+    If mVoided And ref <> mFacts.Ref Then ResolveIfLeft      ' moving on from a voided one that was not re-entered
+    mFacts = FixEntryFacts(ref)
+    mVoided = False: mResolved = False
+    mView.Text = Replace(mFacts.Text, vbNewLine, vbCrLf)
+    mVoid.Enabled = mFacts.Found And mFacts.Kind <> "P"
+    mReenter.Enabled = False
+    If mFacts.Kind = "P" And mFacts.Found Then
+        mHint.Caption = "An award: use Withdraw an award / edit a posting on the full Desk (the refusals stay charged; a call-out is offered after)."
+    ElseIf mFacts.Found Then
+        mHint.Caption = "Step 2: type the reason, then Void this entry."
+    Else
+        mHint.Caption = "Nothing live to void. A Not sure about an entry that is right needs no fix: Close marks it looked at."
+    End If
+End Sub
+
+Private Sub mPick_Change()
+    mRef.Text = ""
+    ShowFacts
+End Sub
+
+Private Sub mShow_Click()
+    ShowFacts
+End Sub
+
+Private Sub mVoid_Click()
+    On Error GoTo Oops
+    If Not mFacts.Found Then Exit Sub
+    Dim why As String: why = Trim$(mWhy.Text)
+    If why = "" Then mHint.Caption = "A reason is required before the void.": mWhy.SetFocus: Exit Sub
+    If Ask("Void " & mFacts.Ref & "?" & vbNewLine & vbNewLine & Left$(mFacts.Text, 400) & vbNewLine & vbNewLine & _
+           "Reason: " & why & vbNewLine & "This cannot be undone (a new entry replaces it).", vbYesNo + vbQuestion, "Fix an entry", vbYes) <> vbYes Then Exit Sub
+    Dim msg As String
+    Me.Hide                                          ' the void's own boxes show over the roster
+    If FixEntryVoid(mFacts, why, msg) Then
+        mVoided = True
+        mView.Text = "VOIDED: " & msg & vbCrLf & vbCrLf & Replace(mFacts.Text, vbNewLine, vbCrLf)
+        mVoid.Enabled = False
+        mReenter.Enabled = True
+        mHint.Caption = "Step 3: Re-enter it now? opens the right pop-up pre-filled. Close instead marks the receipt's answer resolved as voided."
+    Else
+        mHint.Caption = msg
+    End If
+    Me.Show
+    Exit Sub
+Oops:
+    Me.Show
+    ReportError "frmFixEntry.Void"
+End Sub
+
+Private Sub mReenter_Click()
+    On Error GoTo Oops
+    If Not mVoided Then Exit Sub
+    Dim msg As String, newRef As String
+    Me.Hide
+    newRef = FixEntryReenter(mFacts, msg)
+    FixEntryDone mFacts.Ref, newRef
+    mResolved = True
+    Tell IIf(newRef <> "", mFacts.Ref & " was voided and re-entered as " & newRef & ". The receipt's answer is marked resolved with " & newRef & ".", _
+             mFacts.Ref & " is voided; nothing re-entered" & IIf(msg <> "", " - " & msg, "") & " The receipt's answer is marked resolved as voided."), _
+         vbInformation, "Fix an entry"
+    Unload Me
+    Exit Sub
+Oops:
+    ReportError "frmFixEntry.Reenter"
+End Sub
+
+' a voided entry nobody re-entered: its Feedback rows are resolved as "void"
+Private Sub ResolveIfLeft()
+    If mVoided And Not mResolved Then FixEntryDone mFacts.Ref, "": mResolved = True
+End Sub
+
+Private Sub mClose_Click()
+    ResolveIfLeft
+    Unload Me
+End Sub
+
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    ResolveIfLeft
+End Sub

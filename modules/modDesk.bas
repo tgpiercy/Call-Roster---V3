@@ -1012,11 +1012,12 @@ Oops:
     ReportError "DeskLiteAward"
 End Sub
 
-' v29: the Corrections card - Fix an entry (item 4 brings the guided card; until then the Feedback sheet)
+' v29: the Corrections card - Fix an entry (item 4: the guided card, modLite.ShowFixEntry); the Desk redrawn after
 Public Sub DeskFixEntry()
     On Error GoTo Oops
     GuideTick 4, True                                ' the Lite strip: a correction looked at
-    ShowFeedback
+    ShowFixEntry
+    DeskRefreshIfShown
     Exit Sub
 Oops:
     ReportError "DeskFixEntry"

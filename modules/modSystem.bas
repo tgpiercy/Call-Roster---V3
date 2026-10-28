@@ -41,7 +41,7 @@ Private Const OP_N As Long = 7
 Private Const OPENS_KEEP_DAYS As Long = 90
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
 Private Const FORM_RELEASES As String = "frmOvertimeEntry|v27,frmNewPosting|v27.1,frmPostingEntry|v27,frmShiftSwitch|v28," & _
-                                        "frmTimeOff|v28,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v28,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
+                                        "frmTimeOff|v28,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v28,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1,frmFixEntry|v28"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
 
 Private mBackupWarned As Boolean
 Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time

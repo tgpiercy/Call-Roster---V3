@@ -485,9 +485,9 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
         Case "mvstored"                            ' v29 (item 1): the stored members' folder value, this file is a COPY Y/N -> the path / none
             Dim msS As String: msS = StoredPathCore(i1, (i2 = "Y"))
             RunCaseV271 = IIf(msS = "", "none", msS)
-        Case "mvtarget"                            ' v29 (item 1): master now, master new, members new, master ok Y/N|members ok Y/N -> ok / why not
+        Case "mvtarget"                            ' v29 (item 1): master now, master new, members new, master ok Y/N|members ok Y/N, members now -> ok / why not
             Dim mtO As Variant: mtO = Split(i4 & "|", "|")
-            Dim mtS As String: mtS = MoveTargetProblem(i1, i2, i3, (CStr(mtO(0)) = "Y"), (CStr(mtO(1)) = "Y"))
+            Dim mtS As String: mtS = MoveTargetProblem(i1, i2, i3, (CStr(mtO(0)) = "Y"), (CStr(mtO(1)) = "Y"), i5)
             RunCaseV271 = IIf(mtS = "", "ok", mtS)
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
@@ -2321,5 +2321,8 @@ Private Sub LoadCases6()
     AddCase "mvtarget,members-may-equal-master,C:\Old\,P:\Super\,P:\Super\,Y|Y,,ok"
     AddCase "reqref,switch-with-sick-ref,Switch|Booked,SC-0007,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind"
     AddCase "reqref,time-off-with-lower-case-ss,Time off|Booked,ss-0040,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind"
+    AddCase "mvtarget,members-same-as-master-now,C:\Old\,P:\Super\,c:\old,Y|Y,P:\OldMembers\,the new members' folder is the folder the roster is in now (the inbox would be moved onto itself)"
+    AddCase "mvtarget,members-same-as-current-members,C:\Old\,P:\Super\,p:\oldmembers,Y|Y,P:\OldMembers\,the new members' folder is the members' folder in use now"
+    AddCase "mvtarget,members-now-blank-is-no-test,C:\Old\,P:\Super\,P:\Members\,Y|Y,,ok"
 ' <<< CASES
 End Sub

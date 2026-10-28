@@ -516,6 +516,7 @@ Public Sub ExportTablesOnOpen()
     On Error GoTo Quit
     If Not IsAdmin() Then Exit Sub                  ' (review H1) the brief's "admin, daily on open"
     If ThisWorkbook.ReadOnly Then Exit Sub
+    If MovedToPath() <> "" Then Exit Sub            ' v29 (review M1): the frozen copy of a moved roster exports nothing
     If IsDryRunName(ThisWorkbook.Name) Or IsBackupCopyName(ThisWorkbook.Name) Then Exit Sub
     If Trim$(BACKUP_FOLDER) = "" Then Exit Sub
     Dim root As String: root = EnsureSlash(BackupFolderPath())

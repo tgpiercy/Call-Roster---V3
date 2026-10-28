@@ -315,6 +315,8 @@ Public Sub SystemCheck()
         msg = "CHECK:" & vbNewLine & warn & vbNewLine & info
     End If
     MsgBox msg, IIf(warn = "", vbInformation, vbExclamation), "System check  (" & EXPECTED_RELEASE & ")"
+    ' v29 (item 1; review M4): the one-line-per-path block in its own box (the first box is capped at about 1,024 characters)
+    If MovePathBlock() <> "" Then MsgBox MovePathBlock(), vbInformation, "System check - the paths  (" & EXPECTED_RELEASE & ")"
     Exit Sub
 Oops:
     ReportError "SystemCheck"
@@ -329,7 +331,8 @@ Public Function SystemCheckText() As String
     On Error GoTo Oops
     Dim warn As String, info As String, verOk As Boolean
     SystemCheckBuild warn, info, verOk
-    SystemCheckText = IIf(warn = "", "Everything looks right.", "CHECK: " & warn) & vbNewLine & info
+    SystemCheckText = IIf(warn = "", "Everything looks right.", "CHECK: " & warn) & vbNewLine & info & _
+                      IIf(MovePathBlock() <> "", "Paths:" & vbNewLine & MovePathBlock(), "")    ' v29: the Install Log keeps the path lines too
     Exit Function
 Oops:
     SystemCheckText = "SystemCheck could not run: " & Err.Description
@@ -622,9 +625,10 @@ End Function
 Public Sub OpenChecks()
     On Error Resume Next                            ' never raises
     If MovedToPath() <> "" Then                     ' v29 (item 1): the old copy of a moved roster - frozen, whoever opens it
+        gNoSaveOnClose = True                       ' (review H6) the close-time save and Ctrl+S are off: nothing this open wrote is kept
         MsgBox "This roster MOVED to" & vbNewLine & MovedToPath() & vbNewLine & "on " & MovedToWhen() & "." & vbNewLine & vbNewLine & _
                "This copy is frozen: nothing can be logged, saved or published in it. Close it and open the new one. " & _
-               "If this file still has the live name, rename it MOVED - ... so nobody opens it by mistake.", vbExclamation, "Moved roster"
+               "If this file still has the live name, rename it MOVED " & Format$(Date, "yyyy-mm-dd") & " - ... so nobody opens it by mistake.", vbExclamation, "Moved roster"
         Exit Sub
     End If
     MoveFirstOpen                                   ' v29 (item 1): the first admin open after a move (modMove)
@@ -691,6 +695,7 @@ End Function
 Public Sub FirstOpenOnOpen()
     On Error Resume Next                            ' never raises
     If CurrentUser() = "" Or gSmokeRun Then Exit Sub
+    If MovedToPath() <> "" Then Exit Sub            ' v29: the frozen copy of a moved roster shows its own box only
     Dim nmKey As String: nmKey = LoginNameKey("FirstOpen")
     Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(nmKey)
     If Not nmObj Is Nothing Then Exit Sub
@@ -787,6 +792,7 @@ End Function
 Public Sub WhatsNewOnOpen()
     On Error Resume Next                            ' never raises
     If CurrentUser() = "" Then Exit Sub
+    If MovedToPath() <> "" Then Exit Sub            ' v29: the frozen copy of a moved roster shows its own box only
     Dim nmObj As Name
     Set nmObj = ThisWorkbook.Names(WhatsNewName())
     If Not nmObj Is Nothing Then

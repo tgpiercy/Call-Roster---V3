@@ -615,18 +615,29 @@ Private Sub LayoutHistory()
     ProtectWs ws
 End Sub
 
+' M6 (v29): the signed-in user's Downloads folder - Windows' own answer first (a relocated Downloads folder included), then
+' the profile's Downloads, then the user's TEMP (never the members' folder: read-only to members once the files split)
+Private Function DownloadsFolder() As String
+    On Error Resume Next                            ' never raises
+    Dim sh As Object, ns As Object, p As String
+    Set sh = CreateObject("Shell.Application")
+    If Not sh Is Nothing Then
+        Set ns = sh.Namespace("shell:Downloads")
+        If Not ns Is Nothing Then p = ns.Self.Path
+    End If
+    If p = "" Or Dir$(p, vbDirectory) = "" Then p = Environ$("USERPROFILE") & Application.PathSeparator & "Downloads"
+    If Dir$(p, vbDirectory) = "" Then p = Environ$("TEMP")
+    DownloadsFolder = p
+End Function
+
 ' M3: My history as a PDF ("History <name> <date>.pdf"), then "print as well?". M6 (v29; Graeme, Oct 27): the PDF goes to the
-' signed-in user's Downloads folder - the members' folder is read-only to members once the files split - beside this file
-' only when there is no Downloads folder.
+' signed-in user's Downloads folder (DownloadsFolder), never beside the members' file.
 Public Sub MemberHistoryPrint()
     Dim ws As Worksheet: Set ws = WsOf(SH_HIST)
     Dim nm As String: nm = Txt(ws.Range(HIST_NAME).Value)
     If nm = "" Then MsgBox "Pick a name above first.", vbInformation, "My history": Exit Sub
     Dim pdfPath As String, em As String, folder As String
-    folder = Environ$("USERPROFILE") & Application.PathSeparator & "Downloads"
-    On Error Resume Next
-    If Dir$(folder, vbDirectory) = "" Then folder = ThisWorkbook.Path
-    On Error GoTo 0
+    folder = DownloadsFolder()
     pdfPath = folder & Application.PathSeparator & "History " & SafeName(Replace(nm, " ", "_")) & " " & Format$(Date, "yyyy-mm-dd") & ".pdf"
     On Error Resume Next
     With ws.PageSetup
@@ -639,12 +650,15 @@ Public Sub MemberHistoryPrint()
         IncludeDocProperties:=False, IgnorePrintAreas:=False, OpenAfterPublish:=False
     If Err.Number <> 0 Then em = Err.Description
     Err.Clear
+    Dim doPrint As Boolean
     If em <> "" Then
-        MsgBox "The PDF couldn't be saved here (" & em & "). Print instead?", vbExclamation, "My history"
+        doPrint = (MsgBox("The PDF couldn't be saved in " & folder & " (" & em & "). Print it instead?", vbYesNo + vbExclamation, "My history") = vbYes)
     Else
-        MsgBox "PDF saved: " & pdfPath, vbInformation, "My history"
+        doPrint = (MsgBox("PDF saved in your " & IIf(InStr(1, folder, "Downloads", vbTextCompare) > 0, "Downloads folder", "folder " & folder) & ":" & vbNewLine & pdfPath & vbNewLine & vbNewLine & _
+                          "Print My history as well?", vbYesNo + vbInformation, "My history") = vbYes)
     End If
-    If MsgBox("Print My history as well?", vbYesNo + vbQuestion, "My history") = vbYes Then
+    If doPrint Then
+        Err.Clear
         ws.PrintOut Copies:=1
         If Err.Number <> 0 Then MsgBox "It couldn't be printed: " & Err.Description, vbExclamation, "My history"
     End If

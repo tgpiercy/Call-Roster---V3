@@ -1414,7 +1414,8 @@ def request_ref_problem(kind: str, status: str, ref: str, target_found: bool, ta
 
 # ---- v29 (item 1): the guided move (modMove StoredPathCore / MoveTargetProblem; suites mvstored / mvtarget) ----
 def ensure_slash(p: str) -> str:
-    """modOvertimeEntry.EnsureSlash: a trailing backslash on a non-empty path."""
+    """A trailing backslash on a path (modOvertimeEntry.EnsureSlash gives '\\' for ''; the cores below treat '' and '\\'
+    alike, so the mirror keeps '' as '')."""
     return p if p == "" or p.endswith("\\") else p + "\\"
 
 
@@ -1428,15 +1429,21 @@ def stored_path(value: str, is_copy: bool) -> str:
     return p if (flag == "L" and not is_copy) or (flag == "R" and is_copy) else ""
 
 
-def move_target_problem(master_now: str, master_new: str, members_new: str, master_ok: bool, members_ok: bool) -> str:
-    """modMove.MoveTargetProblem: '' when the two folders will do, else why not."""
-    master_now, master_new, members_new = (ensure_slash(x.strip(" ")).lower() for x in (master_now, master_new, members_new))
+def move_target_problem(master_now: str, master_new: str, members_new: str, master_ok: bool, members_ok: bool,
+                        members_now: str = "") -> str:
+    """modMove.MoveTargetProblem: '' when the two folders will do, else why not (the inbox is never moved onto itself)."""
+    master_now, master_new, members_new, members_now = (ensure_slash(x.strip(" ")).lower()
+                                                        for x in (master_now, master_new, members_new, members_now))
     if master_new.strip(" ") in ("", "\\"):
         return "no master folder was given"
     if members_new.strip(" ") in ("", "\\"):
         return "no members' folder was given"
     if master_new == master_now:
         return "the new master folder is the folder the roster is in now"
+    if members_new == master_now:
+        return "the new members' folder is the folder the roster is in now (the inbox would be moved onto itself)"
+    if members_now not in ("", "\\") and members_new == members_now:
+        return "the new members' folder is the members' folder in use now"
     if not master_ok:
         return "the new master folder can't be reached or written: " + master_new
     if not members_ok:

@@ -1130,3 +1130,6 @@ mvtarget,members-unreachable,C:\Old\,P:\Super\,P:\Members\,Y|N,,the new members'
 mvtarget,members-may-equal-master,C:\Old\,P:\Super\,P:\Super\,Y|Y,,ok
 reqref,switch-with-sick-ref,Switch|Booked,SC-0007,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind
 reqref,time-off-with-lower-case-ss,Time off|Booked,ss-0040,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind
+mvtarget,members-same-as-master-now,C:\Old\,P:\Super\,c:\old,Y|Y,P:\OldMembers\,the new members' folder is the folder the roster is in now (the inbox would be moved onto itself)
+mvtarget,members-same-as-current-members,C:\Old\,P:\Super\,p:\oldmembers,Y|Y,P:\OldMembers\,the new members' folder is the members' folder in use now
+mvtarget,members-now-blank-is-no-test,C:\Old\,P:\Super\,P:\Members\,Y|Y,,ok

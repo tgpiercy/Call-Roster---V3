@@ -112,6 +112,7 @@ End Sub
 ' roster open for editing by a supervisor or an admin - not a practice copy, not a backup or frozen copy
 Private Function MayPublishHere() As Boolean
     If ThisWorkbook.ReadOnly Then Exit Function
+    If MovedToPath() <> "" Then Exit Function      ' v29: the frozen copy of a moved roster never asks to publish
     If Not IsSupervisor() Then Exit Function
     If IsDryRunName(ThisWorkbook.Name) Then Exit Function
     If IsBackupCopyName(ThisWorkbook.Name) Then Exit Function

@@ -326,9 +326,9 @@ def evaluate(row: dict) -> str:
         return str(rules.bar_cells(float(i1), float(i2), int(i3)))
     if suite == "mvstored":                      # v29 (the move): the stored members' folder value, this file is a COPY Y/N -> the path / none
         return rules.stored_path(i1, i2 == "Y") or "none"
-    if suite == "mvtarget":                      # v29 (the move): master now, master new, members new, master ok Y/N|members ok Y/N -> ok / why not
+    if suite == "mvtarget":                      # v29 (the move): master now, master new, members new, master ok Y/N|members ok Y/N, members now -> ok / why not
         mo, _, me = (i4 + "|").partition("|")
-        return rules.move_target_problem(i1, i2, i3, mo == "Y", me.rstrip("|") == "Y") or "ok"
+        return rules.move_target_problem(i1, i2, i3, mo == "Y", me.rstrip("|") == "Y", i5) or "ok"
     if suite == "reqref":                        # v29 (IntegrityCheck 17): kind|status, ref, found Y/N|target status|names match Y/N, to|today -> Check|what / Note|what / none
         kind, _, status = (i1 + "|").partition("|")
         parts = (i3 + "||").split("|")

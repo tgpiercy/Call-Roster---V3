@@ -560,7 +560,7 @@ D14.5,the receipt's rows,#1 Lee Tredwell Refused 12 h charged 21; #2 Max Upton A
 D14.5,Total Hours before -> after,Lee Tredwell 139 -> 160; Max Upton 200.5 -> 212.5
 D14.5,P-0009 status,Awarded
 D14.5,pay period of the charges,starting Sun Nov 1
-D14.6,owed,SS-0001 Logan Juniper owes Hollis Orchard (Sat Sep 12 Days): Payback owed 63 days; SS-0002 Wren Fenwick-Ross owes Avery Ashgrove (Fri Nov 6 Days): Payback owed
+D14.6,owed,SS-0001 Hollis Orchard owes Logan Juniper (Sat Sep 12 Days): Payback owed 63 days; SS-0002 Wren Fenwick-Ross owes Avery Ashgrove (Fri Nov 6 Days): Payback owed
 D14.6,paid back,SS-0003 by SS-0004; SS-0005 by SS-0006
 D14.7,"A call-outs (year to date, all units): sessions / calls / filled",13 / 31 / 13
 D14.7,A outcomes accepted / refused / left message / unavailable / exception,13 / 10 / 5 / 2 / 1

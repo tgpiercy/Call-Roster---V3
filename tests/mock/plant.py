@@ -528,7 +528,7 @@ class Plant:
         max_rank = max(l.rank for l in lst if l.awarded)
         rows = self._posting_rows(pid, lst, "Awarded", when, user, max_rank)
         for row, l in zip(self.posting_lists[pid], lst):
-            row["result"] = l.result
+            row["result"], row["charged"] = l.result, l.charged
         p["status"] = "Awarded"
         p["award_to"] = "; ".join(n for n in awarded)
         covered, uncovered = rules.award_coverage(p["hours"], p["positions"], lst)
@@ -540,7 +540,7 @@ class Plant:
         lst = rules.compute_no_takers(p["hours"], self._listed(pid))
         rows = self._posting_rows(pid, lst, "No takers", when, user)
         for row, l in zip(self.posting_lists[pid], lst):
-            row["result"] = l.result
+            row["result"], row["charged"] = l.result, l.charged
         p["status"] = "No takers"
         return {"rows": rows, "charged": sum(l.charged for l in lst), "n_charged": sum(1 for l in lst if l.charged > 0)}
 
@@ -552,7 +552,7 @@ class Plant:
         hrs = self.total(out_name) if out_name in self.people else 0.0
         rows = self._posting_rows(pid, lst, "Awarded", when, user, 0, out_name, code, hrs, out_take)
         for row, l in zip(self.posting_lists[pid], lst):
-            row["result"] = l.result
+            row["result"], row["charged"] = l.result, l.charged
         p["status"] = "Awarded"
         p["award_to"] = f"{out_name} (out of dept)"
         return {"rows": rows, "charged": sum(l.charged for l in lst), "n_charged": sum(1 for l in lst if l.charged > 0)}

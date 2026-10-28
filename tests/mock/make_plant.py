@@ -154,8 +154,8 @@ def main() -> int:
         "vacation": who(people, "D", "Derivatives", 3),         # D Derivatives D2.5: vacation Nov 2-5, open lines Nov 2-3 days
         "leave": who(people, "B", "Derivatives", 1),            # B Derivatives D1: STD leave since Oct 5, returns Mon Nov 9
         "personal": who(people, "B", "Phosphine", 2),           # B Phosphine P2: a personal day Tue Nov 10 (B days)
-        "payback_owed": who(people, "C", "Cypure", 0),          # C Cypure G1: worked Sep 12 days for ...
-        "payback_owes": who(people, "A", "Cypure", 0),          # A Cypure G1: ... who still owes the payback
+        "payback_owed": who(people, "A", "Cypure", 0),          # A Cypure G1 (off Sat Sep 12): worked that day shift for ...
+        "payback_owes": who(people, "C", "Cypure", 0),          # C Cypure G1 (on days Sep 12): ... who gave it up and still owes the payback
         "restricted": who(people, "A", "Derivatives", 0),       # A Derivatives D1: OT restricted Nov 9-13
         "planned": who(people, "D", "Cypure", 1),               # D Cypure G2: planned move to Material Handler on Sun Nov 8
         "crew_change": mover,
@@ -164,25 +164,28 @@ def main() -> int:
     abs_rows = []       # id, emp, unit, type, start, end, hours, times, note, home, group, shift, status, entered by, entered at
     cov_rows = []       # coverage lines: date, shift, unit, left, right, source, kind, status, note
     sick = roles["sick_d1"]
-    abs_rows.append(["SC-0001", sick.name, "Phosphine", "SIC", "2026-08-18", "2026-08-18", 12, "", "", "Phosphine", "", "Days", "", "sheltond", "2026-08-18 06:20:00"])
-    abs_rows.append(["SC-0002", sick.name, "Phosphine", "SIC", "2026-09-22", "2026-09-22", 12, "", "", "Phosphine", "", "Nights", "", "campeauc", "2026-09-22 17:45:00"])
+    # two past occurrences ON crew A's scheduled shifts: the first A day shift from Aug 15, the first A night from Sep 20
+    s1 = first_shift("A", date(2026, 8, 15), "Days")
+    s2 = first_shift("A", date(2026, 9, 20), "Nights")
+    abs_rows.append(["SC-0001", sick.name, "Phosphine", "SIC", s1.isoformat(), s1.isoformat(), "", "", "", "Phosphine", "", "Days", "", "sheltond", f"{s1.isoformat()} 06:20:00"])
+    abs_rows.append(["SC-0002", sick.name, "Phosphine", "SIC", s2.isoformat(), s2.isoformat(), "", "", "", "Phosphine", "", "Nights", "", "campeauc", f"{s2.isoformat()} 17:45:00"])
     v = roles["vacation"]
-    abs_rows.append(["AB-0001", v.name, "Derivatives", "VAC", "2026-11-02", "2026-11-05", 12, "", "", "Derivatives", "", "", "", "piercyg", "2026-09-30 09:12:00"])
+    abs_rows.append(["AB-0001", v.name, "Derivatives", "VAC", "2026-11-02", "2026-11-05", "", "", "", "Derivatives", "", "", "", "piercyg", "2026-09-30 09:12:00"])
     cov_rows.append(["CV-0001", "2026-11-02", "Days", "Derivatives", f"{v.name} (Vac)", "", "AB-0001", "VAC", "", ""])
     cov_rows.append(["CV-0002", "2026-11-03", "Days", "Derivatives", f"{v.name} (Vac)", "", "AB-0001", "VAC", "", ""])
     lv = roles["leave"]
-    abs_rows.append(["AB-0002", lv.name, "Derivatives", "STD", "2026-10-05", "", 12, "", "", "Derivatives", "", "", "", "piercyg", "2026-10-05 08:30:00"])
+    abs_rows.append(["AB-0002", lv.name, "Derivatives", "STD", "2026-10-05", "", "", "", "", "Derivatives", "", "", "", "piercyg", "2026-10-05 08:30:00"])
     per = roles["personal"]
-    abs_rows.append(["AB-0003", per.name, "Phosphine", "PER", "2026-11-10", "2026-11-10", 12, "", "", "Phosphine", "", "", "", "piercyg", "2026-10-28 14:05:00"])
+    abs_rows.append(["AB-0003", per.name, "Phosphine", "PER", "2026-11-10", "2026-11-10", "", "", "", "Phosphine", "", "", "", "piercyg", "2026-10-28 14:05:00"])
     cov_rows.append(["CV-0003", "2026-11-10", "Days", "Phosphine", f"{per.name} (Personal)", "", "AB-0003", "PER", "", ""])
     old_vac = who(people, "C", "Phosphine", 3)
-    abs_rows.append(["AB-0004", old_vac.name, "Phosphine", "VAC", "2026-09-14", "2026-09-17", 12, "", "", "Phosphine", "", "", "", "piercyg", "2026-08-20 10:00:00"])
+    abs_rows.append(["AB-0004", old_vac.name, "Phosphine", "VAC", "2026-09-14", "2026-09-17", "", "", "", "Phosphine", "", "", "", "piercyg", "2026-08-20 10:00:00"])
     for a in abs_rows:
         plant.absences.append({"id": a[0], "emp": a[1], "unit": a[2], "type": a[3], "start": date.fromisoformat(a[4]),
                                "end": date.fromisoformat(a[5]) if a[5] else None, "hours": a[6], "shift": a[11], "status": a[12], "home": a[9]})
     # ---- switches: one payback owed since Sep 12 (50 days by Nov 1: over PAYBACK_WARN_DAYS 42)
     sw_rows = []        # id, date, shift, unit, off, off crew, works, works crew, pay for, paid by, note, status, entered by, entered at
-    sw_rows.append(["SS-0001", "2026-09-12", "Days", "Cypure", roles["payback_owes"].name, "A", roles["payback_owed"].name, "C",
+    sw_rows.append(["SS-0001", "2026-09-12", "Days", "Cypure", roles["payback_owes"].name, "C", roles["payback_owed"].name, "A",
                     "", "", "payback to be arranged", "Active", "mihaychukc", "2026-09-10 13:40:00"])
     plant.switches.append({"id": "SS-0001", "date": date(2026, 9, 12), "shift": "Days", "unit": "Cypure", "off": roles["payback_owes"].name,
                            "works": roles["payback_owed"].name, "payfor": "", "paidby": "", "status": "Active"})
@@ -224,7 +227,7 @@ def main() -> int:
             if ob < 0:
                 raise SystemExit(f"{p.name}: the target {TARGETS[i]} is under H {plant.worked[p.name]} + historic charges {hist_charges[p.name]}")
             r = plant.blank_row()
-            r.update({"Ref ID": f"OB-{i + 1:04d}", "Type": "Adjustment", "Shift Date": date(2026, 1, 4), "Unit": p.home, "Shift": "",
+            r.update({"Ref ID": f"OB-{i + 1:04d}", "Type": "Opening Balance", "Shift Date": date(2026, 1, 4), "Unit": p.home, "Shift": "",
                       "Crew": "", "Reason": "Opening balance", "Hours": 0, "Call Order": "", "Employee": p.name,
                       "Dept Code": p.codes[p.home], "Total Hrs Then": 0, "Outcome": "Adjustment",
                       "Note": "Opening balance: charges carried into 2026 before the roster went live", "Hours Charged": ob,
@@ -244,6 +247,20 @@ def main() -> int:
     #      loader's verify sees them - the plan reads the list as loaded)
     make_open_postings(plant, people, roles)
 
+    # the calendar lines the postings wrote: POSTED on P-0003's shift line (the vacation's Nov 3 line), need lines for
+    # P-0004 and P-0005, and P-0002's NO TAKERS line (CreatePostingFrom -> CalendarPosted; the award / no-takers outcome)
+    for c in cov_rows:
+        if c[6] == "AB-0001" and c[1] == "2026-11-03":
+            c[5], c[6] = "POSTED P-0003", "P-0003"
+    for pid, p in plant.postings.items():
+        if p["status"] == "Open" and pid != "P-0003":
+            n_cv += 1
+            cov_rows.append([f"CV-{n_cv:04d}", p["date"].isoformat(), p["shift"], p["unit"], p["reason"], f"POSTED {pid}", pid,
+                             REASON_TYPE.get(p["reason"], "SUP"), "", ""])
+        if p["status"] == "No takers":
+            n_cv += 1
+            cov_rows.append([f"CV-{n_cv:04d}", p["date"].isoformat(), p["shift"], p["unit"], p["reason"], "NO TAKERS", pid,
+                             REASON_TYPE.get(p["reason"], "SUP"), "", ""])
     # ---- write everything
     out = HERE
     write_csv(out / "people.csv", ["Payroll #", "Home Unit", "Name", "Crew", "Phone", "Worked H", "Seniority", "Email"] + UNITS,
@@ -304,14 +321,14 @@ def main() -> int:
                           p.get("award_by", ""), p["posted_by"]])
         for row in plant.posting_lists[pid]:
             list_rows.append([pid, row["rank"], row["name"], row["crew"], row["code"], f"{row['total']:g}",
-                              "YES" if row["signed"] else "", row["result"], f"{row.get('charged', 0):g}" if row.get("charged") else "",
+                              "YES" if row["signed"] else "", row["result"], f"{row['charged']:g}" if row.get("charged") else "",
                               f"{row['signup_hrs']:g}" if row["signup_hrs"] else ""])
     write_csv(out / "postings.csv", ["Posting ID", "Status", "Posted On", "Closes On", "Shift Date", "Unit", "Shift", "Crew", "Hours",
                                      "Positions", "Reason", "Awarded To", "Awarded On", "Awarded By", "Posted By"], post_rows)
     write_csv(out / "posting_list.csv", ["Posting ID", "Rank", "Employee", "Shift", "Dept Code", "Total Hrs (posted)", "Signed Up", "Result",
                                          "Hours Charged", "Signup Hours"], list_rows)
-    marks = {"OB": len(people), "S": 0, "P": 0, "ADJ": 0, "AB": 4, "SC": 2, "CV": n_cv, "SS": 1, "PM": 1, "RS": 1, "RQ": 0, "KR": 22,
-             "LV": 0, "UM": 0, "NH": 0, "MAN": 0}
+    # only the log-based prefixes read a mark (NextRefID / NextEntryID / NextRequestId); AB, SC, CV, SS, PM, RS, KR count from their tables
+    marks = {"OB": len(people), "S": 0, "P": 0, "ADJ": 0, "RQ": 0, "LV": 0, "UM": 0, "NH": 0, "MAN": 0}
     for r in plant.log:
         pre, _, num = r["Ref ID"].partition("-")
         marks[pre] = max(marks.get(pre, 0), int(num))
@@ -359,6 +376,13 @@ KRONOS_DAYS = [
 
 
 REASON_TYPE = {"Vacation Coverage": "VAC", "Leave Coverage": "LV", "Training Coverage": "TRN", "PHA": "SUP", "Unit Operator Support": "SUP", "Other": "SUP"}
+
+
+def first_shift(crew: str, start: date, shift: str) -> date:
+    d = start
+    while rules.crew_shift_on(crew, d) != shift:
+        d += timedelta(days=1)
+    return d
 
 
 def rules_exception() -> str:

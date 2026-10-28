@@ -17,7 +17,8 @@ is the runbook for the two swaps: who does what, and the box each step should sh
 | 6 | Make the Kronos mock folder v29.0.1's `KRONOS_PATH` names (`<the roster's folder>\Kronos mock\`) and copy `00 cumulative 2026-01-11 to 2026-10-30.xlsx` into it (from tests/mock/kronos, made by make_kronos.py) | - |
 | 7 | Install v29.0.1 on a practice copy first, then on the roster (docs/INSTALL-v29.0.1.md: the one change is `KRONOS_PATH`) | SystemCheck "45 of 45 on v29.0.1"; the paths box: Kronos reports = the mock folder - reachable |
 | 8 | Open the roster (the live file), Alt+F8 > `LoadMockData`, type `MOCK` | the box names the "Backup before MOCK LOAD ..." copy, then: 69 people, 94 OT Log rows, every figure matches expected_load, IntegrityCheck 0 PROBLEM, 2 sign-up files for P-0003 |
-| 9 | Carry on with docs/alpha-test-plan.md Day 0 (D0.3 onward) | - |
+| 9 | The drawn output tabs keep the REAL plant's last drawing until they are redrawn (Board, Handover, Paybacks, the History Reports, the Refusal Report, Stats, Integrity, the call-out and posting sheets, Receipt): Day 0's steps redraw most of them; open the Reconcile sheet and press its Clear (the typed paper order and decisions are the real plant's) | no real name on a drawn tab once Day 0 is done |
+| 10 | Carry on with docs/alpha-test-plan.md Day 0 (D0.3 onward) | - |
 
 During the fortnight the mock file takes the real daily and hourly backup slots (`Call Out Roster yyyy-mm-dd.xlsm`,
 `Call Out Roster backup yyyy-mm-dd hh.xlsm`) in the roster's folder: they hold mock data under the real names, and the
@@ -39,7 +40,7 @@ first of pay period 23 (Nov 1) would be the long-kept one. Page 2 moves them out
 | # | step | the box / what to see |
 |---|---|---|
 | 7 | Rename the mock file `V2 - Call Out Roster.xlsm` to **`Backup - ALPHA MOCK 2026-11-14 - V2 - Call Out Roster.xlsm`** and MOVE it into `Pre-alpha\` | the mock evidence stays readable (opened, it is a backup copy: nothing publishes, nothing prunes) |
-| 8 | MOVE the mock run's daily and hourly backups of Oct 31 - Nov 17 (`Call Out Roster 2026-10-31.xlsm` ... `Call Out Roster backup 2026-11-17 ....xlsm`) and the `Backup before MOCK LOAD ...` copy into `Pre-alpha\` | the real file's next open takes a clean daily slot; the long-kept first backup of period 23 will be the real file's |
+| 8 | MOVE the mock run's daily and hourly backups of Oct 31 - Nov 17 (`Call Out Roster 2026-10-31.xlsm` ... `Call Out Roster backup 2026-11-17 ....xlsm`), the `Backup before MOCK LOAD ...` copy, the mock CSV exports (`csv\2026-10-31` .. `csv\2026-11-17` under the backup folder, written by ExportTablesOnOpen) into `Pre-alpha\`; in `Roster error log.txt` beside the roster the lines dated Oct 31 - Nov 17 are the mock run's (leave them: the file is append-only and names no mock person) | the real file's next open takes a clean daily slot; the long-kept first backup of period 23 will be the real file's |
 | 9 | Delete the mock `Call Out Roster - Members.xlsm` and empty `Signups\` and `Requests\` (the testers' mock files and their `Done` / `done` contents); copy the Day-0 `Pre-alpha\Call Out Roster - Members.xlsm`, `Signups\` and `Requests\` back | the real inbox is as it was on Oct 31; the members' file is the Day-0 one until step 12 publishes |
 | 10 | COPY `Pre-alpha\Backup - PRE-ALPHA 2026-10-31 - V2 - Call Out Roster.xlsm` back beside the folders and rename the copy `V2 - Call Out Roster.xlsm` (the Pre-alpha copy stays) | the real roster is back, on v29 (NOT v29.0.1: it was set aside before the install) |
 | 11 | Open it; SystemCheck; IntegrityCheck | 45 of 45 on v29; the Kronos reports path = the P: processing workbook as before; 0 PROBLEM; the Opens row says v29 |

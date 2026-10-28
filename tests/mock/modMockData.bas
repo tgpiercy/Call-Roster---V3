@@ -88,6 +88,7 @@ Public Sub LoadMockData()
     Exit Sub
 Failed:
     em = Err.Description
+    LogError "LoadMockData", Err.Number, em
     On Error Resume Next
     QuietOff evWas, scrWas, calcWas
     ProtectSheet RosterSheet()
@@ -112,13 +113,13 @@ Public Sub ResetRosterData()
     AfterPeopleChange
     RefreshCalCache
     Application.Calculate
-    Dim left As String
-    If RosterLastRow() >= R_FIRST Then left = left & "roster rows " & (RosterLastRow() - R_FIRST + 1) & "; "
-    If LogRowCount() > 0 Then left = left & "OT Log rows " & LogRowCount() & "; "
+    Dim leftTxt As String
+    If RosterLastRow() >= R_FIRST Then leftTxt = leftTxt & "roster rows " & (RosterLastRow() - R_FIRST + 1) & "; "
+    If LogRowCount() > 0 Then leftTxt = leftTxt & "OT Log rows " & LogRowCount() & "; "
     QuietOff evWas, scrWas, calcWas
-    If left <> "" Then
+    If leftTxt <> "" Then
         MarkNoSave
-        MsgBox "ResetRosterData left data behind (" & left & ") - saving is blocked. Close WITHOUT saving.", vbCritical, TTL
+        MsgBox "ResetRosterData left data behind (" & leftTxt & ") - saving is blocked. Close WITHOUT saving.", vbCritical, TTL
         Exit Sub
     End If
     SaveIfWritable
@@ -127,6 +128,7 @@ Public Sub ResetRosterData()
     Exit Sub
 Failed:
     em = Err.Description
+    LogError "ResetRosterData", Err.Number, em
     On Error Resume Next
     QuietOff evWas, scrWas, calcWas
     ProtectSheet RosterSheet()
@@ -145,6 +147,11 @@ Private Function MockGuard(ByVal what As String) As Boolean
     If Not PostingTablesReady() Then Exit Function
     If NoSave() Then
         MsgBox "Saving is blocked in this session (an earlier check failed). Close WITHOUT saving, reopen, then run " & what & ".", vbExclamation, TTL
+        Exit Function
+    End If
+    If IsBackupCopyName(ThisWorkbook.Name) Then
+        MsgBox ThisWorkbook.Name & " is a BACKUP copy (the name holds Backup or FINAL): " & what & " never runs on one. " & _
+               "Open the live roster or a practice copy (COPY in the name).", vbExclamation, TTL
         Exit Function
     End If
     If Not IsDryRunName(ThisWorkbook.Name) Then
@@ -222,12 +229,20 @@ Private Sub ClearAttendance()
     ProtectSheet ws
 End Sub
 
+' Row R_FIRST is kept (emptied, not deleted) as the format template: AddRosterRow copies formats and validation from the
+' row above (modPeople.AddRosterRow), so a deleted first row would leave every mock row without the roster's layout
 Private Sub ClearRosterRows()
     Dim ws As Worksheet: Set ws = RosterSheet()
     Dim lastRow As Long: lastRow = RosterLastRow()
     UnlockSheet ws
     If ws.FilterMode Then ws.ShowAllData
-    If lastRow >= R_FIRST Then ws.Rows(R_FIRST & ":" & lastRow).Delete Shift:=xlUp
+    If lastRow > R_FIRST Then ws.Rows((R_FIRST + 1) & ":" & lastRow).Delete Shift:=xlUp
+    If lastRow >= R_FIRST Then
+        With ws.Range(ws.Cells(R_FIRST, 1), ws.Cells(R_FIRST, C_LAST))
+            .ClearContents
+            .ClearComments
+        End With
+    End If
     EnsureRosterFilter ws
     ProtectSheet ws
 End Sub
@@ -302,7 +317,7 @@ Private Sub WriteTable(ByVal lo As ListObject, ByVal key As String, ByVal typeLi
     If lo Is Nothing Then Err.Raise vbObjectError + 902, , "the table for " & key & " is missing"
     Dim rows As Collection: Set rows = MockRows(key)
     Dim n As Long: n = rows.Count
-    If n = 0 Then Exit Sub
+    If n = 0 Then Err.Raise vbObjectError + 904, , "no data rows for " & key & " (the generated block is incomplete)"
     Dim types() As String: types = Split(typeList, ",")
     Dim nCols As Long: nCols = UBound(types) + 1
     Dim data() As Variant: ReDim data(1 To n, 1 To nCols)
@@ -346,7 +361,8 @@ Private Sub WriteMarks()
     SetIdMark "ENTRY", LogRowCount()
 End Sub
 
-' T text, R text that starts with an apostrophe (a posting Reason), D date, S date and time, N number, E empty-if-blank number
+' T text, R a Reason (text; the real writers prefix an apostrophe into a General cell, the "@" format here does the same job),
+' D date, S date and time, N number
 Private Function MockValue(ByVal s As String, ByVal t As String) As Variant
     Select Case t
         Case "D", "S"
@@ -354,7 +370,7 @@ Private Function MockValue(ByVal s As String, ByVal t As String) As Variant
         Case "N"
             If s = "" Then MockValue = Empty Else MockValue = Val(s)
         Case "R"
-            MockValue = "'" & s
+            MockValue = s                               ' the column is formatted "@" first: the text stays text with no prefix character
         Case Else
             MockValue = s
     End Select
@@ -406,6 +422,24 @@ Private Function VerifyLoad() As String
         VerifyLoad = "the roster holds " & tm.Count & " people, expected " & CHECK_PEOPLE
         Exit Function
     End If
+    ' the home unit and the eight codes per person (RosterCodesMap: "Home|L|M|N|O|P|Q|R|S")
+    Dim cm As Object: Set cm = RosterCodesMap()
+    Dim units As Variant: units = Array("Phosphine", "Derivatives", "Cypure", "Material Handler", "QC Gases", "QC Derivatives", "Utilities", "SBP")
+    Dim want() As String, u As Long, c As Long
+    For Each s In MockRows("people")
+        f = Split(CStr(s), SEP)
+        ReDim want(0 To 8)
+        want(0) = f(1)
+        For u = 0 To 7
+            c = DeptCol(CStr(units(u))) - UnitColFirst() + 1
+            want(c) = f(8 + u)
+        Next u
+        If Not cm.Exists(f(2)) Then VerifyLoad = f(2) & " is not on the roster (codes)": Exit Function
+        If StrComp(CStr(cm(f(2))), Join(want, "|"), vbTextCompare) <> 0 Then
+            VerifyLoad = f(2) & ": home unit / codes are " & cm(f(2)) & ", expected " & Join(want, "|")
+            Exit Function
+        End If
+    Next s
     Dim nErr As Long, nWarn As Long
     RunIntegrity nErr, nWarn
     If nErr > 0 Then VerifyLoad = "IntegrityCheck found " & nErr & " PROBLEM(S) - run IntegrityCheck to read them"
@@ -494,13 +528,14 @@ End Function
 
 ' Alt+F8: one request file from four boxes (the fallback when no member tester is at hand); the plan names the values
 Public Sub MockRequestFromBox()
+    On Error GoTo Oops
     Dim kind As String, who As String, dF As String, sh As String, partner As String, login As String, action As String, rid As String
     kind = Trim$(InputBox("Kind: Time off or Switch", TTL, "Time off"))
     If kind = "" Then Exit Sub
     who = Trim$(InputBox("Employee (as on the roster)", TTL))
     If who = "" Then Exit Sub
     dF = Trim$(InputBox("Date yyyy-mm-dd (a switch: the shift's date)", TTL))
-    If Len(dF) < 10 Then Exit Sub
+    If Not (dF Like "####-##-##") Then MsgBox "The date must be typed as yyyy-mm-dd.", vbExclamation, TTL: Exit Sub
     If StrComp(kind, "Switch", vbTextCompare) = 0 Then
         sh = Trim$(InputBox("Shift: Days or Nights", TTL, "Days"))
         partner = Trim$(InputBox("Partner (the one who works it)", TTL))
@@ -510,6 +545,9 @@ Public Sub MockRequestFromBox()
     If action <> "request" Then rid = Trim$(InputBox("The request id the file answers (REQ__<id>__... in Requests\)", TTL))
     rid = MockRequestFile(rid, action, kind, who, MockDate(dF), MockDate(dF), sh, partner, "mock plan step", login)
     If rid <> "" Then MsgBox "Written to " & RequestFolderPath() & " as request " & rid & ". Alt+F8 > ImportRequests reads it.", vbInformation, TTL
+    Exit Sub
+Oops:
+    ReportError "MockRequestFromBox"
 End Sub
 
 ' member/modMember.bas SafeName: letters, digits, . _ - only; "user" when nothing is left
@@ -628,75 +666,75 @@ Private Sub Data_people_1()
 End Sub
 
 Private Sub Data_log_1()
-    MockRow "OB-0001|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Avery Ashgrove|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|201|2025-12-28|1|piercyg|2026-01-04 09:00:00|||90100001"
-    MockRow "OB-0002|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Blair Bellweather|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|113|2025-12-28|2|piercyg|2026-01-04 09:00:00|||90100002"
-    MockRow "OB-0003|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Casey Cardwell|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|238.25|2025-12-28|3|piercyg|2026-01-04 09:00:00|||90100003"
-    MockRow "OB-0004|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Dana Dunmore|P3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|269|2025-12-28|4|piercyg|2026-01-04 09:00:00|||90100004"
-    MockRow "OB-0005|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Ellis Everhart|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|72|2025-12-28|5|piercyg|2026-01-04 09:00:00|||90100005"
-    MockRow "OB-0006|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Finley Fairbanks|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|140|2025-12-28|6|piercyg|2026-01-04 09:00:00|||90100006"
-    MockRow "OB-0007|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Harper Greenlaw|D1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|185.25|2025-12-28|7|piercyg|2026-01-04 09:00:00|||90100007"
-    MockRow "OB-0008|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Jordan Hollins|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|252.5|2025-12-28|8|piercyg|2026-01-04 09:00:00|||90100008"
-    MockRow "OB-0009|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Kendall Ironside|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|327|2025-12-28|9|piercyg|2026-01-04 09:00:00|||90100009"
-    MockRow "OB-0010|Adjustment|2026-01-04|Cypure|||Opening balance|0||Logan Juniper|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|120.5|2025-12-28|10|piercyg|2026-01-04 09:00:00|||90100010"
-    MockRow "OB-0011|Adjustment|2026-01-04|Cypure|||Opening balance|0||Morgan Kestrel|G2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|248|2025-12-28|11|piercyg|2026-01-04 09:00:00|||90100011"
-    MockRow "OB-0012|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Quinn Lockridge|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|81|2025-12-28|12|piercyg|2026-01-04 09:00:00|||90100012"
-    MockRow "OB-0013|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Reese Marsden|M2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|135|2025-12-28|13|piercyg|2026-01-04 09:00:00|||90100013"
-    MockRow "OB-0014|Adjustment|2026-01-04|QC Derivatives|||Opening balance|0||Riley Northway|Q1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|213|2025-12-28|14|piercyg|2026-01-04 09:00:00|||90100014"
-    MockRow "OB-0015|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Rowan Oakhurst|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|150.25|2025-12-28|15|piercyg|2026-01-04 09:00:00|||90100015"
-    MockRow "OB-0016|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Sawyer Pemberton|P1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|84|2025-12-28|16|piercyg|2026-01-04 09:00:00|||90100016"
-    MockRow "OB-0017|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Skyler Quarrie|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|162|2025-12-28|17|piercyg|2026-01-04 09:00:00|||90100017"
-    MockRow "OB-0018|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Taylor Redfern|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|242|2025-12-28|18|piercyg|2026-01-04 09:00:00|||90100018"
-    MockRow "OB-0019|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Devon Stonebridge|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|136|2025-12-28|19|piercyg|2026-01-04 09:00:00|||90100019"
-    MockRow "OB-0020|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Emery Thornbury|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|123.75|2025-12-28|20|piercyg|2026-01-04 09:00:00|||90100020"
-    MockRow "OB-0021|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Hayden Underhill|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|206.5|2025-12-28|21|piercyg|2026-01-04 09:00:00|||90100021"
-    MockRow "OB-0022|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Jesse Vantage|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|218|2025-12-28|22|piercyg|2026-01-04 09:00:00|||90100022"
-    MockRow "OB-0023|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Lane Wexford|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|348|2025-12-28|23|piercyg|2026-01-04 09:00:00|||90100023"
-    MockRow "OB-0024|Adjustment|2026-01-04|Cypure|||Opening balance|0||Marlow Yardley|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|109|2025-12-28|24|piercyg|2026-01-04 09:00:00|||90100024"
-    MockRow "OB-0025|Adjustment|2026-01-04|Cypure|||Opening balance|0||Oakley Ashby|G3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|217.5|2025-12-28|25|piercyg|2026-01-04 09:00:00|||90100025"
-    MockRow "OB-0026|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Parker Brightwater|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|45|2025-12-28|26|piercyg|2026-01-04 09:00:00|||90100026"
-    MockRow "OB-0027|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Remy Coldstream|M3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|206|2025-12-28|27|piercyg|2026-01-04 09:00:00|||90100027"
-    MockRow "OB-0028|Adjustment|2026-01-04|QC Derivatives|||Opening balance|0||Shay Dovetail|Q2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|172|2025-12-28|28|piercyg|2026-01-04 09:00:00|||90100028"
-    MockRow "OB-0029|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Tatum Ellery|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|86.5|2025-12-28|29|piercyg|2026-01-04 09:00:00|||90100029"
-    MockRow "OB-0030|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Wren Fenwick|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|94.5|2025-12-28|30|piercyg|2026-01-04 09:00:00|||90100030"
-    MockRow "OB-0031|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Arden Glassford|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|241|2025-12-28|31|piercyg|2026-01-04 09:00:00|||90100031"
-    MockRow "OB-0032|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Bryn Hartwell|P3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|298.5|2025-12-28|32|piercyg|2026-01-04 09:00:00|||90100032"
-    MockRow "OB-0033|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Corin Islington|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|104|2025-12-28|33|piercyg|2026-01-04 09:00:00|||90100033"
-    MockRow "OB-0034|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Darcy Kingsley|D1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|110.25|2025-12-28|34|piercyg|2026-01-04 09:00:00|||90100034"
-    MockRow "OB-0035|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Eden Larkspur|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|176|2025-12-28|35|piercyg|2026-01-04 09:00:00|||90100035"
-    MockRow "OB-0036|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Flynn Moorcroft|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|260.75|2025-12-28|36|piercyg|2026-01-04 09:00:00|||90100036"
-    MockRow "OB-0037|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Greer Nettleton|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|307|2025-12-28|37|piercyg|2026-01-04 09:00:00|||90100037"
-    MockRow "OB-0038|Adjustment|2026-01-04|Cypure|||Opening balance|0||Hollis Orchard|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|68|2025-12-28|38|piercyg|2026-01-04 09:00:00|||90100038"
-    MockRow "OB-0039|Adjustment|2026-01-04|Cypure|||Opening balance|0||Indy Pennyworth|G2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|208|2025-12-28|39|piercyg|2026-01-04 09:00:00|||90100039"
-    MockRow "OB-0040|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Jules Ravenscroft|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|118.25|2025-12-28|40|piercyg|2026-01-04 09:00:00|||90100040"
-    MockRow "OB-0041|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Kit Saltmarsh|M2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|181|2025-12-28|41|piercyg|2026-01-04 09:00:00|||90100041"
-    MockRow "OB-0042|Adjustment|2026-01-04|QC Derivatives|||Opening balance|0||Linden Tillingham|Q1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|187.5|2025-12-28|42|piercyg|2026-01-04 09:00:00|||90100042"
-    MockRow "OB-0043|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Merritt Vauxhall|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|107.5|2025-12-28|43|piercyg|2026-01-04 09:00:00|||90100043"
-    MockRow "OB-0044|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Nico Whitlock|P1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|147|2025-12-28|44|piercyg|2026-01-04 09:00:00|||90100044"
-    MockRow "OB-0045|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Odell Amberley|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|220.25|2025-12-28|45|piercyg|2026-01-04 09:00:00|||90100045"
-    MockRow "OB-0046|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Perry Birchwood|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|261|2025-12-28|46|piercyg|2026-01-04 09:00:00|||90100046"
-    MockRow "OB-0047|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Rafe Crossley|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|73|2025-12-28|47|piercyg|2026-01-04 09:00:00|||90100047"
-    MockRow "OB-0048|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Sidney Dalrymple|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|138.5|2025-12-28|48|piercyg|2026-01-04 09:00:00|||90100048"
-    MockRow "OB-0049|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Tobin Eastwick|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|190|2025-12-28|49|piercyg|2026-01-04 09:00:00|||90100049"
-    MockRow "OB-0050|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Vale Fairweather|D2.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|223|2025-12-28|50|piercyg|2026-01-04 09:00:00|||90100050"
-    MockRow "OB-0051|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Wynn Goldfinch|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|327.5|2025-12-28|51|piercyg|2026-01-04 09:00:00|||90100051"
-    MockRow "OB-0052|Adjustment|2026-01-04|Cypure|||Opening balance|0||Ash Hawthorne|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|99|2025-12-28|52|piercyg|2026-01-04 09:00:00|||90100052"
-    MockRow "OB-0053|Adjustment|2026-01-04|Cypure|||Opening balance|0||Blake Ingleby|G2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|256|2025-12-28|53|piercyg|2026-01-04 09:00:00|||90100053"
-    MockRow "OB-0054|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Cary Jarrow|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|81|2025-12-28|54|piercyg|2026-01-04 09:00:00|||90100054"
-    MockRow "OB-0055|Adjustment|2026-01-04|Material Handler|||Opening balance|0||Dale Kelsall|M2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|171.75|2025-12-28|55|piercyg|2026-01-04 09:00:00|||90100055"
-    MockRow "OB-0056|Adjustment|2026-01-04|QC Derivatives|||Opening balance|0||Evan Lindhurst|Q3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|179|2025-12-28|56|piercyg|2026-01-04 09:00:00|||90100056"
-    MockRow "OB-0057|Adjustment|2026-01-04|QC Gases|||Opening balance|0||Frankie Mallory|QG1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|99|2025-12-28|57|piercyg|2026-01-04 09:00:00|||90100057"
-    MockRow "OB-0058|Adjustment|2026-01-04|QC Gases|||Opening balance|0||Gale Norwood|QG2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|140|2025-12-28|58|piercyg|2026-01-04 09:00:00|||90100058"
-    MockRow "OB-0059|Adjustment|2026-01-04|QC Gases|||Opening balance|0||Haven Overton|QG3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|169.5|2025-12-28|59|piercyg|2026-01-04 09:00:00|||90100059"
-    MockRow "OB-0060|Adjustment|2026-01-04|Utilities|||Opening balance|0||Ira Prentice|U1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|36|2025-12-28|60|piercyg|2026-01-04 09:00:00|||90100060"
-    MockRow "OB-0061|Adjustment|2026-01-04|Utilities|||Opening balance|0||Jamie Rushmore|U2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|151|2025-12-28|61|piercyg|2026-01-04 09:00:00|||90100061"
-    MockRow "OB-0062|Adjustment|2026-01-04|Utilities|||Opening balance|0||Kai Silverton|U3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|171.5|2025-12-28|62|piercyg|2026-01-04 09:00:00|||90100062"
-    MockRow "OB-0063|Adjustment|2026-01-04|SBP|||Opening balance|0||Lee Tredwell|S1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|87|2025-12-28|63|piercyg|2026-01-04 09:00:00|||90100063"
-    MockRow "OB-0064|Adjustment|2026-01-04|SBP|||Opening balance|0||Max Upton|S2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|114.5|2025-12-28|64|piercyg|2026-01-04 09:00:00|||90100064"
-    MockRow "OB-0065|Adjustment|2026-01-04|SBP|||Opening balance|0||Noel Wainwright|S3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|153|2025-12-28|65|piercyg|2026-01-04 09:00:00|||90100065"
-    MockRow "OB-0066|Adjustment|2026-01-04|QC Derivatives|||Opening balance|0||Pat Yeoman|Q1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|101|2025-12-28|66|piercyg|2026-01-04 09:00:00|||90100066"
-    MockRow "OB-0067|Adjustment|2026-01-04|QC Derivatives|||Opening balance|0||Robin Ashworth|Q2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|179|2025-12-28|67|piercyg|2026-01-04 09:00:00|||90100067"
-    MockRow "OB-0068|Adjustment|2026-01-04|Phosphine|||Opening balance|0||Sam Bramble|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|85.5|2025-12-28|68|piercyg|2026-01-04 09:00:00|||90100068"
-    MockRow "OB-0069|Adjustment|2026-01-04|Derivatives|||Opening balance|0||Teal Copperfield|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|131|2025-12-28|69|piercyg|2026-01-04 09:00:00|||90100069"
+    MockRow "OB-0001|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Avery Ashgrove|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|201|2025-12-28|1|piercyg|2026-01-04 09:00:00|||90100001"
+    MockRow "OB-0002|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Blair Bellweather|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|113|2025-12-28|2|piercyg|2026-01-04 09:00:00|||90100002"
+    MockRow "OB-0003|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Casey Cardwell|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|238.25|2025-12-28|3|piercyg|2026-01-04 09:00:00|||90100003"
+    MockRow "OB-0004|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Dana Dunmore|P3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|269|2025-12-28|4|piercyg|2026-01-04 09:00:00|||90100004"
+    MockRow "OB-0005|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Ellis Everhart|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|72|2025-12-28|5|piercyg|2026-01-04 09:00:00|||90100005"
+    MockRow "OB-0006|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Finley Fairbanks|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|140|2025-12-28|6|piercyg|2026-01-04 09:00:00|||90100006"
+    MockRow "OB-0007|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Harper Greenlaw|D1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|185.25|2025-12-28|7|piercyg|2026-01-04 09:00:00|||90100007"
+    MockRow "OB-0008|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Jordan Hollins|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|252.5|2025-12-28|8|piercyg|2026-01-04 09:00:00|||90100008"
+    MockRow "OB-0009|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Kendall Ironside|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|327|2025-12-28|9|piercyg|2026-01-04 09:00:00|||90100009"
+    MockRow "OB-0010|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Logan Juniper|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|120.5|2025-12-28|10|piercyg|2026-01-04 09:00:00|||90100010"
+    MockRow "OB-0011|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Morgan Kestrel|G2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|248|2025-12-28|11|piercyg|2026-01-04 09:00:00|||90100011"
+    MockRow "OB-0012|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Quinn Lockridge|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|81|2025-12-28|12|piercyg|2026-01-04 09:00:00|||90100012"
+    MockRow "OB-0013|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Reese Marsden|M2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|135|2025-12-28|13|piercyg|2026-01-04 09:00:00|||90100013"
+    MockRow "OB-0014|Opening Balance|2026-01-04|QC Derivatives|||Opening balance|0||Riley Northway|Q1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|213|2025-12-28|14|piercyg|2026-01-04 09:00:00|||90100014"
+    MockRow "OB-0015|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Rowan Oakhurst|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|150.25|2025-12-28|15|piercyg|2026-01-04 09:00:00|||90100015"
+    MockRow "OB-0016|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Sawyer Pemberton|P1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|84|2025-12-28|16|piercyg|2026-01-04 09:00:00|||90100016"
+    MockRow "OB-0017|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Skyler Quarrie|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|162|2025-12-28|17|piercyg|2026-01-04 09:00:00|||90100017"
+    MockRow "OB-0018|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Taylor Redfern|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|242|2025-12-28|18|piercyg|2026-01-04 09:00:00|||90100018"
+    MockRow "OB-0019|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Devon Stonebridge|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|136|2025-12-28|19|piercyg|2026-01-04 09:00:00|||90100019"
+    MockRow "OB-0020|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Emery Thornbury|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|123.75|2025-12-28|20|piercyg|2026-01-04 09:00:00|||90100020"
+    MockRow "OB-0021|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Hayden Underhill|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|206.5|2025-12-28|21|piercyg|2026-01-04 09:00:00|||90100021"
+    MockRow "OB-0022|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Jesse Vantage|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|218|2025-12-28|22|piercyg|2026-01-04 09:00:00|||90100022"
+    MockRow "OB-0023|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Lane Wexford|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|348|2025-12-28|23|piercyg|2026-01-04 09:00:00|||90100023"
+    MockRow "OB-0024|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Marlow Yardley|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|109|2025-12-28|24|piercyg|2026-01-04 09:00:00|||90100024"
+    MockRow "OB-0025|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Oakley Ashby|G3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|217.5|2025-12-28|25|piercyg|2026-01-04 09:00:00|||90100025"
+    MockRow "OB-0026|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Parker Brightwater|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|45|2025-12-28|26|piercyg|2026-01-04 09:00:00|||90100026"
+    MockRow "OB-0027|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Remy Coldstream|M3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|206|2025-12-28|27|piercyg|2026-01-04 09:00:00|||90100027"
+    MockRow "OB-0028|Opening Balance|2026-01-04|QC Derivatives|||Opening balance|0||Shay Dovetail|Q2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|172|2025-12-28|28|piercyg|2026-01-04 09:00:00|||90100028"
+    MockRow "OB-0029|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Tatum Ellery|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|86.5|2025-12-28|29|piercyg|2026-01-04 09:00:00|||90100029"
+    MockRow "OB-0030|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Wren Fenwick|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|94.5|2025-12-28|30|piercyg|2026-01-04 09:00:00|||90100030"
+    MockRow "OB-0031|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Arden Glassford|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|241|2025-12-28|31|piercyg|2026-01-04 09:00:00|||90100031"
+    MockRow "OB-0032|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Bryn Hartwell|P3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|298.5|2025-12-28|32|piercyg|2026-01-04 09:00:00|||90100032"
+    MockRow "OB-0033|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Corin Islington|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|104|2025-12-28|33|piercyg|2026-01-04 09:00:00|||90100033"
+    MockRow "OB-0034|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Darcy Kingsley|D1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|110.25|2025-12-28|34|piercyg|2026-01-04 09:00:00|||90100034"
+    MockRow "OB-0035|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Eden Larkspur|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|176|2025-12-28|35|piercyg|2026-01-04 09:00:00|||90100035"
+    MockRow "OB-0036|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Flynn Moorcroft|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|260.75|2025-12-28|36|piercyg|2026-01-04 09:00:00|||90100036"
+    MockRow "OB-0037|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Greer Nettleton|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|307|2025-12-28|37|piercyg|2026-01-04 09:00:00|||90100037"
+    MockRow "OB-0038|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Hollis Orchard|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|68|2025-12-28|38|piercyg|2026-01-04 09:00:00|||90100038"
+    MockRow "OB-0039|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Indy Pennyworth|G2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|208|2025-12-28|39|piercyg|2026-01-04 09:00:00|||90100039"
+    MockRow "OB-0040|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Jules Ravenscroft|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|118.25|2025-12-28|40|piercyg|2026-01-04 09:00:00|||90100040"
+    MockRow "OB-0041|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Kit Saltmarsh|M2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|181|2025-12-28|41|piercyg|2026-01-04 09:00:00|||90100041"
+    MockRow "OB-0042|Opening Balance|2026-01-04|QC Derivatives|||Opening balance|0||Linden Tillingham|Q1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|187.5|2025-12-28|42|piercyg|2026-01-04 09:00:00|||90100042"
+    MockRow "OB-0043|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Merritt Vauxhall|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|107.5|2025-12-28|43|piercyg|2026-01-04 09:00:00|||90100043"
+    MockRow "OB-0044|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Nico Whitlock|P1.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|147|2025-12-28|44|piercyg|2026-01-04 09:00:00|||90100044"
+    MockRow "OB-0045|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Odell Amberley|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|220.25|2025-12-28|45|piercyg|2026-01-04 09:00:00|||90100045"
+    MockRow "OB-0046|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Perry Birchwood|P2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|261|2025-12-28|46|piercyg|2026-01-04 09:00:00|||90100046"
+    MockRow "OB-0047|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Rafe Crossley|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|73|2025-12-28|47|piercyg|2026-01-04 09:00:00|||90100047"
+    MockRow "OB-0048|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Sidney Dalrymple|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|138.5|2025-12-28|48|piercyg|2026-01-04 09:00:00|||90100048"
+    MockRow "OB-0049|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Tobin Eastwick|D2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|190|2025-12-28|49|piercyg|2026-01-04 09:00:00|||90100049"
+    MockRow "OB-0050|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Vale Fairweather|D2.5|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|223|2025-12-28|50|piercyg|2026-01-04 09:00:00|||90100050"
+    MockRow "OB-0051|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Wynn Goldfinch|D3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|327.5|2025-12-28|51|piercyg|2026-01-04 09:00:00|||90100051"
+    MockRow "OB-0052|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Ash Hawthorne|G1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|99|2025-12-28|52|piercyg|2026-01-04 09:00:00|||90100052"
+    MockRow "OB-0053|Opening Balance|2026-01-04|Cypure|||Opening balance|0||Blake Ingleby|G2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|256|2025-12-28|53|piercyg|2026-01-04 09:00:00|||90100053"
+    MockRow "OB-0054|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Cary Jarrow|M1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|81|2025-12-28|54|piercyg|2026-01-04 09:00:00|||90100054"
+    MockRow "OB-0055|Opening Balance|2026-01-04|Material Handler|||Opening balance|0||Dale Kelsall|M2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|171.75|2025-12-28|55|piercyg|2026-01-04 09:00:00|||90100055"
+    MockRow "OB-0056|Opening Balance|2026-01-04|QC Derivatives|||Opening balance|0||Evan Lindhurst|Q3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|179|2025-12-28|56|piercyg|2026-01-04 09:00:00|||90100056"
+    MockRow "OB-0057|Opening Balance|2026-01-04|QC Gases|||Opening balance|0||Frankie Mallory|QG1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|99|2025-12-28|57|piercyg|2026-01-04 09:00:00|||90100057"
+    MockRow "OB-0058|Opening Balance|2026-01-04|QC Gases|||Opening balance|0||Gale Norwood|QG2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|140|2025-12-28|58|piercyg|2026-01-04 09:00:00|||90100058"
+    MockRow "OB-0059|Opening Balance|2026-01-04|QC Gases|||Opening balance|0||Haven Overton|QG3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|169.5|2025-12-28|59|piercyg|2026-01-04 09:00:00|||90100059"
+    MockRow "OB-0060|Opening Balance|2026-01-04|Utilities|||Opening balance|0||Ira Prentice|U1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|36|2025-12-28|60|piercyg|2026-01-04 09:00:00|||90100060"
+    MockRow "OB-0061|Opening Balance|2026-01-04|Utilities|||Opening balance|0||Jamie Rushmore|U2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|151|2025-12-28|61|piercyg|2026-01-04 09:00:00|||90100061"
+    MockRow "OB-0062|Opening Balance|2026-01-04|Utilities|||Opening balance|0||Kai Silverton|U3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|171.5|2025-12-28|62|piercyg|2026-01-04 09:00:00|||90100062"
+    MockRow "OB-0063|Opening Balance|2026-01-04|SBP|||Opening balance|0||Lee Tredwell|S1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|87|2025-12-28|63|piercyg|2026-01-04 09:00:00|||90100063"
+    MockRow "OB-0064|Opening Balance|2026-01-04|SBP|||Opening balance|0||Max Upton|S2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|114.5|2025-12-28|64|piercyg|2026-01-04 09:00:00|||90100064"
+    MockRow "OB-0065|Opening Balance|2026-01-04|SBP|||Opening balance|0||Noel Wainwright|S3|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|153|2025-12-28|65|piercyg|2026-01-04 09:00:00|||90100065"
+    MockRow "OB-0066|Opening Balance|2026-01-04|QC Derivatives|||Opening balance|0||Pat Yeoman|Q1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|101|2025-12-28|66|piercyg|2026-01-04 09:00:00|||90100066"
+    MockRow "OB-0067|Opening Balance|2026-01-04|QC Derivatives|||Opening balance|0||Robin Ashworth|Q2|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|179|2025-12-28|67|piercyg|2026-01-04 09:00:00|||90100067"
+    MockRow "OB-0068|Opening Balance|2026-01-04|Phosphine|||Opening balance|0||Sam Bramble|P1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|85.5|2025-12-28|68|piercyg|2026-01-04 09:00:00|||90100068"
+    MockRow "OB-0069|Opening Balance|2026-01-04|Derivatives|||Opening balance|0||Teal Copperfield|D1|0|Adjustment|Opening balance: charges carried into 2026 before the roster went live|131|2025-12-28|69|piercyg|2026-01-04 09:00:00|||90100069"
     MockRow "S-0001|Callout|2026-10-06|Phosphine|Nights|All not scheduled||12|1|Rowan Oakhurst|P1|184.25|Refused||21|2026-10-04|70|sheltond|2026-10-06 17:35:00|||90100015"
     MockRow "S-0001|Callout|2026-10-06|Phosphine|Nights|All not scheduled||12|2|Sawyer Pemberton|P1.5|142|Unavailable|Out of town|0|2026-10-04|71|sheltond|2026-10-06 17:35:00|||90100016"
     MockRow "S-0001|Callout|2026-10-06|Phosphine|Nights|All not scheduled||12|3|Skyler Quarrie|P2|245|Refused||21|2026-10-04|72|sheltond|2026-10-06 17:35:00|||90100017"
@@ -798,19 +836,19 @@ Private Sub Data_crew_1()
 End Sub
 
 Private Sub Data_absences_1()
-    MockRow "SC-0001|Blair Bellweather|Phosphine|SIC|2026-08-18|2026-08-18|12|||Active|sheltond|2026-08-18 06:20:00||Phosphine||Days"
-    MockRow "SC-0002|Blair Bellweather|Phosphine|SIC|2026-09-22|2026-09-22|12|||Active|campeauc|2026-09-22 17:45:00||Phosphine||Nights"
-    MockRow "AB-0001|Vale Fairweather|Derivatives|VAC|2026-11-02|2026-11-05|12|||Active|piercyg|2026-09-30 09:12:00||Derivatives||"
-    MockRow "AB-0002|Emery Thornbury|Derivatives|STD|2026-10-05||12|||Active|piercyg|2026-10-05 08:30:00||Derivatives||"
-    MockRow "AB-0003|Skyler Quarrie|Phosphine|PER|2026-11-10|2026-11-10|12|||Active|piercyg|2026-10-28 14:05:00||Phosphine||"
-    MockRow "AB-0004|Bryn Hartwell|Phosphine|VAC|2026-09-14|2026-09-17|12|||Active|piercyg|2026-08-20 10:00:00||Phosphine||"
+    MockRow "SC-0001|Blair Bellweather|Phosphine|SIC|2026-08-21|2026-08-21||||Active|sheltond|2026-08-21 06:20:00||Phosphine||Days"
+    MockRow "SC-0002|Blair Bellweather|Phosphine|SIC|2026-09-23|2026-09-23||||Active|campeauc|2026-09-23 17:45:00||Phosphine||Nights"
+    MockRow "AB-0001|Vale Fairweather|Derivatives|VAC|2026-11-02|2026-11-05||||Active|piercyg|2026-09-30 09:12:00||Derivatives||"
+    MockRow "AB-0002|Emery Thornbury|Derivatives|STD|2026-10-05|||||Active|piercyg|2026-10-05 08:30:00||Derivatives||"
+    MockRow "AB-0003|Skyler Quarrie|Phosphine|PER|2026-11-10|2026-11-10||||Active|piercyg|2026-10-28 14:05:00||Phosphine||"
+    MockRow "AB-0004|Bryn Hartwell|Phosphine|VAC|2026-09-14|2026-09-17||||Active|piercyg|2026-08-20 10:00:00||Phosphine||"
 End Sub
 
 Private Sub Data_coverage_1()
     MockRow "CV-0001|2026-11-02|Days|Derivatives|AB-0001|Vale Fairweather (Vac)|VAC|||AB-0001|Active|piercyg|2026-11-02 08:00:00|"
-    MockRow "CV-0002|2026-11-03|Days|Derivatives|AB-0001|Vale Fairweather (Vac)|VAC|||AB-0001|Active|piercyg|2026-11-03 08:00:00|"
+    MockRow "CV-0002|2026-11-03|Days|Derivatives||Vale Fairweather (Vac)|VAC|POSTED P-0003||P-0003|Active|piercyg|2026-11-03 08:00:00|"
     MockRow "CV-0003|2026-11-10|Days|Phosphine|AB-0003|Skyler Quarrie (Personal)|PER|||AB-0003|Active|piercyg|2026-11-10 08:00:00|"
-    MockRow "CV-0004|2026-09-12|Days|Cypure||Logan Juniper S/S|SS|Hollis Orchard S/S||SS-0001|Active|piercyg|2026-09-12 08:00:00|"
+    MockRow "CV-0004|2026-09-12|Days|Cypure||Hollis Orchard S/S|SS|Logan Juniper S/S||SS-0001|Active|piercyg|2026-09-12 08:00:00|"
     MockRow "CV-0005|2026-10-06|Nights|Phosphine||Call-out S-0001|SUP|Taylor Redfern||S-0001|Active|piercyg|2026-10-06 08:00:00|"
     MockRow "CV-0006|2026-10-10|Days|Derivatives||Vacation Coverage|VAC|Finley Fairbanks||P-0001|Active|piercyg|2026-10-10 08:00:00|"
     MockRow "CV-0007|2026-10-13|Days|Cypure||Call-out S-0002|SUP|Ash Hawthorne||S-0002|Active|piercyg|2026-10-13 08:00:00|"
@@ -818,10 +856,13 @@ Private Sub Data_coverage_1()
     MockRow "CV-0009|2026-10-24|Days|Utilities||Call-out S-0004|SUP|Jamie Rushmore||S-0004|Active|piercyg|2026-10-24 08:00:00|"
     MockRow "CV-0010|2026-10-30|Nights|Phosphine||Call-out S-0005|SUP|Wren Fenwick||S-0005|Active|piercyg|2026-10-30 08:00:00|"
     MockRow "CV-0011|2026-10-31|Days|Derivatives||Call-out S-0006|SUP|Teal Copperfield||S-0006|Active|piercyg|2026-10-31 08:00:00|"
+    MockRow "CV-0012|2026-10-24|Days|Material Handler||Training Coverage|TRN|NO TAKERS||P-0002|Active|piercyg|2026-10-24 08:00:00|"
+    MockRow "CV-0013|2026-11-05|Days|Material Handler||Training Coverage|TRN|POSTED P-0004||P-0004|Active|piercyg|2026-11-05 08:00:00|"
+    MockRow "CV-0014|2026-11-20|Days|Phosphine||Unit Operator Support|SUP|POSTED P-0005||P-0005|Active|piercyg|2026-11-20 08:00:00|"
 End Sub
 
 Private Sub Data_switches_1()
-    MockRow "SS-0001|2026-09-12|Days|Cypure|Logan Juniper|A|Hollis Orchard|C|||payback to be arranged|Active|mihaychukc|2026-09-10 13:40:00|"
+    MockRow "SS-0001|2026-09-12|Days|Cypure|Hollis Orchard|C|Logan Juniper|A|||payback to be arranged|Active|mihaychukc|2026-09-10 13:40:00|"
 End Sub
 
 Private Sub Data_postings_1()
@@ -833,8 +874,8 @@ Private Sub Data_postings_1()
 End Sub
 
 Private Sub Data_postinglist_1()
-    MockRow "P-0001|1|Ellis Everhart|A|D1|147||Charged||"
-    MockRow "P-0001|2|Devon Stonebridge|B|D1|182||Charged||"
+    MockRow "P-0001|1|Ellis Everhart|A|D1|147||Charged|21|"
+    MockRow "P-0001|2|Devon Stonebridge|B|D1|182||Charged|21|"
     MockRow "P-0001|3|Finley Fairbanks|A|D1|182|YES|Awarded||"
     MockRow "P-0001|4|Teal Copperfield|DAYS|D1|206||||"
     MockRow "P-0001|5|Harper Greenlaw|A|D1.5|243.25|YES|Signed up||"
@@ -844,10 +885,10 @@ Private Sub Data_postinglist_1()
     MockRow "P-0001|9|Jordan Hollins|A|D2|310.5||||"
     MockRow "P-0001|10|Lane Wexford|B|D3|388||||"
     MockRow "P-0001|11|Kendall Ironside|A|D3|402||||"
-    MockRow "P-0002|1|Parker Brightwater|B|M1|128||Charged||"
-    MockRow "P-0002|2|Quinn Lockridge|A|M1|133||Charged||"
-    MockRow "P-0002|3|Marlow Yardley|B|M2|175||Charged||"
-    MockRow "P-0002|4|Reese Marsden|A|M2|210||Charged||"
+    MockRow "P-0002|1|Parker Brightwater|B|M1|128||Charged|21|"
+    MockRow "P-0002|2|Quinn Lockridge|A|M1|133||Charged|21|"
+    MockRow "P-0002|3|Marlow Yardley|B|M2|175||Charged|21|"
+    MockRow "P-0002|4|Reese Marsden|A|M2|210||Charged|21|"
     MockRow "P-0002|5|Remy Coldstream|B|M3|240||||"
     MockRow "P-0003|1|Ellis Everhart|A|D1|189||||"
     MockRow "P-0003|2|Devon Stonebridge|B|D1|203||||"
@@ -1025,14 +1066,7 @@ Private Sub Data_idmarks_1()
     MockRow "S|6"
     MockRow "P|5"
     MockRow "ADJ|0"
-    MockRow "AB|4"
-    MockRow "SC|2"
-    MockRow "CV|11"
-    MockRow "SS|1"
-    MockRow "PM|1"
-    MockRow "RS|1"
     MockRow "RQ|0"
-    MockRow "KR|22"
     MockRow "LV|0"
     MockRow "UM|0"
     MockRow "NH|0"

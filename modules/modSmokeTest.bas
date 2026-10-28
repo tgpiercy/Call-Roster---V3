@@ -206,7 +206,7 @@ Private Function SmkName(ByVal k As Long) As String
         Case 19: SmkName = "integrity check"
         Case 20: SmkName = "the Desk's figures follow the data"
         Case 21: SmkName = "bring the test employee back, then remove again"
-        Case 22: SmkName = "the output pages draw (history, handover, since, data check)"
+        Case 22: SmkName = "the output pages draw (history, handover, since, data check) + the Lite Desk's sources"
     End Select
 End Function
 
@@ -1276,6 +1276,31 @@ Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
         st.Note = (UBound(dc) - LBound(dc) + 1) & " data-check line(s) on this copy"
     Else
         st.Note = "no data-check lines"
+    End If
+    ' v29 (item 3a): the Lite Desk's sources run on this copy - the posting exceptions (the cancelled test posting is no
+    ' exception), a daily-check step's text (blank or "hh:nn (login)"), the OT-by-unit figures (Empty or one row per
+    ' unit), and the Feedback resolve round trip: a "No" answer is unresolved until ResolveFeedback names its new Ref
+    part = "the Lite Desk's sources"
+    Dim pxId As String, pxWhat As String, pxN As Long
+    pxN = PostingExceptionCount(pxId, pxWhat)
+    If pxN < 0 Or (pxN > 0 And pxId = "") Or (pxN = 0 And pxId <> "") Then why = "PostingExceptionCount gave " & pxN & " with oldest '" & pxId & "'": Exit Function
+    Dim dsT As String: dsT = DailyStepText("kronos")
+    If dsT <> "" And Not dsT Like "##:## (*)" Then why = "DailyStepText gave '" & dsT & "'": Exit Function
+    Dim ucV As Variant: ucV = UnitChargedThisPeriod()
+    If IsArray(ucV) Then
+        If UBound(ucV, 1) < UBound(DeptList()) - LBound(DeptList()) + 1 Then why = "UnitChargedThisPeriod has too few unit rows": Exit Function
+    End If
+    Dim fbRef As String: fbRef = FirstRefIn(gReceipt.Recorded)
+    If fbRef = "" Then fbRef = FirstRefIn(gReceipt.Title)
+    If fbRef <> "" Then
+        Dim un0 As Long: un0 = UnresolvedNoCount()
+        If Not WriteFeedbackRow("No", "SmokeTest step 22") Then why = "WriteFeedbackRow refused a No answer": Exit Function
+        If UnresolvedNoCount() <> un0 + 1 Then why = "an unresolved No did not raise UnresolvedNoCount by one": Exit Function
+        If ResolveFeedback(fbRef, "SMK-" & fbRef) < 1 Then why = "ResolveFeedback marked no row for " & fbRef: Exit Function
+        If UnresolvedNoCount() <> un0 Then why = "ResolveFeedback left the No unresolved": Exit Function
+        st.Note = st.Note & "; a No on " & fbRef & " resolved"
+    Else
+        st.Note = st.Note & "; no receipt Ref on screen - the resolve round trip skipped"
     End If
     SmkPages = True
     Exit Function

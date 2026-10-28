@@ -37,6 +37,7 @@ Public Sub ShowNeedsAttention()
     SetSheetVisible ws, xlSheetVisible
     ws.Activate                          ' the tab-switch check runs here (ThisWorkbook)
     If NAStale() Then DrawNeeds
+    LiteMark "needs"                     ' v29: the Lite Desk's daily check - Needs Attention was looked at
     Exit Sub
 Oops:
     ReportError "ShowNeedsAttention"

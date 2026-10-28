@@ -2046,6 +2046,47 @@ def lite_login_problems(lite_list: str, admin_list: str) -> str:
     return ", ".join(x for x in lite_list.replace(" ", "").lower().split(",") if x and x not in admins)
 
 
+LITE_CLOSING_HOURS = 24.0        # modLite.LITE_CLOSING_HOURS
+
+
+def posting_exception(status: str, closed: bool, hours_to_close: float, n_signups: int) -> str:
+    """v29 modLite.PostingExceptionCore: 'no takers' = Open, past closing, nobody signed up; 'closing soon' = Open,
+    not closed, closing within LITE_CLOSING_HOURS, nobody signed up; '' otherwise."""
+    if status.strip() != "Open" or n_signups > 0:
+        return ""
+    if closed:
+        return "no takers"
+    return "closing soon" if hours_to_close <= LITE_CLOSING_HOURS else ""
+
+
+def daily_mark_text(mark: str, today_iso: str) -> str:
+    """v29 modLite.DailyMarkText: 'yyyy-mm-dd hh:nn|login' made today -> 'hh:nn (login)', else ''."""
+    p = mark.find("|")
+    if p < 0:
+        return ""
+    stamp = mark[:p]
+    if len(stamp) < 16 or stamp[:10] != today_iso:
+        return ""
+    return stamp[11:16] + " (" + mark[p + 1:] + ")"
+
+
+def daily_check_line(today_iso: str, kronos_mark: str, needs_mark: str, publish_mark: str) -> str:
+    """v29 modLite.DailyCheckLineCore: the collapsed line once all three marks were made today, else ''."""
+    k, n, p = (daily_mark_text(m, today_iso) for m in (kronos_mark, needs_mark, publish_mark))
+    if not (k and n and p):
+        return ""
+    return f"Done today: Kronos {k}; Needs Attention {n}; members' file {p}"
+
+
+def bar_cells(hours: float, max_hours: float, n_cells: int) -> int:
+    """v29 modLite.BarCellsCore: cells of an n_cells bar a figure fills: 0 for nothing, at least 1 for anything,
+    rounded half up (Int(x + 0.5)), never past n_cells."""
+    if hours <= 0 or max_hours <= 0 or n_cells <= 0:
+        return 0
+    x = int(math.floor(hours / max_hours * n_cells + 0.5))
+    return min(max(x, 1), n_cells)
+
+
 def data_shape_problem(kind: str, v: str) -> str:
     """modPeople.DataShapeProblem (v27 item 25): '' when a roster detail looks right, else what is wrong."""
     v = v.strip()

@@ -377,6 +377,7 @@ Public Sub PublishMembers()
     End If
     SetPublishedAt Now
     ClearMembersDirty
+    LiteMark "publish"                             ' v29: the Lite Desk's daily check - the members' file is out
     On Error Resume Next
     MarkCalDirty                                   ' Needs Attention's "members file" line
     SaveIfWritable                                 ' keeps the published-at stamp

@@ -677,6 +677,7 @@ Sub SyncKronosData()
     On Error Resume Next
     SetRosterStatus
     On Error GoTo Oops
+    LiteMark "kronos"                              ' v29: the Lite Desk's daily check - H is written
 
     KronosImportMessages dict, alt, used, rawOf, found, nZeroed, fromReport, fileDate, through, histId, repTxt, wpTxt, _
                          awaitFrom, pCol, nFilled, nameClash, missing, zeroed, payDiff, payShared, noNum, nNoNum

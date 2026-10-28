@@ -25,8 +25,11 @@ Public Const RECEIPT_SHEET As String = "Receipt"                     ' output on
 ' v27 (item 9): "Was this right?" - every answer given on a receipt card lands here (admin-only, never published)
 Public Const FB_SHEET As String = "Feedback"
 Public Const FB_TABLE As String = "tblFeedback"
-Private Const FB_N As Long = 7              ' When, Login, Release, Ref ID, Answer, Note, Seen
+Private Const FB_N As Long = 7              ' When, Login, Release, Ref ID, Answer, Note, Seen (the columns an answer writes)
 Private Const FB_SEEN As Long = 7
+Private Const FB_RESBY As Long = 8          ' v29 (item 3a / 4): Resolved By - who fixed the entry (Fix an entry), on the END
+Private Const FB_RESREF As Long = 9         ' v29: Resolved Ref - the Ref ID the re-entry got ("void" when voided and not re-entered)
+Private Const FB_NFULL As Long = 9          ' every column since v29; an older table gets the two added once (EnsureFeedbackColumns)
 Private Const FB_MAX_NOTE As Long = 300
 
 Public Type Receipt
@@ -354,8 +357,8 @@ Public Function FeedbackTable(Optional ByVal create As Boolean = False) As ListO
             On Error GoTo 0
         End If
         UnlockSheet ws
-        ws.Range("A1").Resize(1, FB_N).Value = Array("When", "Login", "Release", "Ref ID", "Answer", "Note", "Seen")
-        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, FB_N), , xlYes)
+        ws.Range("A1").Resize(1, FB_NFULL).Value = Array("When", "Login", "Release", "Ref ID", "Answer", "Note", "Seen", "Resolved By", "Resolved Ref")
+        Set lo = ws.ListObjects.Add(xlSrcRange, ws.Range("A1").Resize(2, FB_NFULL), , xlYes)
         lo.Name = FB_TABLE
         lo.TableStyle = "TableStyleLight9"
         ws.Columns(1).ColumnWidth = 20
@@ -365,11 +368,112 @@ Public Function FeedbackTable(Optional ByVal create As Boolean = False) As ListO
         ws.Columns(5).ColumnWidth = 9
         ws.Columns(6).ColumnWidth = 60
         ws.Columns(7).ColumnWidth = 7
+        ws.Columns(FB_RESBY).ColumnWidth = 12
+        ws.Columns(FB_RESREF).ColumnWidth = 12
         ws.Columns(1).NumberFormat = "mmm d, yyyy h:mm AM/PM"
         ProtectSheet ws
         SetSheetVisible ws, IIf(gAdminUnlocked, xlSheetVisible, xlSheetVeryHidden)
     End If
+    If Not lo Is Nothing Then EnsureFeedbackColumns lo
     Set FeedbackTable = lo
+End Function
+
+' v29: a table made before v29 has 7 columns; Resolved By / Resolved Ref go on the END once (as the Grade Log's Field did)
+Private Sub EnsureFeedbackColumns(ByVal lo As ListObject)
+    If lo.ListColumns.Count >= FB_NFULL Then Exit Sub
+    If ThisWorkbook.ReadOnly Then Exit Sub
+    Dim ws As Worksheet: Set ws = lo.Parent
+    On Error Resume Next
+    UnlockSheet ws
+    If lo.ListColumns.Count < FB_RESBY Then lo.ListColumns.Add.Name = "Resolved By"
+    If lo.ListColumns.Count < FB_RESREF Then lo.ListColumns.Add.Name = "Resolved Ref"
+    ws.Columns(FB_RESBY).ColumnWidth = 12
+    ws.Columns(FB_RESREF).ColumnWidth = 12
+    ProtectSheet ws
+    On Error GoTo 0
+End Sub
+
+' v29 (the Lite Desk's "Corrections asked for" card): the No / Not sure answers nobody has resolved yet (Resolved Ref
+' blank). Never raises.
+Public Function UnresolvedNoCount() As Long
+    Dim v As Variant: v = UnresolvedNoRefs()
+    If IsArray(v) Then UnresolvedNoCount = UBound(v, 1)
+End Function
+
+' The unresolved No / Not sure answers, oldest first: a 2-D array (1 To n, 1 To 4) of Ref ID, Answer, Note, When
+' (Fix an entry's pick list). Empty when there are none. Never raises.
+Public Function UnresolvedNoRefs() As Variant
+    Dim lo As ListObject, v As Variant, i As Long, n As Long
+    On Error GoTo Quit
+    Set lo = FeedbackTable(False)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    v = RangeTo2D(lo.DataBodyRange)
+    Dim hasRes As Boolean: hasRes = (UBound(v, 2) >= FB_RESREF)
+    Dim out() As Variant: ReDim out(1 To UBound(v, 1), 1 To 4)
+    For i = 1 To UBound(v, 1)
+        If SafeStr(v(i, 1)) <> "" And SafeStr(v(i, 4)) <> "" Then
+            If UCase$(SafeStr(v(i, 5))) <> "YES" Then
+                If Not hasRes Or SafeStr(v(i, FB_RESREF)) = "" Then
+                    n = n + 1
+                    out(n, 1) = SafeStr(v(i, 4)): out(n, 2) = SafeStr(v(i, 5)): out(n, 3) = SafeStr(v(i, 6)): out(n, 4) = v(i, 1)
+                End If
+            End If
+        End If
+    Next i
+    If n = 0 Then Exit Function
+    Dim res() As Variant: ReDim res(1 To n, 1 To 4)
+    Dim k As Long
+    For i = 1 To n
+        For k = 1 To 4
+            res(i, k) = out(i, k)
+        Next k
+    Next i
+    UnresolvedNoRefs = res
+Quit:
+End Function
+
+' v29 (Fix an entry): every unresolved No / Not sure row for oldRef is marked resolved by this login with newRef (the
+' re-entry's Ref ID, or "void" when the entry was voided and not re-entered). The count of rows marked; 0 when none or
+' the copy is read-only (the caller's VoidRef has already refused a NoSave copy; SmokeTest, which never saves, runs this
+' on its practice copy). Never raises.
+Public Function ResolveFeedback(ByVal oldRef As String, ByVal newRef As String) As Long
+    Dim lo As ListObject, v As Variant, i As Long, ws As Worksheet
+    Dim evWas As Boolean: evWas = Application.EnableEvents
+    On Error GoTo Quit
+    If ThisWorkbook.ReadOnly Then Exit Function
+    Set lo = FeedbackTable(True)
+    If lo Is Nothing Then Exit Function
+    If lo.DataBodyRange Is Nothing Then Exit Function
+    If lo.ListColumns.Count < FB_NFULL Then Exit Function
+    Set ws = lo.Parent
+    v = RangeTo2D(lo.DataBodyRange)
+    Dim by As Variant: by = RangeTo2D(lo.ListColumns(FB_RESBY).DataBodyRange)
+    Dim rf As Variant: rf = RangeTo2D(lo.ListColumns(FB_RESREF).DataBodyRange)
+    oldRef = UCase$(Trim$(oldRef))
+    For i = 1 To UBound(v, 1)
+        If UCase$(Trim$(SafeStr(v(i, 4)))) = oldRef And UCase$(SafeStr(v(i, 5))) <> "YES" And SafeStr(rf(i, 1)) = "" Then
+            by(i, 1) = CurrentUser(): rf(i, 1) = Trim$(newRef)
+            ResolveFeedback = ResolveFeedback + 1
+        End If
+    Next i
+    If ResolveFeedback = 0 Then Exit Function
+    Application.EnableEvents = False
+    UnlockSheet ws
+    lo.ListColumns(FB_RESBY).DataBodyRange.Value = by
+    lo.ListColumns(FB_RESREF).DataBodyRange.Value = rf
+    ProtectSheet ws
+    Application.EnableEvents = evWas
+    MarkCalDirty
+    Exit Function
+Quit:
+    Dim en As Long: en = Err.Number
+    Dim em As String: em = Err.Description
+    If en <> 0 Then LogError "ResolveFeedback", en, em
+    On Error Resume Next
+    If Not ws Is Nothing Then ProtectSheet ws
+    Application.EnableEvents = evWas
+    ResolveFeedback = 0
 End Function
 
 ' One answer (Yes / Not sure / No) with its optional line, against the receipt on screen (its first Ref ID).

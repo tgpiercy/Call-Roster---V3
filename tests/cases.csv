@@ -1066,3 +1066,30 @@ litelogin,two-not-admin-in-order,ray;tom;sue,ann,,,,ray;tom;sue
 litelogin,case-and-spaces, Ray ;TOM,ann;ray,,,,tom
 litelogin,empty-lite-list,,ann;ray,,,,none
 litelogin,empty-admin-list,ray,,,,,ray
+postexc,open-closed-no-signups,Open,Y,-3,0,,no takers
+postexc,open-closed-one-signup,Open,Y,-3,1,,none
+postexc,open-closing-in-20h,Open,N,20,0,,closing soon
+postexc,open-closing-at-24h,Open,N,24,0,,closing soon
+postexc,open-closing-in-30h,Open,N,30,0,,none
+postexc,open-closing-soon-signed,Open,N,2,2,,none
+postexc,awarded-is-not-open,Awarded,Y,-50,0,,none
+postexc,cancelled,Cancelled,N,1,0,,none
+postexc,status-with-spaces, Open ,Y,-1,0,,no takers
+litemark,made-today,2026-11-03 07:10~ray,2026-11-03,,,,07:10 (ray)
+litemark,made-yesterday,2026-11-02 23:55~ray,2026-11-03,,,,none
+litemark,blank,,2026-11-03,,,,none
+litemark,no-login-separator,2026-11-03 07:10,2026-11-03,,,,none
+litemark,short-stamp,2026-11-03~ray,2026-11-03,,,,none
+litemark,login-kept-as-is,2026-11-03 19:05~Graeme,2026-11-03,,,,19:05 (Graeme)
+litedaily,all-three-today,2026-11-03,2026-11-03 07:10~ray,2026-11-03 07:20~ray,2026-11-03 07:25~graeme,,Done today: Kronos 07:10 (ray); Needs Attention 07:20 (ray); members' file 07:25 (graeme)
+litedaily,publish-missing,2026-11-03,2026-11-03 07:10~ray,2026-11-03 07:20~ray,,,none
+litedaily,kronos-yesterday,2026-11-03,2026-11-02 07:10~ray,2026-11-03 07:20~ray,2026-11-03 07:25~ray,,none
+litedaily,nothing,2026-11-03,,,,,none
+litebar,nothing,0,100,12,,,0
+litebar,largest-fills-all,100,100,12,,,12
+litebar,half,50,100,12,,,6
+litebar,tiny-still-one,1,100,12,,,1
+litebar,rounds-half-up,37.5,100,12,,,5
+litebar,rounds-down,36,100,12,,,4
+litebar,over-the-max-is-capped,150,100,12,,,12
+litebar,no-max,10,0,12,,,0

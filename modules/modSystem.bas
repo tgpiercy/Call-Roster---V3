@@ -32,7 +32,7 @@ Public Const WHATS_NEW_RELEASE As String = "v28"
 Public Const WHATS_NEW As String = "v28: members can ASK from their file. The members' file gets a Requests page: time off between two dates, or a shift switch with the partner who would work it (the partner clicks Agree on their own PC first). The request books nothing by itself: it lands on the admin Desk and Needs Attention (MEMBERS' REQUESTS), where a double-click opens the time-off or switch pop-up prefilled and a right-click declines with a reason; the answer reaches the member at the next update.|" & _
                                    "The Payroll # is now the key: every people table carries it (filled from the roster at the install and before every save), a rename follows the number, and the Employee pop-up takes it at Add and Edit (digits only). Nothing is published: members never see the number.|" & _
                                    "Also: IntegrityCheck 16 'Keys' names a number on two rows or a row without one; the new Requests and Keys macros are listed in the admin guide. v27.5's three rule fixes (the 16 h stop on switches, the Kronos gap rows, the staffing count's partial covers) are in this install if v27.5 was skipped."
-Private Const N_MODULES As Long = 43           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys
+Private Const N_MODULES As Long = 44           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys; v29: + modLite
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 10 (RequestsOnOpen; the later steps moved down one)
 Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
@@ -85,6 +85,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
     VerCheck "modEvidence", EVID_VERSION, warn, nOk          ' v27 (item 23): the period close, scans, disputes
     VerCheck "modRequests", RQ_VERSION, warn, nOk            ' v28 (item 1): members' requests
     VerCheck "modKeys", KEY_VERSION, warn, nOk               ' v28 (item 2): the Payroll # key
+    VerCheck "modLite", LITE_VERSION, warn, nOk              ' v29 (item 3): the Admin Lite Desk's data and drawing
     VerCheck "modSignups", SG_VERSION, warn, nOk
     VerCheck "modErrorLog", EL_VERSION, warn, nOk
     VerCheck "modSmokeTest", SMK_VERSION, warn, nOk

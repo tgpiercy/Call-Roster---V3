@@ -316,6 +316,14 @@ def evaluate(row: dict) -> str:
     if suite == "litelogin":                     # v29: LITE_DESK_USERS, ADMIN_USERS (; for ,) -> the lite logins that are not admins (; joined) / none
         lp = rules.lite_login_problems(i1.replace(";", ","), i2.replace(";", ","))
         return lp.replace(", ", ";") if lp else "none"
+    if suite == "postexc":                       # v29: posting status, closed Y/N, hours to the closing moment, sign-ups -> no takers / closing soon / none
+        return rules.posting_exception(i1, i2 == "Y", float(i3), int(i4)) or "none"
+    if suite == "litemark":                      # v29: a daily-check mark (yyyy-mm-dd hh:nn~login; ~ for |), today -> hh:nn (login) / none
+        return rules.daily_mark_text(i1.replace("~", "|"), i2) or "none"
+    if suite == "litedaily":                     # v29: today, the three marks (~ for |) -> the collapsed line / none
+        return rules.daily_check_line(i1, i2.replace("~", "|"), i3.replace("~", "|"), i4.replace("~", "|")) or "none"
+    if suite == "litebar":                       # v29: hours, the largest figure, cells in the bar -> cells filled
+        return str(rules.bar_cells(float(i1), float(i2), int(i3)))
     if suite == "backupdate":                    # v25: file name -> the date a daily backup carries / none
         bd = rules.backup_file_date(i1)
         return iso(bd) if bd else "none"

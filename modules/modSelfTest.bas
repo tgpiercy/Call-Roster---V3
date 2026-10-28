@@ -232,7 +232,8 @@ Private Function RunCase(f() As String) As String
             Dim fbW As Double, fbN As Double
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
-        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch", "litelogin"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite logins
+        Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch", _
+             "litelogin", "postexc", "litemark", "litedaily", "litebar"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite Desk's cores
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -465,6 +466,17 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
         Case "litelogin"                           ' v29 (item 2): LITE_DESK_USERS, ADMIN_USERS (; for ,) -> the lite logins that are not admins (; joined) / none
             Dim llP As String: llP = LiteLoginProblems(Replace(i1, ";", ","), Replace(i2, ";", ","))
             RunCaseV271 = IIf(llP = "", "none", Replace(llP, ", ", ";"))
+        Case "postexc"                             ' v29 (item 3a): posting status, closed Y/N, hours to the closing moment, sign-ups -> no takers / closing soon / none
+            Dim pxS As String: pxS = PostingExceptionCore(i1, (i2 = "Y"), CDbl(Val(i3)), CLng(Val(i4)))
+            RunCaseV271 = IIf(pxS = "", "none", pxS)
+        Case "litemark"                            ' v29 (item 3a): a daily-check mark (yyyy-mm-dd hh:nn~login; ~ for |), today (ISO) -> hh:nn (login) / none
+            Dim lmS As String: lmS = DailyMarkText(Replace(i1, "~", "|"), i2)
+            RunCaseV271 = IIf(lmS = "", "none", lmS)
+        Case "litedaily"                           ' v29 (item 3a): today, the three marks (~ for |) -> the collapsed line / none
+            Dim ldS As String: ldS = DailyCheckLineCore(i1, Replace(i2, "~", "|"), Replace(i3, "~", "|"), Replace(i4, "~", "|"))
+            RunCaseV271 = IIf(ldS = "", "none", ldS)
+        Case "litebar"                             ' v29 (item 3a): hours, the largest figure, cells in the bar -> cells filled
+            RunCaseV271 = CStr(BarCellsCore(CDbl(Val(i1)), CDbl(Val(i2)), CLng(Val(i3))))
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
             If i1 <> "" Then scP = Split(i1, ";")
@@ -2233,5 +2245,32 @@ Private Sub LoadCases6()
     AddCase "litelogin,case-and-spaces, Ray ;TOM,ann;ray,,,,tom"
     AddCase "litelogin,empty-lite-list,,ann;ray,,,,none"
     AddCase "litelogin,empty-admin-list,ray,,,,,ray"
+    AddCase "postexc,open-closed-no-signups,Open,Y,-3,0,,no takers"
+    AddCase "postexc,open-closed-one-signup,Open,Y,-3,1,,none"
+    AddCase "postexc,open-closing-in-20h,Open,N,20,0,,closing soon"
+    AddCase "postexc,open-closing-at-24h,Open,N,24,0,,closing soon"
+    AddCase "postexc,open-closing-in-30h,Open,N,30,0,,none"
+    AddCase "postexc,open-closing-soon-signed,Open,N,2,2,,none"
+    AddCase "postexc,awarded-is-not-open,Awarded,Y,-50,0,,none"
+    AddCase "postexc,cancelled,Cancelled,N,1,0,,none"
+    AddCase "postexc,status-with-spaces, Open ,Y,-1,0,,no takers"
+    AddCase "litemark,made-today,2026-11-03 07:10~ray,2026-11-03,,,,07:10 (ray)"
+    AddCase "litemark,made-yesterday,2026-11-02 23:55~ray,2026-11-03,,,,none"
+    AddCase "litemark,blank,,2026-11-03,,,,none"
+    AddCase "litemark,no-login-separator,2026-11-03 07:10,2026-11-03,,,,none"
+    AddCase "litemark,short-stamp,2026-11-03~ray,2026-11-03,,,,none"
+    AddCase "litemark,login-kept-as-is,2026-11-03 19:05~Graeme,2026-11-03,,,,19:05 (Graeme)"
+    AddCase "litedaily,all-three-today,2026-11-03,2026-11-03 07:10~ray,2026-11-03 07:20~ray,2026-11-03 07:25~graeme,,Done today: Kronos 07:10 (ray); Needs Attention 07:20 (ray); members' file 07:25 (graeme)"
+    AddCase "litedaily,publish-missing,2026-11-03,2026-11-03 07:10~ray,2026-11-03 07:20~ray,,,none"
+    AddCase "litedaily,kronos-yesterday,2026-11-03,2026-11-02 07:10~ray,2026-11-03 07:20~ray,2026-11-03 07:25~ray,,none"
+    AddCase "litedaily,nothing,2026-11-03,,,,,none"
+    AddCase "litebar,nothing,0,100,12,,,0"
+    AddCase "litebar,largest-fills-all,100,100,12,,,12"
+    AddCase "litebar,half,50,100,12,,,6"
+    AddCase "litebar,tiny-still-one,1,100,12,,,1"
+    AddCase "litebar,rounds-half-up,37.5,100,12,,,5"
+    AddCase "litebar,rounds-down,36,100,12,,,4"
+    AddCase "litebar,over-the-max-is-capped,150,100,12,,,12"
+    AddCase "litebar,no-max,10,0,12,,,0"
 ' <<< CASES
 End Sub

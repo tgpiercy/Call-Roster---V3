@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v29 (Oct 28)"
+Public Const CORE_VERSION As String = "Core v29.0.1 (Oct 28)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -114,7 +114,7 @@ Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox file
 ' declines from Needs Attention; a switch request waits until the named partner has agreed in the file (another login)
 Public Const REQUESTS_ON As Boolean = True
 Public Const REQUEST_FOLDER As String = ".\Requests"
-Public Const KRONOS_PATH As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm"   ' v27: the FOLDER the Kronos reports are saved in (ending in \: every report newer than the last import is read, oldest first), or one report file; the processing workbook ("Sorted Data Here") still works as the fall-back
+Public Const KRONOS_PATH As String = "C:\Users\piercyg\Desktop\Kronos mock\\"   ' v29.0.1 (Graeme, Oct 28, 2026 - THE ALPHA ONLY, on the MOCK file): the local folder the mock Kronos reports are copied into each morning (tests/mock/make_kronos.py; docs/alpha-test-plan.md). v27's rule: a FOLDER (ending in \: every report newer than the last import is read, oldest first) or one report file; the processing workbook ("Sorted Data Here") still works as the fall-back. The real roster (v29) keeps "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm" - put that back (or the real reports' folder) in the release after the alpha
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)

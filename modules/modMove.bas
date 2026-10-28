@@ -20,7 +20,7 @@ Option Explicit
 '  failure incl. a raised SaveRestrictedCopy; the names are stored quote-safe and read back verified; the old members'
 '  file is renamed; the frozen copy never saves on close (gNoSaveOnClose); SystemCheck's path block is its own box.
 ' ====================================================================
-Public Const MV_VERSION As String = "Move v29 (Oct 28)"
+Public Const MV_VERSION As String = "Move v29.0.1 (Oct 28)"
 Private Const NM_MEMBERS As String = "MembersFolder"            ' "L|<path>" (the live roster) or "R|<path>" (a rehearsal on a copy)
 Private Const NM_MOVEDTO As String = "MovedTo"                  ' "<new full path>|<yyyy-mm-dd hh:nn>" in the OLD (frozen) file
 Private Const NM_MOVEDFROM As String = "MovedFrom"              ' "<old full path>|<yyyy-mm-dd hh:nn>" in the NEW file

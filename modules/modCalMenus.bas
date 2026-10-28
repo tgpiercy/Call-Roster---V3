@@ -1,7 +1,7 @@
 Attribute VB_Name = "modCalMenus"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the double-click / right-click menus on the Calendar and Needs Attention, from modCalendar; moved unchanged (tests/movecheck.py proves it)
-Public Const CALMENU_VERSION As String = "Calendar menus v29 (Oct 28)"
+Public Const CALMENU_VERSION As String = "Calendar menus v29.0.1 (Oct 28)"
 
 Private mMenuKey As String          ' line (or "P:P-0001") the double-click menu is for
 Private Const MENU_NAME As String = "CalLineMenu"

@@ -20,7 +20,7 @@ Option Explicit
 '  comes from the save that just happened.
 ' ====================================================================
 
-Public Const RCPT_VERSION As String = "Receipt v29 (Oct 28)"     ' stamped with the release at release prep (v27)
+Public Const RCPT_VERSION As String = "Receipt v29.0.1 (Oct 28)"     ' stamped with the release at release prep (v27)
 Public Const RECEIPT_SHEET As String = "Receipt"                     ' output only: drawn for a print, hidden again
 ' v27 (item 9): "Was this right?" - every answer given on a receipt card lands here (admin-only, never published)
 Public Const FB_SHEET As String = "Feedback"

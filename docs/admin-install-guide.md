@@ -2,7 +2,7 @@
 
 How the admin installs an update, checks it, and looks after the roster file.
 
-Current as of v29 (Oct 28, 2026; v29 adds the Admin Lite Desk for the second admin, Fix an entry, the members' requests' Booking voided status with IntegrityCheck 17, SystemCheck's path and login lines, and the guided move that splits the folders at the January cutover).
+Current as of v29.0.1 (Oct 28, 2026; v29.0.1 = v29 with one setting changed for the alpha of Nov 1-14 - `KRONOS_PATH` names the local Kronos mock folder - on the MOCK file only; v29 adds the Admin Lite Desk for the second admin, Fix an entry, the members' requests' Booking voided status with IntegrityCheck 17, SystemCheck's path and login lines, and the guided move that splits the folders at the January cutover).
 
 ## 1. Before you start
 

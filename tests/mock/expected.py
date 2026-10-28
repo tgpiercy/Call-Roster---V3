@@ -420,9 +420,10 @@ class Runner:
         self.say(sid, "totals still carrying provisional OT", "; ".join(f"{nm} {fmt(pl.provisional(nm))}" for nm in pl.people if pl.provisional(nm) > 0) or "none")
 
     def do_systemcheck(self, sid, d, now, a, login, st):
-        self.say(sid, "modules line", "Modules: 45 of 45 on v29")
+        self.say(sid, "modules line (the real file, v29)", "Modules: 45 of 45 on v29 - the mock file reads v29.0.1 after D0.1's install")
         self.say(sid, "logins line", "Logins: admins piercyg, lanthierr; Lite lanthierr (Ray); supervisors mihaychukc, sheltond, campeauc")
-        self.say(sid, "Kronos reports path", "the Kronos mock folder - reachable (v29.0.1's one change)")
+        self.say(sid, "modules line on the MOCK file after v29.0.1", "Modules: 45 of 45 on v29.0.1")
+        self.say(sid, "Kronos reports path", "C:\\Users\\piercyg\\Desktop\\Kronos mock\\ - reachable (v29.0.1's one change)")
 
     def do_integrity(self, sid, d, now, a, login, st):
         pl = self.pl
@@ -1242,7 +1243,7 @@ Nov 15). The clocks fall back on the night of Sat Oct 31: that night is 13 h. We
 off. The mock Kronos reports come from tests/mock/make_kronos.py: the Day-0 cumulative runs through Fri Oct 30 (a
 cumulative pulled on a Saturday morning covers through Friday), then one one-day report per morning for the day
 before, plus the re-pulled Nov 3 report on the morning of Nov 6, and the close-out cumulative through Sat Nov 14.
-They are copied into the folder v29.0.1's `KRONOS_PATH` names (`<the roster's folder>\\Kronos mock\\`).
+They are copied into the folder v29.0.1's `KRONOS_PATH` names: `C:\\Users\\piercyg\\Desktop\\Kronos mock\\` (Graeme, Oct 28: a local path for now).
 
 **Who does what (D7).** Ray's steps are the Lite Desk's cards end to end (the three daily checks every morning,
 request -> book, exception -> no takers, correction -> Fix an entry, returning -> leave return) and the paths box on

@@ -2,7 +2,7 @@
 
 This manual states the current rules of the overtime call-out system, for supervisors and the union committee.
 
-Current as of v29 (Oct 28, 2026; v29 adds the Admin Lite Desk for the second admin, Fix an entry, the members' requests' Booking voided status with IntegrityCheck 17, SystemCheck's path and login lines, and the guided move that splits the folders at the January cutover; v28 adds members' requests - time off and switches asked for from the members' file, booked or declined by an admin - and the Payroll # as the key on every people table; v27.5 changed three rules: every switch's 16 h stop, the Kronos gap rows in Worked Periods, the staffing count's partial covers). It replaces the rules in all older guides.
+Current as of v29.0.1 (Oct 28, 2026; v29.0.1 = v29 with one setting changed for the alpha of Nov 1-14 - `KRONOS_PATH` names the local Kronos mock folder - on the MOCK file only; v29 adds the Admin Lite Desk for the second admin, Fix an entry, the members' requests' Booking voided status with IntegrityCheck 17, SystemCheck's path and login lines, and the guided move that splits the folders at the January cutover; v28 adds members' requests - time off and switches asked for from the members' file, booked or declined by an admin - and the Payroll # as the key on every people table; v27.5 changed three rules: every switch's 16 h stop, the Kronos gap rows in Worked Periods, the staffing count's partial covers). It replaces the rules in all older guides.
 
 ## 1. What the system is
 

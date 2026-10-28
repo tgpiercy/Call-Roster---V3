@@ -21,9 +21,10 @@ D0.3,Devon Stonebridge H,23 -> 46
 D0.3,Worked (H) sum over the roster,4020
 D0.3,codes not counted,Bryn Hartwell: LIEU TKN 8 h named in the finishing box (IntegrityCheck's Kronos section lists it)
 D0.3,provisional (C) after the import,Wren Fenwick 12; Teal Copperfield 12
-D0.4,modules line,Modules: 45 of 45 on v29
+D0.4,"modules line (the real file, v29)",Modules: 45 of 45 on v29 - the mock file reads v29.0.1 after D0.1's install
 D0.4,logins line,"Logins: admins piercyg, lanthierr; Lite lanthierr (Ray); supervisors mihaychukc, sheltond, campeauc"
-D0.4,Kronos reports path,the Kronos mock folder - reachable (v29.0.1's one change)
+D0.4,modules line on the MOCK file after v29.0.1,Modules: 45 of 45 on v29.0.1
+D0.4,Kronos reports path,C:\Users\piercyg\Desktop\Kronos mock\ - reachable (v29.0.1's one change)
 D0.5,PROBLEM lines,0
 D0.5,Check lines,Check 7 Paybacks: 1 shift-switch payback(s) owed for more than 42 days: SS-0001 Sat Sep 12 | Check 8 Kronos: Kronos code not counted: Bryn Hartwell LIEU TKN 8 h
 D0.5,Note lines,Note 12 Coverage: Every accepted call-out and award this year has its calendar line | Note 11 Planned moves: 1 unit move(s) waiting for their date

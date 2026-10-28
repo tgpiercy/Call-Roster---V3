@@ -28,11 +28,12 @@ the Reconcile sheet holds ONE paper order per page (D12 types two pages); the Da
 lands in Kronos the day the night ends (the D + 1 report). A RULE QUESTION for Graeme (not a plan error): the leave return's
 peers include someone who moved INTO the unit during the leave (Arden Glassford, D9.4: LoadEligible reads the roster as it
 stands; PeerEligible has no whole-window test) - his 69.5 h gain lifts the average from 50.2 to 52.7.
-WHAT IS NOT DONE: (1) v29.0.1 - KRONOS_PATH needs the roster's folder path from Graeme (asked at the end of the P9 session; "<the
-roster's folder>\Kronos mock\" was his choice); then: the one constant, every stamp v29.0.1 (test_module_stamps), EXPECTED_RELEASE,
-no What's New box, docs/INSTALL-v29.0.1.md + briefs/steps-v29.0.1.txt, the CHANGELOG entry, tag v29.0.1, build_zip v29.0.1 v29 (the
-zip packs test-only/modMockData.bas and modSnapshot.bas), push from his Terminal; installed on the MOCK file only (the real file
-stays v29 in Pre-alpha\); (2) the rehearsal on a practice copy by Graeme before Oct 31 (plan step D-1.1: MakePracticeCopy ->
+v29.0.1 BUILT (Oct 28, later; Graeme: "make the path local on my desktop for now, we will worry about that when I get back to work"):
+KRONOS_PATH = C:\Users\piercyg\Desktop\Kronos mock\ (piercyg = his Windows login at work; if that PC's login differs, the one constant moves),
+every stamp v29.0.1, EXPECTED_RELEASE v29.0.1, WHATS_NEW_RELEASE stays v29 (no box), docs/INSTALL-v29.0.1.md, briefs/steps-v29.0.1.txt, the
+CHANGELOG entry; tagged v29.0.1; dist/Callout_Roster_v29.0.1.zip built (packs test-only/modMockData.bas + modSnapshot.bas); the PUSH of
+main + the tag runs from his Terminal. Installed on the MOCK file only, Oct 31, AFTER the real file is set aside.
+WHAT IS NOT DONE: (1) the push of main + the tag if not yet done; (2) the rehearsal on a practice copy by Graeme before Oct 31 (plan step D-1.1: MakePracticeCopy ->
 LoadMockData -> the verify box -> SystemCheck -> IntegrityCheck -> the Desk per chair -> ResetRosterData -> LoadMockData again);
 (3) make_kronos.py's 17 .xlsx files handed to Graeme (tests/mock/kronos, gitignored; run it on his PC: openpyxl is on py -3.14).
 NEXT SESSION: (a) if the folder path is known, build v29.0.1 (above) and zip it; (b) whatever his rehearsal turns up (a verify

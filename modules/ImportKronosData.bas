@@ -55,7 +55,7 @@ Option Explicit
 '     first (KronosFilesToImport). The pivot sheet is still the fall-back.
 ' ====================================================================
 
-Public Const KR_VERSION As String = "Kronos import v29 (Oct 28)"
+Public Const KR_VERSION As String = "Kronos import v29.0.1 (Oct 28)"
 Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
 Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)

@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v29 (Oct 28)"
-Public Const EXPECTED_RELEASE As String = "v29"
+Public Const SYS_VERSION As String = "System v29.0.1 (Oct 28)"
+Public Const EXPECTED_RELEASE As String = "v29.0.1"   ' v29.0.1: ONE setting changed for the alpha (KRONOS_PATH); WHATS_NEW_RELEASE stays v29, so no box is shown again
 ' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
 ' release with nothing new for them (v27.1 was the behaviour-free refactor; v27.5 changes three rules, so its box shows)
 Public Const WHATS_NEW_RELEASE As String = "v29"

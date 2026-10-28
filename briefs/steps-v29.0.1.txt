@@ -1,0 +1,14 @@
+# Groups 3 and 4 of install-steps.txt for v29.0.1 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
+# VERSION / EXPECT / MEMBER / FORMS header, and fills {CASES} {SUITES} {MODULES} {STEPS} from the code).
+# ONE setting changed (KRONOS_PATH = the local Kronos mock folder) for the alpha, on the MOCK file only. No form, no
+# template, no run-once macro, no What's New box. test-only/modMockData.bas is imported BY HAND after the panel (INSTALL note).
+# Never a "|" inside a field: it is the panel's separator.
+# Format: kind | caption | argument | flag or expected result.
+
+[3. Run once]
+macro   | System check (expect {MODULES} of {MODULES} on v29.0.1; the paths box: Kronos reports = C:\Users\piercyg\Desktop\Kronos mock\ - reachable) | SystemCheckOK
+macro   | Self test (expect {CASES} passed, {SUITES} suites; no rule changed)  | SelfTestOK
+
+[4. Checks]
+manual  | The Kronos mock folder                                            | Windows Explorer: the folder C:\Users\piercyg\Desktop\Kronos mock\ exists and holds the Day-0 report "00 cumulative 2026-01-11 to 2026-10-30.xlsx" (from tests/mock/kronos). On the Desk the Kronos pill reads 1 new file. Do NOT import it yet: the plan's D0.3 does, after LoadMockData. Click Done.
+manual  | The mock-plant loader imported                                    | VBA editor: File > Import test-only/modMockData.bas from the unzipped folder into THIS file only (the one the real roster was set aside from). Debug > Compile: no error. SystemCheck still says {MODULES} of {MODULES} (the module is not counted). Click Done.

@@ -52,6 +52,7 @@ Public Sub NADoubleClick(ByVal Target As Range, ByRef Cancel As Boolean)
     Cancel = True
     Dim keyTxt As String: keyTxt = NAKeyAt(Target)
     If keyTxt = "" Or Left$(keyTxt, 2) = "Q:" Then Exit Sub      ' (review L17) Q: lines are for reading
+    If keyTxt = "Z:more" Then NAMoreToggle: Exit Sub             ' v29 (item 5): a lite login's "More (system)" heading folds / unfolds
     If Left$(keyTxt, 2) = "J:" Then
         On Error Resume Next                            ' never raises
         Application.Goto Target.Worksheet.Cells(CLng(Mid$(keyTxt, 3)), 1), True

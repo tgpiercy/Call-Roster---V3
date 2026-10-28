@@ -217,8 +217,17 @@ Public Sub DrawNeeds()
     tA = Timer                                      ' gathered
     NADrawHead ws, grp, nDays                       ' v27.1: the sheet wiped, the columns, rows 1-6
 
+    ' v29 (item 5; briefs/admin-lite.md): a lite login's order - his sections first (requests, open lines, leave,
+    ' staffing, disputes / exceptions), DATA CHECK + errors + feedback folded under "More (system)"; everyone else as before
+    Dim lite As Boolean: lite = IsLiteUser() And Not gDeskShowFull
+    Dim erRay() As NARow, nER As Long, erSys() As NARow, nES As Long
+    If lite Then NASplitSystem er, nE, erRay, nER, erSys, nES
+
     Dim r As Long: r = 7
     Dim rowP As Long, rowL As Long, rowS As Long, rowB As Long
+    If lite Then
+        r = NADrawLiteTop(ws, r, nDays, rq, nRq, lr, nL, br, nB, shortRows, nShort, erRay, nER, rowL, rowB)
+    Else
     rowL = r
     r = NASection(ws, r, "OPEN LINES  -  need cover in the next " & nDays & " days", nL, thOpen(), _
                   Array("Date", "Shift", "Crew", "Unit", "Who's off / need", "Type", "Status", "When"))
@@ -228,6 +237,7 @@ Public Sub DrawNeeds()
                       Array("Shift date", "Shift", "Crew", "Unit", "Staffed", "Type", "Status", "When"))
         r = NARows(ws, r, shortRows, nShort, "Every unit with a minimum is at or above it.")
     End If
+    End If
     rowP = r
     r = NASection(ws, r, "POSTINGS  -  open postings, oldest closing first", nP, thPosted(), _
                   Array("Shift date", "Shift", "Crew", "Unit", "Posting", "Type", "Status", "Closes"))
@@ -236,10 +246,12 @@ Public Sub DrawNeeds()
     r = NASection(ws, r, "SHIFT SWITCH PAYBACKS OWED  -  oldest first; over " & PaybackWarnDays() & " days in amber", nS, TypeColor("SS"), _
                   Array("Switch date", "Shift", "Crew", "Unit", "Owed", "Type", "Status", "When"))
     r = NARows(ws, r, sr, nS, "No paybacks owed.")
+    If Not lite Then                                ' v29: a lite login's LEAVE section is drawn at the top
     rowB = r
     r = NASection(ws, r, "LEAVE  -  returning soon or open-ended", nB, TypeColor("LOA"), _
                   Array("Started", "", "Crew", "Unit", "Who", "Type", "Status", "When"))
     r = NARows(ws, r, br, nB, "Nobody returning from leave in the window, and nothing open-ended.")
+    End If
     If nH > 0 Then
         r = NASection(ws, r, "HOLIDAYS TO CONFIRM  -  weekend holiday, weekday off not entered (next " & hLook & " days)", _
                       nH, RGB(176, 0, 32), Array("Holiday date", "", "Crew", "Unit", "Holiday", "Type", "Status", "When"))
@@ -250,6 +262,9 @@ Public Sub DrawNeeds()
                       nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
         r = NARows(ws, r, ur, nU, "")
     End If
+    If lite Then                                    ' v29 (item 5): DATA CHECK, the errors and the feedback under one folding heading
+        r = NADrawMore(ws, r, dcR, nDc, erSys, nES)
+    Else
     If nDc > 0 Then                                 ' v27 (item 25)
         r = NASection(ws, r, "DATA CHECK  -  roster details that look wrong (double-click: the roster row; Employee > Edit fixes it)", _
                       nDc, thMuted(), Array("", "", "Crew", "", "Who and what", "Type", "Status", ""))
@@ -264,6 +279,7 @@ Public Sub DrawNeeds()
         r = NASection(ws, r, "ERRORS  -  something didn't finish (double-click to open the Error Log)", _
                       nE, RGB(176, 0, 32), Array("Today", "", "", "", "What", "Type", "Status", ""))
         r = NARows(ws, r, er, nE, "")
+    End If
     End If
     If nM > 0 Then
         r = NASection(ws, r, "MEMBERS FILE  -  what the union sees is out of date (double-click to publish)", _
@@ -744,6 +760,111 @@ Private Function NASection(ByVal ws As Worksheet, ByVal r As Long, ByVal title A
     End With
     NASection = r + 2
 End Function
+
+' ====================================================================
+'  v29 (item 5): A LITE LOGIN'S ORDER
+' ====================================================================
+' the ERRORS list split: what Ray settles (Q: disputes, exceptions, restrictions) and the system lines (X: errors, F: feedback)
+Private Sub NASplitSystem(ByRef er() As NARow, ByVal nE As Long, ByRef erRay() As NARow, ByRef nER As Long, _
+                          ByRef erSys() As NARow, ByRef nES As Long)
+    ReDim erRay(1 To IIf(nE > 0, nE, 1)): ReDim erSys(1 To IIf(nE > 0, nE, 1))
+    nER = 0: nES = 0
+    Dim i As Long
+    For i = 1 To nE
+        If Left$(er(i).Key, 2) = "Q:" Then
+            nER = nER + 1: erRay(nER) = er(i)
+        Else
+            nES = nES + 1: erSys(nES) = er(i)
+        End If
+    Next i
+End Sub
+
+' Ray's sections first: MEMBERS' REQUESTS (always, even empty), OPEN LINES, LEAVE, BELOW MINIMUM STAFFING, then the
+' disputes / exceptions / restrictions he settles; rowL / rowB are the summary tiles' jump rows. Returns the next free row.
+Private Function NADrawLiteTop(ByVal ws As Worksheet, ByVal r As Long, ByVal nDays As Long, ByRef rq() As NARow, ByVal nRq As Long, _
+                               ByRef lr() As NARow, ByVal nL As Long, ByRef br() As NARow, ByVal nB As Long, _
+                               ByRef shortRows() As NARow, ByVal nShort As Long, ByRef erRay() As NARow, ByVal nER As Long, _
+                               ByRef rowL As Long, ByRef rowB As Long) As Long
+    r = NASection(ws, r, "MEMBERS' REQUESTS  -  waiting for you (double-click: book it through the pop-up; right-click: decline with a reason)", _
+                  nRq, thPosted(), Array("From", "", "Crew", "Unit", "Who and what", "Kind", "Status", "Received"))
+    r = NARows(ws, r, rq, nRq, "No members' requests waiting.")
+    rowL = r
+    r = NASection(ws, r, "OPEN LINES  -  need cover in the next " & nDays & " days", nL, thOpen(), _
+                  Array("Date", "Shift", "Crew", "Unit", "Who's off / need", "Type", "Status", "When"))
+    r = NARows(ws, r, lr, nL, "Nothing open - every line in the window is covered, posted or NCN.")
+    rowB = r
+    r = NASection(ws, r, "LEAVE  -  returning soon or open-ended", nB, TypeColor("LOA"), _
+                  Array("Started", "", "Crew", "Unit", "Who", "Type", "Status", "When"))
+    r = NARows(ws, r, br, nB, "Nobody returning from leave in the window, and nothing open-ended.")
+    If nShort > 0 Or MinStaffCount() > 0 Then
+        r = NASection(ws, r, "BELOW MINIMUM STAFFING  -  every unit, next " & IIf(nDays < BOARD_DAYS, nDays, BOARD_DAYS) & " days (double-click for the calendar on that date)", nShort, thOpen(), _
+                      Array("Shift date", "Shift", "Crew", "Unit", "Staffed", "Type", "Status", "When"))
+        r = NARows(ws, r, shortRows, nShort, "Every unit with a minimum is at or above it.")
+    End If
+    r = NASection(ws, r, "TO SETTLE  -  disputes, call-out exceptions, OT restrictions (Alt+F8 names the macro)", nER, RGB(176, 0, 32), _
+                  Array("Today", "", "", "", "What", "Type", "Status", ""))
+    r = NARows(ws, r, erRay, nER, "Nothing to settle.")
+    NADrawLiteTop = r
+End Function
+
+' "More (system)": one heading that folds DATA CHECK, the errors and the feedback lines; a double-click on it (key Z:more)
+' shows or hides them for this login (a hidden name). Returns the next free row.
+Private Function NADrawMore(ByVal ws As Worksheet, ByVal r As Long, ByRef dcR() As NARow, ByVal nDc As Long, _
+                            ByRef erSys() As NARow, ByVal nES As Long) As Long
+    Dim openNow As Boolean: openNow = NAMoreOpen()
+    ws.Cells(r, NA_KEY).Value = "Z:more"
+    r = NASection(ws, r, "MORE (system)  -  data check, errors, receipt answers: double-click this heading to " & IIf(openNow, "hide", "show") & " them", _
+                  nDc + nES, thMuted(), Array("", "", "", "", "What", "Type", "Status", ""))
+    If Not openNow Then
+        Dim none() As NARow: ReDim none(1 To 1)
+        r = NARows(ws, r, none, 0, IIf(nDc + nES = 0, "Nothing here today.", (nDc + nES) & " line(s) folded - double-click the heading above to show them."))
+    Else
+        If nDc > 0 Then
+            r = NASection(ws, r, "DATA CHECK  -  roster details that look wrong (double-click: the roster row; Employee > Edit fixes it)", _
+                          nDc, thMuted(), Array("", "", "Crew", "", "Who and what", "Type", "Status", ""))
+            r = NARows(ws, r, dcR, nDc, "")
+        End If
+        If nES > 0 Then
+            r = NASection(ws, r, "ERRORS AND RECEIPT ANSWERS  -  something didn't finish, or a receipt answered No (double-click to open)", _
+                          nES, RGB(176, 0, 32), Array("Today", "", "", "", "What", "Type", "Status", ""))
+            r = NARows(ws, r, erSys, nES, "")
+        End If
+        If nDc + nES = 0 Then
+            Dim none2() As NARow: ReDim none2(1 To 1)
+            r = NARows(ws, r, none2, 0, "Nothing here today.")
+        End If
+    End If
+    NADrawMore = r
+End Function
+
+Private Function NAMoreOpen() As Boolean
+    On Error Resume Next                            ' never raises
+    Dim nmObj As Name: Set nmObj = ThisWorkbook.Names(LoginNameKey("NAMore"))
+    If nmObj Is Nothing Then Exit Function
+    NAMoreOpen = (InStr(nmObj.RefersTo, "open") > 0)
+End Function
+
+' the heading's double-click (modCalMenus.NADoubleClick, key Z:more): shown <-> hidden for this login, then redrawn
+Public Sub NAMoreToggle()
+    On Error GoTo Oops
+    Dim key As String: key = LoginNameKey("NAMore")
+    Dim v As String: v = IIf(NAMoreOpen(), "closed", "open")
+    Dim wasSaved As Boolean: wasSaved = ThisWorkbook.Saved
+    Dim nmObj As Name
+    On Error Resume Next
+    Set nmObj = ThisWorkbook.Names(key)
+    On Error GoTo Oops
+    If nmObj Is Nothing Then
+        ThisWorkbook.Names.Add Name:=key, RefersTo:="=""" & v & """", Visible:=False
+    Else
+        nmObj.RefersTo = "=""" & v & """"
+    End If
+    If wasSaved Then ThisWorkbook.Saved = True
+    DrawNeeds
+    Exit Sub
+Oops:
+    ReportError "NAMoreToggle"
+End Sub
 
 ' the rows of one section (zebra, status pill); returns the next free row
 Private Function NARows(ByVal ws As Worksheet, ByVal r As Long, ByRef recs() As NARow, ByVal n As Long, _

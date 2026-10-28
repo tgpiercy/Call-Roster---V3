@@ -32,6 +32,18 @@ Option Explicit
 '  tile names the next thing and the verb a click takes; Help, the two emails,
 '  Undo and Practice in one grey footer row. Same buttons, same macros, same
 '  rights: a UI-only redraw.
+'
+'  v29 (briefs/admin-lite.md; Graeme, Oct 27, 2026): a THIRD drawing, the ADMIN
+'  LITE Desk, for an admin on LITE_DESK_USERS (Ray): drawn on the FULL admin view
+'  (not desk mode - his call), four bands in fixed places - NEEDS YOUR DECISION
+'  (requests, posting exceptions, corrections, returning from leave), BOOK AND
+'  CHANGE, DAILY CHECK (three steps, green when done today, one line when all
+'  three are), STAFFING AND OT (below minimum, OT by unit as bars) - over a trust
+'  strip; "Show full admin Desk" draws the full Desk on the same sheet for the
+'  session (gDeskShowFull, reset on open); "See Desk as: Supervisor / Admin Lite"
+'  lets any admin look at either. Every Lite button runs the macro its full-Desk
+'  twin runs; IsAdmin is untouched. The figures come from modLite; DrawLiteDesk
+'  is its own procedure (DrawDesk sits at the 300-line limit).
 ' ====================================================================
 
 Public Const DESK_VERSION As String = "Desk v28 (Oct 25)"
@@ -53,6 +65,8 @@ Private Const COLGAP As Double = 12                 ' v27: between the three ban
 Private Const PILL_H As Double = 20                 ' v27: the header's three pills
 Private mGuideCounted As Boolean                 ' v27 (item 27): the first days strip counted this session
 Private mPreview As Boolean                      ' v27.1: an admin is looking at the supervisor Desk (DeskPreview; this session only - gone on reopen)
+Private mPreviewLite As Boolean                  ' v29: an admin is looking at the Admin Lite Desk (DeskPreviewLite; this session only)
+Public gDeskShowFull As Boolean                  ' v29: a lite login asked for the full admin Desk (DeskShowFull; this session only - he lands on Lite again)
 
 ' ---- colours (the mock-up's) ----
 Private Function dkNavy() As Long
@@ -237,6 +251,14 @@ Public Sub DrawDesk()
     xx = DeskPill(ws, "dk_pill_kronos", kTxt, xx, yy, kOld, kMac)
     ' v27.1: the preview says so, after the other pills (nothing else moves)
     If mPreview And gAdminUnlocked Then xx = DeskPill(ws, "dk_pill_preview", "PREVIEW: a supervisor's Desk", xx, yy, True, "modDesk.DeskPreview")
+    ' v29 (item 3b): the Admin Lite Desk - a lite login, or an admin previewing it, unless the full Desk was asked for
+    Dim lite As Boolean: lite = asAdmin And (IsLiteUser() Or mPreviewLite) And Not gDeskShowFull
+    If mPreviewLite And gAdminUnlocked Then xx = DeskPill(ws, "dk_pill_preview", "PREVIEW: the Admin Lite Desk", xx, yy, True, "modDesk.DeskPreviewLite")
+    If asAdmin And (IsLiteUser() Or mPreviewLite) And gDeskShowFull Then xx = DeskPill(ws, "dk_pill_lite", "<  Back to my Desk", xx, yy, False, "modDesk.DeskShowFull")
+    If lite Then
+        yy = DrawLiteDesk(ws, x0, bandW)
+        GoTo Footer
+    End If
 
     ' ---- the layout: the admin Desk (every job) or the supervisor Desk (a supervisor's jobs) ----
     Dim sup As Boolean: sup = Not asAdmin
@@ -357,6 +379,7 @@ Public Sub DrawDesk()
     yy = yN: If yP > yy Then yy = yP
     If yF > yy Then yy = yF
     yy = yy + 10
+Footer:                                              ' v29: the Lite drawing joins here (sup is False: an admin's footer)
     Dim nFoot As Long: nFoot = IIf(sup, 5, 6)           ' v27 (item 20, B14): + Larger type
     Dim fw As Double: fw = (bandW - (nFoot - 1) * GAP) / nFoot
     xx = x0
@@ -380,12 +403,13 @@ Public Sub DrawDesk()
     ' ---- the links, then the shortcut keys (v25.5, A5) ----
     yy = yy + BTN_H + 10
     DeskLink ws, "dk_lnk_roster", "Full roster  >", "modDesk.DeskRoster", x0, yy, 140
-    If Not sup Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", x0 + 150, yy, 260
-    ' v27.1: an admin can look at the supervisor Desk and come back (the same macro both ways)
-    If asAdmin Then
-        DeskLink ws, "dk_lnk_preview", "See the supervisor Desk  >", "modDesk.DeskPreview", x0 + 420, yy, 200
-    ElseIf mPreview And gAdminUnlocked Then
-        DeskLink ws, "dk_lnk_preview", "<  Back to my Desk", "modDesk.DeskPreview", x0 + 150, yy, 200
+    If Not sup And Not lite Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", x0 + 150, yy, 260   ' v29: not on the Lite Desk (it already sits on the full view)
+    ' v27.1: an admin can look at the supervisor Desk and come back; v29: or at the Admin Lite Desk ("See Desk as")
+    If (mPreview Or mPreviewLite) And gAdminUnlocked Then
+        DeskLink ws, "dk_lnk_preview", "<  Back to my Desk", "modDesk.DeskPreviewOff", IIf(mPreview, x0 + 150, x0 + 420), yy, 200
+    ElseIf asAdmin Then
+        DeskLink ws, "dk_lnk_preview", "See Desk as:  Supervisor  >", "modDesk.DeskPreview", x0 + 420, yy, 190
+        DeskLink ws, "dk_lnk_previewlite", "Admin Lite  >", "modDesk.DeskPreviewLite", x0 + 615, yy, 110
     End If
     yy = yy + 26
     DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yy
@@ -404,9 +428,9 @@ Public Sub DrawDesk()
     End With
     yy = yy + 24
     On Error GoTo Failed
-    If GuideShows() Then                            ' v27 (item 27): the first days strip
+    If GuideShows(lite) Then                        ' v27 (item 27): the first days strip; v29: a lite login's own five steps
         yy = yy + 22
-        DeskLabel ws, "dk_lbl_guide", GuideLine(), x0, yy
+        DeskLabel ws, "dk_lbl_guide", GuideLine(lite), x0, yy
         On Error Resume Next
         ws.Shapes("dk_lbl_guide").Width = 640
         ws.Shapes("dk_lbl_guide").TextFrame2.TextRange.Font.Fill.ForeColor.RGB = dkNavy()
@@ -545,6 +569,184 @@ Private Function TileRows(ByVal sup As Boolean, ByVal nTiles As Long) As Long
     If sup Then TileRows = 1 Else TileRows = (nTiles + 2) \ 3
 End Function
 
+' ====================================================================
+'  v29 (briefs/admin-lite.md): THE ADMIN LITE DESK'S DRAWING
+' ====================================================================
+' Called by DrawDesk after the shared header pills (row 2); draws rows 3-4 (the Lite pills, the trust strip) and the
+' four bands from row 5 down, every shape named dk_lite_* / dk_q_* so DrawDesk's redraw deletes them; returns the y the
+' footer starts at. Every figure comes from modLite or the roster's own functions; every button runs the macro its
+' full-Desk twin runs. Cards keep their places when empty (grey, "Nothing waiting") so the eye learns where things are.
+Private Function DrawLiteDesk(ByVal ws As Worksheet, ByVal x0 As Double, ByVal bandW As Double) As Double
+    Dim xx As Double, yy As Double, k As Long
+    Dim tw As Double: tw = (bandW - 3 * GAP) / 4            ' four cards across the bands' span
+
+    ' ---- row 3: ADMIN LITE | Signed in as Ray - admin rights | Show full admin Desk ----
+    ws.Rows(3).RowHeight = 26: ws.Rows(4).RowHeight = 26
+    xx = x0: yy = ws.Cells(3, 1).Top + 3
+    xx = DeskPill(ws, "dk_lite_pill", "ADMIN LITE", xx, yy, False)
+    xx = DeskPill(ws, "dk_lite_who", "Signed in as " & IIf(IsLiteUser(), LITE_FIRST_NAME, CurrentUser()) & " - admin rights", xx, yy, False)
+    xx = DeskPill(ws, "dk_lite_full", "Show full admin Desk  >", xx, yy, False, "modDesk.DeskShowFull")
+
+    ' ---- row 4: the trust strip - four facts, each OK (grey) or red with "call <admin>" ----
+    xx = x0: yy = ws.Cells(4, 1).Top + 3
+    Dim call_ As String: call_ = " - call " & PRIMARY_ADMIN_NAME
+    Dim dt As Date: dt = KronosDataThrough()
+    Dim bad As Boolean: bad = (dt = 0 Or KronosIsStale())
+    Dim nProv As Long: nProv = ProvisionalCount()
+    xx = DeskPill(ws, "dk_lite_t1", IIf(dt = 0, "Hours: no Kronos data yet", "Hours through " & Format$(dt, "ddd mmm d")) & _
+                  IIf(nProv > 0, " + " & nProv & " provisional", "") & IIf(bad, call_, ""), xx, yy, bad)
+    Dim bk As Long: bk = BackupTodayState()
+    xx = DeskPill(ws, "dk_lite_t2", Choose(bk + 2, "Backup: not in this copy", "NO backup today" & call_, "Backup today: yes"), xx, yy, (bk = 0))
+    Dim pubAt As Date: pubAt = MembersPublishedAt()
+    bad = (pubAt = 0 Or Int(Date) - Int(pubAt) >= MembersStaleDays())
+    xx = DeskPill(ws, "dk_lite_t3", IIf(pubAt = 0, "Members' file: never published", "Members' file updated " & Format$(pubAt, "ddd h:mm AM/PM")) & IIf(bad, call_, ""), xx, yy, bad)
+    Dim nErr As Long: nErr = UnseenErrorCount()
+    bad = IntegrityHasProblems() Or nErr > 0
+    xx = DeskPill(ws, "dk_lite_t4", IIf(bad, "System checks: " & IIf(IntegrityHasProblems(), "an integrity PROBLEM", nErr & " new error" & IIf(nErr = 1, "", "s")) & call_, "System checks: OK"), xx, yy, bad)
+
+    ' ---- band 1: NEEDS YOUR DECISION - four cards, one verb each ----
+    yy = ws.Cells(5, 1).Top + 6
+    DeskLabel ws, "dk_lite_lbl1", "NEEDS YOUR DECISION  -  oldest first, one decision per card", x0, yy
+    ws.Shapes("dk_lite_lbl1").Width = 420
+    DeskLink ws, "dk_q_decide", "?", "modDesk.DeskLiteHelp", x0 + bandW - 22, yy - 4, 22
+    yy = yy + 16
+    Dim n As Long, n2 As Long, txt As String, id As String, what As String
+    n = RequestsWaitingCount(): n2 = RequestsPartnerCount()
+    DeskTile ws, "dk_lite_req", n, IIf(n = 0, "Nothing waiting - members' requests", IIf(n = 1, "member's request waiting", "members' requests waiting")) & _
+             IIf(n2 > 0, "; " & n2 & " waiting for a partner", ""), "modDesk.DeskRequests", x0, yy, tw, IIf(n > 0, dkGreen(), 0), IIf(n = 0, "", "Decide in Needs Attention")
+    n = PostingExceptionCount(id, what)
+    DeskTile ws, "dk_lite_post", n, IIf(n = 0, "Nothing waiting - posting exceptions", IIf(n = 1, "posting", "postings") & " with nobody signed up" & IIf(id <> "", ": " & id & " (" & what & ")", "")), _
+             "modDesk.DeskLiteAward", x0 + (tw + GAP), yy, tw, IIf(n > 0, dkOrange(), 0), IIf(n = 0, "", "No takers / Cancel / Out of dept")
+    n = UnresolvedNoCount(): n2 = 0: txt = OpenDisputesText(n2)
+    DeskTile ws, "dk_lite_fix", n + n2, IIf(n + n2 = 0, "Nothing waiting - corrections", n & " receipt " & IIf(n = 1, "answer", "answers") & " of No / Not sure" & IIf(n2 > 0, "; " & n2 & " open dispute" & IIf(n2 = 1, "", "s"), "")), _
+             "modDesk.DeskFixEntry", x0 + 2 * (tw + GAP), yy, tw, IIf(n + n2 > 0, dkRed(), 0), IIf(n + n2 = 0, "", "Fix an entry")
+    n = LeaveReturningCount(DESK_AHEAD_DAYS, txt)
+    DeskTile ws, "dk_lite_leave", n, IIf(n = 0, "Nothing waiting - returning from leave", "returning from leave in " & DESK_AHEAD_DAYS & " days" & IIf(txt <> "", ": " & txt, "")), _
+             "modDesk.DeskLeave", x0 + 3 * (tw + GAP), yy, tw, IIf(n > 0, dkGreen(), 0), IIf(n = 0, "", "Leave > Returning")
+    yy = yy + TILE_H + 18
+
+    ' ---- band 2: BOOK AND CHANGE - four large buttons with a one-line hint each ----
+    DeskLabel ws, "dk_lite_lbl2", "BOOK AND CHANGE", x0, yy
+    DeskLink ws, "dk_q_book", "?", "modDesk.DeskLiteHelp", x0 + bandW - 22, yy - 4, 22
+    yy = yy + 16
+    DeskBtn ws, "dk_lite_timeoff", "Book time off", "modDesk.DeskTimeOff", x0, yy, dkGreen(), tw
+    DeskBtn ws, "dk_lite_leavebtn", "Leave: going or returning", "modDesk.DeskLeave", x0 + (tw + GAP), yy, dkGreen(), tw
+    DeskBtn ws, "dk_lite_need", "Add a need", "modDesk.DeskAddNeed", x0 + 2 * (tw + GAP), yy, dkGreen(), tw
+    DeskBtn ws, "dk_lite_person", "Change a person", "modDesk.DeskPerson", x0 + 3 * (tw + GAP), yy, dkGreen(), tw
+    yy = yy + BTN_H + 3
+    DeskLabel ws, "dk_lite_h1", "vacation, personal, a booked sick day", x0, yy
+    DeskLabel ws, "dk_lite_h2", "STD, LOA, parental; the return top-up", x0 + (tw + GAP), yy
+    DeskLabel ws, "dk_lite_h3", "an uncovered shift on the calendar", x0 + 2 * (tw + GAP), yy
+    DeskLabel ws, "dk_lite_h4", "new hire, unit move, rename, remove", x0 + 3 * (tw + GAP), yy
+    For k = 1 To 4
+        ws.Shapes("dk_lite_h" & k).Width = tw
+    Next k
+    yy = yy + 14 + 14
+
+    ' ---- band 3: DAILY CHECK - three numbered steps, green when done today; one green line when all three are ----
+    DeskLabel ws, "dk_lite_lbl3", "DAILY CHECK  -  only when " & PRIMARY_ADMIN_NAME & " is off", x0, yy
+    ws.Shapes("dk_lite_lbl3").Width = 420
+    DeskLink ws, "dk_q_daily", "?", "modDesk.DeskLiteHelp", x0 + bandW - 22, yy - 4, 22
+    yy = yy + 16
+    Dim dl As String: dl = DailyCheckLine()
+    If dl <> "" Then
+        DeskBtn ws, "dk_lite_daily", dl, "", x0, yy, dkGreen(), bandW
+        GuideTick 5, True                            ' the strip's fifth step: the daily check done
+    Else
+        Dim tw3 As Double: tw3 = (bandW - 2 * GAP) / 3
+        Dim st As String, nCover As Long: nCover = OpenLinesAhead(DESK_AHEAD_DAYS)
+        st = DailyStepText("kronos")
+        DeskBtn ws, "dk_lite_d1", "1  Import Kronos" & IIf(st <> "", " - done " & st, ""), "modDesk.DeskKronos", x0, yy, IIf(st <> "", dkGreen(), dkOrange()), tw3
+        st = DailyStepText("needs")
+        DeskBtn ws, "dk_lite_d2", "2  Clear Needs Attention" & IIf(nCover > 0, " (" & nCover & " to cover)", "") & IIf(st <> "", " - done " & st, ""), _
+                "modDesk.DeskNeeds", x0 + tw3 + GAP, yy, IIf(st <> "", dkGreen(), dkOrange()), tw3
+        st = DailyStepText("publish")
+        DeskBtn ws, "dk_lite_d3", "3  Publish the members' file" & IIf(st <> "", " - done " & st, ""), "modDesk.DeskPublish", x0 + 2 * (tw3 + GAP), yy, IIf(st <> "", dkGreen(), dkOrange()), tw3
+    End If
+    yy = yy + BTN_H + 18
+
+    ' ---- band 4: STAFFING AND OT - below minimum ahead, then this period's OT by unit as bars ----
+    DeskLabel ws, "dk_lite_lbl4", "STAFFING AND OT", x0, yy
+    DeskLink ws, "dk_q_staff", "?", "modDesk.DeskLiteHelp", x0 + bandW - 22, yy - 4, 22
+    yy = yy + 16
+    Dim sl As Variant: sl = StaffShortList(Date, LITE_STAFF_DAYS, "")
+    n = 0: txt = ""
+    If IsArray(sl) Then
+        n = UBound(sl, 1)
+        For k = 1 To n
+            If k <= 3 Then txt = txt & IIf(txt = "", "", "; ") & sl(k, 1) & " " & Format$(CDate(sl(k, 2)), "ddd d") & " " & sl(k, 3)
+        Next k
+    End If
+    DeskTile ws, "dk_lite_staff", n, IIf(n = 0, "Nothing short - minimum staffing, next " & LITE_STAFF_DAYS & " days", _
+             "below minimum in the next " & LITE_STAFF_DAYS & " days: " & txt & IIf(n > 3, " ...", "")), "modDesk.DeskLiteStaff", x0, yy, BTN_W, IIf(n > 0, dkOrange(), 0), IIf(n = 0, "", "See the Calendar")
+    Dim bx As Double: bx = x0 + BTN_W + COLGAP
+    DeskLabel ws, "dk_lite_bars", "OT hours charged this pay period, by unit", bx, yy
+    ws.Shapes("dk_lite_bars").Width = 300
+    Dim uv As Variant: uv = UnitChargedThisPeriod()
+    If IsArray(uv) Then
+        Dim mx As Double, by As Double, bw As Double, nCells As Long, s As Shape
+        For k = 1 To UBound(uv, 1)
+            If uv(k, 2) > mx Then mx = uv(k, 2)
+        Next k
+        bw = bandW - BTN_W - COLGAP - 170: nCells = 20
+        by = yy + 16
+        For k = 1 To UBound(uv, 1)
+            DeskLabel ws, "dk_lite_u" & k, uv(k, 1), bx, by
+            ws.Shapes("dk_lite_u" & k).Width = 110
+            Dim nc As Long: nc = BarCellsCore(CDbl(uv(k, 2)), mx, nCells)
+            If nc > 0 Then Set s = DeskShape(ws, "dk_lite_bar" & k, "", bx + 112, by + 1, nc * bw / nCells, 10, dkNavy())
+            DeskLabel ws, "dk_lite_uh" & k, Format$(uv(k, 2), "0") & " h", bx + 116 + nc * bw / nCells, by
+            by = by + 14
+        Next k
+        If by > yy + TILE_H Then yy = by - TILE_H
+    Else
+        DeskLabel ws, "dk_lite_nobars", "nothing charged yet this period", bx, yy + 16
+    End If
+    yy = yy + TILE_H + GAP
+    ' the reports: a button shows only once its report exists (brief rule L4) - Staffing outlook and Look up a person today
+    DeskBtn ws, "dk_lite_outlook", "Staffing outlook (calendar)", "modDesk.DeskCalendar", x0, yy, dkNavy(), tw
+    DeskBtn ws, "dk_lite_person2", "Look up a person (history)", "modDesk.DeskHistory", x0 + (tw + GAP), yy, dkNavy(), tw
+    yy = yy + BTN_H + 10
+    DrawLiteDesk = yy
+End Function
+
+' the "?" on each Lite band: Application.Caller is the clicked shape's name (dk_q_<band>)
+Public Sub DeskLiteHelp()
+    On Error GoTo Oops
+    Dim who As String
+    On Error Resume Next
+    who = CStr(Application.Caller)
+    On Error GoTo Oops
+    MsgBox LiteHelpText(Mid$(who, 6)), vbInformation, "Admin Lite Desk - what this band means"
+    Exit Sub
+Oops:
+    ReportError "DeskLiteHelp"
+End Sub
+
+' one plain line per card; the same words go on the Admin Lite cheat sheet (docs/admin-lite-cheat-sheet.md)
+Public Function LiteHelpText(ByVal key As String) As String
+    Select Case LCase$(key)
+        Case "decide"
+            LiteHelpText = "Member requests: time off or a switch a member asked for from the members' file - book it (double-click) or decline it (right-click) in Needs Attention." & vbNewLine & _
+                           "Posting exceptions: an open posting nobody signed up for, closed or closing within 24 h - the Award pop-up offers No takers, Cancel or Award Out of Dept." & vbNewLine & _
+                           "Corrections asked for: a receipt answered No or Not sure, or an open dispute - Fix an entry voids the entry (a reason is required) and re-enters it." & vbNewLine & _
+                           "Returning from leave: a leave that ends in the next " & DESK_AHEAD_DAYS & " days, or an open-ended one - Leave > Returning books the return and the top-up."
+        Case "book"
+            LiteHelpText = "Book time off: vacation, personal days, a sick day booked ahead (the calendar line and the cover come with it)." & vbNewLine & _
+                           "Leave: STD, LOA, parental - going, and the return with its top-up." & vbNewLine & _
+                           "Add a need: an uncovered shift on the calendar with no posting yet - right-click the day." & vbNewLine & _
+                           "Change a person: a new hire, a unit move, a rename, a removal - the Employee pop-up."
+        Case "daily"
+            LiteHelpText = "Only when " & PRIMARY_ADMIN_NAME & " is off: 1 Import Kronos (the morning report), 2 Clear Needs Attention (every line looked at), 3 Publish the members' file. " & _
+                           "A step turns green once anyone has done it today; when all three are done the band is one green line naming who and when."
+        Case "staff"
+            LiteHelpText = "Below minimum: the shifts in the next " & LITE_STAFF_DAYS & " days where the people on, less those off, plus the covers, fall under the Min Staff table - the Calendar shows the day." & vbNewLine & _
+                           "OT by unit: the hours charged in the OT Log this pay period, per unit (display only). Staffing outlook opens the Calendar; Look up a person the employee history."
+        Case Else
+            LiteHelpText = "The Admin Lite Desk shows your jobs in four fixed bands; Show full admin Desk has everything else. Nothing here changes what you may do."
+    End Select
+End Function
+
 ' v27 (item 2): the admin's "This morning" tile - the integrity result of this open, today's backup, the Error Log
 ' rows nobody has read; red for a PROBLEM or a missing backup, orange for unread errors, grey when all is well
 Private Sub MorningCheck(ByRef txt As String, ByRef col As Long, ByRef verb As String)
@@ -663,7 +865,8 @@ End Sub
 ' sheet), and a 120 % left behind is put back
 Public Sub DeskOpenLanding()
     On Error Resume Next
-    If gDeskMode Or (SUPERVISOR_DESK And Not gAdminUnlocked And IsSupervisor()) Then
+    gDeskShowFull = False                            ' v29: a lite login lands on the Lite Desk every open
+    If gDeskMode Or IsLiteUser() Or (SUPERVISOR_DESK And Not gAdminUnlocked And IsSupervisor()) Then      ' v29: + a lite login (on the full admin view)
         ShowDeskSheet
         If Err.Number <> 0 Then
             LogError "DeskOpenLanding", Err.Number, Err.Description
@@ -723,11 +926,135 @@ Public Sub DeskPreview()
         End If
     End If
     mPreview = Not mPreview
+    mPreviewLite = False                             ' v29: one preview at a time
     DrawDesk
     If ActiveSheet.Name <> DESK_SHEET Then ShowDeskSheet       ' (review V3) run from Alt+F8 elsewhere: show the Desk it changed
     Exit Sub
 Oops:
     ReportError "DeskPreview"
+End Sub
+
+' v29: "See Desk as: Admin Lite" - an admin looks at the Desk a lite login lands on (and comes back with the same link).
+' This session only. The buttons work as normal: they are admin jobs. For a lite login itself the link just redraws Lite.
+Public Sub DeskPreviewLite()
+    On Error GoTo Oops
+    If Not mPreviewLite Then
+        If Not RequireAdmin() Then Exit Sub
+        If Not gAdminUnlocked Then
+            MsgBox "The preview is for the admin Desk: open the Desk in the admin view first.", vbInformation, "Desk"
+            Exit Sub
+        End If
+    End If
+    mPreviewLite = Not mPreviewLite
+    mPreview = False
+    gDeskShowFull = False
+    DrawDesk
+    If ActiveSheet.Name <> DESK_SHEET Then ShowDeskSheet
+    Exit Sub
+Oops:
+    ReportError "DeskPreviewLite"
+End Sub
+
+' v29: "< Back to my Desk" while either preview is on
+Public Sub DeskPreviewOff()
+    On Error GoTo Oops
+    mPreview = False: mPreviewLite = False: gDeskShowFull = False
+    DrawDesk
+    If ActiveSheet.Name <> DESK_SHEET Then ShowDeskSheet
+    Exit Sub
+Oops:
+    ReportError "DeskPreviewOff"
+End Sub
+
+' v29: a lite login's "Show full admin Desk" / "< Back to my Desk" - the full admin drawing on the same sheet, this session
+' only (the next open lands on Lite again). Rights are unchanged either way.
+Public Sub DeskShowFull()
+    On Error GoTo Oops
+    If Not RequireAdmin() Then Exit Sub
+    gDeskShowFull = Not gDeskShowFull
+    DrawDesk
+    If ActiveSheet.Name <> DESK_SHEET Then ShowDeskSheet
+    Exit Sub
+Oops:
+    ReportError "DeskShowFull"
+End Sub
+
+' v29: the Posting exceptions card - the Award pop-up on the exception that has waited longest (as CalMenuAward loads a
+' posting: the pop-up's list, pre-picked), where No takers / Cancel / Award Out of Dept are offered
+Public Sub DeskLiteAward()
+    On Error GoTo Oops
+    GuideTick 3, True                                ' the Lite strip: a posting exception looked at
+    Dim id As String, what As String
+    If PostingExceptionCount(id, what) = 0 Or id = "" Then ShowPostingForm: Exit Sub
+    If Not RequireSupervisor() Then Exit Sub
+    If Not RequireWritable() Then Exit Sub
+    If LogTable() Is Nothing Then Exit Sub
+    If Not PostingTablesReady() Then Exit Sub
+    Dim ids As Variant, ch As Variant, i As Long, idx As Long
+    idx = -1
+    ch = OpenPostingChoices(ids)
+    If IsArray(ids) Then
+        For i = LBound(ids) To UBound(ids)
+            If StrComp(CStr(ids(i)), id, vbTextCompare) = 0 Then idx = i - LBound(ids)
+        Next i
+    End If
+    Load frmPostingEntry
+    If idx >= 0 Then
+        On Error Resume Next
+        frmPostingEntry.Controls("cmbPosting").ListIndex = idx
+        On Error GoTo Oops
+    End If
+    frmPostingEntry.Show
+    RefreshCalendar
+    DeskRefreshIfShown
+    Exit Sub
+Oops:
+    ReportError "DeskLiteAward"
+End Sub
+
+' v29: the Corrections card - Fix an entry (item 4 brings the guided card; until then the Feedback sheet)
+Public Sub DeskFixEntry()
+    On Error GoTo Oops
+    GuideTick 4, True                                ' the Lite strip: a correction looked at
+    ShowFeedback
+    Exit Sub
+Oops:
+    ReportError "DeskFixEntry"
+End Sub
+
+' v29: "Add a need" - the Calendar on today; a need is added from a day's right-click menu (CalMenuAddNeed), so the
+' status bar says where
+Public Sub DeskAddNeed()
+    On Error GoTo Oops
+    CalShowDate Date
+    ShowBarText "Add a need: right-click the day > Add a need (no posting yet)..."
+    Exit Sub
+Oops:
+    ReportError "DeskAddNeed"
+End Sub
+
+' v29: "Change a person" - the Employee pop-up (add / move / rename / remove; admin)
+Public Sub DeskPerson()
+    On Error GoTo Oops
+    ShowEmployeeForm
+    DeskRefreshIfShown
+    Exit Sub
+Oops:
+    ReportError "DeskPerson"
+End Sub
+
+' v29: the below-minimum card - the Calendar on the first short day (today when none)
+Public Sub DeskLiteStaff()
+    On Error GoTo Oops
+    Dim sl As Variant: sl = StaffShortList(Date, LITE_STAFF_DAYS, "")
+    If IsArray(sl) Then
+        CalShowDate CDate(sl(1, 2)), CStr(sl(1, 1))
+    Else
+        CalShowDate Date
+    End If
+    Exit Sub
+Oops:
+    ReportError "DeskLiteStaff"
 End Sub
 
 ' Called from ThisWorkbook's SheetActivate: the Desk is refreshed every time anyone looks at it (its figures
@@ -802,6 +1129,7 @@ End Sub
 ' v28 (item 1): the requests tile - the folder read again, then Needs Attention (its MEMBERS' REQUESTS section)
 Public Sub DeskRequests()
     On Error GoTo Oops
+    GuideTick 2, True                                ' v29: the Lite strip - a member's request looked at
     If REQUESTS_ON And IsAdmin() And IsLiveRoster() Then ReadRequests False
     ShowNeedsAttention
     Exit Sub
@@ -829,6 +1157,7 @@ End Sub
 
 Public Sub DeskTimeOff()
     On Error GoTo Oops
+    GuideTick 1, True                                ' v29: the Lite strip - time off booked
     ShowTimeOffForm
     DeskRefreshIfShown
     Exit Sub
@@ -1195,6 +1524,14 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "at the foot is help: How do I ..., Something went wrong, Suggest an improvement, Practice on a copy (and Undo for an admin). " & _
         "Full roster > goes to the roster; the Desk tab brings it back. Anyone not on the supervisor list opens on the roster and can log " & _
         "call-outs and look at the calendar."
+    HelpAdd h, n, "The Admin Lite Desk", _
+        "An admin on the Lite list (" & LITE_FIRST_NAME & ") opens on a simpler Desk with only his jobs, in four bands that never move: NEEDS YOUR DECISION " & _
+        "(members' requests, posting exceptions - open postings nobody signed up for -, corrections asked for through the receipts, people returning from leave), " & _
+        "BOOK AND CHANGE (time off, leave, add a need, change a person), DAILY CHECK (only when " & PRIMARY_ADMIN_NAME & " is off: Import Kronos, Clear Needs " & _
+        "Attention, Publish the members' file - each green once anyone has done it today) and STAFFING AND OT (below minimum in the next two weeks, this " & _
+        "period's OT hours by unit). The strip under the title says whether the hours, today's backup, the members' file and the system checks are fine; a red " & _
+        "item says to call " & PRIMARY_ADMIN_NAME & ". A ? on each band explains its cards. Show full admin Desk > shows everything else for the session; " & _
+        "< Back to my Desk returns. It changes what is on screen, never what the login may do. Any admin can look at it with See Desk as: Admin Lite."
     HelpAdd h, n, "Log a call-out (fill a shift now)", _
         "Click Fill a shift now (or Log Call-Out on the roster's bar). Pick the Department, Shift and Date, type the Hours and " & _
         "click LOAD LIST: the list is in call order and holds only the people free for that shift. The card shows who to call " & _
@@ -1447,38 +1784,49 @@ Private Sub GuideSet(ByVal prefix As String, ByVal v As String)
     If wasSaved Then ThisWorkbook.Saved = True
 End Sub
 
-' a step done (1 practice copy, 2 a call-out, 3 the Calendar, 4 How do I ...)
-Private Sub GuideTick(ByVal k As Long)
-    Dim s As String: s = GuideGet("GuideDone")
+' a step done (1 practice copy, 2 a call-out, 3 the Calendar, 4 How do I ...); v29: lite = the Lite Desk's own strip
+' (1 book time off, 2 a member's request, 3 a posting exception, 4 fix an entry, 5 the daily check), its own hidden names
+Private Sub GuideTick(ByVal k As Long, Optional ByVal lite As Boolean = False)
+    If lite And Not IsLiteUser() Then Exit Sub        ' an admin previewing Lite ticks nothing
+    Dim pfx As String: pfx = IIf(lite, "GuideLite", "Guide")
+    Dim s As String: s = GuideGet(pfx & "Done")
     If InStr(s, "hidden") > 0 Or InStr(s, "|" & k & "|") > 0 Then Exit Sub
-    GuideSet "GuideDone", IIf(s = "", "|", s) & k & "|"
+    GuideSet pfx & "Done", IIf(s = "", "|", s) & k & "|"
 End Sub
 
 ' True while the strip shows: the first three sessions, not hidden. The session is counted on its first Desk draw.
-Private Function GuideShows() As Boolean
+' v29: the Lite strip counts its own sessions (a lite login's three ordinary sessions are long used up).
+Private Function GuideShows(Optional ByVal lite As Boolean = False) As Boolean
     On Error Resume Next                            ' never raises
-    If InStr(GuideGet("GuideDone"), "hidden") > 0 Then Exit Function
+    Dim pfx As String: pfx = IIf(lite, "GuideLite", "Guide")
+    If lite And Not IsLiteUser() Then Exit Function   ' the preview shows no strip
+    If InStr(GuideGet(pfx & "Done"), "hidden") > 0 Then Exit Function
     If Not mGuideCounted Then
         mGuideCounted = True
-        GuideSet "GuideOpens", CStr(Val(GuideGet("GuideOpens")) + 1)
+        GuideSet pfx & "Opens", CStr(Val(GuideGet(pfx & "Opens")) + 1)
     End If
-    GuideShows = (Val(GuideGet("GuideOpens")) <= 3)
+    GuideShows = (Val(GuideGet(pfx & "Opens")) <= 3)
 End Function
 
-Private Function GuideLine() As String
-    Dim s As String: s = GuideGet("GuideDone")
-    Dim names As Variant: names = Array("Practice on a copy", "Fill a shift now (a call-out)", "The Calendar", "How do I ...")
+Private Function GuideLine(Optional ByVal lite As Boolean = False) As String
+    Dim s As String: s = GuideGet(IIf(lite, "GuideLiteDone", "GuideDone"))
+    Dim names As Variant
+    If lite Then
+        names = Array("Book time off", "Approve a member's request", "Resolve a posting exception", "Fix an entry", "Run the daily check")
+    Else
+        names = Array("Practice on a copy", "Fill a shift now (a call-out)", "The Calendar", "How do I ...")
+    End If
     Dim k As Long, t As String
-    For k = 1 To 4
+    For k = 1 To UBound(names) + 1
         t = t & IIf(InStr(s, "|" & k & "|") > 0, "[x] ", "[  ] ") & k & " " & names(k - 1) & "     "
     Next k
-    GuideLine = "Your first days:     " & t
+    GuideLine = IIf(lite, "Your first week:     ", "Your first days:     ") & t
 End Function
 
-' the strip's "Hide this"
+' the strip's "Hide this" (v29: the Lite strip when the Lite Desk is showing)
 Public Sub DeskGuideHide()
     On Error GoTo Oops
-    GuideSet "GuideDone", "hidden"
+    GuideSet IIf(IsLiteUser() And Not gDeskShowFull, "GuideLiteDone", "GuideDone"), "hidden"
     DrawDesk
     Exit Sub
 Oops:

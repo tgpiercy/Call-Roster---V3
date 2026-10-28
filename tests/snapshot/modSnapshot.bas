@@ -70,6 +70,22 @@ Public Sub TakeSnapshot()
     SnapSheet ThisWorkbook.Worksheets(CALLOUT_SHEET), "Call Out Roster", False
     DrawDesk
     SnapSheet ThisWorkbook.Worksheets(DESK_SHEET), "Desk", True
+    ' v29: the supervisor Desk through the preview (v27.1; the same link turns it off), then the Admin Lite Desk through
+    ' Application.Run so this test-only module still compiles on v28, where DeskPreviewLite does not exist (skipped there)
+    DeskPreview
+    SnapSheet ThisWorkbook.Worksheets(DESK_SHEET), "Desk[supervisor]", True
+    DeskPreview
+    On Error Resume Next
+    Application.Run "modDesk.DeskPreviewLite"
+    If Err.Number = 0 Then
+        On Error GoTo Oops
+        SnapSheet ThisWorkbook.Worksheets(DESK_SHEET), "Desk[lite]", True
+        Application.Run "modDesk.DeskPreviewOff"
+    Else
+        Err.Clear
+        On Error GoTo Oops
+        mOut = mOut & "# no Admin Lite Desk on this release" & vbNewLine
+    End If
     Dim path As String: path = ThisWorkbook.Path & Application.PathSeparator & "snapshot-" & EXPECTED_RELEASE & ".txt"
     WriteText path, mOut
     MsgBox "Snapshot written: " & mItems & " items in " & Format$(Timer - t0, "0") & " s." & vbNewLine & path & vbNewLine & vbNewLine & _

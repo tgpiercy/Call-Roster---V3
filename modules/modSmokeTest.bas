@@ -1203,6 +1203,21 @@ Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
        ViewModeFor("ray", "ann,boss,ray", "boss,ray", "sue", "ray") <> "lite" Or ViewModeFor("ray", "ann,boss", "boss", "sue", "ray") <> "user" Then _
        why = "ViewModeFor gives the wrong view for a made-up login": Exit Function
     If LiteLoginProblems("ray,tom", "ann,ray") <> "tom" Then why = "LiteLoginProblems missed a lite login that is not an admin": Exit Function
+    ' v29 (item 3b): the Lite drawing through "See Desk as: Admin Lite", Show full admin Desk and back, then the preview off
+    ' (an admin's copy: no lite login here, so the strip and its ticks stay quiet)
+    If gAdminUnlocked Then
+        DeskPreviewLite
+        Dim dws As Worksheet: Set dws = ThisWorkbook.Worksheets(DESK_SHEET)
+        If Not SmkShapeThere(dws, "dk_lite_pill") Then why = "See Desk as: Admin Lite drew no Lite Desk": DeskPreviewOff: Exit Function
+        If SmkShapeThere(dws, "dk_btn_reconcile") Then why = "the Lite Desk still shows a full-Desk button": DeskPreviewOff: Exit Function
+        DeskShowFull
+        If Not SmkShapeThere(dws, "dk_btn_reconcile") Or SmkShapeThere(dws, "dk_lite_pill") Then why = "Show full admin Desk did not draw the full Desk": DeskPreviewOff: Exit Function
+        If Not SmkShapeThere(dws, "dk_pill_lite") Then why = "the full Desk shows no Back to my Desk": DeskPreviewOff: Exit Function
+        DeskShowFull
+        If Not SmkShapeThere(dws, "dk_lite_pill") Then why = "Back to my Desk did not return to the Lite Desk": DeskPreviewOff: Exit Function
+        DeskPreviewOff
+        If SmkShapeThere(dws, "dk_lite_pill") Or Not SmkShapeThere(dws, "dk_btn_reconcile") Or gDeskShowFull Then why = "the Lite preview did not come off cleanly": Exit Function
+    End If
     Dim c0 As Long, r0 As Long, o0 As Long, c1 As Long, r1 As Long, o1 As Long, c2 As Long, r2 As Long, o2 As Long, pubAt As Date
     DeskCounts c0, r0, o0, pubAt
     Dim d As Date, dd As Long, found As Boolean
@@ -1241,6 +1256,13 @@ Undo:
     If p.ID <> "" Then n = LoadPosting(p.ID, p, lst): SubmitCancel p, lst, n
     VoidAbsence absId, SMK_WHY
     MarkCalDirty
+End Function
+
+' v29: a shape by name, or not (the Lite Desk's pills and buttons)
+Private Function SmkShapeThere(ByVal ws As Worksheet, ByVal nm As String) As Boolean
+    On Error Resume Next                            ' never raises
+    Dim s As Shape: Set s = ws.Shapes(nm)
+    SmkShapeThere = Not s Is Nothing
 End Function
 
 ' ---- 21. v27 (item 29): Bring back, then Remove again - the Former round trip ----

@@ -167,6 +167,49 @@ Quit:
 End Function
 
 ' ====================================================================
+'  THE OTHER CARDS' FIGURES
+' ====================================================================
+' The members' requests still waiting for their partner's Agree (the card's second number; RequestsWaitingCount is the
+' first). Never raises.
+Public Function RequestsPartnerCount() As Long
+    On Error GoTo Quit
+    Dim v As Variant: v = LiteTable(RQ_TABLE)
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If SafeStr(v(i, RQ_STATUS)) = RQ_ST_PARTNER Then RequestsPartnerCount = RequestsPartnerCount + 1
+    Next i
+Quit:
+End Function
+
+' People returning from leave inside the next nDays (the day after a leave booking's end), plus open-ended leave that
+' has started - the same reading as Needs Attention's LEAVE section (modNeeds.NAGatherWork D), every unit. firstTxt =
+' the soonest: "Joe Smith returns Mon Nov 9" / "Joe Smith - open-ended". Never raises.
+Public Function LeaveReturningCount(ByVal nDays As Long, Optional ByRef firstTxt As String) As Long
+    On Error GoTo Quit
+    firstTxt = ""
+    Dim v As Variant: v = AbsTableData()
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long, sd As Date, eD As Date, soonest As Date, txt As String
+    For i = 1 To UBound(v, 1)
+        If UCase$(SafeStr(v(i, AB_STATUS))) <> "VOID" And IsDate(v(i, AB_START)) Then
+            sd = CDate(v(i, AB_START)): txt = ""
+            If Not IsDate(v(i, AB_END)) Then
+                If Int(sd) <= Date + nDays - 1 Then txt = SafeStr(v(i, AB_EMP)) & " - open-ended": eD = sd
+            ElseIf IsLeaveCode(TypeCode(SafeStr(v(i, AB_TYPE)))) Then
+                eD = CDate(v(i, AB_END)) + 1
+                If Int(eD) >= Date And Int(eD) <= Date + nDays - 1 Then txt = SafeStr(v(i, AB_EMP)) & " returns " & Format$(eD, "ddd mmm d")
+            End If
+            If txt <> "" Then
+                LeaveReturningCount = LeaveReturningCount + 1
+                If soonest = 0 Or eD < soonest Then soonest = eD: firstTxt = txt
+            End If
+        End If
+    Next i
+Quit:
+End Function
+
+' ====================================================================
 '  OT HOURS THIS PAY PERIOD BY UNIT (Band 4's bars)
 ' ====================================================================
 ' The non-void Hours Charged in the OT Log whose Period Start is the current pay period, summed per unit in DeptList's

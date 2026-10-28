@@ -150,13 +150,15 @@ End Function
 ' The open postings with no member sign-up that are past closing or close within LITE_CLOSING_HOURS, oldest closing
 ' first; oldestId / oldestWhat name the first (the card's button opens the Award pop-up on it). The sign-ups come from
 ' the Signups folder (modSignups.SignupStatusMap, as the award pop-up pre-ticks them - review HIGH-1: the list's Signed Up
-' column is written only at the award) and, once a posting was awarded, from the list. Reads tblPostings once; one folder
-' read per Open posting that would otherwise count. Never raises (0 on any trouble).
+' column is written only at the award). Reads tblPostings once; the folder is tested once and read once per Open posting
+' that would otherwise count (an unreachable share is one wait, not one per posting). Never raises (0 on any trouble).
 Public Function PostingExceptionCount(Optional ByRef oldestId As String, Optional ByRef oldestWhat As String) As Long
     On Error GoTo Quit
     oldestId = "": oldestWhat = ""
     Dim pv As Variant: pv = LiteTable(PT_TABLE)
     If Not IsArray(pv) Then Exit Function
+    Dim folderOk As Boolean: folderOk = False
+    If SIGNUPS_ON Then folderOk = FolderExists(SignupFolderPath())
     Dim i As Long, id As String
     Dim cl As Date, what As String, oldest As Date, n As Long, nSigned As Long
     For i = 1 To UBound(pv, 1)
@@ -166,7 +168,7 @@ Public Function PostingExceptionCount(Optional ByRef oldestId As String, Optiona
             nSigned = 0
             what = PostingExceptionCore("Open", PostingClosed(cl), (PostingCloseAt(cl) - Now) * 24, 0)
             If what <> "" Then                        ' a candidate: now the sign-ups, from the folder (the costly read, only here)
-                If SIGNUPS_ON Then nSigned = SignupStatusMap(id, Val(SafeStr(pv(i, PS_HOURS))), cl).Count
+                If folderOk Then nSigned = SignupStatusMap(id, Val(SafeStr(pv(i, PS_HOURS))), cl).Count
                 what = PostingExceptionCore("Open", PostingClosed(cl), (PostingCloseAt(cl) - Now) * 24, nSigned)
             End If
             If what <> "" Then
@@ -320,7 +322,7 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                         t = IIf(f.Kind = "SC", "Sick day ", IIf(f.IsLeave, "Leave ", "Time off ")) & f.Ref & IIf(f.Found, "", " (already VOID)") & vbNewLine & _
                             "  " & f.Emp & "  " & f.AbsType & "  " & Format$(f.DFrom, "ddd mmm d") & _
                             IIf(f.DTo > 0, " - " & Format$(f.DTo, "ddd mmm d"), " - open-ended") & " (" & f.Unit & ")" & vbNewLine & _
-                            IIf(f.ReqId <> "", "  Booked from members' request " & f.ReqId & " (a re-entry re-books it)." & vbNewLine, "") & _
+                            IIf(f.ReqId <> "", "  Booked from members' request " & f.ReqId & IIf(f.Kind = "SC", " (re-book it by hand: the request reads Booking voided once no sick day of it is left).", " (a re-entry re-books it).") & vbNewLine, "") & _
                             IIf(f.Kind = "SC", "  A sick day is re-entered through Someone called in sick (today or later) or Book Time Off > Sick (a past day)." & vbNewLine, "") & _
                             IIf(f.IsLeave, "  A leave is re-entered through Leave: going (its group and return top-up live there)." & vbNewLine, "") & _
                             "  Changes nobody's Total Hours; its calendar lines and covers stay (release them on the Calendar if the cover was wrong)."

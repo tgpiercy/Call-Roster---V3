@@ -438,6 +438,8 @@ End Function
 ' the copy is read-only (the caller's VoidRef has already refused a NoSave copy; SmokeTest, which never saves, runs this
 ' on its practice copy). Never raises.
 Public Function ResolveFeedback(ByVal oldRef As String, ByVal newRef As String) As Long
+    ' v29 (re-review LOW-9): a row already marked "checked" / "already void" (looked at, left) is resolved again by a real
+    ' outcome - a void or a new Ref - so the card's later void records what happened
     Dim lo As ListObject, v As Variant, i As Long, ws As Worksheet
     Dim evWas As Boolean: evWas = Application.EnableEvents
     On Error GoTo Quit
@@ -451,10 +453,15 @@ Public Function ResolveFeedback(ByVal oldRef As String, ByVal newRef As String) 
     Dim by As Variant: by = RangeTo2D(lo.ListColumns(FB_RESBY).DataBodyRange)
     Dim rf As Variant: rf = RangeTo2D(lo.ListColumns(FB_RESREF).DataBodyRange)
     oldRef = UCase$(Trim$(oldRef))
+    Dim realOutcome As Boolean: realOutcome = (LCase$(Trim$(newRef)) <> "checked" And LCase$(Trim$(newRef)) <> "already void")
+    Dim prev As String
     For i = 1 To UBound(v, 1)
-        If UCase$(Trim$(SafeStr(v(i, 4)))) = oldRef And UCase$(SafeStr(v(i, 5))) <> "YES" And SafeStr(rf(i, 1)) = "" Then
-            by(i, 1) = CurrentUser(): rf(i, 1) = Trim$(newRef)
-            ResolveFeedback = ResolveFeedback + 1
+        prev = LCase$(Trim$(SafeStr(rf(i, 1))))
+        If UCase$(Trim$(SafeStr(v(i, 4)))) = oldRef And UCase$(SafeStr(v(i, 5))) <> "YES" Then
+            If prev = "" Or (realOutcome And (prev = "checked" Or prev = "already void")) Then
+                by(i, 1) = CurrentUser(): rf(i, 1) = Trim$(newRef)
+                ResolveFeedback = ResolveFeedback + 1
+            End If
         End If
     Next i
     If ResolveFeedback = 0 Then Exit Function

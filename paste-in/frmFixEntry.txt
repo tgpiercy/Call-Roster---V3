@@ -183,14 +183,18 @@ Private Sub mReenter_Click()
     Unload Me
     Exit Sub
 Oops:
+    On Error Resume Next                             ' (re-review LOW-4 / LOW-5) the pop-up raised: the request id must not ride on, and the voided entry is still resolved
+    gRequestId = ""
+    If f.Ref <> "" Then FixEntryDone f.Ref, ""
     ReportError "frmFixEntry.Reenter"
 End Sub
 
 ' the entry on screen when the card moves on or closes: a voided one nobody re-entered is resolved as "void"; one looked
 ' at and left as it stands as "checked" (or "already void" when nothing live was found) - review MED-1: the card's
-' Corrections count must go down once the admin has looked
+' Corrections count must go down once the admin has looked. An award (P-) is left for Withdraw an award (re-review LOW-8).
 Private Sub ResolveIfLeft()
     If mResolved Or mFacts.Ref = "" Then Exit Sub
+    If mFacts.Kind = "P" And Not mVoided Then Exit Sub
     FixEntryDone mFacts.Ref, IIf(mVoided, "", IIf(mFacts.Found, "checked", "already void"))
     mResolved = True
 End Sub
@@ -201,5 +205,6 @@ Private Sub mClose_Click()
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    If gErrorClosing Then Exit Sub                   ' (re-review MED-3) ReportError is unloading the pop-ups: nothing is resolved on an error path
     ResolveIfLeft
 End Sub

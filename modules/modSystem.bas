@@ -316,7 +316,7 @@ Public Sub SystemCheck()
     End If
     MsgBox msg, IIf(warn = "", vbInformation, vbExclamation), "System check  (" & EXPECTED_RELEASE & ")"
     ' v29 (item 1; review M4): the one-line-per-path block in its own box (the first box is capped at about 1,024 characters)
-    If MovePathBlock() <> "" Then MsgBox MovePathBlock(), vbInformation, "System check - the paths  (" & EXPECTED_RELEASE & ")"
+    If MovePathBlock() <> "" Then ShowLongBox MovePathBlock(), "System check - the paths  (" & EXPECTED_RELEASE & ")"    ' (re-review) split past 900 characters
     Exit Sub
 Oops:
     ReportError "SystemCheck"

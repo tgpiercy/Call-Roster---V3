@@ -744,7 +744,7 @@ Public Function LiteHelpText(ByVal key As String) As String
     Select Case LCase$(key)
         Case "decide"
             LiteHelpText = "Member requests: time off or a switch a member asked for from the members' file - book it (double-click) or decline it (right-click) in Needs Attention." & vbNewLine & _
-                           "Posting exceptions: an open posting nobody signed up for, closed or closing within 24 h - the Award pop-up offers No takers, Cancel or Award Out of Dept." & vbNewLine & _
+                           "Posting exceptions: an open posting with no member sign-up, closed or closing within 24 h - the Award pop-up offers No takers, Cancel or Award Out of Dept." & vbNewLine & _
                            "Corrections asked for: a receipt answered No or Not sure, or an open dispute - Fix an entry voids the entry (a reason is required) and re-enters it." & vbNewLine & _
                            "Returning from leave: a leave that ends in the next " & DESK_AHEAD_DAYS & " days, or an open-ended one - Leave > Returning books the return and the top-up."
         Case "book"
@@ -1544,7 +1544,7 @@ Private Sub HelpSections(ByRef h() As String, ByRef n As Long)
         "call-outs and look at the calendar."
     HelpAdd h, n, "The Admin Lite Desk", _
         "An admin on the Lite list (" & LITE_FIRST_NAME & ") opens on a simpler Desk with only his jobs, in four bands that never move: NEEDS YOUR DECISION " & _
-        "(members' requests, posting exceptions - open postings nobody signed up for -, corrections asked for through the receipts, people returning from leave), " & _
+        "(members' requests, posting exceptions - open postings with no member sign-up -, corrections asked for through the receipts, people returning from leave), " & _
         "BOOK AND CHANGE (time off, leave, add a need, change a person), DAILY CHECK (only when " & PRIMARY_ADMIN_NAME & " is off: Import Kronos, Clear Needs " & _
         "Attention, Publish the members' file - each green once anyone has done it today) and STAFFING AND OT (below minimum in the next two weeks, this " & _
         "period's OT hours by unit). The strip under the title says whether the hours, today's backup, the members' file and the system checks are fine; a red " & _

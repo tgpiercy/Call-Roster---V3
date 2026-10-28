@@ -1731,6 +1731,7 @@ End Sub
 
 Public Function NoSave() As Boolean
     If gNoSaveOnClose Then NoSave = True: Exit Function
+    If MovedToPath() <> "" And Not gFreezingMove Then NoSave = True: Exit Function   ' v29: the frozen copy of a moved roster never saves (modMove), except its own freeze save
     Dim nm As Name
     On Error Resume Next
     Set nm = ThisWorkbook.Names("NoSaveFlag")

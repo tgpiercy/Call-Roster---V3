@@ -547,7 +547,7 @@ Public Sub RequestAct(ByVal id As String, ByVal decline As Boolean)
     Else
         If AbsTable(True) Is Nothing Then gRequestId = "": Exit Sub
         If CovTable(True) Is Nothing Then gRequestId = "": Exit Sub
-        frmTimeOff.Prefill emp, dF, dT, id
+        frmTimeOff.Prefill emp, dF, IIf(dT > 0, dT, dF), id        ' v29: dTo = 0 would mean open-ended (Fix an entry); a request has two dates
         frmTimeOff.Show
         RefreshCalendar
     End If
@@ -587,8 +587,10 @@ Public Sub RequestBooked(ByVal ref As String, ByVal emp As String, ByVal d As Da
         If IsDate(v(r, RQ_FROM)) And IsDate(v(r, RQ_TO)) Then same = (Int(d) >= Int(CDate(v(r, RQ_FROM))) And Int(d) <= Int(CDate(v(r, RQ_TO))))
     End If
     If Not same Then
-        Tell id & " stays waiting: what you saved (" & emp & ", " & Format$(d, "ddd mmm d") & IIf(worksName <> "", ", " & worksName & " works", "") & _
-             IIf(shiftLbl <> "", ", " & shiftLbl, "") & ") is not that request. Book it from Needs Attention again, or decline it.", vbExclamation, "Members' requests"
+        Dim stNow As String: stNow = SafeStr(v(r, RQ_STATUS))      ' (re-review LOW-6) a re-entry's request is "Booking voided", not waiting
+        Tell id & " stays " & LCase$(stNow) & ": what you saved (" & emp & ", " & Format$(d, "ddd mmm d") & IIf(worksName <> "", ", " & worksName & " works", "") & _
+             IIf(shiftLbl <> "", ", " & shiftLbl, "") & ") is not that request." & _
+             IIf(stNow = RQ_ST_WAITING Or stNow = RQ_ST_PARTNER, " Book it from Needs Attention again, or decline it.", " Tell the member how it stands."), vbExclamation, "Members' requests"
         Exit Sub
     End If
     MarkDecided id, RQ_ST_BOOKED, "", ref
@@ -608,11 +610,15 @@ Public Function RequestBookingVoided(ByVal ref As String, ByVal why As String) A
     If ref = "" Then Exit Function
     Dim v As Variant: v = RequestRows()
     If Not IsArray(v) Then Exit Function
-    Dim i As Long, ids As String
+    Dim i As Long, ids As String, nextSc As String
     For i = 1 To UBound(v, 1)
         If SafeStr(v(i, RQ_STATUS)) = RQ_ST_BOOKED And UCase$(Trim$(SafeStr(v(i, RQ_REF)))) = ref Then
             If Left$(ref, 3) = "SC-" Then
-                If OtherSickDayLive(SafeStr(v(i, RQ_EMP)), v(i, RQ_FROM), v(i, RQ_TO), ref) Then GoTo NextRow   ' a day of several voided: still booked
+                nextSc = OtherSickDayLive(SafeStr(v(i, RQ_EMP)), v(i, RQ_FROM), v(i, RQ_TO), ref)
+                If nextSc <> "" Then                  ' a day of several voided: still booked - the Ref moves to the next live day (re-review MED-1)
+                    MarkDecided SafeStr(v(i, RQ_ID)), RQ_ST_BOOKED, "", nextSc
+                    GoTo NextRow
+                End If
             End If
             MarkDecided SafeStr(v(i, RQ_ID)), RQ_ST_VOIDED, "booking voided", ""
             ids = ids & IIf(ids = "", "", ";") & SafeStr(v(i, RQ_ID))
@@ -624,21 +630,24 @@ NextRow:
     RequestBookingVoided = ids
 End Function
 
-' a live SC- row for emp, other than ref, starting inside from..to (a request booked as several past sick days)
-Private Function OtherSickDayLive(ByVal emp As String, ByVal fromV As Variant, ByVal toV As Variant, ByVal ref As String) As Boolean
+' the earliest live SC- row for emp, other than ref, starting inside from..to (a request booked as several past sick days):
+' its id, or "" when none is left
+Private Function OtherSickDayLive(ByVal emp As String, ByVal fromV As Variant, ByVal toV As Variant, ByVal ref As String) As String
     On Error Resume Next                            ' never raises
     If Not IsDate(fromV) Then Exit Function
     Dim d0 As Date, d1 As Date: d0 = Int(CDate(fromV))
     If IsDate(toV) Then d1 = Int(CDate(toV)) Else d1 = d0
     Dim v As Variant: v = AbsTableData()
     If Not IsArray(v) Then Exit Function
-    Dim i As Long, id As String, sd As Date
+    Dim i As Long, id As String, sd As Date, best As Date
     For i = 1 To UBound(v, 1)
         id = UCase$(Trim$(SafeStr(v(i, 1))))
         If Left$(id, 3) = "SC-" And id <> ref And UCase$(SafeStr(v(i, AB_STATUS))) <> "VOID" Then
             If StrComp(Trim$(SafeStr(v(i, AB_EMP))), Trim$(emp), vbTextCompare) = 0 And IsDate(v(i, AB_START)) Then
                 sd = Int(CDate(v(i, AB_START)))
-                If sd >= d0 And sd <= d1 Then OtherSickDayLive = True: Exit Function
+                If sd >= d0 And sd <= d1 Then
+                    If best = 0 Or sd < best Then best = sd: OtherSickDayLive = id
+                End If
             End If
         End If
     Next i
@@ -808,7 +817,11 @@ Private Sub MarkDecided(ByVal id As String, ByVal status As String, ByVal answer
         .Cells(r, RQ_STATUS).Value = status
         .Cells(r, RQ_BY).Value = CurrentUser()
         .Cells(r, RQ_AT).Value = Now
-        If answer <> "" Then .Cells(r, RQ_ANSWER).NumberFormat = "@": .Cells(r, RQ_ANSWER).Value = answer
+        If answer <> "" Then
+            .Cells(r, RQ_ANSWER).NumberFormat = "@": .Cells(r, RQ_ANSWER).Value = answer
+        ElseIf status = RQ_ST_BOOKED Then
+            .Cells(r, RQ_ANSWER).ClearContents       ' v29 (re-review MED-2): a re-booking after a void does not keep "booking voided"
+        End If
         If ref <> "" Then .Cells(r, RQ_REF).Value = ref
     End With
     ProtectSheet lo.Parent

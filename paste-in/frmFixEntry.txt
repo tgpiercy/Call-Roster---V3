@@ -119,7 +119,8 @@ End Function
 Private Sub ShowFacts()
     Dim ref As String: ref = PickedRef()
     If ref = "" Then mView.Text = "Pick an entry above, or type its Ref ID.": Exit Sub
-    If mVoided And ref <> mFacts.Ref Then ResolveIfLeft      ' moving on from a voided one that was not re-entered
+    If mVoided And ref = mFacts.Ref Then Exit Sub            ' (review MED-2) the voided one is still on screen: nothing to reload
+    If ref <> mFacts.Ref Then ResolveIfLeft                  ' moving on from the one shown: its answer is marked (voided / checked)
     mFacts = FixEntryFacts(ref)
     mVoided = False: mResolved = False
     mView.Text = Replace(mFacts.Text, vbNewLine, vbCrLf)
@@ -128,9 +129,9 @@ Private Sub ShowFacts()
     If mFacts.Kind = "P" And mFacts.Found Then
         mHint.Caption = "An award: use Withdraw an award / edit a posting on the full Desk (the refusals stay charged; a call-out is offered after)."
     ElseIf mFacts.Found Then
-        mHint.Caption = "Step 2: type the reason, then Void this entry."
+        mHint.Caption = "Step 2: type the reason, then Void this entry. Close instead marks the receipt's answer as checked (the entry stands)."
     Else
-        mHint.Caption = "Nothing live to void. A Not sure about an entry that is right needs no fix: Close marks it looked at."
+        mHint.Caption = "Nothing live to void (a typo, or already voided). Close marks the receipt's answer as looked at."
     End If
 End Sub
 
@@ -164,20 +165,20 @@ Private Sub mVoid_Click()
     Me.Show
     Exit Sub
 Oops:
-    Me.Show
-    ReportError "frmFixEntry.Void"
+    ReportError "frmFixEntry.Void"                   ' (review MED-3) first in the handler; it closes the pop-ups itself
 End Sub
 
 Private Sub mReenter_Click()
     On Error GoTo Oops
     If Not mVoided Then Exit Sub
     Dim msg As String, newRef As String
+    Dim f As FixFacts: f = mFacts                    ' (review LOW-18) a copy: the re-entry pop-up's error handler may unload this form
+    mResolved = True                                 ' whatever happens next, QueryClose must not resolve it a second time
     Me.Hide
-    newRef = FixEntryReenter(mFacts, msg)
-    FixEntryDone mFacts.Ref, newRef
-    mResolved = True
-    Tell IIf(newRef <> "", mFacts.Ref & " was voided and re-entered as " & newRef & ". The receipt's answer is marked resolved with " & newRef & ".", _
-             mFacts.Ref & " is voided; nothing re-entered" & IIf(msg <> "", " - " & msg, "") & " The receipt's answer is marked resolved as voided."), _
+    newRef = FixEntryReenter(f, msg)
+    FixEntryDone f.Ref, newRef
+    Tell IIf(newRef <> "", f.Ref & " was voided and re-entered as " & newRef & ". The receipt's answer is marked resolved with " & newRef & ".", _
+             f.Ref & " is voided; nothing re-entered" & IIf(msg <> "", " - " & msg, ".") & " The receipt's answer is marked resolved as voided."), _
          vbInformation, "Fix an entry"
     Unload Me
     Exit Sub
@@ -185,9 +186,13 @@ Oops:
     ReportError "frmFixEntry.Reenter"
 End Sub
 
-' a voided entry nobody re-entered: its Feedback rows are resolved as "void"
+' the entry on screen when the card moves on or closes: a voided one nobody re-entered is resolved as "void"; one looked
+' at and left as it stands as "checked" (or "already void" when nothing live was found) - review MED-1: the card's
+' Corrections count must go down once the admin has looked
 Private Sub ResolveIfLeft()
-    If mVoided And Not mResolved Then FixEntryDone mFacts.Ref, "": mResolved = True
+    If mResolved Or mFacts.Ref = "" Then Exit Sub
+    FixEntryDone mFacts.Ref, IIf(mVoided, "", IIf(mFacts.Found, "checked", "already void"))
+    mResolved = True
 End Sub
 
 Private Sub mClose_Click()

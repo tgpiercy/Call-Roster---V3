@@ -2,7 +2,8 @@ Attribute VB_Name = "modLite"
 Option Explicit
 
 ' ====================================================================
-'  v29 (briefs/v29.md items 3a / 3b; briefs/admin-lite.md): THE ADMIN LITE DESK'S DATA - the sources behind Ray's cards.
+'  v29 (briefs/v29.md items 3a / 3b / 4; briefs/admin-lite.md): THE ADMIN LITE DESK'S DATA - the sources behind Ray's cards -
+'  and FIX AN ENTRY's work.
 '  Graeme, Oct 27, 2026: Ray (an admin on LITE_DESK_USERS) opens on a simpler Desk drawn on the FULL admin view, with
 '  one action per card. This module holds what the cards show; the drawing itself (DrawLiteDesk) comes in item 3b and
 '  reads only these functions. Nothing here writes to the roster or the OT Log: the three daily-check MARKS are hidden
@@ -32,16 +33,20 @@ Public Type FixFacts
     Emp As String
     Partner As String       ' a switch: who works it
     DFrom As Date           ' an absence
-    DTo As Date
+    DTo As Date             ' 0 = open-ended
+    AbsType As String       ' an absence's type (Vacation, Personal ...)
+    IsLeave As Boolean      ' an absence with a leave group (LV-): re-entered through Leave, not Book Time Off
+    ReqId As String         ' the Booked members' request this booking came from ("" = none): the re-entry re-books it
 End Type
 
 ' ====================================================================
 '  PURE
 ' ====================================================================
 ' A posting's exception for the Lite Desk's "Posting exceptions" card: "no takers" = Open, past its closing moment,
-' nobody signed up (the admin decides: No takers, Cancel or Award Out of Dept); "closing soon" = Open, not closed yet,
-' closing within LITE_CLOSING_HOURS, nobody signed up; "" otherwise (any other status, a sign-up, or time to spare).
-' Suite postexc.
+' no member sign-up (the admin decides: No takers, Cancel or Award Out of Dept - the brief's "awaiting an out-of-department
+' award" IS this state seen from the admin's chair, so two words cover its three); "closing soon" = Open, not closed yet,
+' closing within LITE_CLOSING_HOURS, no member sign-up; "" otherwise (any other status, a sign-up, or time to spare).
+' Paper sign-ups are known only at the award, so the card says "no member sign-ups". Suite postexc.
 Public Function PostingExceptionCore(ByVal status As String, ByVal closed As Boolean, ByVal hoursToClose As Double, _
                                      ByVal nSignups As Long) As String
     If Trim$(status) <> "Open" Then Exit Function
@@ -109,7 +114,7 @@ End Sub
 
 ' Called when a daily-check step finishes: "kronos" (SyncKronosData, H written), "needs" (ShowNeedsAttention),
 ' "publish" (PublishMembers, the file saved). Writes "yyyy-mm-dd hh:nn|login"; a practice copy marks too (its Desk
-' shows them; nothing else reads them). Never raises; a saved workbook stays marked saved (the mark rides on the next save).
+' shows them; nothing else reads them). Never raises; the mark dirties the workbook so the close-time save keeps it.
 Public Sub LiteMark(ByVal step As String)
     On Error Resume Next                            ' never raises
     Dim key As String
@@ -119,9 +124,7 @@ Public Sub LiteMark(ByVal step As String)
         Case "publish": key = DAILY_PUBLISH
         Case Else: Exit Sub
     End Select
-    Dim wasSaved As Boolean: wasSaved = ThisWorkbook.Saved
-    LiteNameSet key, Format$(Now, "yyyy-mm-dd hh:nn") & "|" & LCase$(CurrentUser())
-    If wasSaved Then ThisWorkbook.Saved = True
+    LiteNameSet key, Format$(Now, "yyyy-mm-dd hh:nn") & "|" & LCase$(CurrentUser())   ' (review LOW-9) the workbook is left dirty so the close saves the mark
 End Sub
 
 ' One step's text for the band: "hh:nn (login)" when done today, else "". step as LiteMark's.
@@ -144,35 +147,28 @@ End Function
 ' ====================================================================
 '  POSTING EXCEPTIONS
 ' ====================================================================
-' The open postings nobody has signed up for that are past closing or close within LITE_CLOSING_HOURS, oldest closing
-' first; oldestId / oldestWhat name the first (the card's button opens the Award pop-up on it). Reads tblPostings and
-' tblPostingList once. Never raises (0 on any trouble).
+' The open postings with no member sign-up that are past closing or close within LITE_CLOSING_HOURS, oldest closing
+' first; oldestId / oldestWhat name the first (the card's button opens the Award pop-up on it). The sign-ups come from
+' the Signups folder (modSignups.SignupStatusMap, as the award pop-up pre-ticks them - review HIGH-1: the list's Signed Up
+' column is written only at the award) and, once a posting was awarded, from the list. Reads tblPostings once; one folder
+' read per Open posting that would otherwise count. Never raises (0 on any trouble).
 Public Function PostingExceptionCount(Optional ByRef oldestId As String, Optional ByRef oldestWhat As String) As Long
     On Error GoTo Quit
     oldestId = "": oldestWhat = ""
     Dim pv As Variant: pv = LiteTable(PT_TABLE)
     If Not IsArray(pv) Then Exit Function
-    ' sign-ups per posting
-    Dim signed As Object: Set signed = CreateObject("Scripting.Dictionary")
-    signed.CompareMode = vbTextCompare
-    Dim lv As Variant: lv = LiteTable(PL_TABLE)
     Dim i As Long, id As String
-    If IsArray(lv) Then
-        For i = 1 To UBound(lv, 1)
-            If CBool(SafeBool(lv(i, PL_SIGNED))) Then
-                id = Trim$(SafeStr(lv(i, PL_ID)))
-                If id <> "" Then signed(id) = signed(id) + 1
-            End If
-        Next i
-    End If
     Dim cl As Date, what As String, oldest As Date, n As Long, nSigned As Long
     For i = 1 To UBound(pv, 1)
         id = Trim$(SafeStr(pv(i, PS_ID)))
         cl = AsDate(pv(i, PS_CLOSES))
-        If id <> "" And cl > 0 Then
-            nSigned = 0                               ' (not an IIf: reading a missing Dictionary key would add it)
-            If signed.Exists(id) Then nSigned = CLng(signed(id))
-            what = PostingExceptionCore(SafeStr(pv(i, PS_STATUS)), PostingClosed(cl), (PostingCloseAt(cl) - Now) * 24, nSigned)
+        If id <> "" And cl > 0 And SafeStr(pv(i, PS_STATUS)) = "Open" Then
+            nSigned = 0
+            what = PostingExceptionCore("Open", PostingClosed(cl), (PostingCloseAt(cl) - Now) * 24, 0)
+            If what <> "" Then                        ' a candidate: now the sign-ups, from the folder (the costly read, only here)
+                If SIGNUPS_ON Then nSigned = SignupStatusMap(id, Val(SafeStr(pv(i, PS_HOURS))), cl).Count
+                what = PostingExceptionCore("Open", PostingClosed(cl), (PostingCloseAt(cl) - Now) * 24, nSigned)
+            End If
             If what <> "" Then
                 n = n + 1
                 If oldest = 0 Or cl < oldest Then oldest = cl: oldestId = id: oldestWhat = what
@@ -247,7 +243,7 @@ Public Function UnitChargedThisPeriod() As Variant
     Dim p0 As Date: p0 = PeriodStartFor(Date)
     Dim i As Long, k As Long, hit As Boolean, unit As String
     For i = 1 To UBound(v, 1)
-        If UCase$(SafeStr(v(i, L_STATUS))) <> "VOID" And Val(SafeStr(v(i, L_CHARGED))) > 0 Then
+        If UCase$(SafeStr(v(i, L_STATUS))) <> "VOID" And Val(SafeStr(v(i, L_CHARGED))) <> 0 Then     ' (review MED-4) a negative adjustment counts too
             If Int(AsDate(v(i, L_PERIOD))) = Int(p0) Then
                 unit = Trim$(SafeStr(v(i, L_DEPT))): hit = False
                 For k = 1 To nD
@@ -272,8 +268,9 @@ End Function
 
 ' ====================================================================
 '  FIX AN ENTRY (item 4; briefs/admin-lite.md): the guided correction - a Ref's rows read-only, Void through the
-'  existing void path (VoidRef for OT Log refs, VoidSwitch for an SS-, VoidAbsence for an AB- / SC-; an award is
-'  withdrawn through WithdrawAward, never voided raw), "Re-enter it now?" through the pop-ups' Prefill, then the
+'  existing void path (VoidRef for OT Log refs - the rows marked VOID with the reason, the calendar lines released, NoSave
+'  on a part-way stop -, VoidSwitch for an SS-, VoidAbsence for an AB- / SC-; an award is withdrawn through
+'  WithdrawAward, never voided raw), "Re-enter it now?" through the pop-ups' Prefill, then the
 '  Feedback rows for the old Ref marked resolved with the new one ("void" when not re-entered). frmFixEntry is the card;
 '  this is its work. Nothing new writes to the roster or the log: the voids and the pop-ups' own saves do.
 ' ====================================================================
@@ -299,10 +296,12 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                         f.Found = (UCase$(SafeStr(v(i, SW_STATUS))) <> "VOID"): f.Rows = 1
                         f.Emp = SafeStr(v(i, SW_OFF)): f.Partner = SafeStr(v(i, SW_WORKS)): f.Unit = SafeStr(v(i, SW_UNIT))
                         f.ShiftDate = AsDate(v(i, SW_DATE)): f.ShiftLbl = SafeStr(v(i, SW_SHIFT))
+                        f.ReqId = RequestIdForRef(f.Ref)
                         t = "Shift switch " & f.Ref & IIf(f.Found, "", " (already VOID)") & vbNewLine & _
                             "  " & f.Emp & " gives up " & Format$(f.ShiftDate, "ddd mmm d") & " " & f.ShiftLbl & " (" & f.Unit & "); " & f.Partner & " works it." & vbNewLine & _
-                            IIf(SafeStr(v(i, SW_PAYFOR)) <> "", "  Payback for " & SafeStr(v(i, SW_PAYFOR)) & vbNewLine, "") & _
+                            IIf(SafeStr(v(i, SW_PAYFOR)) <> "", "  Payback for " & SafeStr(v(i, SW_PAYFOR)) & " (a re-entry comes back as a NEW switch: pick the payback link in the pop-up)" & vbNewLine, "") & _
                             IIf(SafeStr(v(i, SW_PAIDBY)) <> "", "  Paid back by " & SafeStr(v(i, SW_PAIDBY)) & vbNewLine, "") & _
+                            IIf(f.ReqId <> "", "  Booked from members' request " & f.ReqId & " (a re-entry re-books it)." & vbNewLine, "") & _
                             "  Changes nobody's Total Hours; it changes who is free and the 16 h rule's reading."
                         Exit For
                     End If
@@ -314,11 +313,16 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                 For i = 1 To UBound(v, 1)
                     If UCase$(Trim$(SafeStr(v(i, 1)))) = f.Ref Then
                         f.Found = (UCase$(SafeStr(v(i, AB_STATUS))) <> "VOID"): f.Rows = 1
-                        f.Emp = SafeStr(v(i, AB_EMP)): f.Unit = SafeStr(v(i, AB_UNIT))
+                        f.Emp = SafeStr(v(i, AB_EMP)): f.Unit = SafeStr(v(i, AB_UNIT)): f.AbsType = SafeStr(v(i, AB_TYPE))
                         f.DFrom = AsDate(v(i, AB_START)): f.DTo = AsDate(v(i, AB_END))
-                        t = IIf(f.Kind = "SC", "Sick call ", "Time off ") & f.Ref & IIf(f.Found, "", " (already VOID)") & vbNewLine & _
-                            "  " & f.Emp & "  " & SafeStr(v(i, AB_TYPE)) & "  " & Format$(f.DFrom, "ddd mmm d") & _
+                        If UBound(v, 2) >= AB_GROUP Then f.IsLeave = (Trim$(SafeStr(v(i, AB_GROUP))) <> "")
+                        f.ReqId = RequestIdForRef(f.Ref)
+                        t = IIf(f.Kind = "SC", "Sick day ", IIf(f.IsLeave, "Leave ", "Time off ")) & f.Ref & IIf(f.Found, "", " (already VOID)") & vbNewLine & _
+                            "  " & f.Emp & "  " & f.AbsType & "  " & Format$(f.DFrom, "ddd mmm d") & _
                             IIf(f.DTo > 0, " - " & Format$(f.DTo, "ddd mmm d"), " - open-ended") & " (" & f.Unit & ")" & vbNewLine & _
+                            IIf(f.ReqId <> "", "  Booked from members' request " & f.ReqId & " (a re-entry re-books it)." & vbNewLine, "") & _
+                            IIf(f.Kind = "SC", "  A sick day is re-entered through Someone called in sick (today or later) or Book Time Off > Sick (a past day)." & vbNewLine, "") & _
+                            IIf(f.IsLeave, "  A leave is re-entered through Leave: going (its group and return top-up live there)." & vbNewLine, "") & _
                             "  Changes nobody's Total Hours; its calendar lines and covers stay (release them on the Calendar if the cover was wrong)."
                         Exit For
                     End If
@@ -338,19 +342,26 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                                 IIf(f.Hours > 0, "  " & Format$(f.Hours, "0.##") & " h", "") & IIf(SafeStr(v(i, L_TASK)) <> "", "  (" & SafeStr(v(i, L_TASK)) & ")", "") & vbNewLine
                         End If
                         If f.Rows <= 25 Then t = t & "  " & SafeStr(v(i, L_EMP)) & "  " & SafeStr(v(i, L_OUTCOME)) & _
-                                                IIf(Val(SafeStr(v(i, L_CHARGED))) > 0, "  " & Format$(Val(SafeStr(v(i, L_CHARGED))), "0.##") & " h charged", "") & vbNewLine
+                                                IIf(Val(SafeStr(v(i, L_CHARGED))) <> 0, "  " & SignedHours(Val(SafeStr(v(i, L_CHARGED)))) & " charged", "") & vbNewLine
                         who(SafeStr(v(i, L_EMP))) = who(SafeStr(v(i, L_EMP))) + Val(SafeStr(v(i, L_CHARGED)))
                     End If
                 Next i
                 If f.Rows > 25 Then t = t & "  ...and " & (f.Rows - 25) & " more" & vbNewLine
                 f.Found = (f.Rows > 0)
                 If f.Found Then
-                    t = t & "What it changed (Total Hours):" & vbNewLine
+                    t = t & "What it changed (Total Hours; the void takes it back):" & vbNewLine
                     Dim anyHit As Boolean
                     For Each k In who.Keys
-                        If who(k) <> 0 Then t = t & "  " & k & "  +" & Format$(who(k), "0.##") & " h" & vbNewLine: anyHit = True
+                        If who(k) <> 0 Then t = t & "  " & k & "  " & SignedHours(CDbl(who(k))) & vbNewLine: anyHit = True
                     Next k
                     If Not anyHit Then t = t & "  nobody's (no hours charged)" & vbNewLine
+                    ' (review MED-8) what the void does NOT undo, by kind - the warnings Void Entry and Undo last give
+                    Select Case f.Kind
+                        Case "NH": t = t & "  NOTE: voiding a new hire's opening rows leaves the person on the roster with no opening hours; Remove them through Change a person if they never started." & vbNewLine
+                        Case "UM": t = t & "  NOTE: voiding a unit move's rows leaves the person in the new unit; move them back through Change a person if the move was wrong." & vbNewLine
+                        Case "LV": t = t & "  NOTE: voiding a leave return's top-up leaves the leave closed; book the return again from Leave: returning only if the leave itself is re-opened." & vbNewLine
+                        Case "OB", "MAN": t = t & "  NOTE: an opening balance / typed-cell row - ask " & PRIMARY_ADMIN_NAME & " before voiding it." & vbNewLine
+                    End Select
                 End If
             End If
     End Select
@@ -382,13 +393,17 @@ Public Function FixEntryVoid(ByRef f As FixFacts, ByVal why As String, ByRef msg
 End Function
 
 ' "Re-enter it now?": the right pop-up, pre-filled from the voided facts. Returns the Ref ID the re-entry got ("" when
-' nothing was saved, or the kind has no pop-up to pre-fill: the message names the button to use).
+' nothing was saved, or the kind has no pop-up to pre-fill: the message names the button to use). A booking that came from
+' a members' request (f.ReqId) rides gRequestId into the pop-up, so its save re-books the request with the new Ref
+' (RequestBooked) instead of leaving it "Booking voided" (review MED-7). The pop-ups take "Fix:<ref>" as the request id
+' and word their note and caption for a re-entry (review MED-4).
 Public Function FixEntryReenter(ByRef f As FixFacts, ByRef msg As String) As String
     Dim rec0 As String: rec0 = gReceipt.Recorded
     msg = ""
+    gRequestId = ""
     Select Case f.Kind
         Case "S"
-            If LogTable() Is Nothing Then Exit Function
+            If LogTable() Is Nothing Then msg = "The OT Log could not be read.": Exit Function
             Load frmOvertimeEntry
             frmOvertimeEntry.Prefill f.Unit, f.ShiftDate, f.ShiftLbl, "Re-entered after " & f.Ref, IIf(f.Hours > 0, f.Hours, 0), ""
             frmOvertimeEntry.Show
@@ -400,15 +415,23 @@ Public Function FixEntryReenter(ByRef f As FixFacts, ByRef msg As String) As Str
             RosterSheet().Cells(r, C_NAME).Select
             AddAdjustment
         Case "SS"
-            If SwitchTable(True) Is Nothing Then Exit Function
-            frmShiftSwitch.Prefill f.Emp, f.Partner, f.ShiftDate, f.ShiftLbl, f.Unit, "Fix an entry (was " & f.Ref & ")"
+            If SwitchTable(True) Is Nothing Then msg = "The Shift Switches table could not be read.": Exit Function
+            gRequestId = f.ReqId
+            frmShiftSwitch.Prefill f.Emp, f.Partner, f.ShiftDate, f.ShiftLbl, f.Unit, "Fix:" & f.Ref
             frmShiftSwitch.Show
-        Case "AB", "SC"
-            If AbsTable(True) Is Nothing Then Exit Function
-            If CovTable(True) Is Nothing Then Exit Function
-            frmTimeOff.Prefill f.Emp, f.DFrom, IIf(f.DTo > 0, f.DTo, f.DFrom), "Fix an entry (was " & f.Ref & ")"
+            gRequestId = ""
+        Case "AB"
+            If f.IsLeave Then msg = "A leave is re-entered through Leave: going (the pop-up carries its group and the return top-up).": Exit Function
+            If AbsTable(True) Is Nothing Then msg = "The Absences table could not be read.": Exit Function
+            If CovTable(True) Is Nothing Then msg = "The Coverage table could not be read.": Exit Function
+            gRequestId = f.ReqId
+            frmTimeOff.Prefill f.Emp, f.DFrom, f.DTo, "Fix:" & f.Ref, f.AbsType
             frmTimeOff.Show
+            gRequestId = ""
             RefreshCalendar
+        Case "SC"
+            msg = "A sick day is re-entered through Someone called in sick (today or a later shift) or Book Time Off > Sick (a past day)."
+            Exit Function
         Case "LV"
             msg = "Re-enter the leave through Leave: going or returning (no pre-fill for a leave return)."
             Exit Function
@@ -423,11 +446,17 @@ Public Function FixEntryReenter(ByRef f As FixFacts, ByRef msg As String) As Str
     If FixEntryReenter = "" Then msg = "Nothing was saved from the pop-up."
 End Function
 
-' the Feedback rows for the old Ref: resolved with the new Ref, or "void" when it was not re-entered
+' the Feedback rows for the old Ref: resolved with the new Ref, or "void" when it was not re-entered ("checked" /
+' "already void" when the card was closed without a void: the entry was looked at). Saved (review LOW-14).
 Public Sub FixEntryDone(ByVal oldRef As String, ByVal newRef As String)
     On Error Resume Next                            ' never raises
-    ResolveFeedback oldRef, IIf(Trim$(newRef) = "", "void", Trim$(newRef))
+    If ResolveFeedback(oldRef, IIf(Trim$(newRef) = "", "void", Trim$(newRef))) > 0 Then SaveIfWritable
 End Sub
+
+' "+12 h" / "-5 h", through the one hours formatter (review LOW-12)
+Private Function SignedHours(ByVal h As Double) As String
+    SignedHours = IIf(h < 0, "-", "+") & HoursText(Abs(h)) & " h"
+End Function
 
 ' Alt+F8 / the Lite Desk's Corrections card: the card
 Public Sub ShowFixEntry()

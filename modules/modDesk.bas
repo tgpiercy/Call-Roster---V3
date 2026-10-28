@@ -148,6 +148,12 @@ Public Function IsLiteUser() As Boolean
     IsLiteUser = (ViewModeFor(CurrentUser(), ADMIN_USERS, DESK_USERS, SUPERVISOR_USERS, LITE_DESK_USERS) = "lite")
 End Function
 
+' v29: the Lite layout is what shows - a lite login, or an admin previewing it (See Desk as: Admin Lite), and the full Desk
+' was not asked for. Needs Attention draws in Ray's order on the same test (review MED-9); DrawDesk adds asAdmin.
+Public Function LiteShowing() As Boolean
+    LiteShowing = (IsLiteUser() Or mPreviewLite) And Not gDeskShowFull
+End Function
+
 ' ====================================================================
 '  THE SHEET
 ' ====================================================================
@@ -252,7 +258,8 @@ Public Sub DrawDesk()
     ' v27.1: the preview says so, after the other pills (nothing else moves)
     If mPreview And gAdminUnlocked Then xx = DeskPill(ws, "dk_pill_preview", "PREVIEW: a supervisor's Desk", xx, yy, True, "modDesk.DeskPreview")
     ' v29 (item 3b): the Admin Lite Desk - a lite login, or an admin previewing it, unless the full Desk was asked for
-    Dim lite As Boolean: lite = asAdmin And (IsLiteUser() Or mPreviewLite) And Not gDeskShowFull
+    Dim lite As Boolean: lite = asAdmin And LiteShowing()
+    ws.Rows(3).RowHeight = ws.StandardHeight: ws.Rows(4).RowHeight = ws.StandardHeight   ' (review LOW-8) the Lite rows' height does not linger on the other drawings
     If mPreviewLite And gAdminUnlocked Then xx = DeskPill(ws, "dk_pill_preview", "PREVIEW: the Admin Lite Desk", xx, yy, True, "modDesk.DeskPreviewLite")
     If asAdmin And (IsLiteUser() Or mPreviewLite) And gDeskShowFull Then xx = DeskPill(ws, "dk_pill_lite", "<  Back to my Desk", xx, yy, False, "modDesk.DeskShowFull")
     If lite Then
@@ -403,13 +410,15 @@ Footer:                                              ' v29: the Lite drawing joi
     ' ---- the links, then the shortcut keys (v25.5, A5) ----
     yy = yy + BTN_H + 10
     DeskLink ws, "dk_lnk_roster", "Full roster  >", "modDesk.DeskRoster", x0, yy, 140
-    If Not sup And Not lite Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", x0 + 150, yy, 260   ' v29: not on the Lite Desk (it already sits on the full view)
-    ' v27.1: an admin can look at the supervisor Desk and come back; v29: or at the Admin Lite Desk ("See Desk as")
+    ' v29: not on the Lite Desk (it already sits on the full view) - unless desk mode is on (< Desk or Ctrl+Shift+D put it there: review MED-3)
+    If Not sup And (Not lite Or gDeskMode) Then DeskLink ws, "dk_lnk_all", "Show everything (primary admin tools)  >", "modDesk.DeskShowAll", x0 + 150, yy, 260
+    ' v27.1: an admin can look at the supervisor Desk and come back; v29: or at the Admin Lite Desk ("See Desk as"; a lite
+    ' login has no Admin Lite link - it is his own Desk)
     If (mPreview Or mPreviewLite) And gAdminUnlocked Then
         DeskLink ws, "dk_lnk_preview", "<  Back to my Desk", "modDesk.DeskPreviewOff", IIf(mPreview, x0 + 150, x0 + 420), yy, 200
     ElseIf asAdmin Then
         DeskLink ws, "dk_lnk_preview", "See Desk as:  Supervisor  >", "modDesk.DeskPreview", x0 + 420, yy, 190
-        DeskLink ws, "dk_lnk_previewlite", "Admin Lite  >", "modDesk.DeskPreviewLite", x0 + 615, yy, 110
+        If Not IsLiteUser() Then DeskLink ws, "dk_lnk_previewlite", "Admin Lite  >", "modDesk.DeskPreviewLite", x0 + 615, yy, 110
     End If
     yy = yy + 26
     DeskLabel ws, "dk_lbl_keys", "Ctrl+Shift+S sick call   Ctrl+Shift+C call-out   Ctrl+Shift+K calendar   Ctrl+Shift+D this Desk", x0, yy
@@ -594,7 +603,7 @@ Private Function DrawLiteDesk(ByVal ws As Worksheet, ByVal x0 As Double, ByVal b
     Dim bad As Boolean: bad = (dt = 0 Or KronosIsStale())
     Dim nProv As Long: nProv = ProvisionalCount()
     xx = DeskPill(ws, "dk_lite_t1", IIf(dt = 0, "Hours: no Kronos data yet", "Hours through " & Format$(dt, "ddd mmm d")) & _
-                  IIf(nProv > 0, " + " & nProv & " provisional", "") & IIf(bad, call_, ""), xx, yy, bad)
+                  IIf(nProv > 0, " + " & nProv & IIf(nProv = 1, " person", " people") & " provisional", "") & IIf(bad, call_, ""), xx, yy, bad)
     Dim bk As Long: bk = BackupTodayState()
     xx = DeskPill(ws, "dk_lite_t2", Choose(bk + 2, "Backup: not in this copy", "NO backup today" & call_, "Backup today: yes"), xx, yy, (bk = 0))
     Dim pubAt As Date: pubAt = MembersPublishedAt()
@@ -612,13 +621,19 @@ Private Function DrawLiteDesk(ByVal ws As Worksheet, ByVal x0 As Double, ByVal b
     yy = yy + 16
     Dim n As Long, n2 As Long, txt As String, id As String, what As String
     n = RequestsWaitingCount(): n2 = RequestsPartnerCount()
-    DeskTile ws, "dk_lite_req", n, IIf(n = 0, "Nothing waiting - members' requests", IIf(n = 1, "member's request waiting", "members' requests waiting")) & _
-             IIf(n2 > 0, "; " & n2 & " waiting for a partner", ""), "modDesk.DeskRequests", x0, yy, tw, IIf(n > 0, dkGreen(), 0), IIf(n = 0, "", "Decide in Needs Attention")
+    If n = 0 Then
+        txt = IIf(n2 > 0, "no request waiting for you; " & n2 & " waiting for a partner's Agree", "Nothing waiting - members' requests")
+    Else
+        txt = IIf(n = 1, "member's request waiting", "members' requests waiting") & IIf(n2 > 0, "; " & n2 & " waiting for a partner", "")
+    End If
+    DeskTile ws, "dk_lite_req", n, txt, "modDesk.DeskRequests", x0, yy, tw, IIf(n > 0, dkGreen(), 0), IIf(n = 0, "", "Decide in Needs Attention")
     n = PostingExceptionCount(id, what)
-    DeskTile ws, "dk_lite_post", n, IIf(n = 0, "Nothing waiting - posting exceptions", IIf(n = 1, "posting", "postings") & " with nobody signed up" & IIf(id <> "", ": " & id & " (" & what & ")", "")), _
+    DeskTile ws, "dk_lite_post", n, IIf(n = 0, "Nothing waiting - posting exceptions", IIf(n = 1, "posting", "postings") & " with no member sign-up" & IIf(id <> "", ": " & id & " (" & what & ")", "")), _
              "modDesk.DeskLiteAward", x0 + (tw + GAP), yy, tw, IIf(n > 0, dkOrange(), 0), IIf(n = 0, "", "No takers / Cancel / Out of dept")
     n = UnresolvedNoCount(): n2 = 0: txt = OpenDisputesText(n2)
-    DeskTile ws, "dk_lite_fix", n + n2, IIf(n + n2 = 0, "Nothing waiting - corrections", n & " receipt " & IIf(n = 1, "answer", "answers") & " of No / Not sure" & IIf(n2 > 0, "; " & n2 & " open dispute" & IIf(n2 = 1, "", "s"), "")), _
+    txt = IIf(n > 0, n & " receipt " & IIf(n = 1, "answer", "answers") & " of No / Not sure", "") & IIf(n > 0 And n2 > 0, "; ", "") & _
+          IIf(n2 > 0, n2 & " open dispute" & IIf(n2 = 1, "", "s"), "")
+    DeskTile ws, "dk_lite_fix", n + n2, IIf(n + n2 = 0, "Nothing waiting - corrections", txt), _
              "modDesk.DeskFixEntry", x0 + 2 * (tw + GAP), yy, tw, IIf(n + n2 > 0, dkRed(), 0), IIf(n + n2 = 0, "", "Fix an entry")
     n = LeaveReturningCount(DESK_AHEAD_DAYS, txt)
     DeskTile ws, "dk_lite_leave", n, IIf(n = 0, "Nothing waiting - returning from leave", "returning from leave in " & DESK_AHEAD_DAYS & " days" & IIf(txt <> "", ": " & txt, "")), _
@@ -669,6 +684,7 @@ Private Function DrawLiteDesk(ByVal ws As Worksheet, ByVal x0 As Double, ByVal b
     DeskLabel ws, "dk_lite_lbl4", "STAFFING AND OT", x0, yy
     DeskLink ws, "dk_q_staff", "?", "modDesk.DeskLiteHelp", x0 + bandW - 22, yy - 4, 22
     yy = yy + 16
+    StaffSweepBegin Date                             ' (review MED-2) fresh minimums, names and absences for this read
     Dim sl As Variant: sl = StaffShortList(Date, LITE_STAFF_DAYS, "")
     n = 0: txt = ""
     If IsArray(sl) Then
@@ -1047,6 +1063,7 @@ End Sub
 ' v29: the below-minimum card - the Calendar on the first short day (today when none)
 Public Sub DeskLiteStaff()
     On Error GoTo Oops
+    StaffSweepBegin Date
     Dim sl As Variant: sl = StaffShortList(Date, LITE_STAFF_DAYS, "")
     If IsArray(sl) Then
         CalShowDate CDate(sl(1, 2)), CStr(sl(1, 1))

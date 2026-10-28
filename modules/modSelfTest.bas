@@ -2319,5 +2319,7 @@ Private Sub LoadCases6()
     AddCase "mvtarget,master-unreachable,C:\Old\,P:\Super\,P:\Members\,N|Y,,the new master folder can't be reached or written: p:\super\"
     AddCase "mvtarget,members-unreachable,C:\Old\,P:\Super\,P:\Members\,Y|N,,the new members' folder can't be reached or written: p:\members\"
     AddCase "mvtarget,members-may-equal-master,C:\Old\,P:\Super\,P:\Super\,Y|Y,,ok"
+    AddCase "reqref,switch-with-sick-ref,Switch|Booked,SC-0007,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind"
+    AddCase "reqref,time-off-with-lower-case-ss,Time off|Booked,ss-0040,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind"
 ' <<< CASES
 End Sub

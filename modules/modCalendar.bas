@@ -2075,7 +2075,7 @@ Public Function NAStale() As Boolean
     On Error GoTo Yes
     Dim mp As Worksheet: Set mp = MapSheet()
     If SafeStr(mp.Range("Z9").Value) <> SafeStr(mp.Range("Z7").Value) Then GoTo Yes
-    If SafeStr(mp.Range("Z11").Value) <> DrawContext() Then GoTo Yes
+    If SafeStr(mp.Range("Z11").Value) <> DrawContext() & IIf(LiteShowing(), "|lite", "") Then GoTo Yes    ' v29: a lite login's order is its own context
     Exit Function
 Yes:
     NAStale = True

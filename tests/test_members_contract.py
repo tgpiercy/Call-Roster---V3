@@ -112,6 +112,11 @@ def test_request_status_words_are_one_list_on_both_sides():
     shown = set(re.findall(r'(?:st = |Or st = |st <> )"([^"]+)"', proc_body(MEM, "MemberShowRequests")))
     # the members' file adds one word of its own for a request the roster has not read yet
     assert shown - master == {"Sent - waiting for the roster"}, sorted(shown - master)
+    # v29 (review LOW-7): every status word the master can publish is named in the members' legend ("Statuses: ...")
+    legend = re.search(r'"Statuses: ([^"]*)"', proc_body(MEM, "MemberShowRequests"))
+    assert legend, "the members' Statuses legend was not found"
+    missing = [w for w in master if w not in legend.group(1)]
+    assert not missing, f"status words the master publishes but the members' legend does not name: {missing}"
 
 
 def test_the_leave_words_are_one_list_on_both_sides():

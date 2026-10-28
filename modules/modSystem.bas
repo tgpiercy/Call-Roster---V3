@@ -139,7 +139,7 @@ Private Sub SystemCheckBuild(ByRef warn As String, ByRef info As String, ByRef v
             End Select
         Next comp
         For Each f In Array("frmShiftSwitch", "frmOvertimeEntry", "frmNewPosting", "frmPostingEntry", "frmTimeOff", _
-                            "frmLeave", "frmSickCall", "frmConvert", "frmEmployee")
+                            "frmLeave", "frmSickCall", "frmConvert", "frmEmployee", "frmFixEntry")     ' v29: modLite names frmFixEntry - the project does not compile without it
             If InStr(compNames, "|" & LCase$(CStr(f)) & "|") = 0 Then
                 warn = warn & "- form " & f & " is missing (Insert > UserForm, name it, paste " & f & ".txt)" & vbNewLine
             End If

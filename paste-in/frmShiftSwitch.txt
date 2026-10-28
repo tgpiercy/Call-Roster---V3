@@ -204,6 +204,13 @@ Public Sub Prefill(ByVal offName As String, ByVal worksName As String, ByVal d A
     mShift.Value = shiftLbl
     RefillWorks
     mWorks.Value = worksName
+    If Left$(requestId, 4) = "Fix:" Then               ' v29 (Fix an entry): a re-entry after a void, not a members' request
+        C("txtNote").Text = "Re-entered after " & Mid$(requestId, 5)
+        C("status").Caption = "Re-entering " & Mid$(requestId, 5) & ": " & offName & " gives up, " & worksName & " works " & shiftLbl & ". Check both names, the shift and any payback link, then Save."
+        Me.Caption = "Shift Switch - re-entry of " & Mid$(requestId, 5)
+        On Error GoTo 0
+        Exit Sub
+    End If
     C("txtNote").Text = "Members' request " & requestId & " (the partner agreed in the members' file)"
     If mWorks.ListIndex < 0 Then
         C("status").Caption = "From " & requestId & ": " & worksName & " isn't offered for this shift (not signed off in the unit, or not free) - it can't be booked as asked. Decline it from Needs Attention, or pick what works."

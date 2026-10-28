@@ -219,7 +219,7 @@ Public Sub DrawNeeds()
 
     ' v29 (item 5; briefs/admin-lite.md): a lite login's order - his sections first (requests, open lines, leave,
     ' staffing, disputes / exceptions), DATA CHECK + errors + feedback folded under "More (system)"; everyone else as before
-    Dim lite As Boolean: lite = IsLiteUser() And Not gDeskShowFull
+    Dim lite As Boolean: lite = LiteShowing()        ' modDesk: a lite login, or an admin previewing Lite, the full Desk not asked for
     Dim erRay() As NARow, nER As Long, erSys() As NARow, nES As Long
     If lite Then NASplitSystem er, nE, erRay, nER, erSys, nES
 
@@ -262,9 +262,7 @@ Public Sub DrawNeeds()
                       nU, thMuted(), Array("", "", "Crew", "", "Who", "Type", "Status", ""))
         r = NARows(ws, r, ur, nU, "")
     End If
-    If lite Then                                    ' v29 (item 5): DATA CHECK, the errors and the feedback under one folding heading
-        r = NADrawMore(ws, r, dcR, nDc, erSys, nES)
-    Else
+    If Not lite Then                                ' v29 (item 5): a lite login's DATA CHECK, errors and feedback fold under "More (system)" at the end
     If nDc > 0 Then                                 ' v27 (item 25)
         r = NASection(ws, r, "DATA CHECK  -  roster details that look wrong (double-click: the roster row; Employee > Edit fixes it)", _
                       nDc, thMuted(), Array("", "", "Crew", "", "Who and what", "Type", "Status", ""))
@@ -301,6 +299,7 @@ Public Sub DrawNeeds()
                       nT, TypeColor("SIC"), Array("Last sick", "", "Crew", "Home unit", "Who", "Type", "Status", "Until"))
         r = NARows(ws, r, tr, nT, "")
     End If
+    If lite Then r = NADrawMore(ws, r, dcR, nDc, erSys, nES)     ' v29 (item 5): the fold, last
 
     tB = Timer                                      ' rows drawn
     ' ---- summary tiles (double-click one to jump to its list) ----
@@ -326,7 +325,7 @@ Public Sub DrawNeeds()
     End If
     On Error GoTo Failed
     MapWrite "Z9", drawnFrom                        ' v25.1: through the pair
-    MapWrite "Z11", "'" & DrawContext()
+    MapWrite "Z11", "'" & DrawContext() & IIf(lite, "|lite", "")     ' v29: the order drawn is part of the context (NAStale redraws when the login's order differs)
     tC = Timer                                      ' v25.1.2: tiles drawn
     MapWrite "Z15", "'" & "Needs Attention " & grp & ", " & nDays & " days (" & (nP + nL + nS + nB + nH + nU + nE + nM + nI + nV + nT) & " rows): drawn in " & _
         Format$(Secs(t0, tC), "0.0") & " s = gather " & Format$(Secs(t0, tA), "0.0") & " (slots " & Format$(mTimeSlots, "0.0") & _

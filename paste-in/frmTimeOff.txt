@@ -189,18 +189,33 @@ End Sub
 
 ' v28 (item 1): opened from a member's request (modRequests.RequestAct): the person, the dates and a note naming the
 ' request; the type is the admin's to pick. The save marks the request Booked (RequestBooked, with the AB- id).
-Public Sub Prefill(ByVal emp As String, ByVal dFrom As Date, ByVal dTo As Date, ByVal requestId As String)
+' v28: from a members' request (RequestAct); v29 (Fix an entry): requestId "Fix:<old ref>" = a re-entry after a void - the
+' note, status and caption say so (nothing about the members' file), dTo = 0 keeps the booking open-ended, typeTxt picks the type
+Public Sub Prefill(ByVal emp As String, ByVal dFrom As Date, ByVal dTo As Date, ByVal requestId As String, Optional ByVal typeTxt As String = "")
     On Error Resume Next
+    Dim fixRef As String
+    If Left$(requestId, 4) = "Fix:" Then fixRef = Mid$(requestId, 5): requestId = ""
     mOptPerson.Value = True
     SetMode True
     mEmp.Value = emp
     C("cboUnit").Value = HomeUnitCached(emp)
+    If typeTxt <> "" Then C("cboType").Value = typeTxt
     mStart.Text = DateText(dFrom)
-    If dTo > dFrom Then mEnd.Text = DateText(dTo) Else mEnd.Text = DateText(dFrom)
-    mOpen.Value = False
-    C("txtNote").Text = "Members' request " & requestId
-    C("status").Caption = "From " & requestId & " in the members' file: pick the type, check the dates, then Save."
-    Me.Caption = "Book Time Off - from " & requestId
+    If dTo = 0 Then
+        mEnd.Text = "": mOpen.Value = True
+    Else
+        If dTo > dFrom Then mEnd.Text = DateText(dTo) Else mEnd.Text = DateText(dFrom)
+        mOpen.Value = False
+    End If
+    If fixRef <> "" Then
+        C("txtNote").Text = "Re-entered after " & fixRef
+        C("status").Caption = "Re-entering " & fixRef & ": check the type and the dates, then Save."
+        Me.Caption = "Book Time Off - re-entry of " & fixRef
+    Else
+        C("txtNote").Text = "Members' request " & requestId
+        C("status").Caption = "From " & requestId & " in the members' file: pick the type, check the dates, then Save."
+        Me.Caption = "Book Time Off - from " & requestId
+    End If
     On Error GoTo 0
 End Sub
 
@@ -377,9 +392,15 @@ Private Sub mSave_Click()
                    IIf(skipped = "", "the file is read-only, or the dates are before this roster year", skipped) & ".", vbExclamation, "Call Out Roster"
             Exit Sub
         End If
-        ' v29 (item 6): a member's request this pop-up was opened for is Booked with the first sick day's SC- id (v28 left it Waiting)
-        Dim scRef As String: scRef = SickRefFor(mEmp.Text, ds)
-        If scRef <> "" Then RequestBooked scRef, mEmp.Text, ds, ""
+        ' v29 (item 6): a member's request this pop-up was opened for is Booked with the earliest sick day's SC- id (v28 left it
+        ' Waiting); when no sick day could be recorded inside the asked dates the admin is told and the request stays Waiting
+        Dim scRef As String, scAt As Date: scRef = SickRefFor(mEmp.Text, ds, CDate(de), scAt)
+        If scRef <> "" Then
+            RequestBooked scRef, mEmp.Text, scAt, ""
+        ElseIf gRequestId <> "" Then
+            Tell gRequestId & " stays waiting: no sick day was recorded inside its dates (" & skipped & "). Book it from Needs Attention again, or decline it.", vbExclamation, "Members' requests"
+            gRequestId = ""
+        End If
         LoadList
         C("status").Caption = nSick & " past sick day(s) recorded for " & mEmp.Text & ", " & _
                               Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & IIf(skipped = "", ".", " (skipped: " & skipped & ").")

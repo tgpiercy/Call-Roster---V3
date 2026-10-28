@@ -1206,8 +1206,9 @@ Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
     ' v29 (item 3b): the Lite drawing through "See Desk as: Admin Lite", Show full admin Desk and back, then the preview off
     ' (an admin's copy: no lite login here, so the strip and its ticks stay quiet)
     If gAdminUnlocked Then
-        DeskPreviewLite
+        DeskPreviewOff                               ' (review LOW-6) start from no preview, whatever the session had on
         Dim dws As Worksheet: Set dws = ThisWorkbook.Worksheets(DESK_SHEET)
+        DeskPreviewLite
         If Not SmkShapeThere(dws, "dk_lite_pill") Then why = "See Desk as: Admin Lite drew no Lite Desk": DeskPreviewOff: Exit Function
         If SmkShapeThere(dws, "dk_btn_reconcile") Then why = "the Lite Desk still shows a full-Desk button": DeskPreviewOff: Exit Function
         DeskShowFull
@@ -1216,7 +1217,8 @@ Private Function SmkDesk(ByRef st As SmkState, ByRef why As String) As Boolean
         DeskShowFull
         If Not SmkShapeThere(dws, "dk_lite_pill") Then why = "Back to my Desk did not return to the Lite Desk": DeskPreviewOff: Exit Function
         DeskPreviewOff
-        If SmkShapeThere(dws, "dk_lite_pill") Or Not SmkShapeThere(dws, "dk_btn_reconcile") Or gDeskShowFull Then why = "the Lite preview did not come off cleanly": Exit Function
+        ' off: a lite login (Ray on his copy) is back on his own Lite Desk; anyone else on the admin Desk
+        If gDeskShowFull Or (SmkShapeThere(dws, "dk_lite_pill") <> IsLiteUser()) Or (SmkShapeThere(dws, "dk_btn_reconcile") = IsLiteUser()) Then why = "the Lite preview did not come off cleanly": Exit Function
     End If
     Dim c0 As Long, r0 As Long, o0 As Long, c1 As Long, r1 As Long, o1 As Long, c2 As Long, r2 As Long, o2 As Long, pubAt As Date
     DeskCounts c0, r0, o0, pubAt
@@ -1318,8 +1320,9 @@ Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
         Dim un0 As Long: un0 = UnresolvedNoCount()
         If Not WriteFeedbackRow("No", "SmokeTest step 22") Then why = "WriteFeedbackRow refused a No answer": Exit Function
         If UnresolvedNoCount() <> un0 + 1 Then why = "an unresolved No did not raise UnresolvedNoCount by one": Exit Function
-        If ResolveFeedback(fbRef, "SMK-" & fbRef) < 1 Then why = "ResolveFeedback marked no row for " & fbRef: Exit Function
-        If UnresolvedNoCount() <> un0 Then why = "ResolveFeedback left the No unresolved": Exit Function
+        Dim nRes As Long: nRes = ResolveFeedback(fbRef, "SMK-" & fbRef)     ' (review LOW-7) an older No on the same Ref resolves with it
+        If nRes < 1 Then why = "ResolveFeedback marked no row for " & fbRef: Exit Function
+        If UnresolvedNoCount() <> un0 + 1 - nRes Then why = "ResolveFeedback's count and the unresolved count disagree": Exit Function
         st.Note = st.Note & "; a No on " & fbRef & " resolved"
         ' v29 (item 4): Fix an entry reads the Ref's facts (the rows are VOID by now or live: either reads); a made-up Ref is not found
         Dim ff As FixFacts: ff = FixEntryFacts(fbRef)

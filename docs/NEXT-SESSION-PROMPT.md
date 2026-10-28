@@ -1,4 +1,25 @@
-# Paste this into a fresh session to carry on (updated Oct 27, 2026: **v28 IS ON THE REAL ROSTER (Oct 27, v27.5 inside; v27.1 since Oct 25); the alpha runs Nov 1-14 on it; next builds are v28.1 (the second refactor) then v29 (the go-live kit + the alpha fixes) - see "v28 INSTALLED" first.** The older blocks below are the v28, v27.5, v27.1 and v27 hand-offs, kept as history.)
+# Paste this into a fresh session to carry on (updated Oct 27, 2026: **v28 IS ON THE REAL ROSTER (Oct 27, v27.5 inside; v27.1 since Oct 25); the alpha runs Nov 1-14 on it; **RE-ORDERED Oct 27 (later): v29 (the go-live kit) is built NOW on v28 - report-back DONE, `briefs/v29.md` - and v28.1 (the second refactor) comes after it** - see "v29 REPORT-BACK" then "v28 INSTALLED".** The older blocks below are the v28, v27.5, v27.1 and v27 hand-offs, kept as history.)
+
+```
+v29 REPORT-BACK DONE (Oct 27, 2026, later in the day): Graeme said "Lets pull ahead 29" and chose: v29 NEXT, built on v28 (v28 has run), installed in
+the Nov 18-20 slot after the alpha closes; v28.1 (the refactor) BEHIND it, built on v29, installed before the Dec 20 freeze; training Dec 1 and the
+December rehearsal on v29. He pasted briefs/admin-lite.md (saved as sent; read "v28.1" there as v28). Three read-only maps (folders; logins + Desk;
+Requests + IntegrityCheck) -> twelve decisions, all in briefs/v29.md's table. THE ONES THAT CHANGE THE PLAN: the move STORES the members' folder
+path in the file (hidden name MembersFolder read by PublishFolderPath; constants otherwise; no January install); the roster drives the move, the
+reopen is by hand (Excel cannot open two same-named files); a rehearsal mode on a COPY (a practice copy always publishes beside itself today);
+the old file frozen by a MovedTo marker + a rename; THE LITE DESK DRAWS ON THE FULL ADMIN VIEW (not desk mode - his call); all four sourceless
+Lite cards built; Fix an entry in v29 (frmFixEntry, a NEW code-built form); SUPERVISOR_USERS stays the three; a void marks its Booked request
+"Booking voided" (new final status, Members M6); check 17 "Requests" = Check while the dates are ahead, Note once past, never PROBLEM; the two
+RequestBooked gaps fixed; My history's PDF to the user's Downloads. BUILD ORDER (one commit each, checkers + docscheck + pytest after each,
+read-only Opus reviewers with the P5 scenarios, fix + re-review): item 2 logins/ViewModeFor lite/SystemCheck login lines -> 3a the card
+sources -> 3b DrawLiteDesk (own Sub: DrawDesk is 284/300 lines) + 3-state preview + DeskShowFull + the landing -> 4 Fix an entry -> 5 Needs
+Attention for Lite -> 6 Requests -> 1 the move (MembersFolder, MoveRoster + rehearsal, MovedTo freeze, SystemCheck path lines reach+write,
+wording, IntegrityCheck 15 Note) -> 7 alpha fixes after Nov 18 -> 8 item 39 if signed -> 10 release prep (stamps v29, N_MODULES 43, What's New
+YES, FORM_RELEASES + frmFixEntry, INSTALL-v29.md incl. the new UserForm + the members' template rebuild, steps-v29.txt, CHANGELOG, docs incl. NEW
+admin-lite-cheat-sheet / guide-08-admin-lite / members-what-changes, the snapshot steps admin + supervisor-via-preview + Lite); tag v29;
+build_zip v29 v28; push from his Terminal. MoveRoster is NOT run at the install - a cutover step (docs/go-live-runbook.md by Jan 5). The build
+starts on his go (asked at the end of the report-back session). Scratch maps of the three agents are NOT in the repo (session scratchpad).
+```
 
 ```
 v28 INSTALLED (Oct 27, 2026): Graeme: "V28 executed flawlessly." v28 is on the REAL roster; v27.5 rode in; v27.1 has been on it
@@ -6,8 +27,9 @@ since Oct 25. Every check passed: SystemCheck 43 of 43 on v28, SelfTest 1053 cas
 rows, AssignPayrollKeys clean, the members' template rebuilt (Members M5). In code: ADMIN_USERS = piercyg, lanthierr; DESK_USERS =
 lanthierr; SUPERVISOR_USERS = mihaychukc, sheltond, campeauc. NOT in v28 (the go-live kit, now v29): the folder split, the final
 logins, Ray's Admin Lite Desk. CLAUDE.md's roadmap and "Decisions already made" carry the Oct 27 decisions (the first bullet).
-THE CHAIN: v28 (real, Oct 27) -> alpha Nov 1-14 -> v28.1 (the refactor, installed Nov 18-20) -> v29 (the go-live kit + the alpha
-fixes, installed Dec 14-18) -> the real rollover on v29 in the freeze -> the cutover Jan 11-15 -> v29.5 (Feb). There is NO v28.5.
+THE CHAIN (as first planned Oct 27; RE-ORDERED later that day - see the v29 block above): v28 (real, Oct 27) -> alpha Nov 1-14 -> v29 (the
+go-live kit + the alpha fixes, installed Nov 18-20) -> v28.1 (the refactor, built on v29, installed Dec 14-18 if clean) -> the real rollover
+on v29 in the freeze -> the cutover Jan 11-15 -> v29.5 (Feb). There is NO v28.5.
 THE CALENDAR: Oct 27-31 housekeeping (this commit) + the alpha gate re-run on v28 (Graeme's runbook, project-side) | Nov 1-14 the
 alpha on v28: paper governs, the daily admin check (Ray when Graeme is on nights), findings triaged into docs/alpha-findings.md as
 they come (S1 = broken -> a v28.0.x hotfix through a practice copy; S2 = wrong hours / charge / order -> void and re-enter now, the

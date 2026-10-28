@@ -1695,12 +1695,12 @@ Public Function ActAsChair() As String
 End Function
 
 ' PURE (SelfTest "actas"; mirrored in tests/rules.py): "" when realLogin (an admin on adminList) may act as chair (a login on
-' chairList) on today, else why: expired (today after alphaEnd) / not an admin / not a chair. Lower case, spaces dropped.
+' chairList) on today, else why: expired (today after endDay, the alpha's end) / not an admin / not a chair. Lower case, spaces dropped.
 Public Function ActAsCheck(ByVal chair As String, ByVal realLogin As String, ByVal adminList As String, ByVal chairList As String, _
-                           ByVal today As Date, ByVal alphaEnd As Date) As String
+                           ByVal today As Date, ByVal endDay As Date) As String
     Dim c As String: c = LCase$(Replace(chair, " ", ""))
     Dim r As String: r = LCase$(Replace(realLogin, " ", ""))
-    If Int(today) > Int(alphaEnd) Then ActAsCheck = "expired": Exit Function
+    If Int(today) > Int(endDay) Then ActAsCheck = "expired": Exit Function
     If r = "" Or InStr(1, "," & LCase$(Replace(adminList, " ", "")) & ",", "," & r & ",", vbBinaryCompare) = 0 Then ActAsCheck = "not an admin": Exit Function
     If c = "" Or InStr(1, "," & LCase$(Replace(chairList, " ", "")) & ",", "," & c & ",", vbBinaryCompare) = 0 Then ActAsCheck = "not a chair": Exit Function
 End Function

@@ -13,7 +13,7 @@ installed.
    The members' file has the same: Alt+F8 > `MemberActAs` (any login name you like, e.g. `tester2`) so you can send a
    switch request as one member and Agree as another; `MemberActAsClear` puts the PC's login back. A freshly published
    members' file starts with no chair.
-   **The password is `alpha2026`** (`CHAIR_PASSWORD` in modOvertimeEntry and in member/modMember.bas; change both to
+   **The password is `alpha2026`** (`CHAIR_PASSWORD` in modOvertimeEntry and `MEM_CHAIR_PASSWORD` in member/modMember.bas; change both to
    change it).
 
 Needs **v29 installed** and **Roster Updater.xlsm v4.2**. The updater does not change. The panel's swap replaces every

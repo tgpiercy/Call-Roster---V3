@@ -28,10 +28,10 @@ Option Explicit
 Public Const MEM_VERSION As String = "Members M6 (Oct 27)"     ' v29 (M6): the status word "Booking voided", My history's PDF to the user's Downloads; v28 (M5, item 1): members' requests - ask for time off or a switch, the partner's Agree, My requests (the template is rebuilt); v27 (M4): me first, the tiles, since you last looked, the header band, How it works
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 ' v29.0.2 (the alpha only; removed in the release after): Act as - MemberLogin() stands in for the PC's login in every file
-' name and login= line while a chair is stored in this file (Alt+F8 > MemberActAs with CHAIR_PASSWORD; MemberActAsClear);
-' ignored after ALPHA_END_ISO; a freshly published file holds no chair
-Public Const CHAIR_PASSWORD As String = "alpha2026"
-Public Const ALPHA_END_ISO As String = "2026-11-20"
+' name and login= line while a chair is stored in this file (Alt+F8 > MemberActAs with MEM_CHAIR_PASSWORD; MemberActAsClear);
+' ignored after MEM_ALPHA_END_ISO; a freshly published file holds no chair
+Private Const MEM_CHAIR_PASSWORD As String = "alpha2026"   ' the same word as CHAIR_PASSWORD in the master
+Private Const MEM_ALPHA_END_ISO As String = "2026-11-20"
 Private Const ACTAS_NAME As String = "ActAsChair"
 
 Private Const SH_HOME As String = "Home"
@@ -3408,7 +3408,7 @@ Public Function MemberLogin() As String
     Dim nmObj As Name
     Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
     If nmObj Is Nothing Then Exit Function
-    If Int(Date) > Int(DateSerial(CLng(Left$(ALPHA_END_ISO, 4)), CLng(Mid$(ALPHA_END_ISO, 6, 2)), CLng(Mid$(ALPHA_END_ISO, 9, 2)))) Then Exit Function
+    If Int(Date) > Int(DateSerial(CLng(Left$(MEM_ALPHA_END_ISO, 4)), CLng(Mid$(MEM_ALPHA_END_ISO, 6, 2)), CLng(Mid$(MEM_ALPHA_END_ISO, 9, 2)))) Then Exit Function
     Dim s As String: s = Trim$(Replace(Replace(nmObj.RefersTo, "=", ""), """", ""))
     If s <> "" Then MemberLogin = s
 End Function
@@ -3419,7 +3419,7 @@ Public Sub MemberActAs()
     On Error GoTo Failed
     Dim typed As String: typed = InputBox("Act as another member login for the alpha test. Password:", "Act as (alpha test)")
     If typed = "" Then Exit Sub
-    If StrComp(typed, CHAIR_PASSWORD, vbBinaryCompare) <> 0 Then MsgBox "Wrong password. Nothing changed.", vbExclamation, "Act as (alpha test)": Exit Sub
+    If StrComp(typed, MEM_CHAIR_PASSWORD, vbBinaryCompare) <> 0 Then MsgBox "Wrong password. Nothing changed.", vbExclamation, "Act as (alpha test)": Exit Sub
     Dim chair As String: chair = Trim$(InputBox("Login to send as (letters, digits, . _ - only; e.g. tester2; blank = cancel):", "Act as (alpha test)"))
     If chair = "" Then Exit Sub
     If StrComp(chair, SafeName(chair), vbBinaryCompare) <> 0 Then MsgBox "Letters, digits, . _ - only.", vbExclamation, "Act as (alpha test)": Exit Sub

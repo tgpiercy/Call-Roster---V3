@@ -226,6 +226,12 @@ paper order per page, so D12 types two pages; the cumulative report of Day 0 run
 | D14.7 | after D14.6 | Graeme admin | Alt+F8 > StatsReport |  | **A call-outs (year to date, all units): sessions / calls / filled:** 13 / 30 / 13<br>**A outcomes accepted / refused / left message / unavailable / exception:** 13 / 9 / 5 / 2 / 1<br>**A hours charged (call-outs):** 281.75<br>**B postings posted / awarded / no takers / cancelled / open:** 9 / 6 / 2 / 1 / 0<br>**B people charged / hours charged (postings):** 21 / 437.5<br>**C sick bookings this year (all units):** 3<br>**D Phosphine Total Hours spread (grade <=2): min | max | mean | SD | gap:** 142.0|333.0|230.8|58.1|191.0 | The figures as EXPECT (group A call-outs; group B postings; group D Phosphine spread) | [ ] |
 | D14.8 | after D14.7 | Graeme admin | Needs Attention > the F: line > ShowFeedback |  | **Feedback rows marked seen:** 1 | Every Feedback row marked seen; the F: line gone | [ ] |
 
+## The close-out, Mon Nov 16 - the cumulative Kronos report through Nov 14 (the rest of the close-out is the page below)
+
+| id | when | who | where | inputs | EXPECT | CHECK | tick |
+|---|---|---|---|---|---|---|---|
+| C.1 | morning | Graeme admin | Desk > Import Kronos (the close-out cumulative through Sat Nov 14 copied into the Kronos mock folder) | through=2026-11-14 | **Data Through:** Fri Nov 13 -> Sat Nov 14<br>**Worked Changes rows:** Taylor Redfern OVERTIME 0 -> 2 (weighted 3.5), Kind gap, dated Sat Nov 14, Note: no one-day report for 2026-11-14<br>**people whose H changed:** 1: Taylor Redfern 77 -> 81<br>**Worked (H) sum over the roster:** 4314<br>**totals still carrying provisional OT:** Skyler Quarrie 12 | Read from the report; Data Through Sat Nov 14; the Worked Changes row as EXPECT (Nov 14 had no one-day report: the difference is a gap row dated Nov 14); H as EXPECT; nobody else changes (the re-pulled Nov 3 already agreed) | [ ] |
+
 ## Coverage matrix - every canonical rule x the steps that exercise it
 
 | rule | steps |
@@ -240,8 +246,8 @@ paper order per page, so D12 types two pages; the cumulative report of Day 0 run
 | DST nights charge actual hours (13 h fall-back) | D1.4, D1.6 |
 | A sick call keeps the person off every shift starting within 24 h | D1.4 |
 | Attendance counters and the four public phrases | D1.4, D2.7, D10.8 |
-| Worked (H) = the cumulative's Totals + the one-day ledger, weighted and rounded whole | D0.3, D1.1, D2.1, D3.1, D4.1, D5.1, D6.1, D7.1, D8.2, D9.1, D10.1, D11.1, D12.1, D13.1, D14.1 |
-| A re-imported day logs a Worked Changes row | D6.1 |
+| Worked (H) = the cumulative's Totals + the one-day ledger, weighted and rounded whole | D0.3, D1.1, D2.1, D3.1, D4.1, D5.1, D6.1, D7.1, D8.2, D9.1, D10.1, D11.1, D12.1, D13.1, D14.1, C.1 |
+| A re-imported day logs a Worked Changes row | D6.1, C.1 |
 | Provisional accepted OT counts until Kronos covers the shift | D2.1, D4.1, D5.6 |
 | Refused counts only the pay periods up to the current one | D14.4 |
 | Booked off (Vac / Leave / Personal) = not listed | D2.10 |
@@ -298,7 +304,7 @@ Full runbook: docs/alpha-data-reset.md. On the MOCK file first:
 
 | id | step | EXPECT / CHECK |
 |---|---|---|
-| C.1 | Copy the close-out cumulative report (through Sat Nov 14) into the Kronos mock folder; Desk > Import Kronos | Read from the report; Data Through Sat Nov 14; the differences from the ledger: Nov 14's hours (no one-day report) logged as gap rows? NO - every day Nov 1-13 has a report and Nov 14 is after the last one-day report, so the cumulative simply covers it: H per person = the ledger's figure + Nov 14's hours (Taylor Redfern OVERTIME 2 h = +3.5); no edit rows (the Nov 3 re-pull already agreed) |
+| C.1 | Copy the close-out cumulative report (through Sat Nov 14) into the Kronos mock folder; Desk > Import Kronos | Read from the report; Data Through Fri Nov 13 -> Sat Nov 14; Nov 14 had NO one-day report, so its one difference is a Worked Changes row of Kind gap dated Nov 14 (expected.csv rows C.1: the row and the H that moves); nobody else changes (the re-pulled Nov 3 already agreed) |
 | C.2 | Alt+F8 > IntegrityCheck | 0 PROBLEM; the Check 7 payback line (SS-0001 and SS-0002 owed); the Kronos code-not-counted line; the Notes as on D13.8 |
 | C.3 | Alt+F8 > ClosePeriod > Nov 1 | The CSV, the PDF and the SHA-256 row in Closed Periods for the period starting Nov 1: Log Rows = every row with Period Start Nov 1 (void ones included, marked), Charged = their non-void sum (expected.csv row C.3) |
 | C.4 | Alt+F8 > StatsReport | As D14.7 plus the Nov 14 award rows |

@@ -569,4 +569,9 @@ D14.7,B people charged / hours charged (postings),21 / 437.5
 D14.7,C sick bookings this year (all units),3
 D14.7,D Phosphine Total Hours spread (grade <=2): min | max | mean | SD | gap,142.0|333.0|230.8|58.1|191.0
 D14.8,Feedback rows marked seen,1
+C.1,Data Through,Fri Nov 13 -> Sat Nov 14
+C.1,Worked Changes rows,"Taylor Redfern OVERTIME 0 -> 2 (weighted 3.5), Kind gap, dated Sat Nov 14, Note: no one-day report for 2026-11-14"
+C.1,people whose H changed,1: Taylor Redfern 77 -> 81
+C.1,Worked (H) sum over the roster,4314
+C.1,totals still carrying provisional OT,Skyler Quarrie 12
 C.3,Closed Periods row for Nov 1,Log Rows 32 (void included); Charged 656.6

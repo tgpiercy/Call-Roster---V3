@@ -130,7 +130,7 @@ def test_every_step_is_in_the_window_and_every_named_person_exists():
     names = {p["Name"] for p in rows("people.csv")} | {"Val Driscoll", "Wren Fenwick-Ross"}
     for st in rows("steps.csv"):
         d = date.fromisoformat(st["date"])
-        assert date(2026, 10, 30) <= d <= date(2026, 11, 14), st["id"]
+        assert date(2026, 10, 30) <= d <= (date(2026, 11, 17) if st["id"].startswith("C.") else date(2026, 11, 14)), st["id"]
         for part in st["inputs"].split(";"):
             k, _, v = part.partition("=")
             if k in ("emp", "off", "works", "partner", "out", "a", "b", "old", "name", "new"):

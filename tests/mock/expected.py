@@ -389,6 +389,36 @@ class Runner:
         self.say(sid, "codes not counted", "Bryn Hartwell: LIEU TKN 8 h named in the finishing box (IntegrityCheck's Kronos section lists it)")
         self.say(sid, "provisional (C) after the import", "; ".join(f"{nm} {fmt(pl.provisional(nm))}" for nm in pl.people if pl.provisional(nm) > 0) or "none")
 
+    def do_kronos_cum_final(self, sid, d, now, a, login, st):
+        """The close-out cumulative: the opening totals + every one-day report (the re-pulled figure wins) + the rows only the
+        cumulative carries (Report = cum). A day between the old Through and the new one with no one-day report makes the
+        difference a Worked Changes row of Kind gap, dated the new Through (v27.5 item 2)."""
+        pl = self.pl
+        through = pdate(a["through"])
+        old_through = pl.kronos_through
+        before = dict(pl.worked)
+        final: dict = {nm: dict(spec) for nm, spec in self.totals.items()}
+        for (rep, day), rows in self.days.items():
+            if rep == "re" or (rep == "day" and ("re", day) not in self.days):
+                for nm, spec in rows.items():
+                    for code, h in spec.items():
+                        final.setdefault(nm, {})[code] = final.get(nm, {}).get(code, 0.0) + h
+        gaps = []
+        for (rep, day), rows in self.days.items():
+            if rep == "cum":
+                for nm, spec in rows.items():
+                    for code, h in spec.items():
+                        final.setdefault(nm, {})[code] = final.get(nm, {}).get(code, 0.0) + h
+                        gaps.append(f"{nm} {code} 0 -> {fmt(h)} (weighted {fmt(h * rules.premium_multiplier(code))}), Kind gap, dated {dtxt(through)}, Note: no one-day report for {iso(day)}")
+        pl.import_cumulative(through, final)
+        self.kronos_files.append(f"cumulative through {iso(through)}")
+        self.say(sid, "Data Through", f"{dtxt(old_through)} -> {dtxt(through)}")
+        self.say(sid, "Worked Changes rows", "; ".join(gaps) or "none")
+        changed = [nm for nm in pl.people if abs(pl.worked[nm] - before.get(nm, 0)) > 0.001]
+        self.say(sid, "people whose H changed", f"{len(changed)}: " + "; ".join(f"{nm} {fmt(before[nm])} -> {fmt(pl.worked[nm])}" for nm in changed))
+        self.say(sid, "Worked (H) sum over the roster", fmt(sum(pl.worked.values())))
+        self.say(sid, "totals still carrying provisional OT", "; ".join(f"{nm} {fmt(pl.provisional(nm))}" for nm in pl.people if pl.provisional(nm) > 0) or "none")
+
     def do_systemcheck(self, sid, d, now, a, login, st):
         self.say(sid, "modules line", "Modules: 45 of 45 on v29")
         self.say(sid, "logins line", "Logins: admins piercyg, lanthierr; Lite lanthierr (Ray); supervisors mihaychukc, sheltond, campeauc")
@@ -1240,6 +1270,7 @@ DAY_TITLES = {
     "2026-11-12": "Day 12 - Thu Nov 12: Reconcile (two pages); the Refusals Report; the Employee history",
     "2026-11-13": "Day 13 - Fri Nov 13: Remove and Bring back; an adjustment and its undo; IntegrityCheck; the ID counters",
     "2026-11-14": "Day 14 - Sat Nov 14: the period's last day - the Nov 20 posting's refusals stay out of Total Hours; paybacks; Stats",
+    "2026-11-16": "The close-out, Mon Nov 16 - the cumulative Kronos report through Nov 14 (the rest of the close-out is the page below)",
 }
 
 RULES = {
@@ -1283,7 +1314,7 @@ Full runbook: docs/alpha-data-reset.md. On the MOCK file first:
 
 | id | step | EXPECT / CHECK |
 |---|---|---|
-| C.1 | Copy the close-out cumulative report (through Sat Nov 14) into the Kronos mock folder; Desk > Import Kronos | Read from the report; Data Through Sat Nov 14; the differences from the ledger: Nov 14's hours (no one-day report) logged as gap rows? NO - every day Nov 1-13 has a report and Nov 14 is after the last one-day report, so the cumulative simply covers it: H per person = the ledger's figure + Nov 14's hours (Taylor Redfern OVERTIME 2 h = +3.5); no edit rows (the Nov 3 re-pull already agreed) |
+| C.1 | Copy the close-out cumulative report (through Sat Nov 14) into the Kronos mock folder; Desk > Import Kronos | Read from the report; Data Through Fri Nov 13 -> Sat Nov 14; Nov 14 had NO one-day report, so its one difference is a Worked Changes row of Kind gap dated Nov 14 (expected.csv rows C.1: the row and the H that moves); nobody else changes (the re-pulled Nov 3 already agreed) |
 | C.2 | Alt+F8 > IntegrityCheck | 0 PROBLEM; the Check 7 payback line (SS-0001 and SS-0002 owed); the Kronos code-not-counted line; the Notes as on D13.8 |
 | C.3 | Alt+F8 > ClosePeriod > Nov 1 | The CSV, the PDF and the SHA-256 row in Closed Periods for the period starting Nov 1: Log Rows = every row with Period Start Nov 1 (void ones included, marked), Charged = their non-void sum (expected.csv row C.3) |
 | C.4 | Alt+F8 > StatsReport | As D14.7 plus the Nov 14 award rows |

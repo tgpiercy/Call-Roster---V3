@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M5 (Oct 25)"     ' v28 (M5, item 1): members' requests - ask for time off or a switch, the partner's Agree, My requests (the template is rebuilt); v27 (M4): me first, the tiles, since you last looked, the header band, How it works
+Public Const MEM_VERSION As String = "Members M6 (Oct 27)"     ' v29 (M6): the status word "Booking voided", My history's PDF to the user's Downloads; v28 (M5, item 1): members' requests - ask for time off or a switch, the partner's Agree, My requests (the template is rebuilt); v27 (M4): me first, the tiles, since you last looked, the header band, How it works
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 
 Private Const SH_HOME As String = "Home"
@@ -3109,7 +3109,7 @@ Public Sub MemberShowRequests()
         r = r + 1
     End If
     ws.Cells(r + 1, 1).Value = "A request books nothing by itself: an admin books it through the roster's own rules, or declines it with a reason. " & _
-                               "Statuses: Sent / Waiting for partner / Waiting (for an admin) / Booked / Declined / Withdrawn / Expired. Your note is read by the admin (the Requests folder beside this file is shared, like Signups)."
+                               "Statuses: Sent / Waiting for partner / Waiting (for an admin) / Booked / Declined / Withdrawn / Expired / Booking voided (the admin took the booking back - ask them). Your note is read by the admin (the shared Requests folder, like Signups)."
     ws.Cells(r + 1, 1).Font.Size = 8: ws.Cells(r + 1, 1).Font.Italic = True: ws.Cells(r + 1, 1).Font.Color = RGB(100, 100, 100)
 Finish:
     If Err.Number <> 0 Then mViewErr = "the Requests: " & Err.Description

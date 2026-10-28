@@ -1318,6 +1318,7 @@ RQ_ST_WAITING = "Waiting"
 RQ_ST_BOOKED = "Booked"
 RQ_ST_DECLINED = "Declined"
 RQ_ST_REFUSED = "Declined by partner"
+RQ_ST_VOIDED = "Booking voided"           # v29 (item 6): the booking a request became was voided
 RQ_ST_WITHDRAWN = "Withdrawn"
 RQ_ST_EXPIRED = "Expired"
 
@@ -1367,9 +1368,9 @@ def request_check(kind: str, emp: str, from_txt: str, to_txt: str, shift_lbl: st
 
 def request_status(kind: str, agree_login: str, requester_login: str, refused: bool, withdrawn: bool, decided: str,
                    to_txt: str, today_txt: str) -> str:
-    """modRequests.RequestStatusCore: an admin's word wins; withdrawn / refused end it; past To = Expired; a switch without an
-    agree from ANOTHER login waits for the partner; else Waiting."""
-    if decided in (RQ_ST_BOOKED, RQ_ST_DECLINED):
+    """modRequests.RequestStatusCore: an admin's word wins (v29: a void of the booking too); withdrawn / refused end it;
+    past To = Expired; a switch without an agree from ANOTHER login waits for the partner; else Waiting."""
+    if decided in (RQ_ST_BOOKED, RQ_ST_DECLINED, RQ_ST_VOIDED):
         return decided
     if withdrawn:
         return RQ_ST_WITHDRAWN
@@ -1382,6 +1383,33 @@ def request_status(kind: str, agree_login: str, requester_login: str, refused: b
         if agree_login.strip(" ") == "" or agree_login.strip(" ").lower() == requester_login.strip(" ").lower():
             return RQ_ST_PARTNER
     return RQ_ST_WAITING
+
+
+def request_ref_problem(kind: str, status: str, ref: str, target_found: bool, target_status: str, names_match: bool,
+                        to_txt: str, today_txt: str) -> str:
+    """v29 modRequests.RequestRefProblem (IntegrityCheck 17): '' when fine, else '<Check|Note>|<what>' - no ref, wrong kind
+    (a Time off request not AB-/SC-, a Switch not SS-), missing, void, wrong person; Check while the To date is today or
+    later, Note once past ('' dates = Check). Only a Booked request is looked at."""
+    if status != RQ_ST_BOOKED:
+        return ""
+    ref = ref.strip(" ").upper()
+    if ref == "":
+        what = "no ref"
+    elif kind == "Switch" and not ref.startswith("SS-"):
+        what = "wrong kind"
+    elif kind != "Switch" and not (ref.startswith("AB-") or ref.startswith("SC-")):
+        what = "wrong kind"
+    elif not target_found:
+        what = "missing"
+    elif target_status.strip(" ").upper() == "VOID":
+        what = "void"
+    elif not names_match:
+        what = "wrong person"
+    else:
+        return ""
+    d_t, d_n = iso_date(to_txt), iso_date(today_txt)
+    past = d_t is not None and d_n is not None and d_t < d_n
+    return ("Note" if past else "Check") + "|" + what
 
 
 # ---- v28 (item 2): the Payroll # key (modKeys PayrollValid / KeyMatchCore; suites payroll / keymatch) ----

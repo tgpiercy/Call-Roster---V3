@@ -887,6 +887,7 @@ Public Function VoidSwitch(ByVal id As String, Optional ByVal reasonTxt As Strin
         Next i
     End If
     ProtectSheet ws
+    RequestBookingVoided id, why                    ' v29 (item 6): a member's request this switch came from reads "Booking voided"
     On Error Resume Next
     VoidCoverageBySource id
     On Error GoTo 0

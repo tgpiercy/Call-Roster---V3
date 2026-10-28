@@ -233,7 +233,7 @@ Private Function RunCase(f() As String) As String
             FatigueBlockCore CDbl(Val(i1)), CDbl(Val(i2)), CDbl(Val(i3)), CDbl(Val(i4)), fbW, fbN
             RunCase = NumText(fbW) & "|" & NumText(fbN)
         Case "switchstop", "kledger", "kedit", "kday", "kname", "staffcount", "kgap", "kgapdays", "fatshift", "reqcheck", "reqstatus", "paykey", "keymatch", _
-             "litelogin", "postexc", "litemark", "litedaily", "litebar"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite Desk's cores
+             "litelogin", "postexc", "litemark", "litedaily", "litebar", "reqref"     ' v27.1: the refactor's cores (RunCaseV271, so RunCase stays under 300 lines); v27.5: + the gap rows, the switch's 16 h read; v28: + the members' requests; v29: + the Lite Desk's cores
             RunCase = RunCaseV271(f(0), i1, i2, i3, i4, i5)
         Case "postcap"                             ' v26.5.5: posting hours, the 16 h max, max known Y/N -> the hours charged on
             RunCase = NumText(CappedPostingHours(CDbl(Val(i1)), CDbl(Val(i2)), (i3 = "Y")))
@@ -477,6 +477,11 @@ Private Function RunCaseV271(ByVal suite As String, ByVal i1 As String, ByVal i2
             RunCaseV271 = IIf(ldS = "", "none", ldS)
         Case "litebar"                             ' v29 (item 3a): hours, the largest figure, cells in the bar -> cells filled
             RunCaseV271 = CStr(BarCellsCore(CDbl(Val(i1)), CDbl(Val(i2)), CLng(Val(i3))))
+        Case "reqref"                              ' v29 (item 6, IntegrityCheck 17): kind|status, ref, found Y/N|target status|names match Y/N, to|today -> Check|what / Note|what / none
+            Dim rrK As Variant, rrT As Variant, rrD As Variant, rrS As String
+            rrK = Split(i1 & "|", "|"): rrT = Split(i3 & "||", "|"): rrD = Split(i4 & "|", "|")
+            rrS = RequestRefProblem(CStr(rrK(0)), CStr(rrK(1)), i2, (CStr(rrT(0)) = "Y"), CStr(rrT(1)), (CStr(rrT(2)) = "Y"), CStr(rrD(0)), CStr(rrD(1)))
+            RunCaseV271 = IIf(rrS = "", "none", rrS)
         Case "staffcount"                          ' v27.1: people tokens (;), Covered-by texts (;), minimum -> scheduled|off|covered|ok / SHORT s/m
             Dim scP As Variant, scT As Variant, scS As Long, scO As Long, scC As Long, scX As String, scPt As Boolean, scH As Double
             If i1 <> "" Then scP = Split(i1, ";")
@@ -2272,5 +2277,23 @@ Private Sub LoadCases6()
     AddCase "litebar,rounds-down,36,100,12,,,4"
     AddCase "litebar,over-the-max-is-capped,150,100,12,,,12"
     AddCase "litebar,no-max,10,0,12,,,0"
+    AddCase "reqstatus,booking-voided-wins,Switch,ann|ray,refused;withdrawn;Booking voided,2026-01-01|2026-11-03,,Booking voided"
+    AddCase "reqref,fine-time-off,Time off|Booked,AB-0120,Y|Active|Y,2026-11-09|2026-11-03,,none"
+    AddCase "reqref,fine-switch,Switch|Booked,SS-0040,Y|Active|Y,2026-11-09|2026-11-03,,none"
+    AddCase "reqref,fine-sick-ref,Time off|Booked,SC-0007,Y|Active|Y,2026-11-01|2026-11-03,,none"
+    AddCase "reqref,not-booked-never-flagged,Time off|Waiting,,N||N,2026-11-09|2026-11-03,,none"
+    AddCase "reqref,declined-never-flagged,Switch|Declined,SS-0040,N|VOID|N,2026-11-09|2026-11-03,,none"
+    AddCase "reqref,no-ref-ahead,Time off|Booked,,N||Y,2026-11-09|2026-11-03,,Check|no ref"
+    AddCase "reqref,no-ref-past,Time off|Booked,,N||Y,2026-10-20|2026-11-03,,Note|no ref"
+    AddCase "reqref,wrong-kind-time-off,Time off|Booked,SS-0040,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind"
+    AddCase "reqref,wrong-kind-switch,Switch|Booked,AB-0120,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind"
+    AddCase "reqref,missing-ahead,Switch|Booked,SS-0999,N||Y,2026-11-09|2026-11-03,,Check|missing"
+    AddCase "reqref,void-ahead,Time off|Booked,AB-0120,Y|VOID|Y,2026-11-09|2026-11-03,,Check|void"
+    AddCase "reqref,void-past,Time off|Booked,AB-0120,Y|VOID|Y,2026-10-30|2026-11-03,,Note|void"
+    AddCase "reqref,void-case-and-spaces,Time off|Booked, ab-0120 ,Y| void |Y,2026-11-09|2026-11-03,,Check|void"
+    AddCase "reqref,wrong-person,Switch|Booked,SS-0040,Y|Active|N,2026-11-09|2026-11-03,,Check|wrong person"
+    AddCase "reqref,void-beats-wrong-person,Switch|Booked,SS-0040,Y|VOID|N,2026-11-09|2026-11-03,,Check|void"
+    AddCase "reqref,to-today-is-check,Time off|Booked,AB-0120,Y|VOID|Y,2026-11-03|2026-11-03,,Check|void"
+    AddCase "reqref,no-dates-is-check,Time off|Booked,AB-0120,Y|VOID|Y,|,,Check|void"
 ' <<< CASES
 End Sub

@@ -324,6 +324,11 @@ def evaluate(row: dict) -> str:
         return rules.daily_check_line(i1, i2.replace("~", "|"), i3.replace("~", "|"), i4.replace("~", "|")) or "none"
     if suite == "litebar":                       # v29: hours, the largest figure, cells in the bar -> cells filled
         return str(rules.bar_cells(float(i1), float(i2), int(i3)))
+    if suite == "reqref":                        # v29 (IntegrityCheck 17): kind|status, ref, found Y/N|target status|names match Y/N, to|today -> Check|what / Note|what / none
+        kind, _, status = (i1 + "|").partition("|")
+        parts = (i3 + "||").split("|")
+        t_, _, n_ = (i4 + "|").partition("|")
+        return rules.request_ref_problem(kind, status.rstrip("|"), i2, parts[0] == "Y", parts[1], parts[2] == "Y", t_, n_.rstrip("|")) or "none"
     if suite == "backupdate":                    # v25: file name -> the date a daily backup carries / none
         bd = rules.backup_file_date(i1)
         return iso(bd) if bd else "none"

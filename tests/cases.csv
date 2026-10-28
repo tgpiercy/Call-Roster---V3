@@ -1093,3 +1093,21 @@ litebar,rounds-half-up,37.5,100,12,,,5
 litebar,rounds-down,36,100,12,,,4
 litebar,over-the-max-is-capped,150,100,12,,,12
 litebar,no-max,10,0,12,,,0
+reqstatus,booking-voided-wins,Switch,ann|ray,refused;withdrawn;Booking voided,2026-01-01|2026-11-03,,Booking voided
+reqref,fine-time-off,Time off|Booked,AB-0120,Y|Active|Y,2026-11-09|2026-11-03,,none
+reqref,fine-switch,Switch|Booked,SS-0040,Y|Active|Y,2026-11-09|2026-11-03,,none
+reqref,fine-sick-ref,Time off|Booked,SC-0007,Y|Active|Y,2026-11-01|2026-11-03,,none
+reqref,not-booked-never-flagged,Time off|Waiting,,N||N,2026-11-09|2026-11-03,,none
+reqref,declined-never-flagged,Switch|Declined,SS-0040,N|VOID|N,2026-11-09|2026-11-03,,none
+reqref,no-ref-ahead,Time off|Booked,,N||Y,2026-11-09|2026-11-03,,Check|no ref
+reqref,no-ref-past,Time off|Booked,,N||Y,2026-10-20|2026-11-03,,Note|no ref
+reqref,wrong-kind-time-off,Time off|Booked,SS-0040,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind
+reqref,wrong-kind-switch,Switch|Booked,AB-0120,Y|Active|Y,2026-11-09|2026-11-03,,Check|wrong kind
+reqref,missing-ahead,Switch|Booked,SS-0999,N||Y,2026-11-09|2026-11-03,,Check|missing
+reqref,void-ahead,Time off|Booked,AB-0120,Y|VOID|Y,2026-11-09|2026-11-03,,Check|void
+reqref,void-past,Time off|Booked,AB-0120,Y|VOID|Y,2026-10-30|2026-11-03,,Note|void
+reqref,void-case-and-spaces,Time off|Booked, ab-0120 ,Y| void |Y,2026-11-09|2026-11-03,,Check|void
+reqref,wrong-person,Switch|Booked,SS-0040,Y|Active|N,2026-11-09|2026-11-03,,Check|wrong person
+reqref,void-beats-wrong-person,Switch|Booked,SS-0040,Y|VOID|N,2026-11-09|2026-11-03,,Check|void
+reqref,to-today-is-check,Time off|Booked,AB-0120,Y|VOID|Y,2026-11-03|2026-11-03,,Check|void
+reqref,no-dates-is-check,Time off|Booked,AB-0120,Y|VOID|Y,|,,Check|void

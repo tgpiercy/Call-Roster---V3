@@ -132,7 +132,7 @@ Public Function RunIntegrity(ByRef nErr As Long, ByRef nWarn As Long) As Long
     ReDim mIss(1 To 4, 1 To 50)
     Dim k As Long
     If LoadData() Then
-        For k = 1 To 16                            ' v27 (item 28): + Log rows, Records; v28: + Keys
+        For k = 1 To 17                            ' v27 (item 28): + Log rows, Records; v28: + Keys; v29: + Requests
             RunCheck k
         Next k
     End If
@@ -160,6 +160,7 @@ Private Function CheckName(ByVal k As Long) As String
         Case 14: CheckName = "Log rows"
         Case 15: CheckName = "Records"
         Case 16: CheckName = "Keys"                ' v28 (item 2): the Payroll # keys
+        Case 17: CheckName = "Requests"            ' v29 (item 6): a Booked request's Ref names a live absence / switch
     End Select
 End Function
 
@@ -183,10 +184,23 @@ Private Sub RunCheck(ByVal k As Long)
         Case 14: CheckLogRows
         Case 15: CheckRecords
         Case 16: CheckKeys
+        Case 17: CheckRequests
     End Select
     Exit Sub
 Oops:
     AddIssue SEV_ERR, CheckName(k), "This check could not run: " & Err.Description, "Send this line to the admin"
+End Sub
+
+' v29 (item 6; Graeme Oct 27): check 17 "Requests" - every Booked members' request's Ref names a live absence or switch
+' for the same people (modRequests.RequestRefProblemList: Check while the request's dates are ahead, Note once past;
+' never a PROBLEM - the rollover must not stop on it). Runs whenever the Requests table exists, REQUESTS_ON or not.
+Private Sub CheckRequests()
+    Dim rows As Variant: rows = RequestRefProblemList()
+    If Not IsArray(rows) Then Exit Sub
+    Dim i As Long
+    For i = 1 To UBound(rows, 1)
+        AddIssue IIf(CLng(NumOr0(rows(i, 1))) = 1, SEV_WARN, SEV_INFO), "Requests", CStr(rows(i, 2)), CStr(rows(i, 3))
+    Next i
 End Sub
 
 Private Function LoadData() As Boolean

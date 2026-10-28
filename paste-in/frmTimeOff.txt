@@ -377,6 +377,9 @@ Private Sub mSave_Click()
                    IIf(skipped = "", "the file is read-only, or the dates are before this roster year", skipped) & ".", vbExclamation, "Call Out Roster"
             Exit Sub
         End If
+        ' v29 (item 6): a member's request this pop-up was opened for is Booked with the first sick day's SC- id (v28 left it Waiting)
+        Dim scRef As String: scRef = SickRefFor(mEmp.Text, ds)
+        If scRef <> "" Then RequestBooked scRef, mEmp.Text, ds, ""
         LoadList
         C("status").Caption = nSick & " past sick day(s) recorded for " & mEmp.Text & ", " & _
                               Format$(ds, "mmm d") & " to " & Format$(de, "mmm d") & IIf(skipped = "", ".", " (skipped: " & skipped & ").")

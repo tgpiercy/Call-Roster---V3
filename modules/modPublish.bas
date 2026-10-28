@@ -34,7 +34,7 @@ Private Const NF_CAP As Long = 30000             ' v27 (M4): dNotFree's row cap
 Public Const DS_WORKED As String = "dWorked"  ' v26.5 / M3.1: premium hours worked per pay period, from the Kronos export (Employee, Period Start, Hours)
 Public Const DS_REQ As String = "dRequests"   ' v28 / M5 (item 1): members' requests and their status (Employee, Kind, From, To, Shift, Partner, Status, Answer, Decided) - no note, no login
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
-Private Const MEMBER_NEEDS As String = "Members M5"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends; v28: M5 = + dRequests, two dMeta rows)
+Private Const MEMBER_NEEDS As String = "Members M6"   ' v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends; v28: M5 = + dRequests, two dMeta rows; v29: M6 = the status word "Booking voided" in dRequests, the PDF folder)
 
 ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
 Private Const ROSTER_FIXED As Long = 10

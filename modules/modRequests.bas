@@ -43,6 +43,7 @@ Public Const RQ_ST_DECLINED As String = "Declined"
 Public Const RQ_ST_REFUSED As String = "Declined by partner"
 Public Const RQ_ST_WITHDRAWN As String = "Withdrawn"
 Public Const RQ_ST_EXPIRED As String = "Expired"
+Public Const RQ_ST_VOIDED As String = "Booking voided"   ' v29 (item 6; Graeme Oct 27): the absence / switch a Booked request became was voided
 
 ' a request file's lines, by position (RequestFileRead)
 Public Const RF_REQUEST As Long = 0     ' request=  the files' own id
@@ -319,7 +320,7 @@ Public Sub ArchiveEndedRequests()
     Dim i As Long, st As String
     For i = 1 To UBound(v, 1)
         st = SafeStr(v(i, RQ_STATUS))
-        If st = RQ_ST_BOOKED Or st = RQ_ST_DECLINED Or st = RQ_ST_REFUSED Or st = RQ_ST_WITHDRAWN Or st = RQ_ST_EXPIRED Then
+        If st = RQ_ST_BOOKED Or st = RQ_ST_DECLINED Or st = RQ_ST_REFUSED Or st = RQ_ST_WITHDRAWN Or st = RQ_ST_EXPIRED Or st = RQ_ST_VOIDED Then
             If SafeStr(v(i, RQ_FILE)) <> "" Then ArchiveRequestFiles folder, RequestFilesNamed(folder, SafeStr(v(i, RQ_FILE)))
         End If
     Next i
@@ -429,14 +430,15 @@ Public Function RequestCheckCore(ByVal kind As String, ByVal emp As String, ByVa
     End If
 End Function
 
-' PURE (suite reqstatus): the status from what the files say. decided = "Booked" / "Declined" (an admin's word wins);
-' withdrawn / refused end it; a To date before today = Expired; a switch with no agree from a login OTHER than the
-' requester's = Waiting for partner; else Waiting. Dates as yyyy-mm-dd ("" = none).
+' PURE (suite reqstatus): the status from what the files say. decided = "Booked" / "Declined" / "Booking voided" (an
+' admin's word wins; v29: a void of the booking too); withdrawn / refused end it; a To date before today = Expired; a
+' switch with no agree from a login OTHER than the requester's = Waiting for partner; else Waiting. Dates as yyyy-mm-dd
+' ("" = none).
 Public Function RequestStatusCore(ByVal kind As String, ByVal agreeLogin As String, ByVal requesterLogin As String, _
                                   ByVal refused As Boolean, ByVal withdrawn As Boolean, ByVal decided As String, _
                                   ByVal toTxt As String, ByVal todayTxt As String) As String
     Dim dT As Date, dN As Date
-    If decided = RQ_ST_BOOKED Or decided = RQ_ST_DECLINED Then RequestStatusCore = decided: Exit Function
+    If decided = RQ_ST_BOOKED Or decided = RQ_ST_DECLINED Or decided = RQ_ST_VOIDED Then RequestStatusCore = decided: Exit Function
     If withdrawn Then RequestStatusCore = RQ_ST_WITHDRAWN: Exit Function
     If refused Then RequestStatusCore = RQ_ST_REFUSED: Exit Function
     If IsoDate(toTxt, dT) And IsoDate(todayTxt, dN) Then
@@ -559,7 +561,10 @@ End Sub
 ' the pop-ups call this after a save: the request a prefilled pop-up was booking becomes Booked with that ref - ONLY
 ' when what was saved is that request (the same person and date, and for a switch the same partner working it; review
 ' MED-1: an admin may save something else from the prefilled pop-up); then the file is saved and the files archived
-Public Sub RequestBooked(ByVal ref As String, ByVal emp As String, ByVal d As Date, ByVal worksName As String)
+' v29 (item 6, Graeme Oct 27 - the two v28 gaps): shiftLbl = the shift saved (Days / Nights), compared for a switch too
+' (v28 matched the date and the partner only); the past-sick path of Book Time Off now calls this with the SC- id
+Public Sub RequestBooked(ByVal ref As String, ByVal emp As String, ByVal d As Date, ByVal worksName As String, _
+                         Optional ByVal shiftLbl As String = "")
     On Error Resume Next                            ' never raises (the booking itself is saved; this is the bookkeeping)
     If gRequestId = "" Then Exit Sub
     Dim id As String: id = gRequestId
@@ -573,6 +578,9 @@ Public Sub RequestBooked(ByVal ref As String, ByVal emp As String, ByVal d As Da
     If same And SafeStr(v(r, RQ_KIND)) = "Switch" Then
         If IsDate(v(r, RQ_FROM)) Then same = (Int(CDate(v(r, RQ_FROM))) = Int(d))
         If same Then same = (StrComp(Trim$(SafeStr(v(r, RQ_PARTNER))), Trim$(worksName), vbTextCompare) = 0)
+        If same And Trim$(shiftLbl) <> "" And Trim$(SafeStr(v(r, RQ_SHIFT))) <> "" Then
+            same = (StrComp(Trim$(SafeStr(v(r, RQ_SHIFT))), Trim$(shiftLbl), vbTextCompare) = 0)
+        End If
     ElseIf same Then
         ' time off: the booking's start may sit inside the asked range (re-review MED-2: the pop-up offers to trim the
         ' days off at the ends - Nov 3-9 asked, booked from Nov 4 - and that IS the request)
@@ -580,12 +588,144 @@ Public Sub RequestBooked(ByVal ref As String, ByVal emp As String, ByVal d As Da
     End If
     If Not same Then
         Tell id & " stays waiting: what you saved (" & emp & ", " & Format$(d, "ddd mmm d") & IIf(worksName <> "", ", " & worksName & " works", "") & _
-             ") is not that request. Book it from Needs Attention again, or decline it.", vbExclamation, "Members' requests"
+             IIf(shiftLbl <> "", ", " & shiftLbl, "") & ") is not that request. Book it from Needs Attention again, or decline it.", vbExclamation, "Members' requests"
         Exit Sub
     End If
     MarkDecided id, RQ_ST_BOOKED, "", ref
     If SaveIfWritable() Then ArchiveEndedRequests
 End Sub
+
+' v29 (item 6, Graeme Oct 27): VoidAbsence / VoidSwitch call this with the id they voided - every Booked request whose
+' Ref is that id becomes "Booking voided" (final; the members' file shows the word at the next publish; archived with the
+' others). The reason goes into Answer unless it holds a leave word (the publish would refuse it). The void saves.
+' Never raises.
+Public Sub RequestBookingVoided(ByVal ref As String, ByVal why As String)
+    On Error Resume Next                            ' never raises
+    ref = UCase$(Trim$(ref))
+    If ref = "" Then Exit Sub
+    Dim v As Variant: v = RequestRows()
+    If Not IsArray(v) Then Exit Sub
+    Dim ans As String: ans = "booking voided"
+    If Trim$(why) <> "" And LeaveWordsIn(why) = "" Then ans = ans & ": " & Left$(Trim$(why), 120)
+    Dim i As Long
+    For i = 1 To UBound(v, 1)
+        If SafeStr(v(i, RQ_STATUS)) = RQ_ST_BOOKED And UCase$(Trim$(SafeStr(v(i, RQ_REF)))) = ref Then
+            MarkDecided SafeStr(v(i, RQ_ID)), RQ_ST_VOIDED, ans, ""
+            MarkCalDirty                            ' Needs Attention's requests count
+        End If
+    Next i
+End Sub
+
+' v29 (item 6): the SC- id of the past sick day booked for emp starting on d (the newest when several) - Book Time Off's
+' sick path marks its request with it. "" when none. Never raises.
+Public Function SickRefFor(ByVal emp As String, ByVal d As Date) As String
+    On Error Resume Next                            ' never raises
+    Dim v As Variant: v = AbsTableData()
+    If Not IsArray(v) Then Exit Function
+    Dim i As Long, id As String
+    For i = 1 To UBound(v, 1)
+        id = UCase$(Trim$(SafeStr(v(i, 1))))
+        If Left$(id, 3) = "SC-" And UCase$(SafeStr(v(i, AB_STATUS))) <> "VOID" Then
+            If StrComp(Trim$(SafeStr(v(i, AB_EMP))), Trim$(emp), vbTextCompare) = 0 And IsDate(v(i, AB_START)) Then
+                If Int(CDate(v(i, AB_START))) = Int(d) Then SickRefFor = id
+            End If
+        End If
+    Next i
+End Function
+
+' ---- IntegrityCheck 17 "Requests" (v29 item 6; Graeme Oct 27: Check while the request's To date is today or later, Note once
+'      past, never PROBLEM): every Booked request's Ref must name a live absence (AB- / SC-) or switch (SS-) for the same
+'      people. Rows of (severity 1 = Check / 0 = Note, text, fix); Empty when every one is fine. Reads only. ----
+Public Function RequestRefProblemList() As Variant
+    Dim v As Variant: v = RequestRows()
+    If Not IsArray(v) Then Exit Function
+    Dim absV As Variant: absV = AbsTableData()
+    Dim swV As Variant: swV = TableData(SwitchTable(False))
+    Dim out() As Variant: ReDim out(1 To 40, 1 To 3)
+    Dim n As Long, i As Long, j As Long, ref As String, kind As String, found As Boolean, tStatus As String, namesOk As Boolean, who As String
+    Dim prob As String, toTxt As String
+    For i = 1 To UBound(v, 1)
+        If SafeStr(v(i, RQ_STATUS)) = RQ_ST_BOOKED Then
+            ref = UCase$(Trim$(SafeStr(v(i, RQ_REF)))): kind = SafeStr(v(i, RQ_KIND))
+            found = False: tStatus = "": namesOk = True: who = ""
+            If ref <> "" Then
+                If kind = "Switch" Then
+                    If IsArray(swV) Then
+                        For j = 1 To UBound(swV, 1)
+                            If UCase$(Trim$(SafeStr(swV(j, SW_ID)))) = ref Then
+                                found = True: tStatus = SafeStr(swV(j, SW_STATUS))
+                                namesOk = (StrComp(Trim$(SafeStr(swV(j, SW_OFF))), Trim$(SafeStr(v(i, RQ_EMP))), vbTextCompare) = 0 And _
+                                           StrComp(Trim$(SafeStr(swV(j, SW_WORKS))), Trim$(SafeStr(v(i, RQ_PARTNER))), vbTextCompare) = 0)
+                                who = SafeStr(swV(j, SW_OFF)) & " / " & SafeStr(swV(j, SW_WORKS))
+                                Exit For
+                            End If
+                        Next j
+                    End If
+                Else
+                    If IsArray(absV) Then
+                        For j = 1 To UBound(absV, 1)
+                            If UCase$(Trim$(SafeStr(absV(j, 1)))) = ref Then
+                                found = True: tStatus = SafeStr(absV(j, AB_STATUS))
+                                namesOk = (StrComp(Trim$(SafeStr(absV(j, AB_EMP))), Trim$(SafeStr(v(i, RQ_EMP))), vbTextCompare) = 0)
+                                who = SafeStr(absV(j, AB_EMP))
+                                Exit For
+                            End If
+                        Next j
+                    End If
+                End If
+            End If
+            toTxt = "": If IsDate(v(i, RQ_TO)) Then toTxt = Format$(CDate(v(i, RQ_TO)), "yyyy-mm-dd")
+            prob = RequestRefProblem(kind, RQ_ST_BOOKED, ref, found, tStatus, namesOk, toTxt, Format$(Date, "yyyy-mm-dd"))
+            If prob <> "" Then
+                n = n + 1
+                If n <= 40 Then
+                    out(n, 1) = IIf(Left$(prob, 5) = "Check", 1, 0)
+                    out(n, 2) = SafeStr(v(i, RQ_ID)) & " (" & SafeStr(v(i, RQ_EMP)) & ", " & kind & IIf(toTxt <> "", " to " & toTxt, "") & ") is Booked, but its Ref " & _
+                                IIf(ref = "", "is blank", ref & " " & Mid$(prob, InStr(prob, "|") + 1) & IIf(who <> "" And InStr(prob, "wrong person") > 0, " (it names " & who & ")", ""))
+                    out(n, 3) = "Tell " & SafeStr(v(i, RQ_EMP)) & " how the time off / switch stands; book it again if it should be live (the request itself cannot be re-opened)"
+                End If
+            End If
+        End If
+    Next i
+    If n = 0 Then Exit Function
+    If n > 40 Then n = 40
+    Dim res() As Variant: ReDim res(1 To n, 1 To 3)
+    For i = 1 To n
+        For j = 1 To 3
+            res(i, j) = out(i, j)
+        Next j
+    Next i
+    RequestRefProblemList = res
+End Function
+
+' PURE (suite reqref): one Booked request's Ref against its target. "" when fine; else "<Check|Note>|<what>" with what =
+' "no ref" (blank), "wrong kind" (a Time off request not AB- / SC-, a Switch not SS-), "missing" (no such row), "void" (the
+' row is VOID), "wrong person" (the row names someone else: a reused id). Check while the request's To date (yyyy-mm-dd)
+' is today or later, Note once it is past ("" dates = Check). A status other than Booked is never flagged.
+Public Function RequestRefProblem(ByVal kind As String, ByVal status As String, ByVal ref As String, ByVal targetFound As Boolean, _
+                                  ByVal targetStatus As String, ByVal namesMatch As Boolean, ByVal toTxt As String, ByVal todayTxt As String) As String
+    If status <> RQ_ST_BOOKED Then Exit Function
+    Dim what As String
+    ref = UCase$(Trim$(ref))
+    If ref = "" Then
+        what = "no ref"
+    ElseIf kind = "Switch" And Left$(ref, 3) <> "SS-" Then
+        what = "wrong kind"
+    ElseIf kind <> "Switch" And Left$(ref, 3) <> "AB-" And Left$(ref, 3) <> "SC-" Then
+        what = "wrong kind"
+    ElseIf Not targetFound Then
+        what = "missing"
+    ElseIf UCase$(Trim$(targetStatus)) = "VOID" Then
+        what = "void"
+    ElseIf Not namesMatch Then
+        what = "wrong person"
+    Else
+        Exit Function
+    End If
+    Dim dT As Date, dN As Date, past As Boolean
+    If IsoDate(toTxt, dT) And IsoDate(todayTxt, dN) Then past = (dT < dN)
+    RequestRefProblem = IIf(past, "Note", "Check") & "|" & what
+End Function
 
 Private Sub MarkDecided(ByVal id As String, ByVal status As String, ByVal answer As String, ByVal ref As String)
     Dim lo As ListObject: Set lo = RequestsTable(False)

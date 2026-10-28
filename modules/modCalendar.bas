@@ -1947,6 +1947,7 @@ Public Function VoidAbsence(ByVal id As String, Optional ByVal reasonTxt As Stri
     lo.DataBodyRange.Cells(r, AB_STATUS).Value = "VOID"
     lo.DataBodyRange.Cells(r, AB_VOIDNOTE).Value = Format$(Now, "yyyy-mm-dd hh:nn") & " " & CurrentUser() & ": " & Trim$(why)
     ProtectSheet lo.Parent
+    RequestBookingVoided id, why                    ' v29 (item 6): a member's request this booking came from reads "Booking voided"
     ' its coverage lines stay (they show as plain lines) so nothing awarded is lost
     SaveIfWritable
     VoidAbsence = True

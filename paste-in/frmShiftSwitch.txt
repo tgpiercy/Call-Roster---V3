@@ -649,7 +649,7 @@ Private Sub mSave_Click()
     Dim offNm As String, worksNm As String: offNm = mOff.Text: worksNm = mWorks.Text   ' (review M1) the boxes are cleared below, the receipt reads these
     id = SaveSwitch(d, mShift.Text, C("cboUnit").Text, mOff.Text, mWorks.Text, payFor, Trim$(C("txtNote").Text))
     If id = "" Then Exit Sub
-    RequestBooked id, offNm, d, worksNm  ' v28 (item 1): a member's request this pop-up was opened for is Booked with this id - when this IS it
+    RequestBooked id, offNm, d, worksNm, mShift.Text  ' v28 (item 1): a member's request this pop-up was opened for is Booked with this id - when this IS it (v29: the shift compared too)
     If twoWay Then
         id2 = SaveSwitch(d2, sh2, C("cboUnit").Text, mWorks.Text, mOff.Text, id, Trim$(C("txtNote").Text))
         If id2 = "" Then MsgBox "The switch was saved (" & id & ") but its payback wasn't - it stays on the owed list.", vbExclamation, "Call Out Roster"

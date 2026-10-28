@@ -1,0 +1,243 @@
+Payroll #,Employee,Pay Code,Hours
+90100001,Avery Ashgrove,OVERTIME,6
+90100001,Avery Ashgrove,LIEU OT,8
+90100002,Blair Bellweather,OVERTIME,13
+90100002,Blair Bellweather,CALLIN OT,3
+90100002,Blair Bellweather,MIN 4,8
+90100002,Blair Bellweather,OT - DT Split,4
+90100003,Casey Cardwell,OVERTIME,20
+90100003,Casey Cardwell,CALLIN OT,6
+90100003,Casey Cardwell,MIN 4,4
+90100003,Casey Cardwell,LIEU DT,4
+90100004,Dana Dunmore,OVERTIME,27
+90100004,Dana Dunmore,CALLIN OT,9
+90100004,Dana Dunmore,LIEU OT,8
+90100004,Dana Dunmore,LIEU ST,6
+90100005,Ellis Everhart,OVERTIME,34
+90100005,Ellis Everhart,CALLIN OT,2
+90100005,Ellis Everhart,MIN 4,8
+90100006,Finley Fairbanks,OVERTIME,11
+90100006,Finley Fairbanks,CALLIN OT,5
+90100006,Finley Fairbanks,MIN 4,4
+90100006,Finley Fairbanks,OT - DT Split,4
+90100007,Harper Greenlaw,OVERTIME,18
+90100007,Harper Greenlaw,CALLIN OT,8
+90100007,Harper Greenlaw,LIEU OT,8
+90100008,Jordan Hollins,OVERTIME,25
+90100008,Jordan Hollins,CALLIN OT,1
+90100008,Jordan Hollins,MIN 4,8
+90100009,Kendall Ironside,OVERTIME,32
+90100009,Kendall Ironside,CALLIN OT,4
+90100009,Kendall Ironside,MIN 4,4
+90100009,Kendall Ironside,LIEU ST,6
+90100010,Logan Juniper,OVERTIME,9
+90100010,Logan Juniper,CALLIN OT,7
+90100010,Logan Juniper,LIEU OT,8
+90100010,Logan Juniper,OT - DT Split,4
+90100010,Logan Juniper,LIEU DT,4
+90100011,Morgan Kestrel,OVERTIME,16
+90100011,Morgan Kestrel,MIN 4,8
+90100012,Quinn Lockridge,OVERTIME,23
+90100012,Quinn Lockridge,CALLIN OT,3
+90100012,Quinn Lockridge,MIN 4,4
+90100013,Reese Marsden,OVERTIME,30
+90100013,Reese Marsden,CALLIN OT,6
+90100013,Reese Marsden,LIEU OT,8
+90100014,Riley Northway,OVERTIME,7
+90100014,Riley Northway,CALLIN OT,9
+90100014,Riley Northway,MIN 4,8
+90100014,Riley Northway,OT - DT Split,4
+90100014,Riley Northway,LIEU ST,6
+90100015,Rowan Oakhurst,OVERTIME,14
+90100015,Rowan Oakhurst,CALLIN OT,2
+90100015,Rowan Oakhurst,MIN 4,4
+90100016,Sawyer Pemberton,OVERTIME,21
+90100016,Sawyer Pemberton,CALLIN OT,5
+90100016,Sawyer Pemberton,LIEU OT,8
+90100017,Skyler Quarrie,OVERTIME,28
+90100017,Skyler Quarrie,CALLIN OT,8
+90100017,Skyler Quarrie,MIN 4,8
+90100017,Skyler Quarrie,LIEU DT,4
+90100018,Taylor Redfern,OVERTIME,35
+90100018,Taylor Redfern,CALLIN OT,1
+90100018,Taylor Redfern,MIN 4,4
+90100018,Taylor Redfern,OT - DT Split,4
+90100019,Devon Stonebridge,OVERTIME,12
+90100019,Devon Stonebridge,CALLIN OT,4
+90100019,Devon Stonebridge,LIEU OT,8
+90100019,Devon Stonebridge,LIEU ST,6
+90100020,Emery Thornbury,OVERTIME,19
+90100020,Emery Thornbury,CALLIN OT,7
+90100020,Emery Thornbury,MIN 4,8
+90100021,Hayden Underhill,OVERTIME,26
+90100021,Hayden Underhill,MIN 4,4
+90100022,Jesse Vantage,OVERTIME,33
+90100022,Jesse Vantage,CALLIN OT,3
+90100022,Jesse Vantage,LIEU OT,8
+90100022,Jesse Vantage,OT - DT Split,4
+90100023,Lane Wexford,OVERTIME,10
+90100023,Lane Wexford,CALLIN OT,6
+90100023,Lane Wexford,MIN 4,8
+90100024,Marlow Yardley,OVERTIME,17
+90100024,Marlow Yardley,CALLIN OT,9
+90100024,Marlow Yardley,MIN 4,4
+90100024,Marlow Yardley,LIEU DT,4
+90100024,Marlow Yardley,LIEU ST,6
+90100025,Oakley Ashby,OVERTIME,24
+90100025,Oakley Ashby,CALLIN OT,2
+90100025,Oakley Ashby,LIEU OT,8
+90100026,Parker Brightwater,OVERTIME,31
+90100026,Parker Brightwater,CALLIN OT,5
+90100026,Parker Brightwater,MIN 4,8
+90100026,Parker Brightwater,OT - DT Split,4
+90100027,Remy Coldstream,OVERTIME,8
+90100027,Remy Coldstream,CALLIN OT,8
+90100027,Remy Coldstream,MIN 4,4
+90100028,Shay Dovetail,OVERTIME,15
+90100028,Shay Dovetail,CALLIN OT,1
+90100028,Shay Dovetail,LIEU OT,8
+90100029,Tatum Ellery,OVERTIME,22
+90100029,Tatum Ellery,CALLIN OT,4
+90100029,Tatum Ellery,MIN 4,8
+90100029,Tatum Ellery,LIEU ST,6
+90100030,Wren Fenwick,OVERTIME,29
+90100030,Wren Fenwick,CALLIN OT,7
+90100030,Wren Fenwick,MIN 4,4
+90100030,Wren Fenwick,OT - DT Split,4
+90100031,Arden Glassford,OVERTIME,6
+90100031,Arden Glassford,LIEU OT,8
+90100031,Arden Glassford,LIEU DT,4
+90100032,Bryn Hartwell,OVERTIME,13
+90100032,Bryn Hartwell,CALLIN OT,3
+90100032,Bryn Hartwell,MIN 4,8
+90100032,Bryn Hartwell,LIEU TKN,8
+90100033,Corin Islington,OVERTIME,20
+90100033,Corin Islington,CALLIN OT,6
+90100033,Corin Islington,MIN 4,4
+90100034,Darcy Kingsley,OVERTIME,27
+90100034,Darcy Kingsley,CALLIN OT,9
+90100034,Darcy Kingsley,LIEU OT,8
+90100034,Darcy Kingsley,OT - DT Split,4
+90100034,Darcy Kingsley,LIEU ST,6
+90100035,Eden Larkspur,OVERTIME,34
+90100035,Eden Larkspur,CALLIN OT,2
+90100035,Eden Larkspur,MIN 4,8
+90100036,Flynn Moorcroft,OVERTIME,11
+90100036,Flynn Moorcroft,CALLIN OT,5
+90100036,Flynn Moorcroft,MIN 4,4
+90100037,Greer Nettleton,OVERTIME,18
+90100037,Greer Nettleton,CALLIN OT,8
+90100037,Greer Nettleton,LIEU OT,8
+90100038,Hollis Orchard,OVERTIME,25
+90100038,Hollis Orchard,CALLIN OT,1
+90100038,Hollis Orchard,MIN 4,8
+90100038,Hollis Orchard,OT - DT Split,4
+90100038,Hollis Orchard,LIEU DT,4
+90100039,Indy Pennyworth,OVERTIME,32
+90100039,Indy Pennyworth,CALLIN OT,4
+90100039,Indy Pennyworth,MIN 4,4
+90100039,Indy Pennyworth,LIEU ST,6
+90100040,Jules Ravenscroft,OVERTIME,9
+90100040,Jules Ravenscroft,CALLIN OT,7
+90100040,Jules Ravenscroft,LIEU OT,8
+90100041,Kit Saltmarsh,OVERTIME,16
+90100041,Kit Saltmarsh,MIN 4,8
+90100042,Linden Tillingham,OVERTIME,23
+90100042,Linden Tillingham,CALLIN OT,3
+90100042,Linden Tillingham,MIN 4,4
+90100042,Linden Tillingham,OT - DT Split,4
+90100043,Merritt Vauxhall,OVERTIME,30
+90100043,Merritt Vauxhall,CALLIN OT,6
+90100043,Merritt Vauxhall,LIEU OT,8
+90100044,Nico Whitlock,OVERTIME,7
+90100044,Nico Whitlock,CALLIN OT,9
+90100044,Nico Whitlock,MIN 4,8
+90100044,Nico Whitlock,LIEU ST,6
+90100045,Odell Amberley,OVERTIME,14
+90100045,Odell Amberley,CALLIN OT,2
+90100045,Odell Amberley,MIN 4,4
+90100045,Odell Amberley,LIEU DT,4
+90100046,Perry Birchwood,OVERTIME,21
+90100046,Perry Birchwood,CALLIN OT,5
+90100046,Perry Birchwood,LIEU OT,8
+90100046,Perry Birchwood,OT - DT Split,4
+90100047,Rafe Crossley,OVERTIME,28
+90100047,Rafe Crossley,CALLIN OT,8
+90100047,Rafe Crossley,MIN 4,8
+90100048,Sidney Dalrymple,OVERTIME,35
+90100048,Sidney Dalrymple,CALLIN OT,1
+90100048,Sidney Dalrymple,MIN 4,4
+90100049,Tobin Eastwick,OVERTIME,12
+90100049,Tobin Eastwick,CALLIN OT,4
+90100049,Tobin Eastwick,LIEU OT,8
+90100049,Tobin Eastwick,LIEU ST,6
+90100050,Vale Fairweather,OVERTIME,19
+90100050,Vale Fairweather,CALLIN OT,7
+90100050,Vale Fairweather,MIN 4,8
+90100050,Vale Fairweather,OT - DT Split,4
+90100051,Wynn Goldfinch,OVERTIME,26
+90100051,Wynn Goldfinch,MIN 4,4
+90100052,Ash Hawthorne,OVERTIME,33
+90100052,Ash Hawthorne,CALLIN OT,3
+90100052,Ash Hawthorne,LIEU OT,8
+90100052,Ash Hawthorne,LIEU DT,4
+90100053,Blake Ingleby,OVERTIME,10
+90100053,Blake Ingleby,CALLIN OT,6
+90100053,Blake Ingleby,MIN 4,8
+90100054,Cary Jarrow,OVERTIME,17
+90100054,Cary Jarrow,CALLIN OT,9
+90100054,Cary Jarrow,MIN 4,4
+90100054,Cary Jarrow,OT - DT Split,4
+90100054,Cary Jarrow,LIEU ST,6
+90100055,Dale Kelsall,OVERTIME,24
+90100055,Dale Kelsall,CALLIN OT,2
+90100055,Dale Kelsall,LIEU OT,8
+90100056,Evan Lindhurst,OVERTIME,31
+90100056,Evan Lindhurst,CALLIN OT,5
+90100056,Evan Lindhurst,MIN 4,8
+90100057,Frankie Mallory,OVERTIME,8
+90100057,Frankie Mallory,CALLIN OT,8
+90100057,Frankie Mallory,MIN 4,4
+90100058,Gale Norwood,OVERTIME,15
+90100058,Gale Norwood,CALLIN OT,1
+90100058,Gale Norwood,LIEU OT,8
+90100058,Gale Norwood,OT - DT Split,4
+90100059,Haven Overton,OVERTIME,22
+90100059,Haven Overton,CALLIN OT,4
+90100059,Haven Overton,MIN 4,8
+90100059,Haven Overton,LIEU DT,4
+90100059,Haven Overton,LIEU ST,6
+90100060,Ira Prentice,OVERTIME,29
+90100060,Ira Prentice,CALLIN OT,7
+90100060,Ira Prentice,MIN 4,4
+90100061,Jamie Rushmore,OVERTIME,6
+90100061,Jamie Rushmore,LIEU OT,8
+90100062,Kai Silverton,OVERTIME,13
+90100062,Kai Silverton,CALLIN OT,3
+90100062,Kai Silverton,MIN 4,8
+90100062,Kai Silverton,OT - DT Split,4
+90100063,Lee Tredwell,OVERTIME,20
+90100063,Lee Tredwell,CALLIN OT,6
+90100063,Lee Tredwell,MIN 4,4
+90100064,Max Upton,OVERTIME,27
+90100064,Max Upton,CALLIN OT,9
+90100064,Max Upton,LIEU OT,8
+90100064,Max Upton,LIEU ST,6
+90100065,Noel Wainwright,OVERTIME,34
+90100065,Noel Wainwright,CALLIN OT,2
+90100065,Noel Wainwright,MIN 4,8
+90100066,Pat Yeoman,OVERTIME,11
+90100066,Pat Yeoman,CALLIN OT,5
+90100066,Pat Yeoman,MIN 4,4
+90100066,Pat Yeoman,OT - DT Split,4
+90100066,Pat Yeoman,LIEU DT,4
+90100067,Robin Ashworth,OVERTIME,18
+90100067,Robin Ashworth,CALLIN OT,8
+90100067,Robin Ashworth,LIEU OT,8
+90100068,Sam Bramble,OVERTIME,25
+90100068,Sam Bramble,CALLIN OT,1
+90100068,Sam Bramble,MIN 4,8
+90100069,Teal Copperfield,OVERTIME,32
+90100069,Teal Copperfield,CALLIN OT,4
+90100069,Teal Copperfield,MIN 4,4
+90100069,Teal Copperfield,LIEU ST,6

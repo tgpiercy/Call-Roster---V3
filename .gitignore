@@ -6,6 +6,7 @@
 *.csv
 *.pdf
 !tests/cases.csv
+!tests/mock/*.csv
 # Built zips
 dist/
 # Python

@@ -1,0 +1,12 @@
+Line ID,Date,Shift,Unit,Absence ID,Off / Need,Type,Covered By,Hours,Source,Status,Logged By,Timestamp,Note
+CV-0001,2026-11-02,Days,Derivatives,AB-0001,Vale Fairweather (Vac),VAC,,,AB-0001,Active,piercyg,2026-11-02 08:00:00,
+CV-0002,2026-11-03,Days,Derivatives,AB-0001,Vale Fairweather (Vac),VAC,,,AB-0001,Active,piercyg,2026-11-03 08:00:00,
+CV-0003,2026-11-10,Days,Phosphine,AB-0003,Skyler Quarrie (Personal),PER,,,AB-0003,Active,piercyg,2026-11-10 08:00:00,
+CV-0004,2026-09-12,Days,Cypure,,Logan Juniper S/S,SS,Hollis Orchard S/S,,SS-0001,Active,piercyg,2026-09-12 08:00:00,
+CV-0005,2026-10-06,Nights,Phosphine,,Call-out S-0001,SUP,Taylor Redfern,,S-0001,Active,piercyg,2026-10-06 08:00:00,
+CV-0006,2026-10-10,Days,Derivatives,,Vacation Coverage,VAC,Finley Fairbanks,,P-0001,Active,piercyg,2026-10-10 08:00:00,
+CV-0007,2026-10-13,Days,Cypure,,Call-out S-0002,SUP,Ash Hawthorne,,S-0002,Active,piercyg,2026-10-13 08:00:00,
+CV-0008,2026-10-20,Nights,Derivatives,,Call-out S-0003,SUP,Jordan Hollins,,S-0003,Active,piercyg,2026-10-20 08:00:00,
+CV-0009,2026-10-24,Days,Utilities,,Call-out S-0004,SUP,Jamie Rushmore,,S-0004,Active,piercyg,2026-10-24 08:00:00,
+CV-0010,2026-10-30,Nights,Phosphine,,Call-out S-0005,SUP,Merritt Vauxhall,,S-0005,Active,piercyg,2026-10-30 08:00:00,
+CV-0011,2026-10-31,Days,Derivatives,,Call-out S-0006,SUP,Teal Copperfield,,S-0006,Active,piercyg,2026-10-31 08:00:00,

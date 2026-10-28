@@ -23,15 +23,16 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v28 (Oct 25)"
-Public Const EXPECTED_RELEASE As String = "v28"
+Public Const SYS_VERSION As String = "System v29 (Oct 28)"
+Public Const EXPECTED_RELEASE As String = "v29"
 ' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
 ' release with nothing new for them (v27.1 was the behaviour-free refactor; v27.5 changes three rules, so its box shows)
-Public Const WHATS_NEW_RELEASE As String = "v28"
-' v25.5 (A6): three lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line)
-Public Const WHATS_NEW As String = "v28: members can ASK from their file. The members' file gets a Requests page: time off between two dates, or a shift switch with the partner who would work it (the partner clicks Agree on their own PC first). The request books nothing by itself: it lands on the admin Desk and Needs Attention (MEMBERS' REQUESTS), where a double-click opens the time-off or switch pop-up prefilled and a right-click declines with a reason; the answer reaches the member at the next update.|" & _
-                                   "The Payroll # is now the key: every people table carries it (filled from the roster at the install and before every save), a rename follows the number, and the Employee pop-up takes it at Add and Edit (digits only). Nothing is published: members never see the number.|" & _
-                                   "Also: IntegrityCheck 16 'Keys' names a number on two rows or a row without one; the new Requests and Keys macros are listed in the admin guide. v27.5's three rule fixes (the 16 h stop on switches, the Kronos gap rows, the staffing count's partial covers) are in this install if v27.5 was skipped."
+Public Const WHATS_NEW_RELEASE As String = "v29"
+' v25.5 (A6): the lines shown once per login on the first open after an install (WhatsNewOnOpen; | = a new line; v29: four)
+Public Const WHATS_NEW As String = "v29: RAY'S ADMIN LITE DESK - an admin on the Lite list opens on a simpler Desk drawn on the full admin view: four bands that never move (NEEDS YOUR DECISION, BOOK AND CHANGE, DAILY CHECK, STAFFING AND OT) over a trust strip; Show full admin Desk > has everything else; any admin can look with See Desk as: Admin Lite. Rights are unchanged.|" & _
+                                   "FIX AN ENTRY (admin): pick a receipt answered No or Not sure, see every row it wrote and whose hours it moved, Void with a reason through the roster's own void, Re-enter it now? through the pop-up prefilled; the answer is marked resolved.|" & _
+                                   "Requests follow a void: voiding the time off or switch a request became marks it Booking voided for the member; IntegrityCheck 17 Requests names a Booked request whose Ref is blank, wrong, missing, void or someone else's (a Check, never a PROBLEM). A switch request is matched on the shift too; a past sick day booked from a request marks it Booked.|" & _
+                                   "The guided move (MoveRoster, admin, Alt+F8 - the January cutover's step, not an install step): the roster copies itself to the supervisor-only folder, moves the sign-up and request files to the members' folder, stores that folder inside the new copy and freezes the old file. SystemCheck now lists every path, reachable and writable, and the logins. My history's PDF (members) saves to the user's Downloads."
 Private Const N_MODULES As Long = 45           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys; v29: + modLite, modMove
 ' ThisWorkbook and each form are checked against the release that last changed them
 Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 10 (RequestsOnOpen; the later steps moved down one)
@@ -40,8 +41,8 @@ Private Const OP_TABLE As String = "tblOpens"
 Private Const OP_N As Long = 7
 Private Const OPENS_KEEP_DAYS As Long = 90
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v27,frmNewPosting|v27.1,frmPostingEntry|v27,frmShiftSwitch|v28," & _
-                                        "frmTimeOff|v28,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v28,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1,frmFixEntry|v28"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v27,frmNewPosting|v27.1,frmPostingEntry|v27,frmShiftSwitch|v29," & _
+                                        "frmTimeOff|v29,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v28,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1,frmFixEntry|v29"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
 
 Private mBackupWarned As Boolean
 Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time

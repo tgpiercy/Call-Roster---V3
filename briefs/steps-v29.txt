@@ -1,0 +1,22 @@
+# Groups 3 and 4 of install-steps.txt for v29 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
+# VERSION / EXPECT / MEMBER / FORMS header, and fills {CASES} {SUITES} {MODULES} {STEPS} from the code).
+# member/ CHANGED: the members' template is rebuilt by hand (Members M6) - see the INSTALL note. ThisWorkbook UNCHANGED.
+# Two NEW modules (modLite, modMove) imported by the swap; ONE NEW UserForm frmFixEntry (Insert > UserForm, name it, paste
+# paste-in/frmFixEntry.txt BEFORE the panel); two forms re-pasted (frmTimeOff, frmShiftSwitch). No ApplyRosterLayout.
+# MoveRoster is NOT an install step: it runs at the January cutover from the live roster (docs/go-live-runbook.md).
+# Never a "|" inside a field: it is the panel's separator.
+# Format: kind | caption | argument | flag or expected result.  Dates in a test's argument: +N = today plus N days.
+
+[3. Run once]
+macro   | System check (expect {MODULES} of {MODULES} on v29; the Paths lines - every folder reachable, writable -; the Logins line; frmFixEntry / frmTimeOff / frmShiftSwitch v29, frmEmployee v28, frmOvertimeEntry and frmPostingEntry v27, the other forms v27.1; ThisWorkbook v28) | SystemCheckOK
+macro   | Self test (expect {CASES} passed, {SUITES} suites)                 | SelfTestOK
+
+[4. Checks]
+macro   | Make a practice copy (red PRACTICE COPY banner; leave it for the next rows) | MakePracticeCopy | confirm
+manual  | Smoke test ({STEPS} steps)                                        | In the practice copy: Alt+F8 > SmokeTest > OK. Expect SMOKE TEST PASSED, {STEPS} steps (step 20 drives the Lite Desk through the preview; step 22 runs the Lite sources, the Feedback resolve round trip and the move's readers). Keep the copy open for the next rows; CLOSE IT WITHOUT SAVING at the end. Click Done.
+manual  | The Admin Lite Desk (preview)                                     | In the practice copy, on the Desk: click "See Desk as: Admin Lite" (the links under the footer). Expect the PREVIEW pill, the ADMIN LITE row, the trust strip, the four bands; every card in place (grey "Nothing waiting" where empty); "?" on a band opens its lines. Click "Show full admin Desk >" - the full Desk with "< Back to my Desk"; click it - Lite again; "< Back to my Desk" under the footer - the admin Desk as before. Click Done.
+manual  | Fix an entry (on the copy)                                        | In the practice copy: Alt+F8 > ShowFixEntry. Pick the "No" row SmokeTest left (or type the S- Ref of a call-out logged in the copy); Show it lists its rows and the Total Hours it moved; type a reason, Void this entry; Re-enter it now? opens the call-out pop-up prefilled - Cancel it; the box says voided, nothing re-entered. Click Done.
+manual  | A void marks its request (on the copy)                            | In the practice copy, on the Requests sheet (admin): if a Booked request exists, void its absence (Calendar > the line > Void time off) and reopen the Requests sheet: the row reads "Booking voided". If none exists, skip. Click Done.
+manual  | The move REHEARSED (on the copy)                                  | Make two empty test folders on your desktop (e.g. Desktop\MoveTest\Master and Desktop\MoveTest\Members). In the practice copy: Alt+F8 > MoveRoster. Expect the REHEARSAL title; type the two test folders; the steps box; then the final box "REHEARSAL done" naming the new copy, the members' folder and the files moved. Close the practice copy WITHOUT saving (it is frozen now). Open the copy in Desktop\MoveTest\Master: its first open shows the "First open since the roster moved" box; run SystemCheck - the Paths lines name the test folders; Publish the members' file - it lands in Desktop\MoveTest\Members. Close it without saving; delete the test folders. Click Done.
+manual  | The What's New box                                                | Close and reopen the roster: the v29 box shows once (four lines: the Lite Desk, Fix an entry, requests follow a void, the guided move). Reopen: not shown again. Click Done.
+macro   | Integrity check (expect the same lines as before the install + check 17 Requests; no PROBLEM) | IntegrityCheck

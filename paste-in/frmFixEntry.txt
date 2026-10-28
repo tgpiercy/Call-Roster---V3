@@ -1,5 +1,5 @@
 Option Explicit
-' @version v28 (Oct 27)
+' @version v29 (Oct 28)
 
 ' ================================================================
 ' FIX AN ENTRY (v29, item 4; briefs/admin-lite.md): the guided correction
@@ -194,7 +194,7 @@ End Sub
 ' Corrections count must go down once the admin has looked. An award (P-) is left for Withdraw an award (re-review LOW-8).
 Private Sub ResolveIfLeft()
     If mResolved Or mFacts.Ref = "" Then Exit Sub
-    If mFacts.Kind = "P" And Not mVoided Then Exit Sub
+    If mFacts.Kind = "P" And mFacts.Found And Not mVoided Then Exit Sub   ' a live award: Withdraw an award resolves it ("withdrawn"); a P- not found is "already void"
     FixEntryDone mFacts.Ref, IIf(mVoided, "", IIf(mFacts.Found, "checked", "already void"))
     mResolved = True
 End Sub

@@ -10,7 +10,7 @@ Option Explicit
 '  anyone who is working a switch on that date / shift.
 ' ====================================================================
 
-Public Const SS_VERSION As String = "Shift switches v28 (Oct 25)"
+Public Const SS_VERSION As String = "Shift switches v29 (Oct 28)"
 Public Const SS_SHEET As String = "Shift Switches"
 Public Const SS_TABLE As String = "tblShiftSwitch"
 Public Const LEDGER_SHEET As String = "Paybacks"     ' v27 (item 25): the payback ledger, output only (supervisors and admins)

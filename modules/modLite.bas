@@ -11,9 +11,9 @@ Option Explicit
 '  the publish when they finish), and the counts are read from the tables the roster already keeps. Pure cores
 '  (suites postexc, litemark, litedaily, litebar) are mirrored in tests/rules.py.
 ' ====================================================================
-Public Const LITE_VERSION As String = "Lite v28 (Oct 27)"      ' new in the v29 build; stamped on the current release until the v29 release prep (test_drift)
+Public Const LITE_VERSION As String = "Lite v29 (Oct 28)"
 
-Public Const LITE_CLOSING_HOURS As Double = 24      ' a posting with nobody signed up that closes within this many hours is an exception
+Public Const LITE_CLOSING_HOURS As Double = 24      ' a posting with no member sign-up that closes within this many hours is an exception
 Public Const LITE_STAFF_DAYS As Long = 14           ' Band 4: below minimum in the next N days
 Private Const DAILY_KRONOS As String = "DailyKronos"
 Private Const DAILY_NEEDS As String = "DailyNeeds"

@@ -1,4 +1,29 @@
-# Paste this into a fresh session to carry on (updated Oct 27, 2026: **v28 IS ON THE REAL ROSTER (Oct 27, v27.5 inside; v27.1 since Oct 25); the alpha runs Nov 1-14 on it; **RE-ORDERED Oct 27 (later): v29 (the go-live kit) is built NOW on v28 - report-back DONE, `briefs/v29.md` - and v28.1 (the second refactor) comes after it** - see "v29 REPORT-BACK" then "v28 INSTALLED".** The older blocks below are the v28, v27.5, v27.1 and v27 hand-offs, kept as history.)
+# Paste this into a fresh session to carry on (updated Oct 28, 2026: **v29 - the go-live kit - is BUILT, REVIEWED (4 reviews + 2 re-reviews + a final read, every finding taken) and RELEASE-PREPPED on main; NOT tagged / zipped / pushed until Graeme's OK; NOT installed until the Nov 18-20 slot after the alpha closes.** v28 is on the real roster since Oct 27. See "v29 STATE" first; the older blocks are history.)
+
+```
+v29 STATE (Oct 28, 2026): BUILT on main in eight item commits (2cac2bf, e5ffc90, 412dead, 9a61bde, 2ebd706, e6def18, 8fceb66 + the
+report-back 080daaa), reviewed by four read-only Opus reviewers in isolated worktrees (fixes 705f05d, 674844e), re-reviewed by
+two fresh ones (fixes ddcb923), read once more (1 MED / 6 LOW, taken in the release-prep commit), then release-prepped (stamps v29 on all 45 modules, EXPECTED_RELEASE v29, the
+What's New box ON with four lines, FORM_RELEASES frmFixEntry / frmTimeOff / frmShiftSwitch v29, INSTALL-v29.md, steps-v29.txt,
+the CHANGELOG's v29 entry incl. the review record, CLAUDE.md's rows, the four end-user docs' counts, the Desk guide, NEW
+docs/admin-lite-cheat-sheet.md + docs/guide-08-admin-lite.md + docs/members-what-changes.md). Two NEW modules modLite + modMove
+(N_MODULES 45), ONE NEW UserForm frmFixEntry (Insert > UserForm BEFORE the panel: modLite names it), two forms re-pasted,
+ThisWorkbook unchanged, Members M6 (template rebuilt at install). The brief said N_MODULES 43 - two modules were cleaner.
+Tests: 1133 cases / 121 suites, pytest 1196, SmokeTest 22; checkers + docscheck clean.
+WHAT v29 IS: briefs/v29.md (items 1-6, 9, 10 built; 7 = the alpha's S2/S3 fixes NOT built - after Nov 18 as a v29 item or
+v29.5; 8 = item 39 NOT built - unsigned) + briefs/admin-lite.md. Graeme's 12 decisions in the brief's table; built ON v28.
+KEY DESIGN FACTS: the move stores the members' folder IN the file (hidden name MembersFolder "L|path" live / "R|path"
+rehearsal; PublishFolderPath reads it; a COPY honours only R); MoveRoster = Alt+F8 admin, a CUTOVER step (Jan 11-15), never an
+install step; the frozen old file (MovedTo) never saves; IntegrityCheck 17 Requests never PROBLEM; the void reason is NEVER
+published (Answer = 'booking voided'); the Lite Desk draws on the FULL admin view (his call).
+NEXT: (1) Graeme's OK -> tag v29 (annotated) on the release-prep commit, `py -3.14 tests/build_zip.py v29 v28`, push main + tag
+from his Terminal; (2) his practice-copy install per INSTALL-v29.md with the snapshot (expect: the admin Desk's preview link
+differs, Desk[supervisor]'s link macro differs, Desk[lite] is new); (3) the alpha Nov 1-14 on v28 (P1 triage, S1 -> v28.0.x);
+(4) the alpha close-out Nov 16-17 on v28, then v29 installed Nov 18-20; the S2/S3 fixes become a v29.0.x or ride in v28.1's
+slot - decide with him; (5) v28.1 (the second refactor) built ON v29 once v29 has run: report-back by the P2 pattern;
+(6) docs/december-rehearsal.md (P6) and docs/go-live-runbook.md (P7, by Jan 5; it must say: rename the old roster and
+members' file MOVED, the IT rights, the two test folders for the rehearsal).
+```
 
 ```
 v29 REPORT-BACK DONE (Oct 27, 2026, later in the day): Graeme said "Lets pull ahead 29" and chose: v29 NEXT, built on v28 (v28 has run), installed in

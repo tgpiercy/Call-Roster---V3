@@ -4,6 +4,8 @@ The Desk is the first tab you see when you open the roster. Three pills at the t
 
 There are two Desks from the same screen. **A supervisor's Desk** (a login on the supervisor list, v25.5) has the jobs a supervisor may do: Someone called in sick, Fill a shift now, What needs cover, Post a shift, Award a posting, Update the members' file, Print the call-out roster, Employee history (v26), and the help row. **The admin Desk** (for a login on the Desk list) has those plus Book time off, Shift switch or payback, Leave, Reconcile with the paper roster, Stats, Undo my last log entry, the paybacks-owed tile and "Show everything".
 
+**A third Desk since v29: the Admin Lite Desk** for the second admin (a login on the Lite list - Ray). It is drawn on the full admin view and shows his jobs in four bands that never move - NEEDS YOUR DECISION (members' requests, posting exceptions, corrections asked for, returning from leave), BOOK AND CHANGE, DAILY CHECK (three steps, green once done today) and STAFFING AND OT - over a trust strip (the hours, today's backup, the members' file, the system checks; a red item says call Graeme). **Show full admin Desk >** draws the full admin Desk for the session; **< Back to my Desk** returns. Any admin can look at it with **See Desk as: Admin Lite** (beside See Desk as: Supervisor, under the help row). Every Lite button runs the same macro as its twin here; rights are unchanged. The one-page sheet is `docs/admin-lite-cheat-sheet.md`; the week-by-week guide `docs/guide-08-admin-lite.md`.
+
 ## The pills (the header)
 | Pill | Says |
 |---|---|

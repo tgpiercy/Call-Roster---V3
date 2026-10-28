@@ -33,7 +33,7 @@ Option Explicit
 '  check. Queued for v25.
 ' ====================================================================
 
-Public Const SMK_VERSION As String = "Smoke test v28 (Oct 25)"
+Public Const SMK_VERSION As String = "Smoke test v29 (Oct 28)"
 
 Private Const SMK_EMP As String = "ZZ Test, Person"
 Private Const SMK_EMP2 As String = "ZZ Test, Renamed"
@@ -1322,7 +1322,8 @@ Private Function SmkPages(ByRef st As SmkState, ByRef why As String) As Boolean
         If UnresolvedNoCount() <> un0 + 1 Then why = "an unresolved No did not raise UnresolvedNoCount by one": Exit Function
         Dim nRes As Long: nRes = ResolveFeedback(fbRef, "SMK-" & fbRef)     ' (review LOW-7) an older No on the same Ref resolves with it
         If nRes < 1 Then why = "ResolveFeedback marked no row for " & fbRef: Exit Function
-        If UnresolvedNoCount() <> un0 + 1 - nRes Then why = "ResolveFeedback's count and the unresolved count disagree": Exit Function
+        ' the fresh No is resolved (the count drops); rows already marked "checked" for the same Ref re-resolve too without changing the count
+        If UnresolvedNoCount() > un0 Or UnresolvedNoCount() < un0 + 1 - nRes Then why = "ResolveFeedback's count and the unresolved count disagree": Exit Function
         st.Note = st.Note & "; a No on " & fbRef & " resolved"
         ' v29 (item 4): Fix an entry reads the Ref's facts (the rows are VOID by now or live: either reads); a made-up Ref is not found
         Dim ff As FixFacts: ff = FixEntryFacts(fbRef)

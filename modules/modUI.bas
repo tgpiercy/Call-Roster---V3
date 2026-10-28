@@ -19,7 +19,7 @@ Option Explicit
 
 Private Const STATUS_CELL As String = "D3"      ' status (3 lines, plain text) - in the frozen names column
 Public Const UI_LARGER_SCALE As Double = 1.2    ' v27 (item 20, B14): the Desk's "Larger type" scale for a login (UiScale below)
-Public Const UI_VERSION As String = "Roster UI v28 (Oct 25)"
+Public Const UI_VERSION As String = "Roster UI v29 (Oct 28)"
 Private Const NAVY As Long = 6567966            ' RGB(30, 56, 100)
 Private Const INK As Long = 3355443             ' RGB(51, 51, 51)
 Private Const LIGHT As Long = 15787486          ' RGB(222, 229, 240)

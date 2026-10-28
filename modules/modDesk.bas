@@ -46,7 +46,7 @@ Option Explicit
 '  is its own procedure (DrawDesk sits at the 300-line limit).
 ' ====================================================================
 
-Public Const DESK_VERSION As String = "Desk v28 (Oct 25)"
+Public Const DESK_VERSION As String = "Desk v29 (Oct 28)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
 Public Const HELP_SHEET As String = "Help"           ' v25.5: the Help sheet (ShowHelp / DrawHelp below)

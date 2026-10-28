@@ -20,7 +20,7 @@ Option Explicit
 '  failure incl. a raised SaveRestrictedCopy; the names are stored quote-safe and read back verified; the old members'
 '  file is renamed; the frozen copy never saves on close (gNoSaveOnClose); SystemCheck's path block is its own box.
 ' ====================================================================
-Public Const MV_VERSION As String = "Move v28 (Oct 28)"        ' new in the v29 build; stamped on the current release until the v29 release prep (test_drift)
+Public Const MV_VERSION As String = "Move v29 (Oct 28)"
 Private Const NM_MEMBERS As String = "MembersFolder"            ' "L|<path>" (the live roster) or "R|<path>" (a rehearsal on a copy)
 Private Const NM_MOVEDTO As String = "MovedTo"                  ' "<new full path>|<yyyy-mm-dd hh:nn>" in the OLD (frozen) file
 Private Const NM_MOVEDFROM As String = "MovedFrom"              ' "<old full path>|<yyyy-mm-dd hh:nn>" in the NEW file
@@ -175,7 +175,12 @@ Public Sub MovePathLines(ByRef warn As String, ByRef info As String)
     End If
     ' the members' file itself
     Dim mf As String: mf = members & IIf(IsDryRunName(ThisWorkbook.Name), "PRACTICE - ", "") & MEMBER_FILE_NAME
-    If Dir$(mf) <> "" Then
+    Dim mfThere As String: mfThere = ""
+    Err.Clear
+    mfThere = Dir$(mf)
+    If Err.Number <> 0 Then mfThere = ""
+    Err.Clear
+    If mfThere <> "" Then
         mPathBlock = mPathBlock & "members' file present, saved " & Format$(FileDateTime(mf), "ddd mmm d h:mm AM/PM") & vbNewLine
     Else
         warn = warn & "- no members' file in the members' folder yet: publish it (" & mf & ")" & vbNewLine
@@ -265,7 +270,7 @@ End Function
 
 Public Sub MoveRoster()
     Dim prevMembers As String, prevFrom As String, newFull As String, madeCopy As Boolean, wasSaved As Boolean
-    Dim masterNew As String, membersNew As String, namesWritten As Boolean, tplMade As Boolean
+    Dim masterNew As String, membersNew As String, namesWritten As Boolean, tplMade As Boolean, committed As Boolean
     On Error GoTo Oops
     prevMembers = NameGet(NM_MEMBERS): prevFrom = NameGet(NM_MOVEDFROM): wasSaved = ThisWorkbook.Saved   ' (re-review MED-3) captured before anything can raise
     If Not RequireAdmin() Then Exit Sub
@@ -389,10 +394,11 @@ Public Sub MoveRoster()
         If oldSignups <> "" Then RmDir Left$(oldSignups, Len(oldSignups) - 1)
         If oldRequests <> "" Then RmDir Left$(oldRequests, Len(oldRequests) - 1)
         Err.Clear
-        nStranded = CountTree(oldSignups) + CountTree(oldRequests)       ' (re-review LOW-10) written after the listing, or not removable
-        If nStranded + nLeft > 0 Then mfNote = mfNote & vbNewLine & (nStranded + nLeft) & " sign-up / request file(s) are still in the old folders (" & membersNow & "): move them to " & membersNew & " by hand."
+        nStranded = CountTree(oldSignups) + CountTree(oldRequests)       ' (re-review LOW-10) written after the listing, or not removable (nLeft is among them)
+        If nStranded > 0 Then mfNote = mfNote & vbNewLine & nStranded & " sign-up / request file(s) are still in the old folders (" & membersNow & "): move them to " & membersNew & " by hand."
         On Error GoTo Oops
     End If
+    committed = True: madeCopy = False: tplMade = False   ' (final read, LOW-5) the inbox has moved: from here an error must never remove the new roster
     ' 5. freeze this file: the old stored value back (this file never publishes anywhere again), MovedTo set and read back,
     '    MovedFrom off, then the one save NoSave lets through (gFreezingMove); after it, this session saves nothing more
     NameSet NM_MEMBERS, prevMembers
@@ -432,7 +438,8 @@ InboxFailed:
     MoveRollback prevMembers, prevFrom, newFull, madeCopy, tplMade, wasSaved
     Application.StatusBar = False
     MsgBox "Nothing moved: " & note & ". The copy of the roster was taken back and this file is unchanged" & _
-           IIf(nMoved > 0, "; the " & nMoved & " file(s) that had moved were brought back (" & nBack & " came back" & IIf(nBack < nMoved, " - check " & membersNew & " for the rest", "") & ")", "") & _
+           IIf(nMoved > 0, "; the " & nMoved & " file(s) that had moved were brought back (" & nBack & " came back from the new Signups\ / Requests\ - everything in them, so a test folder used before may have given more" & _
+                           IIf(nBack < nMoved, "; check " & membersNew & " for the rest", "") & ")", "") & _
            ". Check the members' folder's rights and run the move again.", vbExclamation, ttl
     Exit Sub
 Oops:
@@ -440,11 +447,18 @@ Oops:
     Dim em As String: em = Err.Description
     On Error Resume Next
     gFreezingMove = False
-    If namesWritten Or madeCopy Then MoveRollback prevMembers, prevFrom, newFull, madeCopy, tplMade, wasSaved    ' (review H3 / re-review MED-3) a raised SaveRestrictedCopy too; nothing touched = nothing to roll back
+    If (namesWritten Or madeCopy) And Not committed Then MoveRollback prevMembers, prevFrom, newFull, madeCopy, tplMade, wasSaved    ' (review H3 / re-review MED-3) a raised SaveRestrictedCopy too; nothing touched = nothing to roll back
     Application.StatusBar = False
     LogError "MoveRoster", en, em
-    MsgBox "The move stopped: " & em & vbNewLine & vbNewLine & "This file keeps its old settings and stays live; " & _
-           IIf(madeCopy, "any copy at " & newFull & " was removed. ", "no copy was made. ") & "Run SystemCheck, then the move again.", vbExclamation, ttl
+    If committed Then
+        gNoSaveOnClose = True                        ' the new roster and the inbox are in place: this file must not go on as the live one
+        MsgBox "The move stopped while freezing THIS file: " & em & vbNewLine & vbNewLine & "The new roster is in place at " & newFull & _
+               " with the sign-up and request files. Close this file WITHOUT saving, rename it MOVED " & Format$(Date, "yyyy-mm-dd") & _
+               " - ... by hand at once, then open the new one.", vbExclamation, ttl
+    Else
+        MsgBox "The move stopped: " & em & vbNewLine & vbNewLine & "This file keeps its old settings and stays live; " & _
+               IIf(madeCopy, "any copy at " & newFull & " was removed. ", "no copy was made. ") & "Run SystemCheck, then the move again.", vbExclamation, ttl
+    End If
 End Sub
 
 ' every failure before the freeze: the stored values as they were, the copy and the template taken away when THIS run
@@ -565,10 +579,10 @@ Private Function CountTree(ByVal p As String) As Long
 End Function
 
 ' one file: copied, the copy checked (present, same size), then the original removed; False when the copy is not there.
-' left = the copy is there but the original would not go (locked, read-only): it stays in both places and is counted
-Private Function MoveOne(ByVal src As String, ByVal dst As String, ByRef left As Boolean) As Boolean
+' stayed = the copy is there but the original would not go (locked, read-only): it stays in both places and is counted
+Private Function MoveOne(ByVal src As String, ByVal dst As String, ByRef stayed As Boolean) As Boolean
     On Error Resume Next                            ' never raises
-    left = False
+    stayed = False
     Err.Clear
     FileCopy src, dst
     If Err.Number <> 0 Then Exit Function
@@ -576,7 +590,7 @@ Private Function MoveOne(ByVal src As String, ByVal dst As String, ByRef left As
     If FileLen(dst) <> FileLen(src) Then Exit Function
     Err.Clear
     Kill src
-    If Err.Number <> 0 Then left = True
+    If Err.Number <> 0 Then stayed = True
     Err.Clear
     MoveOne = True
 End Function

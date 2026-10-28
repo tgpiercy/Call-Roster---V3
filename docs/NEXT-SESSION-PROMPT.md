@@ -18,7 +18,9 @@ install step; the frozen old file (MovedTo) never saves; IntegrityCheck 17 Reque
 published (Answer = 'booking voided'); the Lite Desk draws on the FULL admin view (his call).
 DONE Oct 28 (later): tagged v29 on 4b6eb17, dist/Callout_Roster_v29.zip built, main + tag pushed (e446b42..4b6eb17), INSTALLED
 on the real roster by Graeme the same day, no issues. THE ALPHA RUNS ON v29.
-NEXT: (3) the alpha Nov 1-14 on v29 (P1 triage into docs/alpha-findings.md; S1 -> a v29.0.x hotfix through a practice copy);
+NEXT: (0) FIRST, before Oct 31: the P9 session - docs/P9-alpha-mock-test-plan-prompt.md (Graeme, Oct 28: the alpha runs on a
+MOCK data set loaded by a test-only module, full plant shape, real calendar; expected figures from rules.py; a data reset at
+the close-out) - report-back D1-D7 first, then build; (3) the alpha Nov 1-14 on v29 (P1 triage into docs/alpha-findings.md; S1 -> a v29.0.x hotfix through a practice copy);
 (4) the alpha close-out Nov 16-17 on v29 (ClosePeriod Nov 1-14 on v29); the Nov 18-20 install slot is free - v28.1 if its
 review is clean and Graeme says so, else nothing; the S2/S3 fixes become v29.5 (or ride with v28.1) - decide with him;
 (5) v28.1 (the second refactor) built ON v29 (v29 has run): report-back by the P2 pattern, build during the alpha, NO install in it;

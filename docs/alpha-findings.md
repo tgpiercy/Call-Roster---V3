@@ -3,7 +3,7 @@
 The one log of what the alpha turns up. One row per finding, added at triage (no code changes at triage). Current as of v29 on the real roster (Oct 28, 2026; Graeme pulled the v29 install ahead of the alpha - "we will alpha on V29").
 
 ## How a finding gets here
-- **Sources:** a Ref ID from the OT Log, a receipt's "Was this right?" answer of No / Not sure (`tblFeedback`), a Reconcile difference, an error box's saved line (`Roster error log.txt`), SystemCheck's first line when something looked wrong.
+- **Sources:** a plan step id from `docs/alpha-test-plan.md` (the P9 mock testing plan: a figure that differs from its EXPECT), a Ref ID from the OT Log, a receipt's "Was this right?" answer of No / Not sure (`tblFeedback`), a Reconcile difference, an error box's saved line (`Roster error log.txt`), SystemCheck's first line when something looked wrong.
 - **Triage (the P1 prompt):** find the code path and quote file:line; say whether the roster or paper was right against CLAUDE.md's canonical rules (or "rule missing"); give a severity and a release; for an S2, write the void-and-re-enter the admin does now.
 - **Paper governs during the alpha.** The roster's figure is not corrected in Kronos or on paper; the roster is.
 

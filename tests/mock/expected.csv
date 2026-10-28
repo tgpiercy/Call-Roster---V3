@@ -1,0 +1,572 @@
+Step,What,Figure
+D-1.1,the verify box (both loads),69 people match expected_load.csv; the OT Log total Hours Charged matches; 0 PROBLEM
+D0.1,the copy's name,"Pre-alpha\Backup - PRE-ALPHA 2026-10-31 - V2 - Call Out Roster.xlsm (reads as a backup copy: no daily backup, no publish from it)"
+D0.2,people on the roster,69
+D0.2,OT Log rows,94
+D0.2,OT Log total Hours Charged,11867.2
+D0.2,KronosDataThrough after the load,Sat Oct 17 (the Oct 18 snapshot; the Day-0 import moves it)
+D0.2,Sam Bramble G / H / I / C,125.5 / 40 / 85.5 / 0
+D0.2,Tatum Ellery G / H / I / C,156.5 / 49 / 107.5 / 0
+D0.2,Merritt Vauxhall G / H / I / C,164.5 / 56 / 96.5 / 12
+D0.2,Harper Greenlaw G / H / I / C,218.25 / 33 / 185.25 / 0
+D0.2,sign-up files written for P-0003,"Harper Greenlaw (whole shift) and Devon Stonebridge (6 h), stamped at the load"
+D0.3,Data Through,Fri Oct 30
+D0.3,people whose H changed,69 of 69 (every one rises by less than 60 h: no sanity confirm)
+D0.3,Sam Bramble H,40 -> 58
+D0.3,Tatum Ellery H,49 -> 64
+D0.3,Merritt Vauxhall H,56 -> 75
+D0.3,Harper Greenlaw H,33 -> 58
+D0.3,Emery Thornbury H,51 -> 58
+D0.3,Devon Stonebridge H,23 -> 46
+D0.3,Worked (H) sum over the roster,4020
+D0.3,codes not counted,Bryn Hartwell: LIEU TKN 8 h named in the finishing box (IntegrityCheck's Kronos section lists it)
+D0.3,provisional (C) after the import,Merritt Vauxhall 12; Teal Copperfield 12
+D0.4,modules line,Modules: 45 of 45 on v29
+D0.4,logins line,"Logins: admins piercyg, lanthierr; Lite lanthierr (Ray); supervisors mihaychukc, sheltond, campeauc"
+D0.4,Kronos reports path,the Kronos mock folder - reachable (v29.0.1's one change)
+D0.5,PROBLEM lines,0
+D0.5,Check lines,Check 7 Paybacks: 1 shift-switch payback(s) owed for more than 42 days: SS-0001 Sat Sep 12 | Check 8 Kronos: Kronos code not counted: Bryn Hartwell LIEU TKN 8 h
+D0.5,Note lines,Note 12 Coverage: Every accepted call-out and award this year has its calendar line | Note 11 Planned moves: 1 unit move(s) waiting for their date
+D0.6,SelfTest line,"SelfTest: 1133 passed, 0 failed of 1133 cases. all 121 suites passed"
+D0.7,refusals,"none (no leave word, no phone-like value in any published text)"
+D0.8,P-0003 list in call order,#1 Ellis Everhart D1 189; #2 Devon Stonebridge D1 203; #3 Finley Fairbanks D1 203; #4 Harper Greenlaw D1.5 243.25; #5 Hayden Underhill D2 258.5; #6 Jesse Vantage D2 301; #7 Jordan Hollins D2 310.5; #8 Lane Wexford D3 388; #9 Kendall Ironside D3 402
+D0.8,pre-ticked sign-ups,#2 Devon Stonebridge (6 h); #4 Harper Greenlaw (whole shift)
+D0.9,Requests card,0
+D0.9,Posting exceptions card,1: P-0004 (closing soon)
+D0.9,Corrections card,0
+D0.9,Returning card,1: Emery Thornbury - open-ended
+D0.10,Opens rows added,"3 (one per supervisor, View supervisor, Release v29)"
+D1.1,files read,the Sat Oct 31 report
+D1.1,Data Through,Sat Oct 31
+D1.1,people whose H changed,3
+D1.1,Rowan Oakhurst H,34 -> 41
+D1.1,Hollis Orchard H,74 -> 80
+D1.1,Merritt Vauxhall H,75 -> 86
+D1.1,totals still carrying provisional OT,none
+D1.1,the Kronos pill after,0 new files
+D1.2,OPEN LINES,2
+D1.2,POSTINGS,3
+D1.2,PAYBACKS,1
+D1.2,LEAVE,1
+D1.2,MEMBERS' REQUESTS,0
+D1.2,PLANNED UNIT MOVES,1
+D1.2,HOLIDAYS TO CONFIRM,1
+D1.2,TO SETTLE (Q lines),2
+D1.2,ATTENDANCE,0
+D1.2,BELOW MINIMUM STAFFING (rotating units),none
+D1.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D1.2,MEMBERS FILE line,1 (published yesterday; gone after D1.3)
+D1.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D1.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D1.4,Absence ID,SC-0003
+D1.4,hours offered by the form,13
+D1.4,off call lists until,Mon 7 AM
+D1.4,Blair Bellweather attendance phrase before -> after,Paid sick available -> Paid sick only while the current occurrence continues
+D1.4,Blair Bellweather sick days used / occurrences,3 / 3
+D1.5,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Merritt Vauxhall P1 182.5; #4 Wren Fenwick P1 185.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
+D1.5,not listed,Blair Bellweather (Sick); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
+D1.5,the draft after two outcomes,"the Draft table holds one row for piercyg with Sam Bramble|Refused and Tatum Ellery|Left Message; reopened, the pop-up offers to resume it"
+D1.6,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Merritt Vauxhall P1 182.5; #4 Wren Fenwick P1 185.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
+D1.6,not listed,Blair Bellweather (Sick); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
+D1.6,session Ref,S-0007
+D1.6,the receipt's rows,#1 Sam Bramble Refused 13 h charged 22.75; #2 Tatum Ellery Left Message 13 h charged 22.75; #3 Merritt Vauxhall Accepted 6 h charged 0
+D1.6,total charged,45.5
+D1.6,Total Hours before -> after,Sam Bramble 143.5 -> 166.25; Tatum Ellery 171.5 -> 194.25; Merritt Vauxhall 182.5 -> 188.5
+D1.6,calendar line,Sat Oct 31 Nights Phosphine: Merritt Vauxhall 6h
+D1.6,Merritt Vauxhall's Note,"Took 6 of 13 h (the rest dropped, uncharged)"
+D1.7,Feedback row,S-0007 No by piercyg; Seen blank; Resolved Ref blank
+D1.8,Requests card,0
+D1.8,Posting exceptions card,1: P-0004 (no takers)
+D1.8,Corrections card,1
+D1.8,Returning card,1: Emery Thornbury - open-ended
+D2.1,files read,the Sun Nov 1 report
+D2.1,Data Through,Sun Nov 1
+D2.1,people whose H changed,3
+D2.1,Avery Ashgrove H,23 -> 26
+D2.1,Casey Cardwell H,60 -> 66
+D2.1,Jules Ravenscroft H,40 -> 46
+D2.1,totals still carrying provisional OT,none
+D2.1,the Kronos pill after,0 new files
+D2.2,OPEN LINES,2
+D2.2,POSTINGS,3
+D2.2,PAYBACKS,1
+D2.2,LEAVE,1
+D2.2,MEMBERS' REQUESTS,0
+D2.2,PLANNED UNIT MOVES,1
+D2.2,HOLIDAYS TO CONFIRM,1
+D2.2,TO SETTLE (Q lines),2
+D2.2,ATTENDANCE,1
+D2.2,BELOW MINIMUM STAFFING (rotating units),none
+D2.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D2.2,MEMBERS FILE line,none (published today)
+D2.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D2.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D2.4,AwardOrderProblem,full-first
+D2.5,awarded,Harper Greenlaw
+D2.5,"charged (did not sign up, ahead in call order)",2 x 21 = 42
+D2.5,the receipt's rows,#1 Ellis Everhart Refused 12 h charged 21; #2 Devon Stonebridge Signed Up 12 h charged 0; #3 Finley Fairbanks Refused 12 h charged 21; #4 Harper Greenlaw Awarded 12 h charged 0
+D2.5,Total Hours before -> after,Ellis Everhart 189 -> 210; Finley Fairbanks 203 -> 224; Harper Greenlaw 243.25 -> 255.25
+D2.5,P-0003 status,Awarded
+D2.5,pay period of the charges,starting Sun Nov 1
+D2.6,request file,Requests\REQ__sheltond-<stamp>__request__sheltond__<pc>__<stamp>.txt with kind=Time off; employee=Nico Whitlock; from=2026-11-12; to=2026-11-12
+D2.6,after ImportRequests,RQ-0001 Nico Whitlock Time off 2026-11-12 - Status Waiting
+D2.7,booking,AB-0005 Nico Whitlock Personal Thu Nov 12 (Days)
+D2.7,RQ-0001 after the save,"Booked, Ref AB-0005"
+D2.7,calendar line,Thu Nov 12 Days Phosphine: Nico Whitlock (Personal) OPEN
+D2.8,files,REQ__mihaychukc-<stamp>__request__... (kind=Switch; partner=Avery Ashgrove) and REQ__<same rid>__agree__campeauc__...
+D2.8,after ImportRequests,RQ-0002 Wren Fenwick Switch Fri Nov 6 Days with Avery Ashgrove - Status Waiting (Waiting for partner until the agree file lands)
+D2.9,switch saved,"SS-0002: Wren Fenwick gives up Fri Nov 6 Days, Avery Ashgrove works it; no payback yet"
+D2.9,RQ-0002 after the save,"Booked, Ref SS-0002"
+D2.9,16 h check on the one working,fits
+D2.10,the list in call order,#1 Devon Stonebridge D1 203; #2 Hayden Underhill D2 258.5; #3 Jesse Vantage D2 301; #4 Lane Wexford D3 388
+D2.10,not listed,Rafe Crossley (scheduled); Corin Islington (scheduled); Emery Thornbury (Leave); Teal Copperfield (scheduled); Sidney Dalrymple (scheduled); Ellis Everhart (rest); Finley Fairbanks (rest); Darcy Kingsley (scheduled); Harper Greenlaw (rest); Tobin Eastwick (scheduled); Eden Larkspur (scheduled); Flynn Moorcroft (scheduled); Jordan Hollins (rest); Vale Fairweather (Vac); Greer Nettleton (scheduled); Wynn Goldfinch (scheduled); Kendall Ironside (rest)
+D2.10,session Ref,S-0008
+D2.10,the receipt's rows,#1 Devon Stonebridge Refused 12 h charged 21; #2 Hayden Underhill Accepted 12 h charged 0
+D2.10,total charged,21
+D2.10,Total Hours before -> after,Devon Stonebridge 203 -> 224; Hayden Underhill 258.5 -> 270.5
+D2.10,calendar line,Mon Nov 2 Days Derivatives: Hayden Underhill
+D3.1,files read,the Mon Nov 2 report
+D3.1,Data Through,Mon Nov 2
+D3.1,people whose H changed,2
+D3.1,Hayden Underhill H,52 -> 73
+D3.1,Kit Saltmarsh H,40 -> 45
+D3.1,totals still carrying provisional OT,Harper Greenlaw 12
+D3.1,the Kronos pill after,0 new files
+D3.2,OPEN LINES,2
+D3.2,POSTINGS,2
+D3.2,PAYBACKS,2
+D3.2,LEAVE,1
+D3.2,MEMBERS' REQUESTS,0
+D3.2,PLANNED UNIT MOVES,1
+D3.2,HOLIDAYS TO CONFIRM,1
+D3.2,TO SETTLE (Q lines),2
+D3.2,ATTENDANCE,1
+D3.2,BELOW MINIMUM STAFFING (rotating units),none
+D3.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D3.2,MEMBERS FILE line,none (published today)
+D3.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D3.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D3.4,NH- row,NH-0001: 227.2 h (the Cypure average of 7 peer(s) at grade 2 and below as of Tue Nov 3)
+D3.4,peers and their Total Hours as of the start date,Logan Juniper 176.5; Morgan Kestrel 288.0; Marlow Yardley 196.0; Hollis Orchard 169.0; Indy Pennyworth 283.0; Ash Hawthorne 182.0; Blake Ingleby 296.0
+D3.4,Val Driscoll Total Hours after,227.2
+D3.5,the hard stop,"Wren Fenwick: 16 h rule (worked before 12 h, hours to the next work none, max 4 h)"
+D3.5,saved,nothing
+D3.6,switch 1,"SS-0003: Avery Ashgrove gives up Wed Nov 4 Days, Merritt Vauxhall works it"
+D3.6,switch 2 (the payback),"SS-0004: Merritt Vauxhall gives up Thu Nov 12 Days, Avery Ashgrove works it; Payback For SS-0003; SS-0003 Paid Back By SS-0004"
+D3.6,calendar lines,one per switch: <gives up> S/S -> <works> S/S
+D3.7,Posting ID,P-0006
+D3.7,the list in call order (frozen),#1 Pat Yeoman DAYS Q1 151; #2 Riley Northway A Q1 267; #3 Teal Copperfield DAYS Q2 206; #4 Shay Dovetail B Q2 212; #5 Robin Ashworth DAYS Q2 237
+D3.7,not listed,Linden Tillingham (scheduled); Evan Lindhurst (scheduled)
+D3.7,closes,Wed Nov 4 at 8:00 AM
+D3.7,calendar line,Sat Nov 7 Days QC Derivatives: PHA POSTED P-0006
+D3.8,rows voided,"3 of S-0007, Void Note: Sam was out of town"
+D3.8,Total Hours after the void,Sam Bramble 166.25 -> 143.5; Tatum Ellery 194.25 -> 171.5
+D3.8,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Merritt Vauxhall P1 182.5; #4 Wren Fenwick P1 185.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
+D3.8,not listed,Blair Bellweather (Sick); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
+D3.8,session Ref,S-0009
+D3.8,the receipt's rows,#1 Sam Bramble Unavailable 13 h charged 0; #2 Tatum Ellery Left Message 13 h charged 22.75; #3 Merritt Vauxhall Accepted 6 h charged 0
+D3.8,total charged,22.75
+D3.8,Total Hours before -> after,Tatum Ellery 171.5 -> 194.25
+D3.8,calendar line,Sat Oct 31 Nights Phosphine: Merritt Vauxhall 6h
+D3.8,Sam Bramble's Note,Out of town
+D3.8,Merritt Vauxhall's Note,"Took 6 of 13 h (the rest dropped, uncharged)"
+D3.8,Feedback row,"S-0007: Resolved By lanthierr, Resolved Ref S-0009"
+D3.8,Corrections card after,0
+D4.1,files read,the Tue Nov 3 report
+D4.1,Data Through,Tue Nov 3
+D4.1,people whose H changed,2
+D4.1,Harper Greenlaw H,58 -> 79
+D4.1,Cary Jarrow H,66 -> 72
+D4.1,totals still carrying provisional OT,none
+D4.1,the Kronos pill after,0 new files
+D4.2,OPEN LINES,2
+D4.2,POSTINGS,3
+D4.2,PAYBACKS,2
+D4.2,LEAVE,1
+D4.2,MEMBERS' REQUESTS,0
+D4.2,PLANNED UNIT MOVES,1
+D4.2,HOLIDAYS TO CONFIRM,1
+D4.2,TO SETTLE (Q lines),2
+D4.2,ATTENDANCE,1
+D4.2,BELOW MINIMUM STAFFING (rotating units),none
+D4.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D4.2,MEMBERS FILE line,none (published today)
+D4.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D4.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D4.4,charged (everyone eligible on the list),4 x 21 = 84
+D4.4,the receipt's rows,#1 Cary Jarrow Refused 12 h charged 21; #2 Jules Ravenscroft Refused 12 h charged 21; #3 Kit Saltmarsh Refused 12 h charged 21; #4 Dale Kelsall Refused 12 h charged 21
+D4.4,Total Hours before -> after,Cary Jarrow 153 -> 174; Jules Ravenscroft 164.25 -> 185.25; Kit Saltmarsh 226 -> 247; Dale Kelsall 229.75 -> 250.75
+D4.4,P-0004 status,No takers
+D4.4,pay period of the charges,starting Sun Nov 1
+D4.5,the list in call order,#1 Nico Whitlock P1.5 193; #2 Odell Amberley P2 262.25; #3 Perry Birchwood P2 327
+D4.5,not listed,Sam Bramble (scheduled); Blair Bellweather (scheduled); Merritt Vauxhall (S/S); Wren Fenwick (rest); Tatum Ellery (rest); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Arden Glassford (rest); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Bryn Hartwell (rest); Dana Dunmore (scheduled)
+D4.5,session Ref,S-0010
+D4.5,the receipt's rows,#1 Nico Whitlock Accepted 12 h charged 0
+D4.5,total charged,0
+D4.5,Total Hours before -> after,Nico Whitlock 193 -> 205
+D4.5,calendar line,Wed Nov 4 Days Phosphine: Nico Whitlock
+D4.6,the list in call order,#1 Wren Fenwick P1 185.5; #2 Tatum Ellery P1 194.25; #3 Nico Whitlock P1.5 205 max 4 h; #4 Odell Amberley P2 262.25; #5 Arden Glassford P2 272; #6 Perry Birchwood P2 327; #7 Bryn Hartwell P3 338.5
+D4.6,not listed,Sam Bramble (scheduled); Blair Bellweather (scheduled); Merritt Vauxhall (S/S); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
+D4.6,session Ref,S-0011
+D4.6,the receipt's rows,#1 Wren Fenwick Left Message 12 h charged 21; #2 Tatum Ellery Accepted 12 h charged 0; #3 Nico Whitlock Refused 4 h charged 7
+D4.6,total charged,28
+D4.6,Total Hours before -> after,Wren Fenwick 185.5 -> 206.5; Tatum Ellery 194.25 -> 206.25; Nico Whitlock 205 -> 212
+D4.6,calendar line,Wed Nov 4 Nights Phosphine: Tatum Ellery
+D4.6,Nico Whitlock's Note,"Offered 4 of 12 h (the 16 h rule: OT accepted, an award or a switch touches this shift)"
+D4.7,awarded out of department,Hayden Underhill (code OD B)
+D4.7,"charged (in department, did not sign up)",5 x 21 = 105
+D4.7,the receipt's rows,#1 Pat Yeoman Refused 12 h charged 21; #2 Riley Northway Refused 12 h charged 21; #3 Teal Copperfield Refused 12 h charged 21; #4 Shay Dovetail Refused 12 h charged 21; #5 Robin Ashworth Refused 12 h charged 21; #- Hayden Underhill Awarded 12 h charged 0
+D4.7,Total Hours before -> after,Pat Yeoman 151 -> 172; Riley Northway 267 -> 288; Teal Copperfield 206 -> 227; Shay Dovetail 212 -> 233; Robin Ashworth 237 -> 258
+D4.7,P-0006 status,Awarded
+D4.7,pay period of the charges,starting Sun Nov 1
+D4.7,Hayden Underhill provisional after,12
+D5.1,files read,the Wed Nov 4 report
+D5.1,Data Through,Wed Nov 4
+D5.1,people whose H changed,3
+D5.1,Parker Brightwater H,83 -> 87
+D5.1,Tatum Ellery H,64 -> 85
+D5.1,Nico Whitlock H,46 -> 67
+D5.1,totals still carrying provisional OT,Hayden Underhill 12; Tatum Ellery 12
+D5.1,the Kronos pill after,0 new files
+D5.2,OPEN LINES,3
+D5.2,POSTINGS,1
+D5.2,PAYBACKS,2
+D5.2,LEAVE,1
+D5.2,MEMBERS' REQUESTS,0
+D5.2,PLANNED UNIT MOVES,1
+D5.2,HOLIDAYS TO CONFIRM,1
+D5.2,TO SETTLE (Q lines),2
+D5.2,ATTENDANCE,1
+D5.2,BELOW MINIMUM STAFFING (rotating units),none
+D5.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D5.2,MEMBERS FILE line,none (published today)
+D5.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D5.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D5.4,Posting ID,P-0007
+D5.4,the list in call order (frozen),#1 Logan Juniper A G1 176.5; #2 Marlow Yardley B G1 196; #3 Val Driscoll B G2 227.2; #4 Morgan Kestrel A G2 288; #5 Oakley Ashby B G3 275.5
+D5.4,not listed,Hollis Orchard (scheduled); Ash Hawthorne (scheduled); Indy Pennyworth (scheduled)
+D5.4,closes,Thu Nov 5 at 8:00 AM
+D5.4,calendar line,Thu Nov 12 Days Cypure: Training Coverage POSTED P-0007
+D5.5,after the edits,"P-0007: 10 h, Fri Nov 13 Days (was Thu Nov 12); the list unchanged: #1 Logan Juniper 176.5; #2 Marlow Yardley 196; #3 Val Driscoll 227.2; #4 Morgan Kestrel 288; #5 Oakley Ashby 275.5"
+D5.6,awarded,Marlow Yardley
+D5.6,"charged (did not sign up, ahead in call order)",1 x 17.5 = 17.5
+D5.6,the receipt's rows,#1 Logan Juniper Refused 10 h charged 17.5; #2 Marlow Yardley Awarded 10 h charged 0
+D5.6,Total Hours before -> after,Logan Juniper 176.5 -> 194; Marlow Yardley 196 -> 206
+D5.6,P-0007 status,Awarded
+D5.6,pay period of the charges,starting Sun Nov 1
+D5.7,rows voided,1 Awarded row(s) of P-0007 (Marlow Yardley); the Refused row stays charged
+D5.7,Total Hours before -> after,Marlow Yardley 206 -> 196
+D5.7,calendar line,Fri Nov 13 Days Cypure: OPEN again
+D5.8,Posting ID,P-0008
+D5.8,the list in call order (frozen),#1 Frankie Mallory DAYS QG1 133; #2 Gale Norwood DAYS QG2 188; #3 Haven Overton DAYS QG3 241.5
+D5.8,not listed,nobody
+D5.8,closes,Fri Nov 6 at 8:00 AM
+D5.8,calendar line,Sat Nov 7 Days QC Gases: Unit Operator Support POSTED P-0008
+D5.9,OT Log rows,none
+D5.9,P-0008 status,Cancelled
+D5.9,calendar line,Unit Operator Support with NCN as the coverage
+D6.1,Worked Changes row,"Harper Greenlaw 2026-11-03 OVERTIME 12 -> 10 (change -2, weighted -3.5), Kind day, Note: the day re-imported"
+D6.1,files read,the Thu Nov 5 report; the Tue Nov 3 report
+D6.1,Data Through,Thu Nov 5
+D6.1,people whose H changed,3
+D6.1,Harper Greenlaw H,79 -> 75
+D6.1,Dale Kelsall H,58 -> 61
+D6.1,Gale Norwood H,48 -> 54
+D6.1,totals still carrying provisional OT,Hayden Underhill 12
+D6.1,the Kronos pill after,0 new files
+D6.2,OPEN LINES,3
+D6.2,POSTINGS,1
+D6.2,PAYBACKS,2
+D6.2,LEAVE,1
+D6.2,MEMBERS' REQUESTS,0
+D6.2,PLANNED UNIT MOVES,1
+D6.2,HOLIDAYS TO CONFIRM,1
+D6.2,TO SETTLE (Q lines),2
+D6.2,ATTENDANCE,1
+D6.2,BELOW MINIMUM STAFFING (rotating units),none
+D6.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D6.2,MEMBERS FILE line,none (published today)
+D6.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D6.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D6.4,Planned row,"PM-0002 Arden Glassford -> Derivatives (D2), clears Phosphine, from Sun Nov 8, Status Planned"
+D6.4,roster row today,unchanged (the move waits for its date)
+D6.5,scheduled shifts in the range,1: Sun Nov 8 Days
+D6.5,trim offered,end -> saved Sun Nov 8 to Sun Nov 8
+D6.5,booking,AB-0006 Linden Tillingham Vac
+D6.6,entries in the last 12 h (distinct log refs + bookings + switches),0 + 1 + 0 = 1: AB-0006
+D6.7,entries by others since sheltond was last here (Sat Oct 31 10:40 AM),6 log refs + 3 bookings + 3 switches = 12
+D7.1,files read,the Fri Nov 6 report
+D7.1,Data Through,Fri Nov 6
+D7.1,people whose H changed,2
+D7.1,Tobin Eastwick H,46 -> 52
+D7.1,Max Upton H,81 -> 86
+D7.1,totals still carrying provisional OT,Hayden Underhill 12
+D7.1,the Kronos pill after,0 new files
+D7.2,OPEN LINES,4
+D7.2,POSTINGS,1
+D7.2,PAYBACKS,2
+D7.2,LEAVE,1
+D7.2,MEMBERS' REQUESTS,0
+D7.2,PLANNED UNIT MOVES,2
+D7.2,HOLIDAYS TO CONFIRM,1
+D7.2,TO SETTLE (Q lines),2
+D7.2,ATTENDANCE,1
+D7.2,BELOW MINIMUM STAFFING (rotating units),Sun Nov 8 Days QC Derivatives SHORT 0/1
+D7.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D7.2,MEMBERS FILE line,none (published today)
+D7.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D7.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D7.4,saved,"SS-0005: Indy Pennyworth gives up Sat Nov 7 Days, Blake Ingleby works it; SS-0006: Blake Ingleby gives up Sat Nov 7 Nights, Indy Pennyworth works it (Payback For SS-0005)"
+D7.4,16 h arithmetic,not applied (the same-day sister swap of both shifts is exempt; only OT already held on a shift would stop it)
+D7.4,OT held on either shift,none
+D7.5,the hard stop,Perry Birchwood can't work Sat Nov 7 Nights under the 16 h rule (days then nights the same day = 24 h; the payback half is stopped)
+D7.5,saved,nothing
+D7.6,SHORT cells on the Board (rotating units),Sun Nov 8 Days QC Derivatives SHORT 0/1
+D8.1,the box lists,"PM-0001 Blake Ingleby -> Material Handler (M2), due Sun Nov 8; PM-0002 Arden Glassford -> Derivatives (D2), due Sun Nov 8"
+D8.1,PM-0001 top-up,"Blake Ingleby own 296 h is not under the highest peer (253.75): no UM- row, nothing added"
+D8.1,PM-0002 top-up,"UM-0001: Arden Glassford own 272 h, highest grade <=2 peer in Derivatives 310.5 h -> added 38.5 h (Total now 310.5)"
+D8.1,roster rows after,Blake Ingleby: Material Handler M2 (cleared Cypure); Arden Glassford: Derivatives D2 (cleared Phosphine)
+D8.1,Needs Attention PLANNED UNIT MOVES after,0
+D8.2,files read,the Sat Nov 7 report
+D8.2,Data Through,Sat Nov 7
+D8.2,people whose H changed,2
+D8.2,Hayden Underhill H,73 -> 94
+D8.2,Ash Hawthorne H,83 -> 87
+D8.2,totals still carrying provisional OT,none
+D8.2,the Kronos pill after,0 new files
+D8.3,OPEN LINES,4
+D8.3,POSTINGS,1
+D8.3,PAYBACKS,2
+D8.3,LEAVE,1
+D8.3,MEMBERS' REQUESTS,0
+D8.3,PLANNED UNIT MOVES,0
+D8.3,HOLIDAYS TO CONFIRM,1
+D8.3,TO SETTLE (Q lines),2
+D8.3,ATTENDANCE,1
+D8.3,BELOW MINIMUM STAFFING (rotating units),Sun Nov 8 Days QC Derivatives SHORT 0/1
+D8.3,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D8.3,MEMBERS FILE line,none (published today)
+D8.4,refusals,"none (no leave word, no phone-like value in any published text)"
+D8.4,the daily-check band,Done today: Kronos 08:40-ish (lanthierr); Needs Attention; members' file - all three today
+D8.5,the list in call order,#1 Hollis Orchard G1 169; #2 Indy Pennyworth G2 283
+D8.5,not listed,Ash Hawthorne (rest); Logan Juniper (scheduled); Marlow Yardley (scheduled); Val Driscoll (scheduled); Morgan Kestrel (scheduled); Oakley Ashby (scheduled)
+D8.5,session Ref,S-0012
+D8.5,the receipt's rows,#1 Hollis Orchard Accepted 12 h charged 0
+D8.5,total charged,0
+D8.5,Total Hours before -> after,Hollis Orchard 169 -> 181
+D8.5,calendar line,Mon Nov 9 Days Cypure: Hollis Orchard
+D9.1,files read,the Sun Nov 8 report
+D9.1,Data Through,Sun Nov 8
+D9.1,people whose H changed,2
+D9.1,Sidney Dalrymple H,69 -> 75
+D9.1,Frankie Mallory H,34 -> 38
+D9.1,totals still carrying provisional OT,Hollis Orchard 12
+D9.1,the Kronos pill after,0 new files
+D9.2,OPEN LINES,3
+D9.2,POSTINGS,1
+D9.2,PAYBACKS,2
+D9.2,LEAVE,1
+D9.2,MEMBERS' REQUESTS,0
+D9.2,PLANNED UNIT MOVES,0
+D9.2,HOLIDAYS TO CONFIRM,1
+D9.2,TO SETTLE (Q lines),2
+D9.2,ATTENDANCE,1
+D9.2,BELOW MINIMUM STAFFING (rotating units),none
+D9.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D9.2,MEMBERS FILE line,none (published today)
+D9.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D9.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D9.4,"peers (grade <=2, not on leave, with history before the first day off) and their Total Hours",16: Ellis Everhart 103.0 -> 210.0; Finley Fairbanks 153.0 -> 224.0; Harper Greenlaw 206.2 -> 260.2; Jordan Hollins 284.5 -> 310.5; Devon Stonebridge 136.0 -> 224.0; Hayden Underhill 235.5 -> 300.5; Jesse Vantage 270.0 -> 301.0; Arden Glassford 241.0 -> 310.5; Corin Islington 121.0 -> 177.0; Darcy Kingsley 179.2 -> 199.2; Eden Larkspur 223.0 -> 251.0; Flynn Moorcroft 260.8 -> 294.8; Rafe Crossley 131.0 -> 169.0; Sidney Dalrymple 182.5 -> 213.5; Tobin Eastwick 203.0 -> 242.0; Teal Copperfield 162.0 -> 227.0
+D9.4,average gain,51.4 h
+D9.4,LV- row,LV-0001: Emery Thornbury 181.75 -> 233.15
+D9.4,Emery Thornbury Total Hours after,233.15
+D9.4,AB-0002 after,"End Sun Nov 8, Leave Group LV-0001"
+D9.5,renamed in,the roster row; 2 OT Log row(s); 1 switch name(s); 1 crew history row(s); the Hours History rows; the posting list rows; the calendar lines
+D9.5,Payroll #,unchanged: 90100030
+D9.5,Wren Fenwick-Ross Total Hours,206.5
+D9.6,restriction,RS-0001 Ellis Everhart Mon Nov 9 to Fri Nov 13: medical - no overtime this week - Active
+D9.7,Posting ID,P-0009
+D9.7,the list in call order (frozen),#1 Lee Tredwell DAYS S1 139; #2 Max Upton DAYS S2 200.5; #3 Noel Wainwright DAYS S3 228
+D9.7,not listed,nobody
+D9.7,closes,Thu Nov 12 at 8:00 AM
+D9.7,calendar line,Sat Nov 14 Days SBP: Other POSTED P-0009
+D10.1,files read,the Mon Nov 9 report
+D10.1,Data Through,Mon Nov 9
+D10.1,people whose H changed,2
+D10.1,Hollis Orchard H,80 -> 101
+D10.1,Wynn Goldfinch H,52 -> 55
+D10.1,totals still carrying provisional OT,none
+D10.1,the Kronos pill after,0 new files
+D10.2,OPEN LINES,3
+D10.2,POSTINGS,2
+D10.2,PAYBACKS,2
+D10.2,LEAVE,0
+D10.2,MEMBERS' REQUESTS,0
+D10.2,PLANNED UNIT MOVES,0
+D10.2,HOLIDAYS TO CONFIRM,1
+D10.2,TO SETTLE (Q lines),2
+D10.2,ATTENDANCE,1
+D10.2,BELOW MINIMUM STAFFING (rotating units),none
+D10.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D10.2,MEMBERS FILE line,none (published today)
+D10.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D10.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D10.4,files in Signups\,"3 for P-0009: signup, withdraw, signup (one minute apart)"
+D10.4,at LOAD,Max Upton ticked (the newest action is a sign-up); the Award summary shows no CHECK the stamp and no WITHDRAWN line
+D10.5,request file,Requests\REQ__sheltond-<stamp>__request__sheltond__<pc>__<stamp>.txt with kind=Time off; employee=Nico Whitlock; from=2026-11-17; to=2026-11-17
+D10.5,after ImportRequests,RQ-0003 Nico Whitlock Time off 2026-11-17 - Status Waiting
+D10.6,RQ-0003 after,Declined; Answer: Minimum staffing that day (no leave word: none)
+D10.6,dRequests after the publish,"Nico Whitlock Time off 2026-11-17 Declined with the Answer; no Note, no login"
+D10.7,AB-0005 after,VOID
+D10.7,RQ-0001 after,Booking voided (Answer 'booking voided' - the void reason is never published)
+D10.8,scheduled shifts in the range,1: Thu Nov 12 Days
+D10.8,trim offered,none -> saved Thu Nov 12 to Thu Nov 12
+D10.8,booking,AB-0007 Nico Whitlock Personal
+D10.8,RQ-0001 after,"Booked, Ref AB-0007"
+D11.1,files read,the Tue Nov 10 report
+D11.1,Data Through,Tue Nov 10
+D11.1,people whose H changed,2
+D11.1,Reese Marsden H,75 -> 80
+D11.1,Jamie Rushmore H,23 -> 29
+D11.1,totals still carrying provisional OT,none
+D11.1,the Kronos pill after,0 new files
+D11.2,OPEN LINES,2
+D11.2,POSTINGS,2
+D11.2,PAYBACKS,2
+D11.2,LEAVE,0
+D11.2,MEMBERS' REQUESTS,0
+D11.2,PLANNED UNIT MOVES,0
+D11.2,HOLIDAYS TO CONFIRM,1
+D11.2,TO SETTLE (Q lines),2
+D11.2,ATTENDANCE,1
+D11.2,BELOW MINIMUM STAFFING (rotating units),none
+D11.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D11.2,MEMBERS FILE line,none (published today)
+D11.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D11.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D11.4,Remembrance Day 2026,"Wed Nov 11 - a weekday: DAYS off on the day itself, no Observed on needed"
+D11.4,DAYS crew on Nov 11,off (CrewShiftOn DAYS = '')
+D11.5,the list in call order,#1 Sam Bramble P1 143.5; #2 Rowan Oakhurst P1 212.25; #3 Sawyer Pemberton P1.5 142; #4 Skyler Quarrie P2 266; #5 Taylor Redfern P2 319
+D11.5,not listed,Blair Bellweather (rest); Merritt Vauxhall (scheduled); Wren Fenwick-Ross (scheduled); Tatum Ellery (scheduled); Avery Ashgrove (rest); Nico Whitlock (scheduled); Odell Amberley (scheduled); Casey Cardwell (rest); Perry Birchwood (scheduled); Bryn Hartwell (scheduled); Dana Dunmore (rest)
+D11.5,session Ref,S-0013
+D11.5,the receipt's rows,#1 Sam Bramble Accepted 12 h charged 0
+D11.5,total charged,0
+D11.5,Total Hours before -> after,Sam Bramble 143.5 -> 155.5
+D11.5,calendar line,Wed Nov 11 Days Phosphine: Sam Bramble
+D11.6,the list in call order,#1 Devon Stonebridge D1 224; #2 Finley Fairbanks D1 224; #3 Emery Thornbury D1 233.15; #4 Harper Greenlaw D1.5 260.25; #5 Hayden Underhill D2 300.5; #6 Jesse Vantage D2 301; #7 Jordan Hollins D2 310.5; #8 Lane Wexford D3 388; #9 Kendall Ironside D3 402
+D11.6,not listed,Rafe Crossley (scheduled); Corin Islington (scheduled); Ellis Everhart (restricted); Sidney Dalrymple (scheduled); Teal Copperfield (rest); Darcy Kingsley (scheduled); Tobin Eastwick (scheduled); Eden Larkspur (scheduled); Flynn Moorcroft (scheduled); Arden Glassford (scheduled); Vale Fairweather (scheduled); Greer Nettleton (scheduled); Wynn Goldfinch (scheduled)
+D11.6,session Ref,S-0014
+D11.6,the receipt's rows,#1 Devon Stonebridge Refused 12 h charged 21; #2 Finley Fairbanks Accepted 12 h charged 0
+D11.6,total charged,21
+D11.6,Total Hours before -> after,Devon Stonebridge 224 -> 245; Finley Fairbanks 224 -> 236
+D11.6,calendar line,Wed Nov 11 Nights Derivatives: Finley Fairbanks
+D12.1,files read,the Wed Nov 11 report
+D12.1,Data Through,Wed Nov 11
+D12.1,people whose H changed,2
+D12.1,Finley Fairbanks H,42 -> 63
+D12.1,Sam Bramble H,58 -> 82
+D12.1,totals still carrying provisional OT,Finley Fairbanks 12
+D12.1,the Kronos pill after,0 new files
+D12.2,OPEN LINES,2
+D12.2,POSTINGS,2
+D12.2,PAYBACKS,2
+D12.2,LEAVE,0
+D12.2,MEMBERS' REQUESTS,0
+D12.2,PLANNED UNIT MOVES,0
+D12.2,HOLIDAYS TO CONFIRM,1
+D12.2,TO SETTLE (Q lines),2
+D12.2,ATTENDANCE,1
+D12.2,BELOW MINIMUM STAFFING (rotating units),none
+D12.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D12.2,MEMBERS FILE line,none (published today)
+D12.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D12.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D12.4,"the roster's full list in call order (everyone coded, as the Reconcile draws it)",#1 Blair Bellweather P1 161; #2 Sam Bramble P1 167.5; #3 Merritt Vauxhall P1 182.5; #4 Wren Fenwick-Ross P1 206.5; #5 Rowan Oakhurst P1 212.25; #6 Tatum Ellery P1 215.25; #7 Avery Ashgrove P1 227; #8 Sawyer Pemberton P1.5 142; #9 Nico Whitlock P1.5 221; #10 Odell Amberley P2 262.25; #11 Skyler Quarrie P2 266; #12 Casey Cardwell P2 304.25; #13 Taylor Redfern P2 319; #14 Perry Birchwood P2 327; #15 Bryn Hartwell P3 338.5; #16 Dana Dunmore P3 350
+D12.4,positions that differ,none - every position agrees
+D12.4,summary line,"paper 16 names, roster 16. Every position agrees."
+D12.5,"the roster's full list in call order (everyone coded, as the Reconcile draws it)",#1 Rafe Crossley D1 169; #2 Corin Islington D1 177; #3 Ellis Everhart D1 210; #4 Sidney Dalrymple D1 213.5; #5 Teal Copperfield D1 227; #6 Emery Thornbury D1 233.15; #7 Devon Stonebridge D1 245; #8 Finley Fairbanks D1 257; #9 Darcy Kingsley D1.5 199.25; #10 Harper Greenlaw D1.5 260.25; #11 Tobin Eastwick D2 242; #12 Eden Larkspur D2 251; #13 Flynn Moorcroft D2 294.75; #14 Hayden Underhill D2 300.5; #15 Jesse Vantage D2 301; #16 Arden Glassford D2 310.5; #17 Jordan Hollins D2 310.5; #18 Vale Fairweather D2.5 289; #19 Greer Nettleton D3 365; #20 Wynn Goldfinch D3 382.5; #21 Lane Wexford D3 388; #22 Kendall Ironside D3 402
+D12.5,positions that differ,1;2
+D12.5,the reason on #1,The roster puts Corin Islington at #2 and Rafe Crossley here: Total Hours (169 vs 177)
+D12.5,summary line,"paper 22 names, roster 22. 2 position(s) differ."
+D12.6,Sam Bramble refused call-out / posting / other,0 / 0 / 85.5 (Refused 85.5)
+D12.6,Devon Stonebridge refused call-out / posting / other,42 / 21 / 136 (Refused 199)
+D12.7,Merritt Vauxhall rows this year (live),3: OB-0043 Adjustment 96.5; S-0005 Accepted 0; S-0009 Accepted 0
+D12.7,member-safe report,"the same rows with Call Order and Why; no Logged By, no Timestamp, no Note of an uncharged row"
+D13.1,files read,the Thu Nov 12 report
+D13.1,Data Through,Thu Nov 12
+D13.1,people whose H changed,2
+D13.1,Perry Birchwood H,66 -> 72
+D13.1,Noel Wainwright H,75 -> 79
+D13.1,totals still carrying provisional OT,none
+D13.1,the Kronos pill after,0 new files
+D13.2,OPEN LINES,1
+D13.2,POSTINGS,2
+D13.2,PAYBACKS,2
+D13.2,LEAVE,0
+D13.2,MEMBERS' REQUESTS,0
+D13.2,PLANNED UNIT MOVES,0
+D13.2,HOLIDAYS TO CONFIRM,1
+D13.2,TO SETTLE (Q lines),2
+D13.2,ATTENDANCE,1
+D13.2,BELOW MINIMUM STAFFING (rotating units),none
+D13.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D13.2,MEMBERS FILE line,none (published today)
+D13.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D13.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D13.4,Former row,"Lane Wexford Left On Fri Nov 13: Total 388, Worked 40, Refused 348, Provisional 0, Status Former"
+D13.4,roster rows after,69
+D13.5,roster rows after,70
+D13.5,Lane Wexford Total Hours,388
+D13.5,Former row,Status Returned
+D13.6,row,"ADJ-0001 Tatum Ellery 5 h, Reason Correction"
+D13.6,Tatum Ellery Total Hours,215.25 -> 220.25
+D13.7,Tatum Ellery Total Hours,220.25 -> 215.25
+D13.8,PROBLEM lines,0
+D13.8,Check lines,Check 7 Paybacks: 1 shift-switch payback(s) owed for more than 42 days: SS-0001 Sat Sep 12 | Check 8 Kronos: Kronos code not counted: Bryn Hartwell LIEU TKN 8 h
+D13.8,Note lines,Note 12 Coverage: Every accepted call-out and award this year has its calendar line
+D13.9,next Ref IDs,S S-0015; P P-0010; ADJ ADJ-0002; NH NH-0002; UM UM-0002; LV LV-0002
+D13.9,next Entry ID,#131
+D14.1,files read,the Fri Nov 13 report
+D14.1,Data Through,Fri Nov 13
+D14.1,people whose H changed,2
+D14.1,Quinn Lockridge H,52 -> 58
+D14.1,Greer Nettleton H,58 -> 63
+D14.1,totals still carrying provisional OT,none
+D14.1,the Kronos pill after,0 new files
+D14.2,OPEN LINES,0
+D14.2,POSTINGS,2
+D14.2,PAYBACKS,2
+D14.2,LEAVE,0
+D14.2,MEMBERS' REQUESTS,0
+D14.2,PLANNED UNIT MOVES,0
+D14.2,HOLIDAYS TO CONFIRM,1
+D14.2,TO SETTLE (Q lines),1
+D14.2,ATTENDANCE,1
+D14.2,BELOW MINIMUM STAFFING (rotating units),none
+D14.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SHORT 0/1 for QC Gases, Utilities and SBP only if the Min Staff sheet keeps a Days minimum for them - the loader leaves that sheet as the plant has it"
+D14.2,MEMBERS FILE line,none (published today)
+D14.3,refusals,"none (no leave word, no phone-like value in any published text)"
+D14.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
+D14.4,awarded,Skyler Quarrie
+D14.4,"charged (did not sign up, ahead in call order)",2 x 21 = 42
+D14.4,the receipt's rows,#1 Rowan Oakhurst Refused 12 h charged 21; #2 Sawyer Pemberton Refused 12 h charged 21; #3 Skyler Quarrie Awarded 12 h charged 0
+D14.4,Total Hours before -> after,Skyler Quarrie 266 -> 278
+D14.4,P-0005 status,Awarded
+D14.4,pay period of the charges,starting Sun Nov 15 - NOT in Total Hours until then
+D14.5,awarded,Max Upton
+D14.5,"charged (did not sign up, ahead in call order)",1 x 21 = 21
+D14.5,the receipt's rows,#1 Lee Tredwell Refused 12 h charged 21; #2 Max Upton Awarded 12 h charged 0
+D14.5,Total Hours before -> after,Lee Tredwell 139 -> 160; Max Upton 200.5 -> 212.5
+D14.5,P-0009 status,Awarded
+D14.5,pay period of the charges,starting Sun Nov 1
+D14.6,owed,SS-0001 Logan Juniper owes Hollis Orchard (Sat Sep 12 Days): Payback owed 63 days; SS-0002 Wren Fenwick-Ross owes Avery Ashgrove (Fri Nov 6 Days): Payback owed
+D14.6,paid back,SS-0003 by SS-0004; SS-0005 by SS-0006
+D14.7,"A call-outs (year to date, all units): sessions / calls / filled",13 / 30 / 13
+D14.7,A outcomes accepted / refused / left message / unavailable / exception,13 / 9 / 5 / 2 / 1
+D14.7,A hours charged (call-outs),281.75
+D14.7,B postings posted / awarded / no takers / cancelled / open,9 / 6 / 2 / 1 / 0
+D14.7,B people charged / hours charged (postings),21 / 437.5
+D14.7,C sick bookings this year (all units),3
+D14.7,D Phosphine Total Hours spread (grade <=2): min | max | mean | SD | gap,142.0|333.0|230.8|58.1|191.0
+D14.8,Feedback rows marked seen,1
+C.3,Closed Periods row for Nov 1,Log Rows 32 (void included); Charged 656.6

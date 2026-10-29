@@ -21,7 +21,7 @@ Option Explicit
 '  sband, sspread); the sums are plain loops over those.
 ' ====================================================================
 
-Public Const STATS_VERSION As String = "Stats v29.0.2 (Oct 28)"      ' stamped with the release at release prep (v27)
+Public Const STATS_VERSION As String = "Stats v29.0.3 (Oct 28)"      ' stamped with the release at release prep (v27)
 Public Const STATS_SHEET As String = "Stats"
 Private mAcc As Object                      ' "section|unit|metric|q" -> amount (q 1..4; 5 = the year to date)
 Private mUnits As Object                    ' unit -> True (the roster's units, in DeptList order, + "All units")

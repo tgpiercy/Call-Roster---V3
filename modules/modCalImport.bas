@@ -1,7 +1,7 @@
 Attribute VB_Name = "modCalImport"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the one-time import of an old monthly calendar workbook, from modCalendar; moved unchanged (tests/movecheck.py proves it)
-Public Const CALIMP_VERSION As String = "Calendar import v29.0.2 (Oct 28)"
+Public Const CALIMP_VERSION As String = "Calendar import v29.0.3 (Oct 28)"
 
 ' ====================================================================
 '  ONE-TIME IMPORT of an old monthly calendar workbook

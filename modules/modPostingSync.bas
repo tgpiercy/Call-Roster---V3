@@ -1,7 +1,7 @@
 Attribute VB_Name = "modPostingSync"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): a person joining or leaving an open posting's list, the posting records, reopen, from modPostings; moved unchanged (tests/movecheck.py proves it)
-Public Const PSYNC_VERSION As String = "Posting sync v29.0.2 (Oct 28)"
+Public Const PSYNC_VERSION As String = "Posting sync v29.0.3 (Oct 28)"
 
 ' What goes in the Result cell for one list person
 Private Function ResultCellText(ByRef rec As PListRec) As String

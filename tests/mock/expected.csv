@@ -21,9 +21,9 @@ D0.3,Devon Stonebridge H,23 -> 46
 D0.3,Worked (H) sum over the roster,4020
 D0.3,codes not counted,Bryn Hartwell: LIEU TKN 8 h named in the finishing box (IntegrityCheck's Kronos section lists it)
 D0.3,provisional (C) after the import,Wren Fenwick 12; Teal Copperfield 12
-D0.4,"modules line (the real file, v29)",Modules: 45 of 45 on v29 - the mock file reads v29.0.2 after D0.1's install
+D0.4,"modules line (the real file, v29)",Modules: 45 of 45 on v29 - the mock file reads v29.0.3 after D0.1's install
 D0.4,logins line,"Logins: admins piercyg, lanthierr; Lite lanthierr (Ray); supervisors mihaychukc, sheltond, campeauc"
-D0.4,modules line on the MOCK file after v29.0.2,Modules: 45 of 45 on v29.0.2
+D0.4,modules line on the MOCK file after v29.0.3,Modules: 45 of 45 on v29.0.3
 D0.4,Kronos reports path,C:\Users\piercyg\Desktop\Kronos mock\ - reachable (the alpha build's KRONOS_PATH: the folder exists on Graeme's PC only)
 D0.4,reports path,<the roster's folder>\Alpha reports\2026\ - reachable (the alpha build's REPORT_FOLDER: every PDF stays beside the mock file)
 D0.4,ACTING AS line,none (no chair set yet)
@@ -543,7 +543,7 @@ D13.4,Former row,"Lane Wexford Left On Fri Nov 13: Total 388, Worked 40, Refused
 D13.4,roster rows after,69
 D13.5,roster rows after,70
 D13.5,Lane Wexford Total Hours,388
-D13.5,Lane Wexford Worked (H),"40 - restored from the Former row (v29.0.2, review 2.4: it read 0 until the next import before)"
+D13.5,Lane Wexford Worked (H),"40 - restored from the Former row (v29.0.3, review 2.4: it read 0 until the next import before)"
 D13.5,Former row,Status Returned
 D13.6,row,"ADJ-0001 Tatum Ellery 5 h, Reason Correction"
 D13.6,Tatum Ellery Total Hours,215.25 -> 220.25

@@ -455,6 +455,10 @@ Sub SyncKronosData()
     If KronosCumThrough() >= RosterYearFrom() And KronosCumThrough() > 0 Then        ' (review L6) a snapshot from before this year is none
         src = PivotFromLedger(through)
         fromReport = True
+        ' v29.0.3 (review 1.10): on the report path the "Kronos file date" (KronosDataDate: the Desk pill, the stale box,
+        ' IntegrityCheck's Check line, the status line) is the data's own age - the Time Period end + 1 - not the report
+        ' FILE's saved time: a report copied in keeps the time it was made, so from a few days on every open said stale
+        If through > 0 Then fileDate = Int(through) + 1
         If Not IsArray(pivotSrc) Then pivotName = ""
     ElseIf IsArray(pivotSrc) Then
         src = pivotSrc

@@ -1,4 +1,28 @@
-# Paste this into a fresh session to carry on (updated Oct 28, 2026, latest: **P9 DONE - the alpha's mock plant, loader, expected figures and day-by-day plan are on main; see "P9 STATE" first.** Before that: (updated Oct 28, 2026, later: **v29 is TAGGED on 4b6eb17, ZIPPED, PUSHED and INSTALLED on the real roster the same day ("v29 executed well no issues"). THE ALPHA (Nov 1-14) RUNS ON v29.** An alpha S1 is a v29.0.x hotfix; S2 / S3 rows go to docs/alpha-findings.md for v29.5 (or v28.1's slot). v28.1 (the second refactor) may now be built on v29 - report-back first, never installed during the alpha. See "v29 STATE" first; the older blocks are history.)
+# Paste this into a fresh session to carry on (updated Oct 28, 2026, latest: **v29.0.3 BUILT, REVIEWED, TAGGED and ZIPPED for the Oct 31 install on the mock file - see "v29.0.3 STATE" first; the push waits for Graeme.** Before that: **P9 DONE - the alpha's mock plant, loader, expected figures and day-by-day plan are on main; see "P9 STATE" first.** Before that: (updated Oct 28, 2026, later: **v29 is TAGGED on 4b6eb17, ZIPPED, PUSHED and INSTALLED on the real roster the same day ("v29 executed well no issues"). THE ALPHA (Nov 1-14) RUNS ON v29.** An alpha S1 is a v29.0.x hotfix; S2 / S3 rows go to docs/alpha-findings.md for v29.5 (or v28.1's slot). v28.1 (the second refactor) may now be built on v29 - report-back first, never installed during the alpha. See "v29 STATE" first; the older blocks are history.)
+
+```
+v29.0.3 STATE (Oct 28, 2026, the end of the v29.0.3 build session): BUILT on main from docs/v29.0.3-build-prompt.md (Graeme's decisions on
+docs/review-2026-10-28-full.md) in one commit per item: 1.1-1.18 (the logged-order partial close, DefaultClosesOn, Fix an entry's hours + type,
+the Act-as setter, the members' Act as for admins only, the NO TAKERS auto-pick, the Lite card's words, the Kronos age from the data, the
+removed-people gap rows, REPORT_FOLDER .\Alpha reports\{YEAR}\, KRONOS_PATH one backslash, the CCs blank till Nov 20, the save-result boxes,
+RealIsAdmin), 2.4 (Bring back restores Worked), 3.1-3.3 (the hourly backup in the restricted view, Save As / a read-only copy refused, a
+backup-named copy frozen), Part B (the plan: D7.5 and the new D4.6 are stops the code makes, D5.5 expects the refusal, the Oct 31 Kronos row is
+Wren's and the D1.5 tie is Merritt / Wren 194.5, expected.py reads the release + the case counts, docscheck's ALPHA check, MockGuard wants the
+Pre-alpha copy, the runbook's step 8a clean-up), release prep (4ea0820), FOUR read-only Opus reviews (R1 call-out core, R2 Act as / Kronos /
+people, R3 save-backup + release, R4 the plan) -> fixes 1d80732 + d612fc9 (R1: the Note column L_REASON, DefaultClosesOn by the closing MOMENT;
+R3 HIGHs in the DOCS: the Pre-alpha copy carries v29's code so the runbook freezes it with the Read-only attribute, the install's backup-copy
+check runs on a copy made after the swap; R4 HIGH in the plan: the rename DOES change 2 calendar lines - CalName keeps "First Last" whole),
+TWO fresh re-reviews (no HIGH / MED in the code) -> 30c3cba. TAGGED v29.0.3 on 30c3cba; dist/Callout_Roster_v29.0.3.zip built (MEMBER yes,
+FORMS frmFixEntry / frmNewPosting / frmOvertimeEntry / frmTimeOff; test-only/modMockData.bas + modSnapshot.bas). SelfTest 1165 / 123, pytest
+1240, SmokeTest 22; checkers + docscheck clean. NOT PUSHED until Graeme approves (main + the tag v29.0.3 from his Terminal).
+FOR GRAEME (asked at the end of the build session): (1) push main + v29.0.3; (2) the real roster stays on v29 until its next install, so
+3.1-3.3 (the admin-view hourly backup into the members' folder, Save As over the master, a writable backup copy) are open on the REAL file
+through the alpha and the catch-up - accept, or a v29.0.4 on the real file after the reset?; (3) the review's Part 5 rule questions (time off
+booked after a list froze; withdraw then fill-now double charge; the rest rule after a booked-off night; paid sick days left with personal
+days; the Dec 27 - Jan 9 Kronos weeks; the leave return's peers); (4) regenerate the mock Kronos reports from this build (make_kronos.py: the
+Oct 31 row moved to Wren) before Oct 31. NEXT: v29.5 = review Part 3 items 3.4-3.19 + Part 4 (after the alpha); the release after the alpha
+removes Act as, the CC blank, KRONOS_PATH / REPORT_FOLDER back to P: (the comments carry the values).
+```
 
 ```
 P9 STATE (Oct 28, 2026, the end of the P9 session): THE ALPHA (Nov 1-14) RUNS ON v29 WITH THE MOCK PLANT. Graeme's D1-D7 (every

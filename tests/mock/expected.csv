@@ -3,11 +3,11 @@ D-1.1,the verify box (both loads),69 people match expected_load.csv; the OT Log 
 D0.1,the copy's name,"Pre-alpha\Backup - PRE-ALPHA 2026-10-31 - V2 - Call Out Roster.xlsm (reads as a backup copy: no daily backup, no publish from it)"
 D0.2,people on the roster,69
 D0.2,OT Log rows,94
-D0.2,OT Log total Hours Charged,11864.25
+D0.2,OT Log total Hours Charged,11878.25
 D0.2,KronosDataThrough after the load,Sat Oct 17 (the Oct 18 snapshot; the Day-0 import moves it)
 D0.2,Sam Bramble G / H / I / C,125.5 / 40 / 85.5 / 0
 D0.2,Tatum Ellery G / H / I / C,156.5 / 49 / 107.5 / 0
-D0.2,Merritt Vauxhall G / H / I / C,163.5 / 56 / 107.5 / 0
+D0.2,Merritt Vauxhall G / H / I / C,175.5 / 56 / 119.5 / 0
 D0.2,Harper Greenlaw G / H / I / C,218.25 / 33 / 185.25 / 0
 D0.2,sign-up files written for P-0003,"Harper Greenlaw (whole shift) and Devon Stonebridge (6 h), stamped at the load"
 D0.3,Data Through,Fri Oct 30
@@ -28,7 +28,7 @@ D0.4,Kronos reports path,C:\Users\piercyg\Desktop\Kronos mock\ - reachable (v29.
 D0.5,PROBLEM lines,0
 D0.5,Check lines,Check 7 Paybacks: 1 shift-switch payback(s) owed for more than 42 days: SS-0001 Sat Sep 12 | Check 8 Kronos: Kronos code not counted: Bryn Hartwell LIEU TKN 8 h
 D0.5,Note lines,Note 12 Coverage: Every accepted call-out and award this year has its calendar line | Note 11 Planned moves: 1 unit move(s) waiting for their date
-D0.6,SelfTest line,"SelfTest: 1140 passed, 0 failed of 1140 cases. all 122 suites passed"
+D0.6,SelfTest line,"SelfTest: 1161 passed, 0 failed of 1161 cases. all 123 suites passed"
 D0.7,refusals,"none (no leave word, no phone-like value in any published text)"
 D0.8,P-0003 list in call order,#1 Ellis Everhart D1 189; #2 Devon Stonebridge D1 203; #3 Finley Fairbanks D1 203; #4 Harper Greenlaw D1.5 243.25; #5 Hayden Underhill D2 258.5; #6 Jesse Vantage D2 301; #7 Jordan Hollins D2 310.5; #8 Lane Wexford D3 388; #9 Kendall Ironside D3 402
 D0.8,pre-ticked sign-ups,#2 Devon Stonebridge (6 h); #4 Harper Greenlaw (whole shift)
@@ -44,8 +44,8 @@ D1.1,files read,the Sat Oct 31 report
 D1.1,Data Through,Sat Oct 31
 D1.1,people whose H changed,4
 D1.1,Rowan Oakhurst H,34 -> 41
+D1.1,Wren Fenwick H,77 -> 98
 D1.1,Hollis Orchard H,74 -> 80
-D1.1,Merritt Vauxhall H,75 -> 96
 D1.1,totals still carrying provisional OT,none
 D1.1,the Kronos pill after,0 new files
 D1.2,OPEN LINES,2
@@ -67,15 +67,15 @@ D1.4,hours offered by the form,13
 D1.4,off call lists until,Mon 7 AM
 D1.4,Blair Bellweather attendance phrase before -> after,Paid sick available -> Paid sick only while the current occurrence continues
 D1.4,Blair Bellweather sick days used / occurrences,3 / 3
-D1.5,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Wren Fenwick P1 171.5; #4 Merritt Vauxhall P1 203.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
+D1.5,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Merritt Vauxhall P1 194.5; #4 Wren Fenwick P1 194.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
 D1.5,not listed,Blair Bellweather (Sick); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
 D1.5,the draft after two outcomes,"the Draft table holds one row for piercyg with Sam Bramble|Refused and Tatum Ellery|Left Message; reopened, the pop-up offers to resume it"
-D1.6,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Wren Fenwick P1 171.5; #4 Merritt Vauxhall P1 203.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
+D1.6,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Merritt Vauxhall P1 194.5; #4 Wren Fenwick P1 194.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
 D1.6,not listed,Blair Bellweather (Sick); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
 D1.6,session Ref,S-0007
-D1.6,the receipt's rows,#1 Sam Bramble Refused 13 h charged 22.75; #2 Tatum Ellery Left Message 13 h charged 22.75; #4 Merritt Vauxhall Accepted 6 h charged 0
+D1.6,the receipt's rows,#1 Sam Bramble Refused 13 h charged 22.75; #2 Tatum Ellery Left Message 13 h charged 22.75; #3 Merritt Vauxhall Accepted 6 h charged 0
 D1.6,total charged,45.5
-D1.6,Total Hours before -> after,Sam Bramble 143.5 -> 166.25; Tatum Ellery 171.5 -> 194.25; Merritt Vauxhall 203.5 -> 209.5
+D1.6,Total Hours before -> after,Sam Bramble 143.5 -> 166.25; Tatum Ellery 171.5 -> 194.25; Merritt Vauxhall 194.5 -> 200.5
 D1.6,calendar line,Sat Oct 31 Nights Phosphine: Merritt Vauxhall 6h
 D1.6,Merritt Vauxhall's Note,"Took 6 of 13 h (the rest dropped, uncharged)"
 D1.7,Feedback row,S-0007 No by piercyg; Seen blank; Resolved Ref blank
@@ -165,7 +165,7 @@ D3.7,closes,Wed Nov 4 at 8:00 AM
 D3.7,calendar line,Sat Nov 7 Days QC Derivatives: PHA POSTED P-0006
 D3.8,rows voided,"3 of S-0007, Void Note: Sam was out of town"
 D3.8,Total Hours after the void,Sam Bramble 166.25 -> 143.5; Tatum Ellery 194.25 -> 171.5
-D3.8,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Wren Fenwick P1 171.5; #4 Merritt Vauxhall P1 214.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
+D3.8,the list in call order,#1 Sam Bramble P1 143.5; #2 Tatum Ellery P1 171.5; #3 Wren Fenwick P1 194.5; #4 Merritt Vauxhall P1 205.5; #5 Nico Whitlock P1.5 193; #6 Odell Amberley P2 262.25; #7 Arden Glassford P2 272; #8 Perry Birchwood P2 327; #9 Bryn Hartwell P3 338.5
 D3.8,not listed,Blair Bellweather (Sick); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
 D3.8,session Ref,S-0009
 D3.8,the receipt's rows,#1 Sam Bramble Unavailable 13 h charged 0; #2 Tatum Ellery Left Message 13 h charged 22.75; #4 Merritt Vauxhall Accepted 6 h charged 0
@@ -203,18 +203,18 @@ D4.4,Total Hours before -> after,Cary Jarrow 153 -> 174; Jules Ravenscroft 164.2
 D4.4,P-0004 status,No takers
 D4.4,pay period of the charges,starting Sun Nov 1
 D4.5,the list in call order,#1 Nico Whitlock P1.5 193; #2 Odell Amberley P2 262.25; #3 Perry Birchwood P2 327
-D4.5,not listed,Sam Bramble (scheduled); Blair Bellweather (scheduled); Wren Fenwick (rest); Tatum Ellery (rest); Rowan Oakhurst (scheduled); Merritt Vauxhall (S/S); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Arden Glassford (rest); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Bryn Hartwell (rest); Dana Dunmore (scheduled)
+D4.5,not listed,Sam Bramble (scheduled); Blair Bellweather (scheduled); Tatum Ellery (rest); Wren Fenwick (rest); Merritt Vauxhall (S/S); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Arden Glassford (rest); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Bryn Hartwell (rest); Dana Dunmore (scheduled)
 D4.5,session Ref,S-0010
 D4.5,the receipt's rows,#1 Nico Whitlock Accepted 12 h charged 0
 D4.5,total charged,0
 D4.5,Total Hours before -> after,Nico Whitlock 193 -> 205
 D4.5,calendar line,Wed Nov 4 Days Phosphine: Nico Whitlock
-D4.6,the list in call order,#1 Wren Fenwick P1 171.5; #2 Tatum Ellery P1 194.25; #3 Nico Whitlock P1.5 205 max 4 h; #4 Odell Amberley P2 262.25; #5 Arden Glassford P2 272; #6 Perry Birchwood P2 327; #7 Bryn Hartwell P3 338.5
-D4.6,not listed,Sam Bramble (scheduled); Blair Bellweather (scheduled); Rowan Oakhurst (scheduled); Merritt Vauxhall (S/S); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
+D4.6,the list in call order,#1 Tatum Ellery P1 194.25; #2 Wren Fenwick P1 194.5; #3 Nico Whitlock P1.5 205 max 4 h; #4 Odell Amberley P2 262.25; #5 Arden Glassford P2 272; #6 Perry Birchwood P2 327; #7 Bryn Hartwell P3 338.5
+D4.6,not listed,Sam Bramble (scheduled); Blair Bellweather (scheduled); Merritt Vauxhall (S/S); Rowan Oakhurst (scheduled); Avery Ashgrove (scheduled); Sawyer Pemberton (scheduled); Skyler Quarrie (scheduled); Casey Cardwell (scheduled); Taylor Redfern (scheduled); Dana Dunmore (scheduled)
 D4.6,session Ref,S-0011
-D4.6,the receipt's rows,#1 Wren Fenwick Left Message 12 h charged 21; #2 Tatum Ellery Refused 12 h charged 21; #3 Nico Whitlock Refused 4 h charged 7; #4 Odell Amberley Accepted 12 h charged 0
+D4.6,the receipt's rows,#1 Tatum Ellery Refused 12 h charged 21; #2 Wren Fenwick Left Message 12 h charged 21; #3 Nico Whitlock Refused 4 h charged 7; #4 Odell Amberley Accepted 12 h charged 0
 D4.6,total charged,49
-D4.6,Total Hours before -> after,Wren Fenwick 171.5 -> 192.5; Tatum Ellery 194.25 -> 215.25; Nico Whitlock 205 -> 212; Odell Amberley 262.25 -> 274.25
+D4.6,Total Hours before -> after,Tatum Ellery 194.25 -> 215.25; Wren Fenwick 194.5 -> 215.5; Nico Whitlock 205 -> 212; Odell Amberley 262.25 -> 274.25
 D4.6,calendar line,Wed Nov 4 Nights Phosphine: Odell Amberley
 D4.6,Nico Whitlock's Note,"Offered 4 of 12 h (the 16 h rule: OT accepted, an award or a switch touches this shift)"
 D4.7,awarded out of department,Hayden Underhill (code OD B)
@@ -388,7 +388,7 @@ D9.4,Emery Thornbury Total Hours after,234.45
 D9.4,AB-0002 after,"End Sun Nov 8, Leave Group LV-0001"
 D9.5,renamed in,the roster row; 3 OT Log row(s); 1 switch name(s); 1 crew history row(s); the Hours History rows; the posting list rows; the calendar lines
 D9.5,Payroll #,unchanged: 90100030
-D9.5,Wren Fenwick-Ross Total Hours,192.5
+D9.5,Wren Fenwick-Ross Total Hours,215.5
 D9.6,restriction,RS-0001 Ellis Everhart Mon Nov 9 to Fri Nov 13: medical - no overtime this week - Active
 D9.7,Posting ID,P-0009
 D9.7,the list in call order (frozen),#1 Lee Tredwell DAYS S1 139; #2 Max Upton DAYS S2 200.5; #3 Noel Wainwright DAYS S3 228
@@ -452,7 +452,7 @@ D11.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Atten
 D11.4,Remembrance Day 2026,"Wed Nov 11 - a weekday: DAYS off on the day itself, no Observed on needed"
 D11.4,DAYS crew on Nov 11,off (CrewShiftOn DAYS = '')
 D11.5,the list in call order,#1 Sam Bramble P1 143.5; #2 Rowan Oakhurst P1 212.25; #3 Sawyer Pemberton P1.5 142; #4 Skyler Quarrie P2 266; #5 Taylor Redfern P2 319
-D11.5,not listed,Blair Bellweather (rest); Wren Fenwick-Ross (scheduled); Merritt Vauxhall (scheduled); Tatum Ellery (scheduled); Avery Ashgrove (rest); Nico Whitlock (scheduled); Odell Amberley (scheduled); Casey Cardwell (rest); Perry Birchwood (scheduled); Bryn Hartwell (scheduled); Dana Dunmore (rest)
+D11.5,not listed,Blair Bellweather (rest); Merritt Vauxhall (scheduled); Tatum Ellery (scheduled); Wren Fenwick-Ross (scheduled); Avery Ashgrove (rest); Nico Whitlock (scheduled); Odell Amberley (scheduled); Casey Cardwell (rest); Perry Birchwood (scheduled); Bryn Hartwell (scheduled); Dana Dunmore (rest)
 D11.5,session Ref,S-0013
 D11.5,the receipt's rows,#1 Sam Bramble Accepted 12 h charged 0
 D11.5,total charged,0
@@ -485,7 +485,7 @@ D12.2,BELOW MINIMUM STAFFING (DAYS-only units),"weekend and holiday days read SH
 D12.2,MEMBERS FILE line,none (published today)
 D12.3,refusals,"none (no leave word, no phone-like value in any published text)"
 D12.3,the daily-check band,Done today: Kronos 08:20-ish (lanthierr); Needs Attention; members' file - all three today
-D12.4,"the roster's full list in call order (everyone coded, as the Reconcile draws it)",#1 Blair Bellweather P1 161; #2 Sam Bramble P1 167.5; #3 Wren Fenwick-Ross P1 192.5; #4 Rowan Oakhurst P1 212.25; #5 Merritt Vauxhall P1 214.5; #6 Tatum Ellery P1 215.25; #7 Avery Ashgrove P1 227; #8 Sawyer Pemberton P1.5 142; #9 Nico Whitlock P1.5 221; #10 Skyler Quarrie P2 266; #11 Odell Amberley P2 283.25; #12 Casey Cardwell P2 304.25; #13 Taylor Redfern P2 319; #14 Perry Birchwood P2 327; #15 Bryn Hartwell P3 338.5; #16 Dana Dunmore P3 350
+D12.4,"the roster's full list in call order (everyone coded, as the Reconcile draws it)",#1 Blair Bellweather P1 161; #2 Sam Bramble P1 167.5; #3 Merritt Vauxhall P1 205.5; #4 Rowan Oakhurst P1 212.25; #5 Tatum Ellery P1 215.25; #6 Wren Fenwick-Ross P1 215.5; #7 Avery Ashgrove P1 227; #8 Sawyer Pemberton P1.5 142; #9 Nico Whitlock P1.5 221; #10 Skyler Quarrie P2 266; #11 Odell Amberley P2 283.25; #12 Casey Cardwell P2 304.25; #13 Taylor Redfern P2 319; #14 Perry Birchwood P2 327; #15 Bryn Hartwell P3 338.5; #16 Dana Dunmore P3 350
 D12.4,positions that differ,none - every position agrees
 D12.4,summary line,"paper 16 names, roster 16. Every position agrees."
 D12.5,"the roster's full list in call order (everyone coded, as the Reconcile draws it)",#1 Rafe Crossley D1 169; #2 Corin Islington D1 177; #3 Ellis Everhart D1 210; #4 Sidney Dalrymple D1 213.5; #5 Emery Thornbury D1 234.45; #6 Finley Fairbanks D1 236; #7 Devon Stonebridge D1 245; #8 Teal Copperfield D1 248; #9 Darcy Kingsley D1.5 199.25; #10 Harper Greenlaw D1.5 260.25; #11 Tobin Eastwick D2 242; #12 Eden Larkspur D2 251; #13 Flynn Moorcroft D2 294.75; #14 Hayden Underhill D2 300.5; #15 Jesse Vantage D2 301; #16 Arden Glassford D2 310.5; #17 Jordan Hollins D2 310.5; #18 Vale Fairweather D2.5 289; #19 Greer Nettleton D3 365; #20 Wynn Goldfinch D3 382.5; #21 Lane Wexford D3 388; #22 Kendall Ironside D3 402
@@ -494,7 +494,7 @@ D12.5,the reason on #1,The roster puts Corin Islington at #2 and Rafe Crossley h
 D12.5,summary line,"paper 22 names, roster 22. 2 position(s) differ."
 D12.6,Sam Bramble refused call-out / posting / other,0 / 0 / 85.5 (Refused 85.5)
 D12.6,Devon Stonebridge refused call-out / posting / other,42 / 21 / 136 (Refused 199)
-D12.7,Merritt Vauxhall rows this year (live),2: OB-0043 Adjustment 107.5; S-0009 Accepted 0
+D12.7,Merritt Vauxhall rows this year (live),2: OB-0043 Adjustment 119.5; S-0009 Accepted 0
 D12.7,member-safe report,"the same rows with Call Order and Why; no Logged By, no Timestamp, no Note of an uncharged row"
 D13.1,files read,the Thu Nov 12 report
 D13.1,Data Through,Thu Nov 12
@@ -572,7 +572,7 @@ D14.7,A hours charged (call-outs),302.75
 D14.7,B postings posted / awarded / no takers / cancelled / open,9 / 6 / 2 / 1 / 0
 D14.7,B people charged / hours charged (postings),21 / 437.5
 D14.7,C sick bookings this year (all units),3
-D14.7,D Phosphine Total Hours spread (grade <=2): min | max | mean | SD | gap,142.0|333.0|233.6|58.4|191.0
+D14.7,D Phosphine Total Hours spread (grade <=2): min | max | mean | SD | gap,142.0|333.0|234.6|57.8|191.0
 D14.8,Feedback rows marked seen,1
 C.1,Data Through,Fri Nov 13 -> Sat Nov 14
 C.1,Worked Changes rows,"Taylor Redfern OVERTIME 0 -> 2 (weighted 3.5), Kind gap, dated Sat Nov 14, Note: no one-day report for 2026-11-14"

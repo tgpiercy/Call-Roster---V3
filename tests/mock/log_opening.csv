@@ -28,7 +28,7 @@ OB-0026,Opening Balance,2026-01-04,Material Handler,,,Opening balance,0,,Parker 
 OB-0027,Opening Balance,2026-01-04,Material Handler,,,Opening balance,0,,Remy Coldstream,M3,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,206,2025-12-28,27,piercyg,2026-01-04 09:00:00,,,90100027
 OB-0028,Opening Balance,2026-01-04,QC Derivatives,,,Opening balance,0,,Shay Dovetail,Q2,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,172,2025-12-28,28,piercyg,2026-01-04 09:00:00,,,90100028
 OB-0029,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Tatum Ellery,P1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,86.5,2025-12-28,29,piercyg,2026-01-04 09:00:00,,,90100029
-OB-0030,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Wren Fenwick,P1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,94.5,2025-12-28,30,piercyg,2026-01-04 09:00:00,,,90100030
+OB-0030,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Wren Fenwick,P1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,96.5,2025-12-28,30,piercyg,2026-01-04 09:00:00,,,90100030
 OB-0031,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Arden Glassford,P2,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,241,2025-12-28,31,piercyg,2026-01-04 09:00:00,,,90100031
 OB-0032,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Bryn Hartwell,P3,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,298.5,2025-12-28,32,piercyg,2026-01-04 09:00:00,,,90100032
 OB-0033,Opening Balance,2026-01-04,Derivatives,,,Opening balance,0,,Corin Islington,D1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,104,2025-12-28,33,piercyg,2026-01-04 09:00:00,,,90100033
@@ -41,7 +41,7 @@ OB-0039,Opening Balance,2026-01-04,Cypure,,,Opening balance,0,,Indy Pennyworth,G
 OB-0040,Opening Balance,2026-01-04,Material Handler,,,Opening balance,0,,Jules Ravenscroft,M1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,118.25,2025-12-28,40,piercyg,2026-01-04 09:00:00,,,90100040
 OB-0041,Opening Balance,2026-01-04,Material Handler,,,Opening balance,0,,Kit Saltmarsh,M2,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,181,2025-12-28,41,piercyg,2026-01-04 09:00:00,,,90100041
 OB-0042,Opening Balance,2026-01-04,QC Derivatives,,,Opening balance,0,,Linden Tillingham,Q1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,187.5,2025-12-28,42,piercyg,2026-01-04 09:00:00,,,90100042
-OB-0043,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Merritt Vauxhall,P1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,107.5,2025-12-28,43,piercyg,2026-01-04 09:00:00,,,90100043
+OB-0043,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Merritt Vauxhall,P1,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,119.5,2025-12-28,43,piercyg,2026-01-04 09:00:00,,,90100043
 OB-0044,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Nico Whitlock,P1.5,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,147,2025-12-28,44,piercyg,2026-01-04 09:00:00,,,90100044
 OB-0045,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Odell Amberley,P2,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,220.25,2025-12-28,45,piercyg,2026-01-04 09:00:00,,,90100045
 OB-0046,Opening Balance,2026-01-04,Phosphine,,,Opening balance,0,,Perry Birchwood,P2,0,Adjustment,Opening balance: charges carried into 2026 before the roster went live,261,2025-12-28,46,piercyg,2026-01-04 09:00:00,,,90100046
@@ -89,7 +89,7 @@ P-0002,Posting,2026-10-24,Material Handler,Days,All not scheduled,Training Cover
 S-0004,Callout,2026-10-24,Utilities,Days,All not scheduled,,12,1,Ira Prentice,U1,105,Refused,,21,2026-10-18,88,campeauc,2026-10-24 05:30:00,,,90100060
 S-0004,Callout,2026-10-24,Utilities,Days,All not scheduled,,12,2,Jamie Rushmore,U2,174,Accepted,,0,2026-10-18,89,campeauc,2026-10-24 05:30:00,,,90100061
 S-0005,Callout,2026-10-30,Phosphine,Nights,All not scheduled,,12,1,Tatum Ellery,P1,150.5,Left Message,,21,2026-10-18,90,mihaychukc,2026-10-30 17:10:00,,,90100029
-S-0005,Callout,2026-10-30,Phosphine,Nights,All not scheduled,,12,2,Wren Fenwick,P1,171.5,Accepted,,0,2026-10-18,91,mihaychukc,2026-10-30 17:10:00,,,90100030
+S-0005,Callout,2026-10-30,Phosphine,Nights,All not scheduled,,12,2,Wren Fenwick,P1,173.5,Accepted,,0,2026-10-18,91,mihaychukc,2026-10-30 17:10:00,,,90100030
 S-0006,Callout,2026-10-31,Derivatives,Days,All not scheduled,,12,1,Rafe Crossley,D1,148,Refused,,21,2026-10-18,92,sheltond,2026-10-31 05:40:00,,,90100047
 S-0006,Callout,2026-10-31,Derivatives,Days,All not scheduled,,12,2,Corin Islington,D1,156,Left Message,,21,2026-10-18,93,sheltond,2026-10-31 05:40:00,,,90100033
 S-0006,Callout,2026-10-31,Derivatives,Days,All not scheduled,,12,3,Teal Copperfield,D1,206,Accepted,,0,2026-10-18,94,sheltond,2026-10-31 05:40:00,,,90100069

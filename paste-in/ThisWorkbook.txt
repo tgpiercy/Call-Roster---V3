@@ -68,6 +68,19 @@ End Function
 ' RESTRICTED view - phones hidden, admin sheets hidden, all protected -
 ' then puts the admin view back. Blocks saving after a failed migration.
 Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
+    ' v29.0.3 (review HIGH 3.2): Save As, and any save from a read-only copy, is refused. Supervisor B opens read-only
+    ' while A works; A saves and closes; B presses Ctrl+S and Excel offers Save As with the same name: "Replace" wiped
+    ' out A's entries and left B on stale data; Save As under a new name made a second "live" roster. A copy to try
+    ' things on is Alt+F8 > MakePracticeCopy; the code's own copies go through SaveCopyAs, which does not come here.
+    If SaveAsUI Or ThisWorkbook.ReadOnly Then
+        Cancel = True
+        MsgBox IIf(ThisWorkbook.ReadOnly, "This copy is open READ-ONLY: it is never saved, under this name or another - " & _
+                   "someone else may have the roster open and saving over it would wipe out their entries.", _
+                   "Save As is not used on the roster: a copy under another name becomes a second 'live' roster.") & vbNewLine & vbNewLine & _
+               "To try things on a copy: Alt+F8 > MakePracticeCopy. To log entries from a read-only copy: close it and reopen the roster with edit access.", _
+               vbExclamation, "Not saved"
+        Exit Sub
+    End If
     If NoSave() Then
         Cancel = True
         MsgBox "Saving is blocked: a check failed earlier in this session, or the file changed on disk while you had it open." & vbNewLine & _

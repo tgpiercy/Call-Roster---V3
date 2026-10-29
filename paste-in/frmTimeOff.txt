@@ -1,5 +1,5 @@
 Option Explicit
-' @version v29.0.3 (Oct 28)
+' @version v29.1 (Oct 28)
 
 ' ================================================================
 ' BOOK TIME OFF  /  ADD A NEED
@@ -42,7 +42,7 @@ Private Const ROW_H As Long = 26
 ' ================================================================
 ' CONTROL HELPERS (runtime names start "to_")
 ' ================================================================
-' v29.0.3 (review 1.7): pick the type whose code is the stored code (Fix an entry passes "PER"; the list holds "PER - Personal day
+' v29.1 (review 1.7): pick the type whose code is the stored code (Fix an entry passes "PER"; the list holds "PER - Personal day
 ' (unpaid)"), so a personal day re-entered after a void stays a personal day - before, the set failed quietly and the box stayed
 ' on Vacation. A code the list does not hold is left as typed (the save's own check says so).
 Private Sub SelectTypeByCode(ByVal codeOrText As String)
@@ -212,7 +212,7 @@ Public Sub Prefill(ByVal emp As String, ByVal dFrom As Date, ByVal dTo As Date, 
     SetMode True
     mEmp.Value = emp
     C("cboUnit").Value = HomeUnitCached(emp)
-    If typeTxt <> "" Then SelectTypeByCode typeTxt     ' v29.0.3 (review 1.7): by code - the items read "PER - Personal day (unpaid)", the stored value is "PER"
+    If typeTxt <> "" Then SelectTypeByCode typeTxt     ' v29.1 (review 1.7): by code - the items read "PER - Personal day (unpaid)", the stored value is "PER"
     mStart.Text = DateText(dFrom)
     If dTo = 0 Then
         mEnd.Text = "": mOpen.Value = True

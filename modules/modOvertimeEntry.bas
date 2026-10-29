@@ -10,7 +10,7 @@ Option Explicit
 ' --------------------------------------------------------------------
 '  CONFIGURATION - change things here, not scattered through the code
 ' --------------------------------------------------------------------
-Public Const CORE_VERSION As String = "Core v29.0.3 (Oct 28)"
+Public Const CORE_VERSION As String = "Core v29.1 (Oct 28)"
 Public Const ROSTER_SHEET As String = "OT Roster"     ' tab name; the code also finds it by its headers
 Public Const LOG_SHEET As String = "OT Log"
 Public Const LOG_TABLE As String = "tblOTLog"
@@ -85,7 +85,7 @@ Public Const FATIGUE_MAX_HOURS As Double = 16
 Public Const FATIGUE_MIN_REST As Double = 11
 
 ' {YEAR} is replaced by the roster year (v23), so reports follow the rollover: use ReportFolder()
-' v29.0.3 (review 1.12, THE ALPHA ONLY - on the MOCK file): a subfolder beside the roster, so no mock PDF reaches the real
+' v29.1 (review 1.12, THE ALPHA ONLY - on the MOCK file): a subfolder beside the roster, so no mock PDF reaches the real
 ' P: union folder (the posting PDFs, "Calendar <group> 2026-11.pdf" - the same name the real November PDF takes - the Board).
 ' ReportFolder() resolves ".\" against the roster's folder and makes the folders. The release after the alpha puts back
 '   "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\{YEAR}\"
@@ -118,7 +118,7 @@ Public Const SIGNUP_STALE_DAYS As Long = 7          ' IntegrityCheck: inbox file
 ' declines from Needs Attention; a switch request waits until the named partner has agreed in the file (another login)
 Public Const REQUESTS_ON As Boolean = True
 Public Const REQUEST_FOLDER As String = ".\Requests"
-Public Const KRONOS_PATH As String = "C:\Users\piercyg\Desktop\Kronos mock\"   ' v29.0.3 (review 1.13): ONE trailing backslash (VBA has no escapes; v29.0.2 ended in two, which SystemCheck showed). v29.0.1 (Graeme, Oct 28, 2026 - THE ALPHA ONLY, on the MOCK file): the local folder on GRAEME's PC the mock Kronos reports are copied into each morning (only Graeme imports; Ray's PC has no such folder) (tests/mock/make_kronos.py; docs/alpha-test-plan.md). v27's rule: a FOLDER (ending in \: every report newer than the last import is read, oldest first) or one report file; the processing workbook ("Sorted Data Here") still works as the fall-back. The real roster (v29) keeps "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm" - put that back (or the real reports' folder) in the release after the alpha
+Public Const KRONOS_PATH As String = "C:\Users\piercyg\Desktop\Kronos mock\"   ' v29.1 (review 1.13): ONE trailing backslash (VBA has no escapes; v29.0.2 ended in two, which SystemCheck showed). v29.0.1 (Graeme, Oct 28, 2026 - THE ALPHA ONLY, on the MOCK file): the local folder on GRAEME's PC the mock Kronos reports are copied into each morning (only Graeme imports; Ray's PC has no such folder) (tests/mock/make_kronos.py; docs/alpha-test-plan.md). v27's rule: a FOLDER (ending in \: every report newer than the last import is read, oldest first) or one report file; the processing workbook ("Sorted Data Here") still works as the fall-back. The real roster (v29) keeps "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\Kronos - Raw Data Processing.xlsm" - put that back (or the real reports' folder) in the release after the alpha
 Public Const KRONOS_SHEET As String = "Sorted Data Here"
 ' ---- v29.0.2 (Graeme, Oct 28, 2026 - THE ALPHA ONLY; the release after the alpha removes this block, ActAs / ActAsClear and the
 ' ActAsChair read in CurrentUser): "Act as" - an admin types CHAIR_PASSWORD and picks a chair (a login on LITE_DESK_USERS or
@@ -127,7 +127,7 @@ Public Const KRONOS_SHEET As String = "Sorted Data Here"
 ' steps land on that chair's Desk) and is ignored after ALPHA_END_ISO. Only the REAL Windows login (an admin) may set or clear it.
 Public Const CHAIR_PASSWORD As String = "alpha2026"
 Public Const ALPHA_END_ISO As String = "2026-11-20"
-Public Const ACTAS_NAME As String = "ActAsChair"      ' v29.0.3: Public - PublishMembers deletes the name from the template's copy before it is saved (review 1.5)
+Public Const ACTAS_NAME As String = "ActAsChair"      ' v29.1: Public - PublishMembers deletes the name from the template's copy before it is saved (review 1.5)
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)
 ' v27 (briefs/v27-kronos.md): the Kronos report "Employee Transactions and Totals" - its TOTALS block (one row per person per
@@ -232,7 +232,7 @@ Public Type EmpRec
     EstHrs As Boolean           ' v24.3: TotalHrs is a planned mover's hours AFTER the top-up, an estimate for call order
     MaxHours As Double          ' v26.5.5 (item 9): the most OT they may take on the listed shift under the 16 h rule (FilterNotFree sets it)
     PayrollNo As String         ' v28 (item 2): the roster's Payroll # (column A; "" until known) - the key
-    LoggedSeq As Long           ' v29.0.3 (review 1.1): the order the outcome was LOGGED in by the pop-up (0 = none / by list position)
+    LoggedSeq As Long           ' v29.1 (review 1.1): the order the outcome was LOGGED in by the pop-up (0 = none / by list position)
 End Type
 
 ' Session flags
@@ -729,10 +729,10 @@ End Function
 '   outcomes(i)  the outcome recorded for person i ("" = not called)
 '   taken(i)     hours an Accepted person took; 0 = everything on offer
 '   offers(i)    out: the hours person i was offered
-'   seq(i)       v29.0.3 (review 1.1): the order the outcomes were LOGGED in (the pop-up numbers each one;
+'   seq(i)       v29.1 (review 1.1): the order the outcomes were LOGGED in (the pop-up numbers each one;
 '                0 = the row's list position, so a list called top to bottom reads exactly as before)
 ' v25 (D-E4, Graeme Oct 14): a PARTIAL acceptance closes the shift - the rest is dropped, uncharged; nobody
-' below is offered it (v24.1 offered the rest down the list). v29.0.3: "below" means logged AFTER the partial,
+' below is offered it (v24.1 offered the rest down the list). v29.1: "below" means logged AFTER the partial,
 ' not lower on the list - #2 left a message, #3 and #4 refused 12 h, then #2 called back and took 8 h: #3 and
 ' #4 refused a real offer and keep their 21 h; a refusal logged after the partial is offered 0 (D-E4 as worded:
 ' refusals logged BEFORE the partial keep their charge). The mirror and SmokeTest step 4 read the same rule.
@@ -752,7 +752,7 @@ Public Sub CalloutOffers(ByVal hours As Double, ByRef outcomes() As String, ByRe
     Next i
 End Sub
 
-' v29.0.3 (review 1.1): where row i sits in the LOGGED order - its number, or its list position when it has none
+' v29.1 (review 1.1): where row i sits in the LOGGED order - its number, or its list position when it has none
 Private Function OfferKey(ByRef seq() As Long, ByVal i As Long) As Long
     If seq(i) > 0 Then OfferKey = seq(i) Else OfferKey = i
 End Function
@@ -1204,7 +1204,7 @@ Public Function ReportFolder() As String
     On Error GoTo 0
     If y < 2000 Then y = Year(Date)
     Dim p As String: p = Replace(REPORT_FOLDER, "{YEAR}", CStr(y))
-    ' v29.0.3 (review 1.12): a relative setting (".\sub\{YEAR}\") resolves against the roster's own folder as every other
+    ' v29.1 (review 1.12): a relative setting (".\sub\{YEAR}\") resolves against the roster's own folder as every other
     ' folder setting does (ResolveFolder), and its two levels are made on first use - quietly: a folder that cannot be
     ' made leaves the callers' own "beside the workbook" fall-back (they test FolderExists)
     If p = "." Or Left$(p, 2) = ".\" Then
@@ -1341,7 +1341,7 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long, nExc As Long, accTxt As String
     ' v24.1: the hours each person was offered (less than the call-out's below a partial acceptance)
     Dim oc() As String, offers() As Double, worked As Double
-    Dim sq() As Long: ReDim sq(1 To n)                 ' v29.0.3 (review 1.1): the logged order the pop-up numbered (0 = list position)
+    Dim sq() As Long: ReDim sq(1 To n)                 ' v29.1 (review 1.1): the logged order the pop-up numbered (0 = list position)
     ReDim oc(1 To n)
     For i = 1 To n
         oc(i) = entries(i).Outcome
@@ -1708,12 +1708,12 @@ Public Function RealUser() As String
     RealUser = Environ$("USERNAME")
 End Function
 
-' v29.0.3: Public - the award email's CCs stay blank until the alpha ends (modPostingMail.AwardCC, review 1.14)
+' v29.1: Public - the award email's CCs stay blank until the alpha ends (modPostingMail.AwardCC, review 1.14)
 Public Function AlphaEnd() As Date
     AlphaEnd = DateSerial(CLng(Left$(ALPHA_END_ISO, 4)), CLng(Mid$(ALPHA_END_ISO, 6, 2)), CLng(Mid$(ALPHA_END_ISO, 9, 2)))
 End Function
 
-' v29.0.3 (review 1.18): the admin list tested directly - through ActAsCheck "expired" came first after Nov 20, so every login read as an admin
+' v29.1 (review 1.18): the admin list tested directly - through ActAsCheck "expired" came first after Nov 20, so every login read as an admin
 Private Function RealIsAdmin() As Boolean
     Dim r As String: r = LCase$(Replace(Environ$("USERNAME"), " ", ""))
     If r = "" Then Exit Function
@@ -1721,7 +1721,7 @@ Private Function RealIsAdmin() As Boolean
 End Function
 
 ' The stored chair while it is allowed (the real login an admin AND the one who set it, the chair on the lists, the alpha
-' not over), else "". v29.0.3 (review 1.4): the name holds "chair|setter" and is honoured only by the setter's own Windows
+' not over), else "". v29.1 (review 1.4): the name holds "chair|setter" and is honoured only by the setter's own Windows
 ' login - before, Graeme's chair saved into the file made Ray (another admin) silently that chair the next morning, with
 ' a supervisor's Desk, no admin rights and the wrong Logged By. A value with no setter (none exist: v29.0.2 was never
 ' installed) is ignored. Never raises: CurrentUser runs inside every gate and every open step.
@@ -1738,7 +1738,7 @@ End Function
 
 ' PURE (SelfTest "actas"; mirrored in tests/rules.py): "" when realLogin (an admin on adminList) may act as chair (a login on
 ' chairList) on today, else why: expired (today after endDay, the alpha's end) / not an admin / not the setter / not a chair.
-' v29.0.3 (review 1.4): chair may read "chair|setter" - the login that set it; another login, admin or not, gets "not the
+' v29.1 (review 1.4): chair may read "chair|setter" - the login that set it; another login, admin or not, gets "not the
 ' setter" (a bare chair, as the pop-up types it, has no setter to test). Lower case, spaces dropped.
 Public Function ActAsCheck(ByVal chair As String, ByVal realLogin As String, ByVal adminList As String, ByVal chairList As String, _
                            ByVal today As Date, ByVal endDay As Date) As String
@@ -1766,8 +1766,8 @@ Public Sub ActAs()
     If chair = "" Then Exit Sub
     Dim why As String: why = ActAsCheck(chair, Environ$("USERNAME"), ADMIN_USERS, chairs, Date, AlphaEnd())
     If why <> "" Then MsgBox "Not set: " & why & ".", vbExclamation, "Act as (alpha test)": Exit Sub
-    SetActAsName LCase$(Replace(chair, " ", "")) & "|" & LCase$(Replace(Environ$("USERNAME"), " ", ""))     ' v29.0.3 (review 1.4): the setter rides with the chair; (re-review R2) stored as ActAsCheck reads it - no spaces
-    If Not SaveIfWritable() Then                    ' v29.0.3 (review 1.15): a blocked or failed save is said, not "it worked"
+    SetActAsName LCase$(Replace(chair, " ", "")) & "|" & LCase$(Replace(Environ$("USERNAME"), " ", ""))     ' v29.1 (review 1.4): the setter rides with the chair; (re-review R2) stored as ActAsCheck reads it - no spaces
+    If Not SaveIfWritable() Then                    ' v29.1 (review 1.15): a blocked or failed save is said, not "it worked"
         MsgBox "The chair " & LCase$(chair) & " is set in this session but the file was NOT SAVED (" & IIf(NoSave(), "saving is blocked in this session", "the save failed") & "): " & _
                "a reopen comes back as you. Close WITHOUT saving, reopen, and run ActAs again.", vbExclamation, "Act as (alpha test)"
         Exit Sub
@@ -1787,7 +1787,7 @@ Public Sub ActAsClear()
     On Error Resume Next
     ThisWorkbook.Names(ACTAS_NAME).Delete
     On Error GoTo Oops
-    If Not SaveIfWritable() Then                    ' v29.0.3 (review 1.15): the clear is in this session only until a save goes through
+    If Not SaveIfWritable() Then                    ' v29.1 (review 1.15): the clear is in this session only until a save goes through
         MsgBox "The chair is cleared in this session but the file was NOT SAVED (" & IIf(NoSave(), "saving is blocked in this session", "the save failed") & "): " & _
                "a reopen comes back as the old chair. Close WITHOUT saving, reopen, and run ActAsClear again.", vbExclamation, "Act as (alpha test)"
         Exit Sub
@@ -1798,7 +1798,7 @@ Oops:
     ReportError "ActAsClear"
 End Sub
 
-' chair = "chair|setter" (v29.0.3): the login that set it is stored with it, and ActAsChair honours only that login
+' chair = "chair|setter" (v29.1): the login that set it is stored with it, and ActAsChair honours only that login
 Private Sub SetActAsName(ByVal chair As String)
     Dim nmObj As Name
     On Error Resume Next
@@ -1850,7 +1850,7 @@ End Function
 Public Function RequireWritable() As Boolean
     If MovedToPath() <> "" Then                     ' v29 (item 1): the old copy of a moved roster is frozen whatever its file attributes
         MsgBox "This copy of the roster moved to" & vbNewLine & MovedToPath() & vbNewLine & "Nothing can be changed here: close it and open the new file.", vbExclamation, "Moved roster"
-    ElseIf IsBackupCopyName(ThisWorkbook.Name) Then  ' v29.0.3 (review 3.3): a backup, FINAL or pre-change copy is frozen, writable or not
+    ElseIf IsBackupCopyName(ThisWorkbook.Name) Then  ' v29.1 (review 3.3): a backup, FINAL or pre-change copy is frozen, writable or not
         MsgBox "This is a BACKUP COPY of the roster (" & ThisWorkbook.Name & "): nothing can be logged or saved in it." & vbNewLine & _
                "Close it and open the live roster (the file without a date, FINAL or Backup in its name).", vbExclamation, "Backup copy"
     ElseIf ThisWorkbook.ReadOnly Then

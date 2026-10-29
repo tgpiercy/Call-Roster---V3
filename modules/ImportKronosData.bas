@@ -55,7 +55,7 @@ Option Explicit
 '     first (KronosFilesToImport). The pivot sheet is still the fall-back.
 ' ====================================================================
 
-Public Const KR_VERSION As String = "Kronos import v29.0.3 (Oct 28)"
+Public Const KR_VERSION As String = "Kronos import v29.1 (Oct 28)"
 Public Const HH_SHEET As String = "Hours History"
 Public Const HH_TABLE As String = "tblHoursHistory"
 Private Const HH_NCOLS As Long = 8          ' v21: + Data Through; v23: + Year (the roster year the hours belong to)
@@ -455,7 +455,7 @@ Sub SyncKronosData()
     If KronosCumThrough() >= RosterYearFrom() And KronosCumThrough() > 0 Then        ' (review L6) a snapshot from before this year is none
         src = PivotFromLedger(through)
         fromReport = True
-        ' v29.0.3 (review 1.10): on the report path the "Kronos file date" (KronosDataDate: the Desk pill, the stale box,
+        ' v29.1 (review 1.10): on the report path the "Kronos file date" (KronosDataDate: the Desk pill, the stale box,
         ' IntegrityCheck's Check line, the status line) is the data's own age - the Time Period end + 1 - not the report
         ' FILE's saved time: a report copied in keeps the time it was made, so from a few days on every open said stale
         If through > 0 Then fileDate = Int(through) + 1
@@ -1333,7 +1333,7 @@ Private Function IngestReport(ByRef rep As KronosReport, ByVal srcName As String
                IIf(rep.ToD <= KronosCumThrough(), " (inside the Totals through " & Format$(KronosCumThrough(), "mmm d") & ": kept, not added)", "") & _
                IIf(nChanges > 0, "; " & nChanges & " figure(s) differed from the day as first imported (Worked Changes)", "")
     Else
-        nChanges = WriteCumulative(rep, tot, payOf, rosterSet, srcName, stamp)     ' v29.0.3 (review 1.11): removed people stay out of the expected map
+        nChanges = WriteCumulative(rep, tot, payOf, rosterSet, srcName, stamp)     ' v29.1 (review 1.11): removed people stay out of the expected map
         line = "the year to date " & span & ": " & nPeople & " roster people into the Kronos Totals"
         If mGapNote <> "" Then                        ' v27.5 (item 2): a missed morning is named, its differences are gap rows
             line = line & "; NO one-day report for " & mGapMsg & " - " & IIf(nChanges > 0, nChanges & " figure(s) differed from what the ledger expected: " & _
@@ -1528,7 +1528,7 @@ End Function
 ' number of change rows written. The first cumulative ever (no snapshot) logs nothing: it is the baseline.
 ' v27.5 (item 2): when a day between the old Through and this one has no one-day report, every difference is a "gap"
 ' row instead - dated at this Through, its Note naming the missed days (mGapNote for the message).
-' v29.0.3 (review 1.11): rosterSet = the roster's names - the old snapshot and the ledger keep people removed since the last
+' v29.1 (review 1.11): rosterSet = the roster's names - the old snapshot and the ledger keep people removed since the last
 ' year-to-date, while the report's rows are taken for roster people only, so each removed person logged false "lost hours"
 ' rows (Lane Wexford: three gap rows at the close-out); names not on the roster stay out of what the ledger expected
 Private Function WriteCumulative(ByRef rep As KronosReport, ByVal tot As Object, ByVal payOf As Object, ByVal rosterSet As Object, _

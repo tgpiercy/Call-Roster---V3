@@ -1,9 +1,9 @@
-# Call Out Roster v29.0.3 - install (the Install panel) - THE ALPHA'S MOCK FILE ONLY
+# Call Out Roster v29.1 - install (the Install panel) - THE ALPHA'S MOCK FILE ONLY
 
 v29 with the alpha's changes, all on the MOCK file only (the real roster is set aside under `Pre-alpha\` first -
 docs/alpha-data-reset.md page 1 - and stays on v29). It supersedes v29.0.2 and v29.0.1, which were never installed. The
 Oct 28 full review (docs/review-2026-10-28-full.md) found the alpha items and three save / backup HIGHs; Graeme chose to
-fix them in this build (docs/v29.0.3-build-prompt.md). The CHANGELOG entry lists every item with its review number.
+fix them in this build (docs/v29.1-build-prompt.md). The CHANGELOG entry lists every item with its review number.
 
 **The alpha's three settings (temporary; the release after the alpha puts them back):**
 1. **`KRONOS_PATH`** = `C:\Users\piercyg\Desktop\Kronos mock\` (one backslash now) - the local folder on GRAEME's PC the
@@ -34,7 +34,7 @@ refused; a backup-named copy (a daily / hourly backup, the FINAL, a "Backup befo
 read-only - once it carries this build's code; the PRE-ALPHA copy carries v29's and is frozen by its Read-only attribute.
 
 Needs **v29 installed** and **Roster Updater.xlsm v4.2**. The updater does not change. The panel's swap replaces every
-module (all 45 stamps move to v29.0.3), re-pastes **ThisWorkbook** and **four forms** (frmOvertimeEntry, frmNewPosting,
+module (all 45 stamps move to v29.1), re-pastes **ThisWorkbook** and **four forms** (frmOvertimeEntry, frmNewPosting,
 frmTimeOff, frmFixEntry), and rebuilds the members' template (the members' code changed: "Members M6.1"). No new module,
 no new form, no run-once macro, no What's New box.
 
@@ -44,9 +44,9 @@ below; it now refuses the live-named file until the Pre-alpha copy exists beside
 
 ## The panel
 1. Open the roster (ADMIN view) from its folder, then File > Open `Roster Updater.xlsm` in the same Excel window. Click the roster so it is in front.
-2. Alt+F8 > `'Roster Updater.xlsm'!InstallPanel`. Pick the unzipped `Callout_Roster_v29.0.3` folder. Groups: **1. Prepare**, **2. Install code**, **3. Run once** (the members' template, System check, Self test), **4. Checks**.
+2. Alt+F8 > `'Roster Updater.xlsm'!InstallPanel`. Pick the unzipped `Callout_Roster_v29.1` folder. Groups: **1. Prepare**, **2. Install code**, **3. Run once** (the members' template, System check, Self test), **4. Checks**.
 3. Click the one blue button, read its box, click the next.
-   - **System check:** "Modules: 45 of 45 on v29.0.3"; ThisWorkbook and the four forms on v29.0.3; the paths box names the Kronos mock folder and `Alpha reports\2026\` as reachable.
+   - **System check:** "Modules: 45 of 45 on v29.1"; ThisWorkbook and the four forms on v29.1; the paths box names the Kronos mock folder and `Alpha reports\2026\` as reachable.
    - **Self test:** 1165 passed, 123 suites (the new suite `closeson` = the default closing date; `calloffer` and `actas` grew).
 4. **Show the log** opens the roster's Install Log sheet.
 
@@ -62,5 +62,5 @@ ONLY (never into the real roster, never into `modules/`); SystemCheck does not c
 practice copy first is plan step D-1.1.
 
 ## Then
-Tell me "v29.0.3 OK" with the Install Log's rows, the paths box's two lines and the ACTING AS line after a first
+Tell me "v29.1 OK" with the Install Log's rows, the paths box's two lines and the ACTING AS line after a first
 ActAs, or the box of the step that failed.

@@ -11,7 +11,7 @@ Option Explicit
 '  the publish when they finish), and the counts are read from the tables the roster already keeps. Pure cores
 '  (suites postexc, litemark, litedaily, litebar) are mirrored in tests/rules.py.
 ' ====================================================================
-Public Const LITE_VERSION As String = "Lite v29.0.3 (Oct 28)"
+Public Const LITE_VERSION As String = "Lite v29.1 (Oct 28)"
 
 Public Const LITE_CLOSING_HOURS As Double = 24      ' a posting with no member sign-up that closes within this many hours is an exception
 Public Const LITE_STAFF_DAYS As Long = 14           ' Band 4: below minimum in the next N days
@@ -343,7 +343,7 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                             t = SafeStr(v(i, L_TYPE)) & " " & f.Ref & "  -  " & Format$(f.ShiftDate, "ddd mmm d") & "  " & f.Unit & "  " & f.ShiftLbl & _
                                 "{HOURS}" & IIf(SafeStr(v(i, L_TASK)) <> "", "  (" & SafeStr(v(i, L_TASK)) & ")", "") & vbNewLine
                         End If
-                        ' v29.0.3 (review HIGH 1.3): the SESSION's hours on offer = the most any live row shows, reading the "of M h" a
+                        ' v29.1 (review HIGH 1.3): the SESSION's hours on offer = the most any live row shows, reading the "of M h" a
                         ' partial or capped row's Note names (modStats.OfferedOnRow) - the first row's Hours is ONE person's figure (the
                         ' hours a partial acceptor took, a 16 h cap, 0 below a partial), and a re-entry pre-filled with it charged wrong
                         If OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_REASON))) > f.Hours Then f.Hours = OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_REASON)))     ' (re-review R1) L_REASON = the Note column the session writes, not L_TASK = Reason
@@ -353,7 +353,7 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                     End If
                 Next i
                 If f.Rows > 25 Then t = t & "  ...and " & (f.Rows - 25) & " more" & vbNewLine
-                t = Replace(t, "{HOURS}", IIf(f.Hours > 0, "  " & HoursText(f.Hours) & " h on offer", ""))     ' v29.0.3: the session's offer, known once every row is read
+                t = Replace(t, "{HOURS}", IIf(f.Hours > 0, "  " & HoursText(f.Hours) & " h on offer", ""))     ' v29.1: the session's offer, known once every row is read
                 f.Found = (f.Rows > 0)
                 If f.Found Then
                     t = t & "What it changed (Total Hours; the void takes it back):" & vbNewLine

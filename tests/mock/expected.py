@@ -26,7 +26,7 @@ from plant import (CREW_ALL, LOG_HEADERS, UNITS, YEAR_FROM, Person, Plant, crew_
 
 ROOT = HERE.parent.parent
 PLAN = ROOT / "docs" / "alpha-test-plan.md"
-# v29.0.3 (review 2.7): the release the plan names is the code's, never typed here
+# v29.1 (review 2.7): the release the plan names is the code's, never typed here
 RELEASE = re.search(r'EXPECTED_RELEASE As String = "([^"]+)"', (ROOT / "modules" / "modSystem.bas").read_text(encoding="ascii")).group(1)
 DAY0 = date(2026, 10, 31)
 LOAD_THROUGH = date(2026, 10, 17)          # KronosDataThrough as the loader leaves it (the Oct 18 snapshot)
@@ -329,7 +329,7 @@ class Runner:
             n_sign = len({f["emp"] for f in self.signup_files if f["pid"] == pid and f["newest_signup"]})
             close_at = datetime.combine(p["closes"], datetime.min.time()) + timedelta(hours=8)
             what = rules.posting_exception("Open", now >= close_at, (close_at - now).total_seconds() / 3600, n_sign)
-            if what == "no takers":       # v29.0.3 (review 1.8): the card counts electronic sign-ups only, so it never says "no takers"
+            if what == "no takers":       # v29.1 (review 1.8): the card counts electronic sign-ups only, so it never says "no takers"
                 what = "closed - check the paper sheet"
             if what:
                 exc.append(f"{pid} ({what})")
@@ -439,7 +439,7 @@ class Runner:
         self.say(sid, "reports path", "<the roster's folder>\\Alpha reports\\2026\\ - reachable (the alpha build's REPORT_FOLDER: every PDF stays beside the mock file)")
         self.say(sid, "ACTING AS line", "none (no chair set yet)")
 
-    # v29.0.3 (review 2.10): the loader keeps the real file's Settings and Holidays sheets, and the plan's figures rest on them
+    # v29.1 (review 2.10): the loader keeps the real file's Settings and Holidays sheets, and the plan's figures rest on them
     def do_settings_check(self, sid, d, now, a, login, st):
         self.say(sid, "SystemCheck's settings line", "Settings overrides: none (the plan's figures use the defaults: a payback warned at 42 days, a posting closing 14 days before the shift, Kronos stale after 7 days)")
         self.say(sid, "Holidays sheet (the pop-up)", "the 2026 rows present; Remembrance Day Wed Nov 11 needs no Observed on (a weekday); Boxing Day Sat Dec 26 with Observed on EMPTY - clear it through the pop-up if the real file carried one (D11.2 expects the HOLIDAYS TO CONFIRM line)")
@@ -453,7 +453,7 @@ class Runner:
         checks = []
         owed = [s for s in pl.switches if s["status"] != "VOID" and s["payfor"] == "" and s["paidby"] == "" and (d - s["date"]).days > PAYBACK_WARN_DAYS]
         if owed:
-            checks.append(f"Check 7 Paybacks: {len(owed)} shift-switch payback(s) owed for more than 42 days: " + "; ".join(f"{s['id']} {s['date']:%b} {s['date'].day}" for s in owed))   # v29.0.3 (review 2.8): the code writes "Sep 12", no weekday
+            checks.append(f"Check 7 Paybacks: {len(owed)} shift-switch payback(s) owed for more than 42 days: " + "; ".join(f"{s['id']} {s['date']:%b} {s['date'].day}" for s in owed))   # v29.1 (review 2.8): the code writes "Sep 12", no weekday
         if pl.kronos_cum_through:
             checks.append("Check 8 Kronos: Kronos code not counted: Bryn Hartwell LIEU TKN 8 h")
         self.say(sid, "PROBLEM lines", 0)
@@ -518,7 +518,7 @@ class Runner:
         self.say(sid, "files read", "; ".join(files))
         self.say(sid, "Data Through", dtxt(pl.kronos_through))
         changed = [nm for nm in pl.people if abs(pl.worked[nm] - before.get(nm, 0)) > 0.001]
-        # v29.0.3 (review 2.5): the sanity confirm names anyone whose Worked FALLS (or rises over 60 h) before H is written -
+        # v29.1 (review 2.5): the sanity confirm names anyone whose Worked FALLS (or rises over 60 h) before H is written -
         # No is its default, so the step must answer Yes (a re-pulled day with fewer hours is the one case in the plan)
         fell = [nm for nm in pl.people if pl.worked[nm] < before.get(nm, 0) - 0.001]
         self.say(sid, "the sanity confirm before H is written", "; ".join(f"{nm} FALLS {fmt(before[nm])} -> {fmt(pl.worked[nm])}" for nm in fell) + " - answer YES (No is the default; Enter would block the save)" if fell else "none (no fall, no rise over 60 h)")
@@ -746,7 +746,7 @@ class Runner:
         return {"id": ssid, "stop": stop}
 
     def listed_for_works(self, name: str, d: date, shift: str) -> bool:
-        """v29.0.3 (review 2.2): the switch pop-up's Works drop-down (modCalendar.SwitchPickList through NotFreeReason):
+        """v29.1 (review 2.2): the switch pop-up's Works drop-down (modCalendar.SwitchPickList through NotFreeReason):
         free by rotation (a shift given up in a switch relieves the rest rule), not booked off for that shift, no switch
         that day, not already on OT for that shift - someone the 16 h rule only CAPS is listed (the stop comes at Save)."""
         pl = self.pl
@@ -770,7 +770,7 @@ class Runner:
     def do_switch_try(self, sid, d, now, a, login, st):
         pl = self.pl
         sd, shift, works = pdate(a["date"]), a["shift"], a["works"]
-        # v29.0.3 (review 2.1 / 2.2): the worker must be LISTED in the Works drop-down and the save's own 16 h arithmetic
+        # v29.1 (review 2.1 / 2.2): the worker must be LISTED in the Works drop-down and the save's own 16 h arithmetic
         # (modCalendar.FatigueShiftReason: the shift worked before the one on offer plus the whole shift) must stop it -
         # no hand-written rule (the old D7.5 expected a stop on the same-day sister swap, which is EXEMPT; the old D3.5
         # named a worker the rotation's rest rule keeps out of the drop-down)
@@ -844,7 +844,7 @@ class Runner:
         old_date = p["date"]
         p["hours"] = float(a["hours"])
         self.say(sid, "after the hours edit", f"{pid}: {fmt(p['hours'])} h, {dtxt(p['date'])} {p['shift']}; the list unchanged: " + "; ".join(f"#{r['rank']} {r['name']} {fmt(r['total'])}" for r in pl.posting_lists[pid]))
-        # v29.0.3 (review 2.3): a date change goes through only when the SAME people are free on the new date - the list is
+        # v29.1 (review 2.3): a date change goes through only when the SAME people are free on the new date - the list is
         # frozen (modPostings.SameListOn, review H1 of v27); otherwise the box names who would drop off / come on and refuses
         new_date = pdate(a["date"])
         kept, _ = pl.filter_not_free(pl.load_eligible(p["unit"], crew_filter(p["crew"]), new_date), new_date, p["shift"])
@@ -1129,7 +1129,7 @@ class Runner:
             ln["left"] = ln["left"].replace(old, new)
             ln["right"] = ln["right"].replace(old, new)
         self.say(sid, "renamed in", f"the roster row; {n_log} OT Log row(s); {n_sw} switch name(s); {len(pl.crew_hist[new])} crew history row(s); the Hours History rows; the posting list rows")
-        # v29.0.3 (review 2.12, corrected by the re-review): CalName shortens only a "Last, First" name - the mock names have no
+        # v29.1 (review 2.12, corrected by the re-review): CalName shortens only a "Last, First" name - the mock names have no
         # comma, so the lines carry the full name and every line tied to the person is renamed (RenameEverywhere's confirm names them)
         self.say(sid, "calendar lines renamed", f"{n_cal} ({old} -> {new} on the lines tied to the person: the confirm box says the calendar lines change, the finishing receipt counts them; CalName keeps a 'First Last' name whole)")
         self.say(sid, "Payroll #", f"unchanged: {p.payroll}")
@@ -1255,7 +1255,7 @@ class Runner:
                 days = (d - s["date"]).days
                 lines.append(f"{s['id']} {s['off']} owes {s['works']} ({dtxt(s['date'])} {s['shift']}): " + rules.owed_status_text(days, PAYBACK_WARN_DAYS))
         self.say(sid, "owed", "; ".join(lines) or "none")
-        # v29.0.3 (review 2.8): SwitchLedger lists OWED rows only - a paid-back pair is not on it
+        # v29.1 (review 2.8): SwitchLedger lists OWED rows only - a paid-back pair is not on it
         self.say(sid, "NOT listed (paid back; the ledger lists owed rows only)", "; ".join(f"{s['id']} by {s['paidby']}" for s in pl.switches if s["paidby"]))
 
     def do_stats(self, sid, d, now, a, login, st):

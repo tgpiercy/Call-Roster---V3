@@ -46,7 +46,7 @@ Option Explicit
 '  is its own procedure (DrawDesk sits at the 300-line limit).
 ' ====================================================================
 
-Public Const DESK_VERSION As String = "Desk v29.0.3 (Oct 28)"
+Public Const DESK_VERSION As String = "Desk v29.1 (Oct 28)"
 Public Const DESK_SHEET As String = "Desk"
 Public Const DESK_AHEAD_DAYS As Long = 14           ' the "shifts need cover" tile looks this far ahead
 Public Const HELP_SHEET As String = "Help"           ' v25.5: the Help sheet (ShowHelp / DrawHelp below)
@@ -628,7 +628,7 @@ Private Function DrawLiteDesk(ByVal ws As Worksheet, ByVal x0 As Double, ByVal b
     End If
     DeskTile ws, "dk_lite_req", n, txt, "modDesk.DeskRequests", x0, yy, tw, IIf(n > 0, dkGreen(), 0), IIf(n = 0, "", "Decide in Needs Attention")
     n = PostingExceptionCount(id, what)
-    ' v29.0.3 (review 1.8): the card counts ELECTRONIC sign-ups only - a paper sign-up (paper governs in the alpha) or an
+    ' v29.1 (review 1.8): the card counts ELECTRONIC sign-ups only - a paper sign-up (paper governs in the alpha) or an
     ' unreachable share reads the same as nobody - so it never says "no takers": that is the paper sheet's call
     Dim verb As String: verb = "Wait, or check the paper sheet, then award"
     If what = "no takers" Then what = "closed - check the paper sheet": verb = "Paper sheet first, then award or No takers"

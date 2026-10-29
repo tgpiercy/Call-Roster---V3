@@ -1,4 +1,4 @@
-# Groups 3 and 4 of install-steps.txt for v29.0.3 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
+# Groups 3 and 4 of install-steps.txt for v29.1 (groups 1 and 2 are standard; tests/build_zip.py adds them and the
 # VERSION / EXPECT / MEMBER / FORMS header, and fills {CASES} {SUITES} {MODULES} {STEPS} from the code).
 # The alpha build on the MOCK file only (supersedes v29.0.2 / v29.0.1, never installed): KRONOS_PATH = the local Kronos mock
 # folder, REPORT_FOLDER = .\Alpha reports\{YEAR}\, Act as (honoured by the setter's login only), the Oct 28 review's alpha
@@ -9,7 +9,7 @@
 # Format: kind | caption | argument | flag or expected result.
 
 [3. Run once]
-macro   | System check (expect {MODULES} of {MODULES} on v29.0.3; ThisWorkbook and the four forms on v29.0.3; the paths box: Kronos reports = C:\Users\piercyg\Desktop\Kronos mock\ - reachable, reports = <the roster's folder>\Alpha reports\2026\ - reachable; no ACTING AS line yet) | SystemCheckOK
+macro   | System check (expect {MODULES} of {MODULES} on v29.1; ThisWorkbook and the four forms on v29.1; the paths box: Kronos reports = C:\Users\piercyg\Desktop\Kronos mock\ - reachable, reports = <the roster's folder>\Alpha reports\2026\ - reachable; no ACTING AS line yet) | SystemCheckOK
 macro   | Self test (expect {CASES} passed, {SUITES} suites; the new suite closeson)  | SelfTestOK
 
 [4. Checks]

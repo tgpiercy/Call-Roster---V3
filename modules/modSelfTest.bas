@@ -20,7 +20,7 @@ Option Explicit
 '  CASES markers by hand - run tests/gen_selftest_cases.py.
 ' ====================================================================
 
-Public Const ST_VERSION As String = "Self test v29.0.3 (Oct 28)"
+Public Const ST_VERSION As String = "Self test v29.1 (Oct 28)"
 
 ' provcount cases assume this roster year (26 periods from Dec 28, 2025)
 Private Const ST_YEAR_FROM As Date = #12/28/2025#
@@ -147,7 +147,7 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(phW <> "", "bad", IIf(phH = 0, "whole", NumText(phH)))
         Case "postclosed"                          ' v25 (P6): closing date, as-of -> open / closed
             RunCase = IIf(PostingClosed(ParseD(i1), ParseD(i2)), "closed", "open")
-        Case "closeson"                            ' v29.0.3 (review 1.2): shift date, now (yyyy-mm-dd = midnight, or yyyy-mm-dd-hh-nn), the close days setting -> the default closing date
+        Case "closeson"                            ' v29.1 (review 1.2): shift date, now (yyyy-mm-dd = midnight, or yyyy-mm-dd-hh-nn), the close days setting -> the default closing date
             RunCase = Format$(DefaultClosesOn(ParseD(i1), IIf(Len(Trim$(i2)) >= 16, ParseStampMin(i2), ParseD(i2)), CLng(i3)), "yyyy-mm-dd")
         Case "crewsoff"                            ' v25
             RunCase = CrewsOff(ParseD(i1))
@@ -912,7 +912,7 @@ Private Function CaseSignupMix(ByVal spec As String) As String
 End Function
 
 ' hours, "outcome:taken[:seq];..." in call order (everyone grade 1) -> "offered=charged;..."
-' v29.0.3 (review 1.1): the optional third part is the order the outcome was LOGGED in (0 / absent = the list position)
+' v29.1 (review 1.1): the optional third part is the order the outcome was LOGGED in (0 / absent = the list position)
 Private Function CaseCallOffer(ByVal hours As Double, ByVal spec As String) As String
     Dim parts As Variant: parts = Split(spec, ";")
     Dim n As Long: n = UBound(parts) + 1

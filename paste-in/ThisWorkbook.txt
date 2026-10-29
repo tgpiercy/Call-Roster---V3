@@ -1,5 +1,5 @@
 Option Explicit
-' @version v29.0.3 (Oct 28)
+' @version v29.1 (Oct 28)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object
@@ -20,7 +20,7 @@ Private Sub Workbook_Open()
     RecordDiskStamp                    ' v26.5.5 (A2): the file's on-disk time; a save finds it changed = someone else saved meanwhile
     OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
     SetShortcuts True                  ' v25.5: Ctrl+Shift+S / C / K / D while this workbook is active (modUI)
-    If Not IsBackupCopyName(ThisWorkbook.Name) Then FirstOpenOnOpen      ' v29.0.3 (re-review R3): a backup copy shows its own box only; v27 (item 20): a login's very FIRST open - the three things that matter (modSystem); before the what's-new box, which it reads to tell an old login from a new one
+    If Not IsBackupCopyName(ThisWorkbook.Name) Then FirstOpenOnOpen      ' v29.1 (re-review R3): a backup copy shows its own box only; v27 (item 20): a login's very FIRST open - the three things that matter (modSystem); before the what's-new box, which it reads to tell an old login from a new one
     If Not IsBackupCopyName(ThisWorkbook.Name) Then WhatsNewOnOpen       ' v25.5: the what's-new box once per login per release (modSystem) - last, on a painted screen (review)
     ThisWorkbook.Saved = True          ' the hidden name it may write goes with the next real save
     On Error GoTo 0
@@ -28,7 +28,7 @@ End Sub
 
 Private Sub OpenStep(ByVal k As Long)
     On Error GoTo Oops
-    ' v29.0.3 (review HIGH 3.3): a backup-named copy (a daily / hourly backup, the FINAL, a "Backup before ..." or the
+    ' v29.1 (review HIGH 3.3): a backup-named copy (a daily / hourly backup, the FINAL, a "Backup before ..." or the
     ' PRE-ALPHA copy) opened WRITABLE runs none of the steps that write - the day's backup, the grade snapshot, the crew
     ' rows and planned moves, the holidays, the requests fold-in, the CSV export, the Opens row: it is frozen (OpenChecks
     ' says so and blocks every save), so the planned moves must not be "applied" into the file that is restored later
@@ -70,14 +70,14 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v29.0.3 (Oct 28)"
+    CodeVersion = "ThisWorkbook v29.1 (Oct 28)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the
 ' RESTRICTED view - phones hidden, admin sheets hidden, all protected -
 ' then puts the admin view back. Blocks saving after a failed migration.
 Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
-    ' v29.0.3 (review HIGH 3.2): Save As, and any save from a read-only copy, is refused. Supervisor B opens read-only
+    ' v29.1 (review HIGH 3.2): Save As, and any save from a read-only copy, is refused. Supervisor B opens read-only
     ' while A works; A saves and closes; B presses Ctrl+S and Excel offers Save As with the same name: "Replace" wiped
     ' out A's entries and left B on stale data; Save As under a new name made a second "live" roster. A copy to try
     ' things on is Alt+F8 > MakePracticeCopy; the code's own copies go through SaveCopyAs, which does not come here.
@@ -91,7 +91,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
                vbExclamation, "Not saved"
         Exit Sub
     End If
-    If IsBackupCopyName(ThisWorkbook.Name) Then    ' v29.0.3 (review HIGH 3.3): a backup copy is never saved, whatever was done in it
+    If IsBackupCopyName(ThisWorkbook.Name) Then    ' v29.1 (review HIGH 3.3): a backup copy is never saved, whatever was done in it
         Cancel = True
         MsgBox "This is a BACKUP COPY (" & ThisWorkbook.Name & "): it is never saved. Close it without saving and log entries in the live roster.", vbExclamation, "Not saved"
         Exit Sub
@@ -121,7 +121,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
         Application.ScreenUpdating = False          ' restored by Workbook_AfterSave (the admin view comes back there)
         ApplyView False
     End If
-    ' v29.0.3 (review HIGH 3.1): the hourly backup is taken AFTER the view switch, so it is saved in the RESTRICTED view
+    ' v29.1 (review HIGH 3.1): the hourly backup is taken AFTER the view switch, so it is saved in the RESTRICTED view
     ' like the daily backup and every copy - before, an admin's save wrote a backup with phones, emails, Payroll #,
     ' Absences and the admin sheets visible into the roster's folder, which today is also the members' folder
     BackupBeforeSave                               ' v27 (item 12): an hourly backup when the newest is older than BACKUP_SAVE_HOURS (quiet)
@@ -149,7 +149,7 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
     ReleaseStatusBar                       ' v24.1: Excel's status bar belongs to every open workbook
     SetShortcuts False                     ' v25.5: the keys go with the workbook
-    If NoSave() Or ThisWorkbook.ReadOnly Or IsBackupCopyName(ThisWorkbook.Name) Then     ' v29.0.3 (review 3.3; re-review R3): a backup copy never saves on close, whether or not OpenChecks ran
+    If NoSave() Or ThisWorkbook.ReadOnly Or IsBackupCopyName(ThisWorkbook.Name) Then     ' v29.1 (review 3.3; re-review R3): a backup copy never saves on close, whether or not OpenChecks ran
         ThisWorkbook.Saved = True
         Exit Sub
     End If

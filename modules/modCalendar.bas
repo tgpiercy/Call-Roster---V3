@@ -32,7 +32,7 @@ Public Const BOARD_SHEET As String = "Board"        ' v26: the two-week board (B
 Public Const BOARD_DAYS As Long = 14                 ' v26: today .. today + 13
 Private Const MAP_SHEET As String = "CalMap"
 Public Const FULL_SHIFT As Double = 12
-Public Const CAL_VERSION As String = "Calendar v29.0.3 (Oct 28)"
+Public Const CAL_VERSION As String = "Calendar v29.1 (Oct 28)"
 ' v25.1.2: draw-time measurement (the v25.2 plan's step 1): seconds spent inside SlotsFor during the current
 ' draw, read by DrawCalendar / DrawNeeds for their breakdown lines (v25.5: the notes share is always 0 - no
 ' hover notes are made; the figure stays in the line so the numbers read the same)
@@ -1798,7 +1798,7 @@ End Sub
 
 ' v27 (item 10): the key of the only OPEN line (nobody on it yet) of that UNIT (review M4: the group holds two units
 ' in one case, and a Phosphine acceptance must never land on Derivatives' line unasked) for the date and shift; ""
-' when there are none or several. v29.0.3 (review 1.6): a NO TAKERS line counts as open too, as SlotKeyOpen reads it
+' when there are none or several. v29.1 (review 1.6): a NO TAKERS line counts as open too, as SlotKeyOpen reads it
 ' (the call-out fills it in place) - before, one NO TAKERS line and one OPEN line put the acceptance on the OPEN line
 ' unasked and left the NO TAKERS line red. Reads the cache SlotsFor loads; writes nothing.
 Public Function OnlyOpenSlot(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String) As String

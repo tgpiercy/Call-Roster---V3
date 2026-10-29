@@ -1,7 +1,7 @@
 Attribute VB_Name = "modFormer"
 Option Explicit
 ' v27.1 (the refactor, Oct 2026): the Former sheet, Remove and Bring back, from modPeople; moved unchanged (tests/movecheck.py proves it)
-Public Const FORMER_VERSION As String = "Former v29.0.3 (Oct 28)"
+Public Const FORMER_VERSION As String = "Former v29.1 (Oct 28)"
 
 ' tblFormer (v24): one row per person taken off the roster, as values
 Public Const FM_SHEET As String = "Former"
@@ -348,7 +348,7 @@ Public Function BringBack(ByVal emp As String, ByRef report As String) As Boolea
     Dim payNo As String
     If UBound(fv, 2) >= FM_PAYROLL Then payNo = PayrollText(fv(fr, FM_PAYROLL))
     r = AddRosterRow(ws, emp, crewTxt, SafeStr(fv(fr, FM_HOME)), fv(fr, FM_SENIORITY), codes, "", "", payNo)
-    ' v29.0.3 (review 2.4): Worked (H) comes back from the Former row when they left in THIS roster year (the sheet is
+    ' v29.1 (review 2.4): Worked (H) comes back from the Former row when they left in THIS roster year (the sheet is
     ' still unlocked from AddRosterRow) - before, H read 0 until the next Kronos import, so the person sat low in the
     ' call order for a day and the next import's change count was off; a removal in an earlier year brings nothing back
     Dim hBack As Double

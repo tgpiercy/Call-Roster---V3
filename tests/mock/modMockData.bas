@@ -155,7 +155,7 @@ Private Function MockGuard(ByVal what As String) As Boolean
         Exit Function
     End If
     If Not IsDryRunName(ThisWorkbook.Name) Then
-        ' v29.0.3 (review 2.11): on the live-named file the real roster must already be set aside - the Pre-alpha copy
+        ' v29.1 (review 2.11): on the live-named file the real roster must already be set aside - the Pre-alpha copy
         ' (docs/alpha-data-reset.md page 1, step 3) is looked for beside the file; the typed word alone was the only barrier
         Dim preName As String
         On Error Resume Next
@@ -268,7 +268,7 @@ Private Sub ClearNames()
     Next i
     DeleteName "KronosImportedAt"
     DeleteName "KronosFileDate"
-    DeleteName "ActAsChair"                        ' v29.0.3 (re-review R2): a chair does not survive a reset
+    DeleteName "ActAsChair"                        ' v29.1 (re-review R2): a chair does not survive a reset
     DeleteName PUB_NAME
     DeleteName "DailyKronos"
     DeleteName "DailyNeeds"

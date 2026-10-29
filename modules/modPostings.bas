@@ -20,7 +20,7 @@ Option Explicit
 ' ====================================================================
 
 ' ---------------- configuration ----------------
-Public Const POST_VERSION As String = "Postings v29.0.3 (Oct 28)"
+Public Const POST_VERSION As String = "Postings v29.1 (Oct 28)"
 Public Const POSTINGS_SHEET As String = "Postings"
 Public Const PT_TABLE As String = "tblPostings"
 Public Const PL_TABLE As String = "tblPostingList"
@@ -628,7 +628,7 @@ Public Sub EditPosting()
                    "Cancel Request on the award pop-up and post the shift again for the new date.", vbExclamation, "Edit posting"
             Exit Sub
         End If
-        p.ClosesOn = DefaultClosesOn(p.ShiftDate, Now, PostingCloseDays())      ' (review M3) as a new posting's, on any date change; v29.0.3 (1.2): the one rule
+        p.ClosesOn = DefaultClosesOn(p.ShiftDate, Now, PostingCloseDays())      ' (review M3) as a new posting's, on any date change; v29.1 (1.2): the one rule
     End If
     Dim nSign As Long, nPart As Long                 ' (review M1) the sign-ups an hours change re-means
     For i = 1 To n
@@ -726,7 +726,7 @@ Private Function SameListOn(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
     SameListOn = (nNot = 0 And nNew = 0)
 End Function
 
-' v29.0.3 (review HIGH 1.2): the closing date a posting gets when nobody types one - closeDays (PostingCloseDays(), 14)
+' v29.1 (review HIGH 1.2): the closing date a posting gets when nobody types one - closeDays (PostingCloseDays(), 14)
 ' before the shift; when that closing MOMENT (8 AM, PostingClosed) has passed by nowAt, the day before the shift; when
 ' that has passed too, today (a shift tomorrow posted after 8 AM is born closed - the one unavoidable case). PURE
 ' (SelfTest "closeson"; mirrored in tests/rules.py). The ONE rule for New Posting, Post all lines and Edit posting: the
@@ -793,7 +793,7 @@ Public Function PostAllLines(ByVal emp As String, ByVal unit As String, ByVal ab
             p.ID = "": p.Status = "": p.Unit = unit: p.ShiftDate = d: p.ShiftLbl = sh: p.Crew = CREW_ALL
             p.Hours = DefaultShiftHours(d, IsNightShift(sh), USUAL_SHIFT_HOURS): p.Positions = 1
             p.Reason = CalName(emp) & " off"                  ' never the type: a leave word must not reach the posting
-            p.ClosesOn = DefaultClosesOn(d, Now, PostingCloseDays())     ' v29.0.3 (review 1.2): the one rule - inside 14 days it closes the day before the shift
+            p.ClosesOn = DefaultClosesOn(d, Now, PostingCloseDays())     ' v29.1 (review 1.2): the one rule - inside 14 days it closes the day before the shift
             gCalPostKey = "A:" & absId: gCalPostDate = d: gCalPostShift = sh     ' the posting covers this booking's line
             If CreatePostingFrom(p, False, True, True) Then
                 nMade = nMade + 1

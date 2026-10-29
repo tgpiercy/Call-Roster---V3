@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 DOCS = ("docs/supervisor-quick-guide.md", "docs/system-manual.md", "docs/admin-install-guide.md", "docs/rollover-one-pager.md")
-# v29.0.3 (review 2.7): the alpha's plan, its step table and its reset runbook name the alpha build (v29.0.x) - every
+# v29.1 (review 2.7): the alpha's plan, its step table and its reset runbook name the alpha build (v29.0.x) - every
 # three-part release they mention must be the code's (the real file's "v29" is left alone)
 ALPHA_DOCS = ("docs/alpha-test-plan.md", "docs/alpha-data-reset.md", "tests/mock/steps.csv")
 
@@ -56,14 +56,15 @@ def doc_problems(text: str, name: str, facts: dict) -> list[str]:
 
 
 def alpha_problems(text: str, name: str, facts: dict) -> list[str]:
-    """Every vNN.N.N token of the code's major.minor must be the release (v29.0.1 left in a plan step after v29.0.3)."""
+    """Every dotted vNN.x[.y] token of the code's major that is not the release is stale (v29.0.1 left in a plan step
+    after v29.1); the bare vNN (the real file's release) is left alone."""
     rel = facts["release"]
     parts = rel.split(".")
-    if len(parts) < 3:
+    if len(parts) < 2:
         return []
     out = []
-    for m in re.finditer(r"\bv\d+\.\d+\.\d+\b", text):
-        if m.group(0).split(".")[:2] == parts[:2] and m.group(0) != rel:
+    for m in re.finditer(r"\bv\d+\.\d+(?:\.\d+)?\b", text):
+        if m.group(0).split(".")[0] == parts[0] and m.group(0) != rel:
             out.append(f"ALPHA {name}: '{m.group(0)}' - the alpha build is {rel}")
     return out
 

@@ -23,8 +23,8 @@ Option Explicit
 '  never blocks opening: no folder = skip quietly, unreachable = warn.
 ' ====================================================================
 
-Public Const SYS_VERSION As String = "System v29.0.3 (Oct 28)"
-Public Const EXPECTED_RELEASE As String = "v29.0.3"   ' v29.0.3: the alpha build (KRONOS_PATH, REPORT_FOLDER, Act as) + the Oct 28 review's fixes; supersedes v29.0.2 (never installed); WHATS_NEW_RELEASE stays v29, so no box is shown again
+Public Const SYS_VERSION As String = "System v29.1 (Oct 28)"
+Public Const EXPECTED_RELEASE As String = "v29.1"   ' v29.1: the alpha build (KRONOS_PATH, REPORT_FOLDER, Act as) + the Oct 28 review's fixes; supersedes v29.0.2 (never installed); WHATS_NEW_RELEASE stays v29, so no box is shown again
 ' v27.1: the release whose news WHATS_NEW carries - a login that has seen that box is not shown it again by a
 ' release with nothing new for them (v27.1 was the behaviour-free refactor; v27.5 changes three rules, so its box shows)
 Public Const WHATS_NEW_RELEASE As String = "v29"
@@ -35,14 +35,14 @@ Public Const WHATS_NEW As String = "v29: RAY'S ADMIN LITE DESK - an admin on the
                                    "The guided move (MoveRoster, admin, Alt+F8 - the January cutover's step, not an install step): the roster copies itself to the supervisor-only folder, moves the sign-up and request files to the members' folder, stores that folder inside the new copy and freezes the old file. SystemCheck now lists every path, reachable and writable, and the logins. My history's PDF (members) saves to the user's Downloads."
 Private Const N_MODULES As Long = 45           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys; v29: + modLite, modMove
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v29.0.3"   ' v29.0.3: the hourly backup after the view switch, Save As / a read-only copy refused, a backup-named copy frozen (review 3.1-3.3); v28: open step 10 (RequestsOnOpen; the later steps moved down one)
+Private Const THISWB_RELEASE As String = "v29.1"   ' v29.1: the hourly backup after the view switch, Save As / a read-only copy refused, a backup-named copy frozen (review 3.1-3.3); v28: open step 10 (RequestsOnOpen; the later steps moved down one)
 Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
 Private Const OP_TABLE As String = "tblOpens"
 Private Const OP_N As Long = 7
 Private Const OPENS_KEEP_DAYS As Long = 90
 Public Const IL_SHEET As String = "Install Log"    ' v24.4: written by the Roster Updater's Install panel (tblInstallLog); admin-only, never protected
-Private Const FORM_RELEASES As String = "frmOvertimeEntry|v29.0.3,frmNewPosting|v29.0.3,frmPostingEntry|v27,frmShiftSwitch|v29," & _
-                                        "frmTimeOff|v29.0.3,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v28,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1,frmFixEntry|v29.0.3"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
+Private Const FORM_RELEASES As String = "frmOvertimeEntry|v29.1,frmNewPosting|v29.1,frmPostingEntry|v27,frmShiftSwitch|v29," & _
+                                        "frmTimeOff|v29.1,frmLeave|v27.1,frmSickCall|v27.1,frmConvert|v27.1,frmEmployee|v28,frmReceipt|v27.1,frmHistory|v27.1,frmTableEdit|v27.1,frmFixEntry|v29.1"   ' v27.1: the ten code-built forms build through modUI's shared helpers; the two designer forms stay v27   ' v27: every form but frmConvert changed (the receipts, the draft, the history pop-up, the restriction button, the Holidays / Min Staff pop-up); three are new (frmReceipt, frmHistory, frmTableEdit); ThisWorkbook too (open steps 12-13)
 
 Private mBackupWarned As Boolean
 Private mNewestBackupAt As Date                 ' v27 (item 12): the newest backup's time, so a save does not list the folder every time
@@ -559,7 +559,7 @@ Public Sub PracticeBannerOnOpen()
     CopyBanner "PRACTICE COPY: nothing here counts", "PRACTICE COPY"
 End Sub
 
-' v29.0.3 (review 3.3): the same red strip on a backup-named copy (from OpenChecks); never raises
+' v29.1 (review 3.3): the same red strip on a backup-named copy (from OpenChecks); never raises
 Public Sub BackupBannerOnOpen()
     On Error Resume Next                            ' never raises
     If Not IsBackupCopyName(ThisWorkbook.Name) Then Exit Sub
@@ -647,7 +647,7 @@ Public Sub OpenChecks()
                "If this file still has the live name, rename it MOVED " & Format$(Date, "yyyy-mm-dd") & " - ... so nobody opens it by mistake.", vbExclamation, "Moved roster"
         Exit Sub
     End If
-    ' v29.0.3 (review HIGH 3.3): a backup-named copy - a daily / hourly backup, the FINAL, a "Backup before ..." or the
+    ' v29.1 (review HIGH 3.3): a backup-named copy - a daily / hourly backup, the FINAL, a "Backup before ..." or the
     ' PRE-ALPHA copy - is FROZEN whether or not it is read-only on disk: a supervisor who double-clicked "Call Out Roster
     ' 2026-11-03.xlsm" beside the master logged into the backup and saved it on close; an admin opening the PRE-ALPHA copy
     ' "to look" had the open steps (planned moves, crew rows) saved into the file restored on Nov 17. Every save is blocked

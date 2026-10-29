@@ -19,7 +19,7 @@ Option Explicit
 '  when it last published. The members' file never reads the master.
 ' ====================================================================
 
-Public Const PUB_VERSION As String = "Publish v29.0.3 (Oct 28)"
+Public Const PUB_VERSION As String = "Publish v29.1 (Oct 28)"
 
 Public Const DS_META As String = "dMeta"
 Public Const DS_ROSTER As String = "dRoster"
@@ -34,7 +34,7 @@ Private Const NF_CAP As Long = 30000             ' v27 (M4): dNotFree's row cap
 Public Const DS_WORKED As String = "dWorked"  ' v26.5 / M3.1: premium hours worked per pay period, from the Kronos export (Employee, Period Start, Hours)
 Public Const DS_REQ As String = "dRequests"   ' v28 / M5 (item 1): members' requests and their status (Employee, Kind, From, To, Shift, Partner, Status, Answer, Decided) - no note, no login
 Private Const DIRTY_NAME As String = "MembersDirty"   ' hidden name: postings or people changed since the last publish
-Private Const MEMBER_NEEDS As String = "Members M6.1"   ' v29.0.3: M6.1 = the admins-only Act as (the template rebuilt by the panel); v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends; v28: M5 = + dRequests, two dMeta rows; v29: M6 = the status word "Booking voided" in dRequests, the PDF folder)
+Private Const MEMBER_NEEDS As String = "Members M6.1"   ' v29.1: M6.1 = the admins-only Act as (the template rebuilt by the panel); v24.2: the members' code this roster's tables are laid out for (v26: M3; v26.5: M3.1 = + dWorked; v27: M4 = + four dMeta rows: stale days, trust strip, the two legends; v28: M5 = + dRequests, two dMeta rows; v29: M6 = the status word "Booking voided" in dRequests, the PDF folder)
 
 ' Name, Crew, Home Unit, Total, Worked, Refused, Provisional, Refused call-out, Refused posting, Refused other
 Private Const ROSTER_FIXED As Long = 10
@@ -355,7 +355,7 @@ Public Sub PublishMembers()
 
     Application.DisplayAlerts = False
     On Error Resume Next
-    wb.Names(ACTAS_NAME).Delete                    ' v29.0.3 (review 1.5): a chair saved into the TEMPLATE never rides into a published file (quiet when there is none)
+    wb.Names(ACTAS_NAME).Delete                    ' v29.1 (review 1.5): a chair saved into the TEMPLATE never rides into a published file (quiet when there is none)
     Err.Clear
     wb.SaveAs Filename:=folder & outName, FileFormat:=52    ' 52 = .xlsm
     If Err.Number = 0 Then

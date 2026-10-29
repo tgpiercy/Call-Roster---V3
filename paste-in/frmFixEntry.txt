@@ -1,5 +1,5 @@
 Option Explicit
-' @version v29.0.3 (Oct 28)
+' @version v29.1 (Oct 28)
 
 ' ================================================================
 ' FIX AN ENTRY (v29, item 4; briefs/admin-lite.md): the guided correction
@@ -188,7 +188,7 @@ Oops:
     On Error Resume Next                             ' (re-review LOW-4 / LOW-5) the pop-up raised: the request id must not ride on
     gRequestId = ""
     ReportError "frmFixEntry.Reenter"
-    ' v29.0.3 (review 1.9): the feedback is NOT resolved on this path (the entry is void and nothing replaced it: the
+    ' v29.1 (review 1.9): the feedback is NOT resolved on this path (the entry is void and nothing replaced it: the
     ' Corrections card keeps it until it is re-entered or looked at again), and the box names the voided Ref.
     ' (re-review R1) unless the re-entry DID save before the error (a receipt was recorded): then it is resolved with
     ' the new Ref and the box says so, or the person would enter it twice

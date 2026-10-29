@@ -23,7 +23,7 @@ Option Explicit
 '  Nothing here is published.
 ' ====================================================================
 
-Public Const EVID_VERSION As String = "Evidence v29.0.3 (Oct 28)"
+Public Const EVID_VERSION As String = "Evidence v29.1 (Oct 28)"
 Public Const EV_SHEET As String = "Evidence"
 Public Const EV_TABLE As String = "tblEvidence"
 Public Const CP_SHEET As String = "Closed Periods"

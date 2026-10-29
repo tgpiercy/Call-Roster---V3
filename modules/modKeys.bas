@@ -11,7 +11,7 @@ Option Explicit
 '  Readers still match by name in v28; the key makes the rename safe (RenameEverywhere) and names the mismatches
 '  (IntegrityCheck 16 "Keys").
 ' ====================================================================
-Public Const KEY_VERSION As String = "Keys v29.0.3 (Oct 28)"
+Public Const KEY_VERSION As String = "Keys v29.1 (Oct 28)"
 Public Const KEY_HEADER As String = "Payroll #"
 Public Const KEY_HEADER_OFF As String = "Payroll # (gives up)"   ' the Shift Switches table carries two people
 Public Const KEY_HEADER_WORKS As String = "Payroll # (works)"

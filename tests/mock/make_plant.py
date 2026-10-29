@@ -65,7 +65,7 @@ SENIORITY = [
 ]
 
 # Opening Total Hours G per person (same order), hit through the OB- row: G = H + OB + historic charges.
-# Ties (v29.0.3, review 2.6): a target is H + I at Day 0 (provisional OT sits on top of it). Index 29 (C Phosphine P1,
+# Ties (v29.1, review 2.6): a target is H + I at Day 0 (provisional OT sits on top of it). Index 29 (C Phosphine P1,
 # Wren Fenwick) 173.5 carries the 12 h he accepted on the Oct 30 night (S-0005) as provisional OT (185.5 on screen at
 # Day 0); D1.1's Oct 31 report credits that night (12 h CALLIN OT = +21 Worked, -12 provisional), so from Day 1 he reads
 # 194.5 = index 43 (D Phosphine P1, Merritt Vauxhall): a REAL tie on the D1.5 list, broken by seniority 2016-08-15
@@ -356,7 +356,7 @@ def main() -> int:
 
 # (report, day, person, pay code, hours): the OT the plan's accepted call-outs and awards produce, plus fillers. A NIGHT
 # shift's hours are dated the day the night ENDS (Kronos's day; the roster's coverage rule: a night on D is covered when
-# D + 1 <= Data Through): Wren's Oct 30 night (S-0005, v29.0.3 review 2.6: the log says Wren accepted it, not Merritt) -> Oct 31,
+# D + 1 <= Data Through): Wren's Oct 30 night (S-0005, v29.1 review 2.6: the log says Wren accepted it, not Merritt) -> Oct 31,
 # Merritt's Oct 31 night (6 h) -> Nov 1, Odell's Nov 4 night -> Nov 5,
 # Finley's Nov 11 night -> Nov 12; Teal's Oct 31 DAY -> Oct 31.
 KRONOS_DAYS = [

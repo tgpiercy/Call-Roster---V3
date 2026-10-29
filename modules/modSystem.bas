@@ -556,6 +556,19 @@ End Sub
 Public Sub PracticeBannerOnOpen()
     On Error Resume Next                            ' never raises
     If Not IsDryRunName(ThisWorkbook.Name) Then Exit Sub
+    CopyBanner "PRACTICE COPY: nothing here counts", "PRACTICE COPY"
+End Sub
+
+' v29.0.3 (review 3.3): the same red strip on a backup-named copy (from OpenChecks); never raises
+Public Sub BackupBannerOnOpen()
+    On Error Resume Next                            ' never raises
+    If Not IsBackupCopyName(ThisWorkbook.Name) Then Exit Sub
+    CopyBanner "BACKUP COPY: nothing done here is saved", "BACKUP COPY"
+End Sub
+
+' the red strip on every visible sheet and the window's title (one shape name, replaced when drawn again)
+Private Sub CopyBanner(ByVal txt As String, ByVal captionWord As String)
+    On Error Resume Next                            ' never raises
     Dim ws As Worksheet, s As Shape, i As Long
     For Each ws In ThisWorkbook.Worksheets
         If ws.Visible = xlSheetVisible Then
@@ -570,7 +583,7 @@ Public Sub PracticeBannerOnOpen()
             s.Placement = xlFreeFloating
             s.Locked = True
             With s.TextFrame
-                .Characters.Text = "PRACTICE COPY: nothing here counts"
+                .Characters.Text = txt
                 .Characters.Font.Bold = True
                 .Characters.Font.Size = 9
                 .Characters.Font.Color = vbWhite
@@ -579,7 +592,7 @@ Public Sub PracticeBannerOnOpen()
             ProtectSheet ws
         End If
     Next ws
-    ThisWorkbook.Windows(1).Caption = "PRACTICE COPY  -  " & ThisWorkbook.Name      ' (review) this copy's own window, whichever is in front
+    ThisWorkbook.Windows(1).Caption = captionWord & "  -  " & ThisWorkbook.Name      ' (review) this copy's own window, whichever is in front
 End Sub
 
 ' v26.5.5 (5.4). PURE (SelfTest "practice"): the date and time in a practice copy's name,
@@ -634,17 +647,23 @@ Public Sub OpenChecks()
                "If this file still has the live name, rename it MOVED " & Format$(Date, "yyyy-mm-dd") & " - ... so nobody opens it by mistake.", vbExclamation, "Moved roster"
         Exit Sub
     End If
+    ' v29.0.3 (review HIGH 3.3): a backup-named copy - a daily / hourly backup, the FINAL, a "Backup before ..." or the
+    ' PRE-ALPHA copy - is FROZEN whether or not it is read-only on disk: a supervisor who double-clicked "Call Out Roster
+    ' 2026-11-03.xlsm" beside the master logged into the backup and saved it on close; an admin opening the PRE-ALPHA copy
+    ' "to look" had the open steps (planned moves, crew rows) saved into the file restored on Nov 17. Every save is blocked
+    ' (BeforeSave, the close), RequireWritable refuses, the writing open steps were skipped (ThisWorkbook.OpenStep), a
+    ' banner on every sheet. (v25 I6's box for a read-only-on-disk FINAL folds in here.)
+    If IsBackupCopyName(ThisWorkbook.Name) Then
+        MarkNoSave
+        BackupBannerOnOpen
+        MsgBox "This is a BACKUP COPY of the roster (" & ThisWorkbook.Name & "), not the live file." & vbNewLine & vbNewLine & _
+               "You can look at everything; nothing can be logged, saved or published in it. The live roster is the file " & _
+               "without a date, FINAL or Backup in its name - close this one before you log anything.", vbExclamation, "Backup copy"
+        Exit Sub
+    End If
     MoveFirstOpen                                   ' v29 (item 1): the first admin open after a move (modMove)
     If ThisWorkbook.ReadOnly Then
         Dim who As String: who = LockOwner()
-        Dim onDisk As Boolean: onDisk = False
-        onDisk = ((GetAttr(ThisWorkbook.FullName) And vbReadOnly) = vbReadOnly)
-        If onDisk And IsBackupCopyName(ThisWorkbook.Name) Then       ' v25 (I6): the year-end FINAL, or a backup set read-only
-            MsgBox "This is a frozen copy of the roster (" & ThisWorkbook.Name & "): read-only on disk by design." & vbNewLine & vbNewLine & _
-                   "You can look at everything; nothing can be logged or saved in it. The live roster is the file without FINAL / a date in its name.", _
-                   vbInformation, "Frozen copy"
-            Exit Sub
-        End If
         MsgBox IIf(who <> "", who & " has", "Someone else has") & " the roster open for editing, so this copy is read-only." & _
                vbNewLine & vbNewLine & "You can look at everything, but nothing can be logged or saved." & vbNewLine & _
                "Close it and open it again once they're out.", vbInformation, "Read-only"

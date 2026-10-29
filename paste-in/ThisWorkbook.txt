@@ -28,6 +28,15 @@ End Sub
 
 Private Sub OpenStep(ByVal k As Long)
     On Error GoTo Oops
+    ' v29.0.3 (review HIGH 3.3): a backup-named copy (a daily / hourly backup, the FINAL, a "Backup before ..." or the
+    ' PRE-ALPHA copy) opened WRITABLE runs none of the steps that write - the day's backup, the grade snapshot, the crew
+    ' rows and planned moves, the holidays, the requests fold-in, the CSV export, the Opens row: it is frozen (OpenChecks
+    ' says so and blocks every save), so the planned moves must not be "applied" into the file that is restored later
+    If IsBackupCopyName(ThisWorkbook.Name) Then
+        Select Case k
+            Case 1, 5, 6, 7, 10, 13, 14: Exit Sub
+        End Select
+    End If
     Select Case k
         Case 1: BackupOnOpen           ' v21: first admin open of the day saves a dated copy (never blocks)
         Case 2: ProtectAll
@@ -79,6 +88,11 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
                    "Save As is not used on the roster: a copy under another name becomes a second 'live' roster.") & vbNewLine & vbNewLine & _
                "To try things on a copy: Alt+F8 > MakePracticeCopy. To log entries from a read-only copy: close it and reopen the roster with edit access.", _
                vbExclamation, "Not saved"
+        Exit Sub
+    End If
+    If IsBackupCopyName(ThisWorkbook.Name) Then    ' v29.0.3 (review HIGH 3.3): a backup copy is never saved, whatever was done in it
+        Cancel = True
+        MsgBox "This is a BACKUP COPY (" & ThisWorkbook.Name & "): it is never saved. Close it without saving and log entries in the live roster.", vbExclamation, "Not saved"
         Exit Sub
     End If
     If NoSave() Then

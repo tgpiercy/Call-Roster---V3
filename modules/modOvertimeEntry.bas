@@ -1744,7 +1744,11 @@ Public Sub ActAs()
     Dim why As String: why = ActAsCheck(chair, Environ$("USERNAME"), ADMIN_USERS, chairs, Date, AlphaEnd())
     If why <> "" Then MsgBox "Not set: " & why & ".", vbExclamation, "Act as (alpha test)": Exit Sub
     SetActAsName LCase$(chair) & "|" & LCase$(Environ$("USERNAME"))     ' v29.0.3 (review 1.4): the setter rides with the chair
-    SaveIfWritable
+    If Not SaveIfWritable() Then                    ' v29.0.3 (review 1.15): a blocked or failed save is said, not "it worked"
+        MsgBox "The chair " & LCase$(chair) & " is set in this session but the file was NOT SAVED (" & IIf(NoSave(), "saving is blocked in this session", "the save failed") & "): " & _
+               "a reopen comes back as you. Close WITHOUT saving, reopen, and run ActAs again.", vbExclamation, "Act as (alpha test)"
+        Exit Sub
+    End If
     MsgBox "Acting as " & LCase$(chair) & " (Windows still knows you as " & Environ$("USERNAME") & "; only YOUR login is this chair - another admin opening the file is themselves)." & vbNewLine & vbNewLine & _
            "Close and reopen the roster: it lands on that chair's Desk with that chair's rights, and every row logged says that login. " & _
            "Alt+F8 > ActAsClear, then reopen, puts you back. SystemCheck names the chair while it is set.", vbInformation, "Act as (alpha test)"
@@ -1759,7 +1763,11 @@ Public Sub ActAsClear()
     On Error Resume Next
     ThisWorkbook.Names(ACTAS_NAME).Delete
     On Error GoTo Oops
-    SaveIfWritable
+    If Not SaveIfWritable() Then                    ' v29.0.3 (review 1.15): the clear is in this session only until a save goes through
+        MsgBox "The chair is cleared in this session but the file was NOT SAVED (" & IIf(NoSave(), "saving is blocked in this session", "the save failed") & "): " & _
+               "a reopen comes back as the old chair. Close WITHOUT saving, reopen, and run ActAsClear again.", vbExclamation, "Act as (alpha test)"
+        Exit Sub
+    End If
     MsgBox "Cleared: you are " & Environ$("USERNAME") & " again. Close and reopen the roster.", vbInformation, "Act as (alpha test)"
     Exit Sub
 Oops:

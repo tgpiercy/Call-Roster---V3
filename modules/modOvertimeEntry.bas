@@ -1694,8 +1694,11 @@ Private Function AlphaEnd() As Date
     AlphaEnd = DateSerial(CLng(Left$(ALPHA_END_ISO, 4)), CLng(Mid$(ALPHA_END_ISO, 6, 2)), CLng(Mid$(ALPHA_END_ISO, 9, 2)))
 End Function
 
+' v29.0.3 (review 1.18): the admin list tested directly - through ActAsCheck "expired" came first after Nov 20, so every login read as an admin
 Private Function RealIsAdmin() As Boolean
-    RealIsAdmin = (ActAsCheck("", Environ$("USERNAME"), ADMIN_USERS, "", Date, AlphaEnd()) <> "not an admin")
+    Dim r As String: r = LCase$(Replace(Environ$("USERNAME"), " ", ""))
+    If r = "" Then Exit Function
+    RealIsAdmin = (InStr(1, "," & LCase$(Replace(ADMIN_USERS, " ", "")) & ",", "," & r & ",", vbBinaryCompare) > 0)
 End Function
 
 ' The stored chair while it is allowed (the real login an admin AND the one who set it, the chair on the lists, the alpha

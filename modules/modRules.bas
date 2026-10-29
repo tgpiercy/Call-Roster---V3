@@ -44,7 +44,7 @@ Private Function RuleList() As Variant
         "EL-5|OT restricted by an admin: not listed between the dates, never charged.|-|v27", _
         "WK-1|The weekly cap is OFF: the 48 h is a limit on scheduled work and overtime is requested (Graeme, Oct 22). An admin may turn a warning on with a number on the Settings sheet: then an acceptance or award that takes a person's overtime past it in the 7 days before the shift asks for a reason; it never blocks.|weekcap|v27", _
         "CH-1|A call-out refusal or a message left is charged the hours offered x " & CHARGE_MULTIPLIER & " (grade " & CHARGE_MAX_GRADE & " and below).|calloffer|v20", _
-        "CH-2|A partial acceptance closes the call-out shift: nobody below is offered the rest, nobody is charged for it.|calloffer|v25", _
+        "CH-2|A partial acceptance closes the call-out shift: nobody logged after it is offered the rest, nobody is charged for it.|calloffer|v29.0.3", _
         "CH-3|A posting award charges everyone ahead of the last awarded person in call order who did not sign up, at the posting's full hours x " & CHARGE_MULTIPLIER & ".|awardorder|v20", _
         "CH-4|No takers charges everyone eligible on the list; an award out of department charges everyone eligible in the unit who did not sign up; a cancel charges nobody.|awardcover|v20", _
         "CH-5|A full-shift sign-up beats a partial one; a partial is awarded only when no full-shift sign-up is left; uncovered hours are dropped, uncharged.|awardorder|v24", _

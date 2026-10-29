@@ -508,6 +508,10 @@ closeson,tomorrow-closes-today,2026-11-05,2026-11-04,14,,,2026-11-04
 closeson,today,2026-11-04,2026-11-04,14,,,2026-11-04
 closeson,a-past-shift-never-before-today,2026-11-01,2026-11-04,14,,,2026-11-04
 closeson,a-seven-day-setting,2026-11-25,2026-11-04,7,,,2026-11-18
+closeson,exactly-fourteen-days-out-after-8-am-closes-the-day-before,2026-11-18,2026-11-04-09-00,14,,,2026-11-17
+closeson,exactly-fourteen-days-out-before-8-am-closes-today,2026-11-18,2026-11-04-07-30,14,,,2026-11-04
+closeson,inside-fourteen-days-after-8-am,2026-11-12,2026-11-04-09-00,14,,,2026-11-11
+closeson,tomorrow-after-8-am-is-born-closed,2026-11-05,2026-11-04-09-00,14,,,2026-11-04
 backupdate,daily-backup,Call Out Roster 2026-10-12.xlsm,,,,,2026-10-12
 backupdate,live-master,V2 - Call Out Roster.xlsm,,,,,none
 backupdate,final-is-not-dated,Call Out Roster 2026 FINAL.xlsm,,,,,none

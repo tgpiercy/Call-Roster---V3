@@ -175,6 +175,7 @@ Private Sub mReenter_Click()
     Dim f As FixFacts: f = mFacts                    ' (review LOW-18) a copy: the re-entry pop-up's error handler may unload this form
     mResolved = True                                 ' whatever happens next, QueryClose must not resolve it a second time
     Me.Hide
+    Dim rec0 As String: rec0 = gReceipt.Recorded     ' (re-review R1) the receipt before: an error AFTER the re-entry saved must not say "NOT re-entered"
     newRef = FixEntryReenter(f, msg)
     FixEntryDone f.Ref, newRef
     Tell IIf(newRef <> "", f.Ref & " was voided and re-entered as " & newRef & ". The receipt's answer is marked resolved with " & newRef & ".", _
@@ -188,11 +189,20 @@ Oops:
     gRequestId = ""
     ReportError "frmFixEntry.Reenter"
     ' v29.0.3 (review 1.9): the feedback is NOT resolved on this path (the entry is void and nothing replaced it: the
-    ' Corrections card keeps it until it is re-entered or looked at again), and the box names the voided Ref
+    ' Corrections card keeps it until it is re-entered or looked at again), and the box names the voided Ref.
+    ' (re-review R1) unless the re-entry DID save before the error (a receipt was recorded): then it is resolved with
+    ' the new Ref and the box says so, or the person would enter it twice
     If f.Ref <> "" Then
-        MsgBox f.Ref & " is VOID and was NOT re-entered - the re-entry stopped (" & emR & ")." & vbNewLine & vbNewLine & _
-               "Enter it again from its own button (Log Call-Out, Book Time Off, the Shift Switch pop-up ...). " & _
-               "Its receipt answer stays on the Corrections card until then.", vbExclamation, "Fix an entry"
+        If gReceipt.Recorded <> rec0 And gReceipt.Recorded <> "" Then
+            newRef = FirstRefIn(gReceipt.Recorded)
+            If newRef <> "" Then FixEntryDone f.Ref, newRef
+            MsgBox f.Ref & " was voided and RE-ENTERED as " & IIf(newRef <> "", newRef, "a new entry") & " - then something went wrong (" & emR & "). " & _
+                   "Do NOT enter it again: check the new entry on the OT Log / Calendar.", vbExclamation, "Fix an entry"
+        Else
+            MsgBox f.Ref & " is VOID and was NOT re-entered - the re-entry stopped (" & emR & ")." & vbNewLine & vbNewLine & _
+                   "Enter it again from its own button (Log Call-Out, Book Time Off, the Shift Switch pop-up ...). " & _
+                   "Its receipt answer stays on the Corrections card until then.", vbExclamation, "Fix an entry"
+        End If
     End If
 End Sub
 

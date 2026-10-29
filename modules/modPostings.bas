@@ -628,7 +628,7 @@ Public Sub EditPosting()
                    "Cancel Request on the award pop-up and post the shift again for the new date.", vbExclamation, "Edit posting"
             Exit Sub
         End If
-        p.ClosesOn = DefaultClosesOn(p.ShiftDate, Date, PostingCloseDays())      ' (review M3) as a new posting's, on any date change; v29.0.3 (1.2): the one rule
+        p.ClosesOn = DefaultClosesOn(p.ShiftDate, Now, PostingCloseDays())      ' (review M3) as a new posting's, on any date change; v29.0.3 (1.2): the one rule
     End If
     Dim nSign As Long, nPart As Long                 ' (review M1) the sign-ups an hours change re-means
     For i = 1 To n
@@ -727,14 +727,16 @@ Private Function SameListOn(ByRef p As PostRec, ByRef lst() As PListRec, ByVal n
 End Function
 
 ' v29.0.3 (review HIGH 1.2): the closing date a posting gets when nobody types one - closeDays (PostingCloseDays(), 14)
-' before the shift; when that day has passed, the day before the shift; never before today. PURE (SelfTest "closeson";
-' mirrored in tests/rules.py). The ONE rule for New Posting, Post all lines and Edit posting: the last two used
-' "d - 14, else today", so a posting made inside 14 days was born CLOSED at 8 AM - nobody could sign up, the award
-' pop-up said READY TO AWARD and the Lite card called it "no takers".
-Public Function DefaultClosesOn(ByVal d As Date, ByVal today As Date, ByVal closeDays As Long) As Date
+' before the shift; when that closing MOMENT (8 AM, PostingClosed) has passed by nowAt, the day before the shift; when
+' that has passed too, today (a shift tomorrow posted after 8 AM is born closed - the one unavoidable case). PURE
+' (SelfTest "closeson"; mirrored in tests/rules.py). The ONE rule for New Posting, Post all lines and Edit posting: the
+' last two used "d - 14, else today", so a posting made inside 14 days was born CLOSED at 8 AM - nobody could sign up,
+' the award pop-up said READY TO AWARD and the Lite card called it "no takers". (re-review R1) the test is the closing
+' moment, not the date: a shift exactly closeDays out posted after 8 AM closed at once under "d - 14 is not before today".
+Public Function DefaultClosesOn(ByVal d As Date, ByVal nowAt As Date, ByVal closeDays As Long) As Date
     Dim cl As Date: cl = Int(d) - closeDays
-    If cl < Int(today) Then cl = Int(d) - 1
-    If cl < Int(today) Then cl = Int(today)
+    If PostingClosed(cl, nowAt) Then cl = Int(d) - 1
+    If PostingClosed(cl, nowAt) Then cl = Int(nowAt)
     DefaultClosesOn = cl
 End Function
 
@@ -791,7 +793,7 @@ Public Function PostAllLines(ByVal emp As String, ByVal unit As String, ByVal ab
             p.ID = "": p.Status = "": p.Unit = unit: p.ShiftDate = d: p.ShiftLbl = sh: p.Crew = CREW_ALL
             p.Hours = DefaultShiftHours(d, IsNightShift(sh), USUAL_SHIFT_HOURS): p.Positions = 1
             p.Reason = CalName(emp) & " off"                  ' never the type: a leave word must not reach the posting
-            p.ClosesOn = DefaultClosesOn(d, Date, PostingCloseDays())     ' v29.0.3 (review 1.2): the one rule - inside 14 days it closes the day before the shift, never today
+            p.ClosesOn = DefaultClosesOn(d, Now, PostingCloseDays())     ' v29.0.3 (review 1.2): the one rule - inside 14 days it closes the day before the shift
             gCalPostKey = "A:" & absId: gCalPostDate = d: gCalPostShift = sh     ' the posting covers this booking's line
             If CreatePostingFrom(p, False, True, True) Then
                 nMade = nMade + 1

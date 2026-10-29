@@ -147,8 +147,8 @@ Private Function RunCase(f() As String) As String
             RunCase = IIf(phW <> "", "bad", IIf(phH = 0, "whole", NumText(phH)))
         Case "postclosed"                          ' v25 (P6): closing date, as-of -> open / closed
             RunCase = IIf(PostingClosed(ParseD(i1), ParseD(i2)), "closed", "open")
-        Case "closeson"                            ' v29.0.3 (review 1.2): shift date, today, the close days setting -> the default closing date
-            RunCase = Format$(DefaultClosesOn(ParseD(i1), ParseD(i2), CLng(i3)), "yyyy-mm-dd")
+        Case "closeson"                            ' v29.0.3 (review 1.2): shift date, now (yyyy-mm-dd = midnight, or yyyy-mm-dd-hh-nn), the close days setting -> the default closing date
+            RunCase = Format$(DefaultClosesOn(ParseD(i1), IIf(Len(Trim$(i2)) >= 16, ParseStampMin(i2), ParseD(i2)), CLng(i3)), "yyyy-mm-dd")
         Case "crewsoff"                            ' v25
             RunCase = CrewsOff(ParseD(i1))
         Case "shifthours"                          ' v25
@@ -1701,6 +1701,10 @@ Private Sub LoadCases3()
     AddCase "closeson,today,2026-11-04,2026-11-04,14,,,2026-11-04"
     AddCase "closeson,a-past-shift-never-before-today,2026-11-01,2026-11-04,14,,,2026-11-04"
     AddCase "closeson,a-seven-day-setting,2026-11-25,2026-11-04,7,,,2026-11-18"
+    AddCase "closeson,exactly-fourteen-days-out-after-8-am-closes-the-day-before,2026-11-18,2026-11-04-09-00,14,,,2026-11-17"
+    AddCase "closeson,exactly-fourteen-days-out-before-8-am-closes-today,2026-11-18,2026-11-04-07-30,14,,,2026-11-04"
+    AddCase "closeson,inside-fourteen-days-after-8-am,2026-11-12,2026-11-04-09-00,14,,,2026-11-11"
+    AddCase "closeson,tomorrow-after-8-am-is-born-closed,2026-11-05,2026-11-04-09-00,14,,,2026-11-04"
     AddCase "backupdate,daily-backup,Call Out Roster 2026-10-12.xlsm,,,,,2026-10-12"
     AddCase "backupdate,live-master,V2 - Call Out Roster.xlsm,,,,,none"
     AddCase "backupdate,final-is-not-dated,Call Out Roster 2026 FINAL.xlsm,,,,,none"
@@ -1788,13 +1792,13 @@ Private Sub LoadCases3()
     AddCase "viewmode,supervisor-who-is-desk-admin,boss,ann;boss,boss,boss;sue,,desk"
     AddCase "viewmode,not-a-supervisor,sam,ann;boss,boss,sue;tom,,user"
     AddCase "viewmode,empty-supervisor-list,sue,ann;boss,boss,,,user"
+End Sub
+
+Private Sub LoadCases4()
     AddCase "payback,within-limit,10,42,,,,Payback owed"
     AddCase "payback,at-the-limit,42,42,,,,Payback owed"
     AddCase "payback,one-day-over,43,42,,,,Payback owed 43 days"
     AddCase "payback,long-overdue,120,42,,,,Payback owed 120 days"
-End Sub
-
-Private Sub LoadCases4()
     AddCase "payback,today,0,42,,,,Payback owed"
     AddCase "payback,limit-zero-flags-one-day,1,0,,,,Payback owed 1 day"
     AddCase "idmark,three-prefixes,S-0042|S-0431|P-0017|LV-0003,,,,,LV=3|P=17|S=431"
@@ -1991,13 +1995,13 @@ Private Sub LoadCases4()
     AddCase "bkeep,daily-30-days,daily,2026-09-21,2026-10-21,N,,keep"
     AddCase "bkeep,daily-31-days,daily,2026-09-20,2026-10-21,N,,drop"
     AddCase "bkeep,period-start-old,daily,2026-01-11,2026-10-21,Y,,keep"
+End Sub
+
+Private Sub LoadCases5()
     AddCase "bkeep,period-start-400-plus,daily,2025-09-01,2026-10-21,Y,,drop"
     AddCase "bkeep,hourly-fresh,hourly,2026-10-20,2026-10-21,N,,keep"
     AddCase "bkeep,hourly-7-days,hourly,2026-10-14,2026-10-21,N,,keep"
     AddCase "bkeep,hourly-8-days,hourly,2026-10-13,2026-10-21,N,,drop"
-End Sub
-
-Private Sub LoadCases5()
     AddCase "bhourly,hourly-name,Call Out Roster backup 2026-10-21 14.xlsm,,,,,2026-10-21 14"
     AddCase "bhourly,daily-is-not-hourly,Call Out Roster 2026-10-21.xlsm,,,,,none"
     AddCase "bhourly,bad-hour,Call Out Roster backup 2026-10-21 24.xlsm,,,,,none"
@@ -2194,13 +2198,13 @@ Private Sub LoadCases5()
     AddCase "kedit,on-the-ledger-start-day,2026-10-01,2025-12-28,2026-10-01,none,2026-10-17-08-00,counts"
     AddCase "kedit,on-the-years-first-day,2025-12-28,2025-12-28,2025-12-28,none,2026-01-05-08-00,counts"
     AddCase "kedit,before-the-ledger-start,2026-09-20,2025-12-28,2026-10-01,none,2026-10-17-08-00,skip"
+End Sub
+
+Private Sub LoadCases6()
     AddCase "kedit,no-ledger-yet,2026-10-05,2025-12-28,none,none,2026-10-17-08-00,skip"
     AddCase "kedit,last-years-edit-after-rollover,2025-12-20,2025-12-28,2025-12-10,none,2026-01-05-08-00,skip"
     AddCase "kedit,day-reimported-after-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,2026-10-17-08-00,skip"
     AddCase "kedit,day-reimported-the-same-minute,2026-10-05,2025-12-28,2026-10-01,2026-10-17-08-00,2026-10-17-08-00,skip"
-End Sub
-
-Private Sub LoadCases6()
     AddCase "kedit,day-reimported-before-the-edit,2026-10-05,2025-12-28,2026-10-01,2026-10-16-07-00,2026-10-17-08-00,counts"
     AddCase "kedit,edit-when-not-a-date,2026-10-05,2025-12-28,2026-10-01,2026-10-18-07-00,notadate,counts"
     AddCase "kedit,pins-the-missed-morning,2026-10-10,2025-12-28,2026-10-01,none,2026-10-11-08-00,counts"

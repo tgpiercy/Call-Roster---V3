@@ -346,7 +346,7 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                         ' v29.0.3 (review HIGH 1.3): the SESSION's hours on offer = the most any live row shows, reading the "of M h" a
                         ' partial or capped row's Note names (modStats.OfferedOnRow) - the first row's Hours is ONE person's figure (the
                         ' hours a partial acceptor took, a 16 h cap, 0 below a partial), and a re-entry pre-filled with it charged wrong
-                        If OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_TASK))) > f.Hours Then f.Hours = OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_TASK)))
+                        If OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_REASON))) > f.Hours Then f.Hours = OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_REASON)))     ' (re-review R1) L_REASON = the Note column the session writes, not L_TASK = Reason
                         If f.Rows <= 25 Then t = t & "  " & SafeStr(v(i, L_EMP)) & "  " & SafeStr(v(i, L_OUTCOME)) & _
                                                 IIf(Val(SafeStr(v(i, L_CHARGED))) <> 0, "  " & SignedHours(Val(SafeStr(v(i, L_CHARGED)))) & " charged", "") & vbNewLine
                         who(SafeStr(v(i, L_EMP))) = who(SafeStr(v(i, L_EMP))) + Val(SafeStr(v(i, L_CHARGED)))

@@ -693,6 +693,7 @@ Private Sub OutcomeArrays(ByRef oc() As String, ByRef sq() As Long)
     For i = 1 To mCount
         oc(i) = mEntries(i).Outcome
         sq(i) = mEntries(i).LoggedSeq
+        If oc(i) = "" Then sq(i) = mSeqNext + 1      ' (re-review R1) a row not yet logged comes AFTER everything logged, so the card reads "offering 0" for every uncalled row once the shift closed
     Next i
 End Sub
 

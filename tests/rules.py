@@ -1910,15 +1910,15 @@ def posting_closed(closes_on: date, as_of: date | datetime) -> bool:
     return at >= datetime(closes_on.year, closes_on.month, closes_on.day, POSTING_CLOSE_HOUR)
 
 
-def default_closes_on(d: date, today: date, close_days: int = 14) -> date:
+def default_closes_on(d: date, now_at: datetime, close_days: int = 14) -> date:
     """v29.0.3 modPostings.DefaultClosesOn (review 1.2): the closing date a posting gets when nobody types one -
-    close_days before the shift; when that day has passed, the day before the shift; never before today. The one
-    rule for New Posting, Post all lines and Edit posting."""
+    close_days before the shift; when that closing MOMENT (8 AM, posting_closed) has passed by now_at, the day before
+    the shift; when that has passed too, today. The one rule for New Posting, Post all lines and Edit posting."""
     cl = d - timedelta(days=close_days)
-    if cl < today:
+    if posting_closed(cl, now_at):
         cl = d - timedelta(days=1)
-    if cl < today:
-        cl = today
+    if posting_closed(cl, now_at):
+        cl = now_at.date() if isinstance(now_at, datetime) else now_at
     return cl
 
 

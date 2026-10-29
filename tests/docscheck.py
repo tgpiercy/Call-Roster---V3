@@ -20,6 +20,9 @@ import sys
 from pathlib import Path
 
 DOCS = ("docs/supervisor-quick-guide.md", "docs/system-manual.md", "docs/admin-install-guide.md", "docs/rollover-one-pager.md")
+# v29.0.3 (review 2.7): the alpha's plan, its step table and its reset runbook name the alpha build (v29.0.x) - every
+# three-part release they mention must be the code's (the real file's "v29" is left alone)
+ALPHA_DOCS = ("docs/alpha-test-plan.md", "docs/alpha-data-reset.md", "tests/mock/steps.csv")
 
 
 def code_facts(root: Path) -> dict:
@@ -52,6 +55,19 @@ def doc_problems(text: str, name: str, facts: dict) -> list[str]:
     return out
 
 
+def alpha_problems(text: str, name: str, facts: dict) -> list[str]:
+    """Every vNN.N.N token of the code's major.minor must be the release (v29.0.1 left in a plan step after v29.0.3)."""
+    rel = facts["release"]
+    parts = rel.split(".")
+    if len(parts) < 3:
+        return []
+    out = []
+    for m in re.finditer(r"\bv\d+\.\d+\.\d+\b", text):
+        if m.group(0).split(".")[:2] == parts[:2] and m.group(0) != rel:
+            out.append(f"ALPHA {name}: '{m.group(0)}' - the alpha build is {rel}")
+    return out
+
+
 def check(root: Path) -> list[str]:
     facts = code_facts(root)
     out = []
@@ -59,6 +75,10 @@ def check(root: Path) -> list[str]:
         p = root / rel
         if p.is_file():
             out += doc_problems(p.read_text(encoding="utf-8"), rel, facts)
+    for rel in ALPHA_DOCS:
+        p = root / rel
+        if p.is_file():
+            out += alpha_problems(p.read_text(encoding="utf-8"), rel, facts)
     return out
 
 

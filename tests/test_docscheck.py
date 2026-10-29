@@ -36,3 +36,12 @@ def test_each_stale_line_is_found_once():
 def test_the_facts_come_from_the_code():
     facts = docscheck.code_facts(Path(__file__).resolve().parent.parent)
     assert facts["steps"] >= 22 and facts["modules"] >= 30 and facts["cases"] > 800
+
+
+def test_an_old_alpha_build_left_in_the_plan_is_found():
+    """v29.0.3 (review 2.7): a three-part release of the code's major.minor that is not the code's; v29 alone is fine."""
+    facts = dict(FACTS, release="v29.0.3")
+    out = docscheck.alpha_problems("installed v29.0.1 through the panel; the real file stays on v29; v28.1 is later", "fixture", facts)
+    assert [p.split()[0] for p in out] == ["ALPHA"] and "v29.0.1" in out[0], out
+    assert docscheck.alpha_problems("v29.0.3 on the mock file, v29 on the real one", "fixture", facts) == []
+    assert docscheck.alpha_problems("v29.0.1 anywhere", "fixture", FACTS) == []      # a two-part release checks nothing

@@ -155,6 +155,17 @@ Private Function MockGuard(ByVal what As String) As Boolean
         Exit Function
     End If
     If Not IsDryRunName(ThisWorkbook.Name) Then
+        ' v29.0.3 (review 2.11): on the live-named file the real roster must already be set aside - the Pre-alpha copy
+        ' (docs/alpha-data-reset.md page 1, step 3) is looked for beside the file; the typed word alone was the only barrier
+        Dim preName As String
+        On Error Resume Next
+        preName = Dir$(EnsureSlash(ThisWorkbook.Path) & "Pre-alpha\Backup - PRE-ALPHA *" & ThisWorkbook.Name)
+        On Error GoTo 0
+        If preName = "" Then
+            MsgBox "No Pre-alpha copy of this file was found: " & vbNewLine & EnsureSlash(ThisWorkbook.Path) & "Pre-alpha\Backup - PRE-ALPHA yyyy-mm-dd - " & ThisWorkbook.Name & vbNewLine & vbNewLine & _
+                   what & " does not run on the live-named file until the real roster is set aside there (docs/alpha-data-reset.md page 1, steps 2-3). Nothing was changed.", vbExclamation, TTL
+            Exit Function
+        End If
         Dim typed As String
         typed = Trim$(InputBox("THIS IS NOT A PRACTICE COPY: " & ThisWorkbook.Name & vbNewLine & vbNewLine & _
                                what & " empties every data table and every person on this roster and writes the mock plant." & vbNewLine & _

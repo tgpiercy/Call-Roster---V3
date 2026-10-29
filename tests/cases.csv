@@ -490,6 +490,14 @@ partialhrs,words,abc,12,,,,bad
 partialhrs,zero,0,12,,,,bad
 partialhrs,negative,-3,12,,,,bad
 calloffer,refusals-before-the-partial-keep-their-charge,12,Refused:0;Left Message:0;Accepted:4;Refused:0,,,,12=21;12=21;12=0;0=0
+calloffer,call-back-takes-part-after-two-refusals,12,Refused:0:1;Accepted:8:4;Refused:0:2;Refused:0:3,,,,12=21;12=0;12=21;12=21
+calloffer,refusal-logged-after-the-partial,12,Accepted:8:1;Refused:0:2,,,,12=0;0=0
+calloffer,message-then-refusals-then-the-call-back-takes-part,12,Refused:0:1;Accepted:6:5;Refused:0:2;Left Message:0:3;Refused:0:4,,,,12=21;12=0;12=21;12=21;12=21
+calloffer,seq-zero-reads-as-list-order,12,Refused:0:0;Accepted:8:0;Refused:0:0,,,,12=21;12=0;0=0
+calloffer,call-back-refused-after-the-close,12,Refused:0:1;Left Message:0:2;Accepted:8:3;Refused:0:4,,,,12=21;12=21;12=0;0=0
+calloffer,rows-logged-after-the-partial-whatever-their-position,12,Refused:0:2;Accepted:4:1;Refused:0:3,,,,0=0;12=0;0=0
+calloffer,dst-night-call-back-takes-part,13,Refused:0:1;Accepted:6:3;Refused:0:2,,,,13=22.75;13=0;13=22.75
+calloffer,whole-shift-acceptance-by-call-back-closes-nothing,12,Refused:0:1;Accepted:0:3;Refused:0:2,,,,12=21;12=0;12=21
 postclosed,day-before,2026-10-20,2026-10-19,,,,open
 postclosed,closing-day-still-open,2026-10-20,2026-10-20,,,,open
 postclosed,day-after,2026-10-20,2026-10-21,,,,closed

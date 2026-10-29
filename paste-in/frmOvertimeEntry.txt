@@ -1,5 +1,5 @@
 Option Explicit
-' @version v27 (Oct 22)
+' @version v29.0.3 (Oct 28)
 
 ' ================================================================
 ' CALLOUT SESSION FORM
@@ -44,6 +44,7 @@ Private mResumedDraft As Boolean ' v27 (item 17): True once this session resumed
 Private mNoDraft As Boolean      ' v27 (item 17, review A2): True = this session writes no draft (the kept one stays)
 Private mDraftSavedAt As Date    ' v27 (item 17, review A1): the last time the draft went to disk through SaveIfWritable
 Private mTaken() As Double       ' v24.1: hours an Accepted person took (0 = everything on offer)
+Private mSeqNext As Long         ' v29.0.3 (review 1.1): the last number given to a logged outcome (mEntries(i).LoggedSeq); 0 at LOAD
 Private mCount As Long
 Private mCurrent As Long
 ' inputs captured at LOAD LIST - Submit always uses these
@@ -409,6 +410,7 @@ Private Function LoadListNow() As Boolean
     Dim j As Long, nSS As Long
     ReDim mSS(1 To mCount)
     ReDim mTaken(1 To mCount)
+    mSeqNext = 0                                     ' v29.0.3 (review 1.1): a fresh list, nothing logged yet (LoadEligible's records carry LoggedSeq 0)
     For j = 1 To mCount
         mSS(j) = SwitchWorkingOn(mEntries(j).EmpName, mDate, mShiftLbl)
         If mSS(j) <> "" Then nSS = nSS + 1
@@ -451,14 +453,11 @@ End Function
 Private Sub RefreshList()
     lstEmployees.Clear
     Dim i As Long, displayName As String, outcomeText As String
-    ' v24.1: the hours each Accepted row will carry (they depend on partial acceptances above it)
-    Dim oc() As String, offers() As Double, accH As Double
+    ' v24.1: the hours each Accepted row will carry (they depend on partial acceptances logged before it)
+    Dim oc() As String, offers() As Double, accH As Double, sq() As Long
     If mCount > 0 Then
-        ReDim oc(1 To mCount)
-        For i = 1 To mCount
-            oc(i) = mEntries(i).Outcome
-        Next i
-        CalloutOffers mHours, oc, mTaken, mCount, offers
+        OutcomeArrays oc, sq
+        CalloutOffers mHours, oc, mTaken, mCount, offers, sq
     End If
     For i = 1 To mCount
         If mEntries(i).Grade > CHARGE_MAX_GRADE Then
@@ -677,22 +676,30 @@ Private Sub mCallBack_Click()
     FocusList
 End Sub
 
-' Hours on offer to person idx: the call-out's hours less what people above took in part
+' Hours on offer to person idx: the call-out's hours, or 0 once a partial acceptance logged before them closed the shift
 Private Function OfferFor(ByVal idx As Long) As Double
-    Dim oc() As String, offers() As Double, i As Long
+    Dim oc() As String, offers() As Double, sq() As Long
     OfferFor = mHours
     If mCount < 1 Or idx < 1 Or idx > mCount Then Exit Function
-    ReDim oc(1 To mCount)
-    For i = 1 To mCount
-        oc(i) = mEntries(i).Outcome
-    Next i
-    CalloutOffers mHours, oc, mTaken, mCount, offers
+    OutcomeArrays oc, sq
+    CalloutOffers mHours, oc, mTaken, mCount, offers, sq
     OfferFor = offers(idx)
 End Function
 
+' v29.0.3 (review 1.1): every row's outcome and the order it was logged in, as CalloutOffers reads them
+Private Sub OutcomeArrays(ByRef oc() As String, ByRef sq() As Long)
+    Dim i As Long
+    ReDim oc(1 To mCount): ReDim sq(1 To mCount)
+    For i = 1 To mCount
+        oc(i) = mEntries(i).Outcome
+        sq(i) = mEntries(i).LoggedSeq
+    Next i
+End Sub
+
 ' v25 (D-E4): once someone took PART of the hours the shift is closed - no further outcome of any
-' kind (review: a Refused recorded after the close would still be charged, since the charge goes by
-' list position). The partial taker's own row stays correctable (their entry is left out of the test).
+' kind (v29.0.3: a row logged after the close is offered 0 by its logged order, so it could never be
+' charged; the refusal is still refused here so the list is not called on). The partial taker's own
+' row stays correctable (their entry is left out of the test).
 ' v25.5 (review): a row logged BEFORE the close may still be corrected to a refusal, a message or
 ' unavailable - never to Accepted (toAccepted): Call back and B reach those rows with one key now.
 Private Function ShiftClosedByPartial(Optional ByVal toAccepted As Boolean = False) As Boolean
@@ -804,6 +811,10 @@ Private Function RecordOutcome(ByVal outcome As String, ByVal reason As String, 
     End If
     RecordOutcome = True
 
+    ' v29.0.3 (review 1.1): the order outcomes are LOGGED in, for the partial-acceptance close (CalloutOffers) - a NEW number
+    ' for an Accepted (a call-back who takes part of the hours closes the shift from THAT moment, after the refusals already
+    ' logged) or a row logged for the first time; a correction of a row logged before keeps its place
+    If outcome = "Accepted" Or mEntries(mCurrent).LoggedSeq = 0 Then mSeqNext = mSeqNext + 1: mEntries(mCurrent).LoggedSeq = mSeqNext
     mEntries(mCurrent).Outcome = outcome
     mEntries(mCurrent).Reason = reason
     C("cmbReason").Value = ""      ' so it can't carry over to the next person
@@ -853,7 +864,7 @@ Private Function DraftSave() As Boolean
     For i = 1 To mCount
         If mEntries(i).Outcome <> "" Then
             s = s & IIf(s = "", "", ";") & Replace(Replace(mEntries(i).EmpName, "|", " "), ";", " ") & "|" & mEntries(i).Outcome & "|" & _
-                Replace(Replace(mEntries(i).Reason, "|", " "), ";", " ") & "|" & HoursText(mTaken(i))
+                Replace(Replace(mEntries(i).Reason, "|", " "), ";", " ") & "|" & HoursText(mTaken(i)) & "|" & CStr(mEntries(i).LoggedSeq)   ' v29.0.3: 5th = the logged order
         End If
     Next i
     Dim slotKey As String
@@ -917,6 +928,9 @@ Private Sub UserForm_Activate()
                 mEntries(i).Outcome = CStr(p(1))
                 If UBound(p) >= 2 Then mEntries(i).Reason = CStr(p(2))
                 If UBound(p) >= 3 Then mTaken(i) = Val(Replace(CStr(p(3)), ",", "."))
+                ' v29.0.3 (review 1.1): the logged order comes back with the row; a draft from before it numbers its rows in draft order
+                If UBound(p) >= 4 Then mEntries(i).LoggedSeq = CLng(Val(CStr(p(4)))) Else mEntries(i).LoggedSeq = k + 1
+                If mEntries(i).LoggedSeq > mSeqNext Then mSeqNext = mEntries(i).LoggedSeq
                 placed = placed + 1
             Else
                 missing = missing & IIf(missing = "", "", ", ") & CStr(p(0))

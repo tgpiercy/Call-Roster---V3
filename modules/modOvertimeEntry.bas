@@ -228,6 +228,7 @@ Public Type EmpRec
     EstHrs As Boolean           ' v24.3: TotalHrs is a planned mover's hours AFTER the top-up, an estimate for call order
     MaxHours As Double          ' v26.5.5 (item 9): the most OT they may take on the listed shift under the 16 h rule (FilterNotFree sets it)
     PayrollNo As String         ' v28 (item 2): the roster's Payroll # (column A; "" until known) - the key
+    LoggedSeq As Long           ' v29.0.3 (review 1.1): the order the outcome was LOGGED in by the pop-up (0 = none / by list position)
 End Type
 
 ' Session flags
@@ -724,20 +725,33 @@ End Function
 '   outcomes(i)  the outcome recorded for person i ("" = not called)
 '   taken(i)     hours an Accepted person took; 0 = everything on offer
 '   offers(i)    out: the hours person i was offered
+'   seq(i)       v29.0.3 (review 1.1): the order the outcomes were LOGGED in (the pop-up numbers each one;
+'                0 = the row's list position, so a list called top to bottom reads exactly as before)
+' v25 (D-E4, Graeme Oct 14): a PARTIAL acceptance closes the shift - the rest is dropped, uncharged; nobody
+' below is offered it (v24.1 offered the rest down the list). v29.0.3: "below" means logged AFTER the partial,
+' not lower on the list - #2 left a message, #3 and #4 refused 12 h, then #2 called back and took 8 h: #3 and
+' #4 refused a real offer and keep their 21 h; a refusal logged after the partial is offered 0 (D-E4 as worded:
+' refusals logged BEFORE the partial keep their charge). The mirror and SmokeTest step 4 read the same rule.
 Public Sub CalloutOffers(ByVal hours As Double, ByRef outcomes() As String, ByRef taken() As Double, _
-                         ByVal n As Long, ByRef offers() As Double)
-    Dim i As Long, remain As Double
-    remain = hours
+                         ByVal n As Long, ByRef offers() As Double, ByRef seq() As Long)
+    Dim i As Long, closeKey As Long
     ReDim offers(1 To IIf(n > 0, n, 1))
     For i = 1 To n
-        offers(i) = remain
         If outcomes(i) = "Accepted" Then
-            ' v25 (D-E4, Graeme Oct 14): a PARTIAL acceptance closes the shift - the rest is dropped,
-            ' uncharged; nobody below is offered it (v24.1 offered the rest down the list)
-            If taken(i) > 0 And taken(i) < remain Then remain = 0
+            If taken(i) > 0 And taken(i) < hours Then                 ' a partial: the earliest LOGGED one closes the shift
+                If closeKey = 0 Or OfferKey(seq, i) < closeKey Then closeKey = OfferKey(seq, i)
+            End If
         End If
     Next i
+    For i = 1 To n
+        If closeKey > 0 And OfferKey(seq, i) > closeKey Then offers(i) = 0 Else offers(i) = hours
+    Next i
 End Sub
+
+' v29.0.3 (review 1.1): where row i sits in the LOGGED order - its number, or its list position when it has none
+Private Function OfferKey(ByRef seq() As Long, ByVal i As Long) As Long
+    If seq(i) > 0 Then OfferKey = seq(i) Else OfferKey = i
+End Function
 
 ' v25 (D-E4): has a partial acceptance closed this call-out's shift? (the pop-up refuses a further Accepted)
 Public Function CalloutClosed(ByRef outcomes() As String, ByRef taken() As Double, ByVal n As Long, ByVal hours As Double) As Boolean
@@ -1309,11 +1323,13 @@ Public Function SubmitCalloutSession(ByVal dept As String, ByVal shiftLbl As Str
     Dim nAcc As Long, nRef As Long, nMsg As Long, nUna As Long, nExc As Long, accTxt As String
     ' v24.1: the hours each person was offered (less than the call-out's below a partial acceptance)
     Dim oc() As String, offers() As Double, worked As Double
+    Dim sq() As Long: ReDim sq(1 To n)                 ' v29.0.3 (review 1.1): the logged order the pop-up numbered (0 = list position)
     ReDim oc(1 To n)
     For i = 1 To n
         oc(i) = entries(i).Outcome
+        sq(i) = entries(i).LoggedSeq
     Next i
-    CalloutOffers hours, oc, taken, n, offers
+    CalloutOffers hours, oc, taken, n, offers, sq
     ' v26.5.5 (the 16 h rule, review): a person the rule caps is OFFERED their maximum, so a refusal or a
     ' message is charged on the hours they could take, never on hours they may not work (FilterNotFree
     ' sets MaxHours; a list that never went through it carries FATIGUE_MAX_HOURS = no cap)

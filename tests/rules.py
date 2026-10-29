@@ -1534,18 +1534,15 @@ def refused_split(rows: list[tuple[str, float, bool, bool]]) -> tuple[float, flo
 
 
 # ---------------------------------------------------------------- part of a call-out accepted (v24.1)
-def callout_offers(hours: float, calls: list[tuple[str, float]]) -> list[float]:
-    """modOvertimeEntry.CalloutOffers. calls = (outcome, hours taken; 0 = all on
-    offer) in call order. A PARTIAL acceptance lowers the offer for everyone
-    below; a whole-shift acceptance changes nothing. v25 (D-E4): a partial
-    acceptance CLOSES the shift - nobody below is offered the rest."""
-    remain = hours
-    out = []
-    for outcome, taken in calls:
-        out.append(remain)
-        if outcome == "Accepted" and 0 < taken < remain:
-            remain = 0
-    return out
+def callout_offers(hours: float, calls: list[tuple]) -> list[float]:
+    """modOvertimeEntry.CalloutOffers. calls = (outcome, hours taken; 0 = all on offer[, logged order]) in call
+    order. A whole-shift acceptance changes nothing. v25 (D-E4): a partial acceptance CLOSES the shift - nobody
+    offered after it gets the rest. v29.0.3 (review 1.1): "after" is by the order the outcomes were LOGGED (the
+    optional third element; 0 / absent = the list position): a refusal logged before the partial keeps its full
+    offer, one logged after it is offered 0."""
+    keys = [(c[2] if len(c) > 2 and c[2] else i + 1) for i, c in enumerate(calls)]
+    close = min((k for c, k in zip(calls, keys) if c[0] == "Accepted" and 0 < c[1] < hours), default=0)
+    return [0.0 if close and k > close else hours for k in keys]
 
 
 def accepted_hours(offer: float, taken: float) -> float:

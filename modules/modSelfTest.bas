@@ -909,18 +909,20 @@ Private Function CaseSignupMix(ByVal spec As String) As String
     If CaseSignupMix = "" Then CaseSignupMix = "none"
 End Function
 
-' hours, "outcome:taken;..." in call order (everyone grade 1) -> "offered=charged;..."
+' hours, "outcome:taken[:seq];..." in call order (everyone grade 1) -> "offered=charged;..."
+' v29.0.3 (review 1.1): the optional third part is the order the outcome was LOGGED in (0 / absent = the list position)
 Private Function CaseCallOffer(ByVal hours As Double, ByVal spec As String) As String
     Dim parts As Variant: parts = Split(spec, ";")
     Dim n As Long: n = UBound(parts) + 1
-    Dim oc() As String, taken() As Double, offers() As Double
-    ReDim oc(1 To n): ReDim taken(1 To n)
+    Dim oc() As String, taken() As Double, offers() As Double, sq() As Long
+    ReDim oc(1 To n): ReDim taken(1 To n): ReDim sq(1 To n)
     Dim i As Long, p As Variant
     For i = 1 To n
         p = Split(parts(i - 1), ":")
         oc(i) = CStr(p(0)): taken(i) = CDbl(p(1))
+        If UBound(p) >= 2 Then sq(i) = CLng(p(2))
     Next i
-    CalloutOffers hours, oc, taken, n, offers
+    CalloutOffers hours, oc, taken, n, offers, sq
     For i = 1 To n
         CaseCallOffer = CaseCallOffer & IIf(i = 1, "", ";") & NumText(offers(i)) & "=" & NumText(CalloutCharge(oc(i), 1, offers(i)))
     Next i
@@ -1679,6 +1681,14 @@ Private Sub LoadCases3()
     AddCase "partialhrs,zero,0,12,,,,bad"
     AddCase "partialhrs,negative,-3,12,,,,bad"
     AddCase "calloffer,refusals-before-the-partial-keep-their-charge,12,Refused:0;Left Message:0;Accepted:4;Refused:0,,,,12=21;12=21;12=0;0=0"
+    AddCase "calloffer,call-back-takes-part-after-two-refusals,12,Refused:0:1;Accepted:8:4;Refused:0:2;Refused:0:3,,,,12=21;12=0;12=21;12=21"
+    AddCase "calloffer,refusal-logged-after-the-partial,12,Accepted:8:1;Refused:0:2,,,,12=0;0=0"
+    AddCase "calloffer,message-then-refusals-then-the-call-back-takes-part,12,Refused:0:1;Accepted:6:5;Refused:0:2;Left Message:0:3;Refused:0:4,,,,12=21;12=0;12=21;12=21;12=21"
+    AddCase "calloffer,seq-zero-reads-as-list-order,12,Refused:0:0;Accepted:8:0;Refused:0:0,,,,12=21;12=0;0=0"
+    AddCase "calloffer,call-back-refused-after-the-close,12,Refused:0:1;Left Message:0:2;Accepted:8:3;Refused:0:4,,,,12=21;12=21;12=0;0=0"
+    AddCase "calloffer,rows-logged-after-the-partial-whatever-their-position,12,Refused:0:2;Accepted:4:1;Refused:0:3,,,,0=0;12=0;0=0"
+    AddCase "calloffer,dst-night-call-back-takes-part,13,Refused:0:1;Accepted:6:3;Refused:0:2,,,,13=22.75;13=0;13=22.75"
+    AddCase "calloffer,whole-shift-acceptance-by-call-back-closes-nothing,12,Refused:0:1;Accepted:0:3;Refused:0:2,,,,12=21;12=0;12=21"
     AddCase "postclosed,day-before,2026-10-20,2026-10-19,,,,open"
     AddCase "postclosed,closing-day-still-open,2026-10-20,2026-10-20,,,,open"
     AddCase "postclosed,day-after,2026-10-20,2026-10-21,,,,closed"
@@ -1780,6 +1790,9 @@ Private Sub LoadCases3()
     AddCase "idmark,lower-case-and-spaces,s-0007| S-0009 ,,,,,S=9"
     AddCase "idmark,entry-style-number-not-a-ref,#12|12,,,,,none"
     AddCase "idmark,long-prefix-ignored,TOOLONGPRE-0001|ADJ-0100,,,,,ADJ=100"
+End Sub
+
+Private Sub LoadCases4()
     AddCase "idmark,empty,,,,,,none"
     AddCase "idmark,digit-in-prefix-ignored,P2-0005|P-0004,,,,,P=4"
     AddCase "prechange,six-digit-time,Backup before planned moves 2026-10-13 091500 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-10-13"
@@ -1788,9 +1801,6 @@ Private Sub LoadCases3()
     AddCase "prechange,daily-backup-is-not-one,Call Out Roster 2026-10-12.xlsm,V2 - Call Out Roster.xlsm,,,,none"
     AddCase "prechange,no-time,Backup before migration 2026-10-13 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
     AddCase "prechange,no-what,Backup before 2026-10-13 0915 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
-End Sub
-
-Private Sub LoadCases4()
     AddCase "prechange,lower-case-head,backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,2026-09-30"
     AddCase "prechange,letters-in-the-date,Backup before rename 2026-O9-30 120000 - V2 - Call Out Roster.xlsm,V2 - Call Out Roster.xlsm,,,,none"
     AddCase "prechange,no-roster-name,Backup before rename 2026-09-30 120000 - V2 - Call Out Roster.xlsm,,,,,none"
@@ -1983,6 +1993,9 @@ Private Sub LoadCases4()
     AddCase "backupname,hourly-backup,Call Out Roster backup 2026-10-21 14.xlsm,,,,,yes"
     AddCase "bhourly,feb-29-leap,Call Out Roster backup 2028-02-29 06.xlsm,,,,,2028-02-29 06"
     AddCase "bhourly,feb-30-rejected,Call Out Roster backup 2026-02-30 06.xlsm,,,,,none"
+End Sub
+
+Private Sub LoadCases5()
     AddCase "firstref,session-row,  S-0012  Refused  Ann Bee  12 h  charged 21,,,,,S-0012"
     AddCase "firstref,adjustment,Adjustment ADJ-0003 added,,,,,ADJ-0003"
     AddCase "firstref,posting-award,P-0041 awarded to Bob Cee,,,,,P-0041"
@@ -1991,9 +2004,6 @@ Private Sub LoadCases4()
     AddCase "firstref,renamed-test-name,ZZ Test-1 took the shift,,,,,-"
     AddCase "firstref,lieu-code,LIEU OT - DT Split 4 h,,,,,-"
     AddCase "firstref,glued-letter,aS-12 is not a ref,,,,,-"
-End Sub
-
-Private Sub LoadCases5()
     AddCase "firstref,glued-digit,S-0012a is not a ref either,,,,,-"
     AddCase "firstref,five-letters,ABCDE-12 is too long a prefix,,,,,-"
     AddCase "firstref,lowercase,s-0012 lower case,,,,,-"
@@ -2186,6 +2196,9 @@ Private Sub LoadCases5()
     AddCase "kgap,one-named-day-held-sets-it-aside,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-15,skip"
     AddCase "kgap,both-named-days-held,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14; 2026-10-15,2026-10-14;2026-10-15,skip"
     AddCase "kgap,person-holds-other-days-only,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14,2026-10-13;2026-10-20,counts"
+End Sub
+
+Private Sub LoadCases6()
     AddCase "kgap,person-holds-no-days,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-10-14,,counts"
     AddCase "kgap,no-ledger-yet,2026-10-24,2025-12-28,none,no one-day report for 2026-10-14,,skip"
     AddCase "kgap,before-the-ledger-start,2026-09-20,2025-12-28,2026-10-01,no one-day report for 2026-09-14,,skip"
@@ -2194,9 +2207,6 @@ Private Sub LoadCases5()
     AddCase "kgap,note-naming-no-day-counts,2026-10-24,2025-12-28,2026-10-01,differs from the ledger,2026-10-14,counts"
     AddCase "kgap,note-with-a-bad-date-ignored,2026-10-24,2025-12-28,2026-10-01,no one-day report for 2026-13-14; 2026-10-15,2026-10-15,skip"
     AddCase "kgapdays,old-through-none,none,2026-10-13,2026-10-11,,,none"
-End Sub
-
-Private Sub LoadCases6()
     AddCase "kgapdays,one-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-13,,,2026-10-12"
     AddCase "kgapdays,none-missing,2026-10-10,2026-10-13,2026-10-11;2026-10-12;2026-10-13,,,none"
     AddCase "kgapdays,two-missing-in-order,2026-10-10,2026-10-13,2026-10-12,,,2026-10-11; 2026-10-13"

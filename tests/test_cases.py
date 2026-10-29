@@ -470,8 +470,8 @@ def evaluate(row: dict) -> str:
                  for f in (r.split(":") for r in i1.split(";") if r)]
         wd = rules.withdrawn_signups(rows5)
         return ";".join(f"{n}={lg}{'!' if m else ''}" for n, lg, _st, m in wd) or "none"
-    if suite == "calloffer":                     # hours, 'outcome:taken;...' (grade 1) -> offered=charged;...
-        calls = [(f[0], float(f[1])) for f in (r.split(":") for r in i2.split(";") if r)]
+    if suite == "calloffer":                     # hours, 'outcome:taken[:seq];...' (grade 1; seq = the logged order, v29.0.3) -> offered=charged;...
+        calls = [(f[0], float(f[1]), int(f[2]) if len(f) > 2 else 0) for f in (r.split(":") for r in i2.split(";") if r)]
         offers = rules.callout_offers(float(i1), calls)
         return ";".join(f"{fmt_num(o)}={fmt_num(rules.callout_charge(c[0], 1, o))}" for o, c in zip(offers, calls))
     if suite == "attendocc":                     # crew, sick, personal, as-of -> first..last:days:paid;... / none

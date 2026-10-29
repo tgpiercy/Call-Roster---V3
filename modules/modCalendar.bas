@@ -1798,12 +1798,14 @@ End Sub
 
 ' v27 (item 10): the key of the only OPEN line (nobody on it yet) of that UNIT (review M4: the group holds two units
 ' in one case, and a Phosphine acceptance must never land on Derivatives' line unasked) for the date and shift; ""
-' when there are none or several. Reads the cache SlotsFor loads; writes nothing.
+' when there are none or several. v29.0.3 (review 1.6): a NO TAKERS line counts as open too, as SlotKeyOpen reads it
+' (the call-out fills it in place) - before, one NO TAKERS line and one OPEN line put the acceptance on the OPEN line
+' unasked and left the NO TAKERS line red. Reads the cache SlotsFor loads; writes nothing.
 Public Function OnlyOpenSlot(ByVal d As Date, ByVal shiftLbl As String, ByVal unit As String) As String
     Dim slots() As CalSlot, n As Long, i As Long, nOpen As Long, k As String
     n = SlotsFor(d, shiftLbl, GroupOfUnit(unit), slots)
     For i = 1 To n
-        If slots(i).IsOpen Then
+        If slots(i).IsOpen Or (UCase$(slots(i).RightText) Like "NO TAKERS*") Then
             If StrComp(SlotUnit(slots(i).Key), unit, vbTextCompare) = 0 Then nOpen = nOpen + 1: k = slots(i).Key
         End If
     Next i

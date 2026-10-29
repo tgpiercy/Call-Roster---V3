@@ -630,9 +630,10 @@ Private Function DrawLiteDesk(ByVal ws As Worksheet, ByVal x0 As Double, ByVal b
     n = PostingExceptionCount(id, what)
     ' v29.0.3 (review 1.8): the card counts ELECTRONIC sign-ups only - a paper sign-up (paper governs in the alpha) or an
     ' unreachable share reads the same as nobody - so it never says "no takers": that is the paper sheet's call
-    If what = "no takers" Then what = "no electronic sign-up - check the paper sheet before No takers"
+    Dim verb As String: verb = "Award / wait for sign-ups"
+    If what = "no takers" Then what = "closed - check the paper sheet": verb = "Paper sheet first, then award or No takers"
     DeskTile ws, "dk_lite_post", n, IIf(n = 0, "Nothing waiting - posting exceptions", IIf(n = 1, "posting", "postings") & " with no electronic sign-up" & IIf(id <> "", ": " & id & " (" & what & ")", "")), _
-             "modDesk.DeskLiteAward", x0 + (tw + GAP), yy, tw, IIf(n > 0, dkOrange(), 0), IIf(n = 0, "", "Check the paper sheet, then award")
+             "modDesk.DeskLiteAward", x0 + (tw + GAP), yy, tw, IIf(n > 0, dkOrange(), 0), IIf(n = 0, "", verb)
     n = UnresolvedNoCount(): n2 = 0: txt = OpenDisputesText(n2)
     txt = IIf(n > 0, n & " receipt " & IIf(n = 1, "answer", "answers") & " of No / Not sure", "") & IIf(n > 0 And n2 > 0, "; ", "") & _
           IIf(n2 > 0, n2 & " open dispute" & IIf(n2 = 1, "", "s"), "")

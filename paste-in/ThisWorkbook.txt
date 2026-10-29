@@ -20,8 +20,8 @@ Private Sub Workbook_Open()
     RecordDiskStamp                    ' v26.5.5 (A2): the file's on-disk time; a save finds it changed = someone else saved meanwhile
     OpenChecks                         ' v20: read-only notice (who has it), AutoSave off on SharePoint
     SetShortcuts True                  ' v25.5: Ctrl+Shift+S / C / K / D while this workbook is active (modUI)
-    FirstOpenOnOpen                    ' v27 (item 20): a login's very FIRST open - the three things that matter (modSystem); before the what's-new box, which it reads to tell an old login from a new one
-    WhatsNewOnOpen                     ' v25.5: the what's-new box once per login per release (modSystem) - last, on a painted screen (review)
+    If Not IsBackupCopyName(ThisWorkbook.Name) Then FirstOpenOnOpen      ' v29.0.3 (re-review R3): a backup copy shows its own box only; v27 (item 20): a login's very FIRST open - the three things that matter (modSystem); before the what's-new box, which it reads to tell an old login from a new one
+    If Not IsBackupCopyName(ThisWorkbook.Name) Then WhatsNewOnOpen       ' v25.5: the what's-new box once per login per release (modSystem) - last, on a painted screen (review)
     ThisWorkbook.Saved = True          ' the hidden name it may write goes with the next real save
     On Error GoTo 0
 End Sub
@@ -84,9 +84,10 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     If SaveAsUI Or ThisWorkbook.ReadOnly Then
         Cancel = True
         MsgBox IIf(ThisWorkbook.ReadOnly, "This copy is open READ-ONLY: it is never saved, under this name or another - " & _
-                   "someone else may have the roster open and saving over it would wipe out their entries.", _
-                   "Save As is not used on the roster: a copy under another name becomes a second 'live' roster.") & vbNewLine & vbNewLine & _
-               "To try things on a copy: Alt+F8 > MakePracticeCopy. To log entries from a read-only copy: close it and reopen the roster with edit access.", _
+                   "someone else may have the roster open and saving over it would wipe out their entries." & vbNewLine & vbNewLine & _
+                   "To log entries: close this copy and reopen the roster with edit access once they are out.", _
+                   "Save As is not used on the roster: a copy under another name becomes a second 'live' roster." & vbNewLine & vbNewLine & _
+                   "To try things on a copy: Alt+F8 > MakePracticeCopy (supervisors and admins)."), _
                vbExclamation, "Not saved"
         Exit Sub
     End If
@@ -113,6 +114,7 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     On Error Resume Next
     HideCalloutPhonesForSave                       ' v27 (item 16): a supervisor's printed roster loses its phone column before the file is saved (review L8: before the backup copy too)
     mRestoreAdmin = gAdminUnlocked
+    If Not mRestoreAdmin Then mRestoreAdmin = Not RosterSheet().Columns(C_PHONE).Hidden     ' (re-review R3) the admin view read from the sheet too: a VBA reset clears the flag (as SaveRestrictedCopy reads it)
     mRestoreDesk = gDeskMode                       ' v25.3
     If mRestoreAdmin Then
         Set mWasActive = ActiveSheet
@@ -147,7 +149,7 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
     ReleaseStatusBar                       ' v24.1: Excel's status bar belongs to every open workbook
     SetShortcuts False                     ' v25.5: the keys go with the workbook
-    If NoSave() Or ThisWorkbook.ReadOnly Then
+    If NoSave() Or ThisWorkbook.ReadOnly Or IsBackupCopyName(ThisWorkbook.Name) Then     ' v29.0.3 (review 3.3; re-review R3): a backup copy never saves on close, whether or not OpenChecks ran
         ThisWorkbook.Saved = True
         Exit Sub
     End If

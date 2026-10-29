@@ -1757,6 +1757,7 @@ Public Sub ActAs()
     On Error GoTo Oops
     If Not RealIsAdmin() Then MsgBox "Only an admin's own Windows login may set a chair (yours is " & Environ$("USERNAME") & ").", vbExclamation, "Act as (alpha test)": Exit Sub
     If Int(Date) > Int(AlphaEnd()) Then MsgBox "Act as ended on " & Format$(AlphaEnd(), "mmm d, yyyy") & " (ALPHA_END_ISO in modOvertimeEntry).", vbExclamation, "Act as (alpha test)": Exit Sub
+    If Not RequireWritable() Then Exit Sub            ' (re-review R2) a read-only copy cannot keep a chair: SaveIfWritable says True there without saving
     Dim typed As String: typed = InputBox("Act as another chair for the alpha test. Password:", "Act as (alpha test)")
     If typed = "" Then Exit Sub
     If StrComp(typed, CHAIR_PASSWORD, vbBinaryCompare) <> 0 Then MsgBox "Wrong password. Nothing changed.", vbExclamation, "Act as (alpha test)": Exit Sub
@@ -1765,7 +1766,7 @@ Public Sub ActAs()
     If chair = "" Then Exit Sub
     Dim why As String: why = ActAsCheck(chair, Environ$("USERNAME"), ADMIN_USERS, chairs, Date, AlphaEnd())
     If why <> "" Then MsgBox "Not set: " & why & ".", vbExclamation, "Act as (alpha test)": Exit Sub
-    SetActAsName LCase$(chair) & "|" & LCase$(Environ$("USERNAME"))     ' v29.0.3 (review 1.4): the setter rides with the chair
+    SetActAsName LCase$(Replace(chair, " ", "")) & "|" & LCase$(Replace(Environ$("USERNAME"), " ", ""))     ' v29.0.3 (review 1.4): the setter rides with the chair; (re-review R2) stored as ActAsCheck reads it - no spaces
     If Not SaveIfWritable() Then                    ' v29.0.3 (review 1.15): a blocked or failed save is said, not "it worked"
         MsgBox "The chair " & LCase$(chair) & " is set in this session but the file was NOT SAVED (" & IIf(NoSave(), "saving is blocked in this session", "the save failed") & "): " & _
                "a reopen comes back as you. Close WITHOUT saving, reopen, and run ActAs again.", vbExclamation, "Act as (alpha test)"
@@ -1782,6 +1783,7 @@ End Sub
 Public Sub ActAsClear()
     On Error GoTo Oops
     If Not RealIsAdmin() Then MsgBox "Only an admin's own Windows login may clear the chair (yours is " & Environ$("USERNAME") & ").", vbExclamation, "Act as (alpha test)": Exit Sub
+    If Not RequireWritable() Then Exit Sub            ' (re-review R2) a read-only copy: the clear could not be saved
     On Error Resume Next
     ThisWorkbook.Names(ACTAS_NAME).Delete
     On Error GoTo Oops

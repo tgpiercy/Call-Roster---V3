@@ -3415,6 +3415,10 @@ Public Function MemberLogin() As String
     If nmObj Is Nothing Then Exit Function
     If Int(Date) > Int(DateSerial(CLng(Left$(MEM_ALPHA_END_ISO, 4)), CLng(Mid$(MEM_ALPHA_END_ISO, 6, 2)), CLng(Mid$(MEM_ALPHA_END_ISO, 9, 2)))) Then Exit Function
     Dim s As String: s = Trim$(Replace(Replace(nmObj.RefersTo, "=", ""), """", ""))
+    ' (re-review R2) "chair|setter" as the master stores it: honoured by the login that set it only (an older bare value is ignored)
+    If InStr(s, "|") = 0 Then Exit Function
+    If StrComp(Trim$(Mid$(s, InStr(s, "|") + 1)), Environ$("USERNAME"), vbTextCompare) <> 0 Then Exit Function
+    s = Trim$(Left$(s, InStr(s, "|") - 1))
     If s <> "" Then MemberLogin = s
 End Function
 
@@ -3441,12 +3445,12 @@ Public Sub MemberActAs()
     Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
     On Error GoTo Failed
     If nmObj Is Nothing Then
-        ThisWorkbook.Names.Add Name:=ACTAS_NAME, RefersTo:="=""" & chair & """", Visible:=False
+        ThisWorkbook.Names.Add Name:=ACTAS_NAME, RefersTo:="=""" & chair & "|" & Environ$("USERNAME") & """", Visible:=False
     Else
-        nmObj.RefersTo = "=""" & chair & """"
+        nmObj.RefersTo = "=""" & chair & "|" & Environ$("USERNAME") & """"
         nmObj.Visible = False
     End If
-    MsgBox "This file now sends sign-ups and requests as " & chair & " (the PC's login is " & Environ$("USERNAME") & "). " & _
+    MsgBox "This file now sends sign-ups and requests as " & chair & " for YOUR Windows login only (the PC's login is " & Environ$("USERNAME") & "). " & _
            "MemberActAsClear puts it back; a freshly published members' file starts with no chair.", vbInformation, "Act as (alpha test)"
     Exit Sub
 Failed:

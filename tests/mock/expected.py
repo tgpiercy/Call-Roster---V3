@@ -330,7 +330,7 @@ class Runner:
             close_at = datetime.combine(p["closes"], datetime.min.time()) + timedelta(hours=8)
             what = rules.posting_exception("Open", now >= close_at, (close_at - now).total_seconds() / 3600, n_sign)
             if what == "no takers":       # v29.0.3 (review 1.8): the card counts electronic sign-ups only, so it never says "no takers"
-                what = "no electronic sign-up - check the paper sheet before No takers"
+                what = "closed - check the paper sheet"
             if what:
                 exc.append(f"{pid} ({what})")
         corr = sum(1 for f in self.feedback if f["answer"] != "Yes" and not f["resolved"])
@@ -491,7 +491,7 @@ class Runner:
     def do_opens(self, sid, d, now, a, login, st):
         for lg in ("mihaychukc", "sheltond", "campeauc"):
             self.last_open[lg] = now
-        self.say(sid, "Opens rows added", "3 (one per supervisor, View supervisor, Release v29)")
+        self.say(sid, "Opens rows added", f"3 (one per supervisor, View supervisor, Release {RELEASE})")
 
     def do_kronos_day(self, sid, d, now, a, login, st):
         pl = self.pl
@@ -780,7 +780,8 @@ class Runner:
         night = rules.is_night_shift(shift)
         wb, htn = pl.fatigue_inputs(works, sd, night)
         self.say(sid, "the Works list", f"{works} is listed (free by rotation; the 16 h rule only caps them at {fmt(rules.fatigue_max_hours(wb, htn))} h)")
-        self.say(sid, "the hard stop at Save", f"{works}: {stop or 'fits'} (worked before this shift {fmt(wb)} h, the whole shift {fmt(rules.default_shift_hours(sd, night))} h, hours to the next work {fmt(htn) if htn < 99 else 'none'})")
+        self.say(sid, "the hard stop at Save (the box's words)", f"This switch can't be logged: - {works} can't work {sd:%b} {sd.day} {shift.lower()} under the 16 h rule (with the shifts beside it - scheduled / OT / a switch - it would run past 16 h or leave under 11 h rest)")
+        self.say(sid, "why (the arithmetic)", f"{stop or 'fits'}: worked before this shift {fmt(wb)} h + the whole shift {fmt(rules.default_shift_hours(sd, night))} h > 16; hours to the next work {fmt(htn) if htn < 99 else 'none'}")
         if not stop:
             raise SystemExit(f"{sid}: expected a 16 h stop for {works}")
         self.say(sid, "saved", "nothing")
@@ -849,7 +850,8 @@ class Runner:
         kept, _ = pl.filter_not_free(pl.load_eligible(p["unit"], crew_filter(p["crew"]), new_date), new_date, p["shift"])
         want = {r.name for r in kept}
         have = {r["name"] for r in pl.posting_lists[pid] if not r["result"].startswith("Exempt")}
-        not_now, new_free = sorted(have - want), sorted(want - have)
+        not_now = [r["name"] for r in pl.posting_lists[pid] if r["name"] in have - want]      # the frozen list's order, as SameListOn names them
+        new_free = [r.name for r in kept if r.name in want - have]
         if not_now or new_free:
             self.say(sid, f"the date change to {dtxt(new_date)}", "REFUSED - the list would not be the same people (a posting's list is frozen): " +
                      (f"on the list, not free that day: {', '.join(not_now)}" if not_now else "") + ("; " if not_now and new_free else "") +
@@ -1122,12 +1124,14 @@ class Runner:
         for key, rows in self.days.items():
             if old in rows:
                 rows[new] = rows.pop(old)
+        n_cal = sum(1 for ln in self.lines if old in ln["left"] or old in ln["right"])
         for ln in self.lines:
             ln["left"] = ln["left"].replace(old, new)
             ln["right"] = ln["right"].replace(old, new)
         self.say(sid, "renamed in", f"the roster row; {n_log} OT Log row(s); {n_sw} switch name(s); {len(pl.crew_hist[new])} crew history row(s); the Hours History rows; the posting list rows")
-        # v29.0.3 (review 2.12): the calendar lines carry the SHORT name, the same for both spellings - nothing on them changes
-        self.say(sid, "calendar lines renamed", f"0 - the lines carry the short name {new.split()[0]} {new.split()[1][0]}, which both spellings share")
+        # v29.0.3 (review 2.12, corrected by the re-review): CalName shortens only a "Last, First" name - the mock names have no
+        # comma, so the lines carry the full name and every line tied to the person is renamed (RenameEverywhere's confirm names them)
+        self.say(sid, "calendar lines renamed", f"{n_cal} ({old} -> {new} on the lines tied to the person: the confirm box lists them; CalName keeps a 'First Last' name whole)")
         self.say(sid, "Payroll #", f"unchanged: {p.payroll}")
         self.say(sid, f"{new} Total Hours", fmt(pl.total(new)))
 
@@ -1320,9 +1324,10 @@ in the next release.
 today - your own entries made under that chair: when in doubt use Void Entry by Ref ID. (2) The Lite Desk's daily-check
 step 2 turns green when Needs Attention is OPENED (from the tile too), not when its lines are settled - the plan's "Clear
 Needs Attention" steps mean "open it and read it". (3) The award email's CCs are blank until Nov 20 (no mock award ever
-drafts to the real superintendent and supervisors); never press Send on the draft all the same. (4) Every PDF the mock
-file makes goes to `Alpha reports\\2026\\` beside it (never the P: union folder); the reset runbook moves that folder,
-`Closed\\`, `Scans\\` and the PDFs beside the roster into Pre-alpha\\. (5) The Lite card for a closed posting with no
+drafts to the real superintendent and supervisors); never press Send on the draft all the same. (4) The posting, calendar and
+Board PDFs go to `Alpha reports\\2026\\` beside the mock file (never the P: union folder); receipts, history, Reconcile and
+Stats PDFs go beside the roster as always; the reset runbook moves that folder, `Closed\\`, `Scans\\` and those PDFs into
+Pre-alpha\\. (5) The Lite card for a closed posting with no
 electronic sign-up reads "no electronic sign-up - check the paper sheet before No takers": paper governs, so look at the
 sheet first. (6) A call-out's partial acceptance now closes the shift by the order outcomes were LOGGED (a call-back who
 takes part of the hours after refusals were logged leaves those refusals charged), and Fix an entry pre-fills a re-entry
@@ -1406,7 +1411,7 @@ Full runbook: docs/alpha-data-reset.md. On the MOCK file first:
 | id | step | EXPECT / CHECK |
 |---|---|---|
 | C.1 | Copy the close-out cumulative report (through Sat Nov 14) into the Kronos mock folder; Desk > Import Kronos | Read from the report; Data Through Fri Nov 13 -> Sat Nov 14; Nov 14 had NO one-day report, so its one difference is a Worked Changes row of Kind gap dated Nov 14 (expected.csv rows C.1: the row and the H that moves); nobody else changes (the re-pulled Nov 3 already agreed) |
-| C.2 | Alt+F8 > IntegrityCheck | 0 PROBLEM; the Check 7 payback line (SS-0001 and SS-0002 owed); the Kronos code-not-counted line; the Notes as on D13.8 |
+| C.2 | Alt+F8 > IntegrityCheck | 0 PROBLEM; the Check 7 payback line (SS-0001 only: SS-0002 is 10 days old, under the 42-day warning); the Kronos code-not-counted line; the Notes as on D13.8 |
 | C.3 | Alt+F8 > ClosePeriod > Nov 1 | The CSV, the PDF and the SHA-256 row in Closed Periods for the period starting Nov 1: Log Rows = every row with Period Start Nov 1 (void ones included, marked), Charged = their non-void sum (expected.csv row C.3) |
 | C.4 | Alt+F8 > StatsReport | As D14.7 plus the Nov 14 award rows |
 | C.5 | Needs Attention > the F: line > ShowFeedback; every plan tick done; every alpha-findings row triaged | Nothing unread |

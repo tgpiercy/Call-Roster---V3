@@ -20,7 +20,9 @@ fix them in this build (docs/v29.0.3-build-prompt.md). The CHANGELOG entry lists
    **The password is `alpha2026`** (`CHAIR_PASSWORD` in modOvertimeEntry and `MEM_CHAIR_PASSWORD` in member/modMember.bas).
    The award email's CCs are blank until Nov 20 (no mock award drafts to the real superintendent and supervisors).
 
-**The review's fixes (in the code for good, every file after the alpha too):** a partial acceptance closes a call-out
+**The review's fixes (in the code for good - but NOTE: the real roster stays on v29 until its next install, so the
+save / backup fixes below reach it only then; the Pre-alpha copy of the real file is frozen by its Read-only attribute,
+runbook step 3, not by this build):** a partial acceptance closes a call-out
 by the order the outcomes were LOGGED (a call-back who takes part of the hours after refusals were logged leaves those
 refusals charged); one `DefaultClosesOn` for New Posting, Post all lines and Edit posting (inside 14 days a posting now
 closes the day before the shift, never today); Fix an entry pre-fills a re-entry with the session's hours on offer and
@@ -45,7 +47,7 @@ below; it now refuses the live-named file until the Pre-alpha copy exists beside
 2. Alt+F8 > `'Roster Updater.xlsm'!InstallPanel`. Pick the unzipped `Callout_Roster_v29.0.3` folder. Groups: **1. Prepare**, **2. Install code**, **3. Run once** (the members' template, System check, Self test), **4. Checks**.
 3. Click the one blue button, read its box, click the next.
    - **System check:** "Modules: 45 of 45 on v29.0.3"; ThisWorkbook and the four forms on v29.0.3; the paths box names the Kronos mock folder and `Alpha reports\2026\` as reachable.
-   - **Self test:** 1161 passed, 123 suites (the new suite `closeson` = the default closing date; `calloffer` and `actas` grew).
+   - **Self test:** 1165 passed, 123 suites (the new suite `closeson` = the default closing date; `calloffer` and `actas` grew).
 4. **Show the log** opens the roster's Install Log sheet.
 
 By hand instead: remove and import all 45 stamped modules from `modules/`; paste `paste-in/ThisWorkbook.txt` and the four

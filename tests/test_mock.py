@@ -140,12 +140,14 @@ def test_every_step_is_in_the_window_and_every_named_person_exists():
 def test_expected_csv_is_reproduced_byte_for_byte(tmp_path):
     """expected.py re-run: every scripted person on the list / crew / free the step assumes (it stops otherwise), and the
     file in the repo is exactly what the CSVs and steps.csv produce (drift). The plan document is checked the same way."""
-    before = (MOCK / "expected.csv").read_bytes()
-    plan_before = (ROOT / "docs" / "alpha-test-plan.md").read_bytes()
+    def norm(p: Path) -> bytes:        # v29.0.3 (re-review R4): a checkout with core.autocrlf holds CRLF; the generator writes LF
+        return p.read_bytes().replace(b"\r\n", b"\n")
+    before = norm(MOCK / "expected.csv")
+    plan_before = norm(ROOT / "docs" / "alpha-test-plan.md")
     r = subprocess.run([sys.executable, str(MOCK / "expected.py")], cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
-    assert (MOCK / "expected.csv").read_bytes() == before, "expected.csv is out of date: run py -3.14 tests/mock/expected.py"
-    assert (ROOT / "docs" / "alpha-test-plan.md").read_bytes() == plan_before, "docs/alpha-test-plan.md is out of date: run py -3.14 tests/mock/expected.py"
+    assert norm(MOCK / "expected.csv") == before, "expected.csv is out of date: run py -3.14 tests/mock/expected.py"
+    assert norm(ROOT / "docs" / "alpha-test-plan.md") == plan_before, "docs/alpha-test-plan.md is out of date: run py -3.14 tests/mock/expected.py"
 
 
 def test_the_loader_block_matches_the_csvs():

@@ -268,6 +268,7 @@ Private Sub ClearNames()
     Next i
     DeleteName "KronosImportedAt"
     DeleteName "KronosFileDate"
+    DeleteName "ActAsChair"                        ' v29.0.3 (re-review R2): a chair does not survive a reset
     DeleteName PUB_NAME
     DeleteName "DailyKronos"
     DeleteName "DailyNeeds"

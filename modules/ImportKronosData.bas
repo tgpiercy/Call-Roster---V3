@@ -459,6 +459,7 @@ Sub SyncKronosData()
         ' IntegrityCheck's Check line, the status line) is the data's own age - the Time Period end + 1 - not the report
         ' FILE's saved time: a report copied in keeps the time it was made, so from a few days on every open said stale
         If through > 0 Then fileDate = Int(through) + 1
+        If fileDate > Int(stamp) Then fileDate = Int(stamp)      ' (re-review R2) a report ending TODAY read as "never imported" (a negative age)
         If Not IsArray(pivotSrc) Then pivotName = ""
     ElseIf IsArray(pivotSrc) Then
         src = pivotSrc
@@ -2096,8 +2097,8 @@ Public Function KronosOkToContinue(ByVal what As String) As Boolean
         msg = "Worked hours haven't been imported from Kronos since this update was installed, " & _
               "so there's no record of how current they are."
     Else
-        msg = "Worked hours were last imported from Kronos data saved " & Format$(KronosDataDate(), "ddd mmm d") & _
-              " (" & a & " days ago)."
+        msg = "Worked hours come from Kronos data through " & Format$(KronosDataThrough(), "ddd mmm d") & _
+              " (imported " & a & " days ago; the age counts from the data's own end, v29.0.3)."
     End If
     msg = msg & vbNewLine & vbNewLine & "Call order is only as current as that import. Continue with the " & what & " anyway?" & _
           vbNewLine & vbNewLine & "(No = stop here and run Import Kronos first.)"

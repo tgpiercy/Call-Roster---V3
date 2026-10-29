@@ -355,6 +355,8 @@ Public Sub PublishMembers()
 
     Application.DisplayAlerts = False
     On Error Resume Next
+    wb.Names(ACTAS_NAME).Delete                    ' v29.0.3 (review 1.5): a chair saved into the TEMPLATE never rides into a published file (quiet when there is none)
+    Err.Clear
     wb.SaveAs Filename:=folder & outName, FileFormat:=52    ' 52 = .xlsm
     If Err.Number = 0 Then
         savedAs = folder & outName

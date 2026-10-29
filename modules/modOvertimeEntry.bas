@@ -123,7 +123,7 @@ Public Const KRONOS_SHEET As String = "Sorted Data Here"
 ' steps land on that chair's Desk) and is ignored after ALPHA_END_ISO. Only the REAL Windows login (an admin) may set or clear it.
 Public Const CHAIR_PASSWORD As String = "alpha2026"
 Public Const ALPHA_END_ISO As String = "2026-11-20"
-Private Const ACTAS_NAME As String = "ActAsChair"
+Public Const ACTAS_NAME As String = "ActAsChair"      ' v29.0.3: Public - PublishMembers deletes the name from the template's copy before it is saved (review 1.5)
 Public Const KRONOS_STALE_DAYS As Long = 7            ' warn on call-outs / postings when Kronos data is older than this
 Public Const PROV_NAME As String = "KronosDataThrough" ' hidden name: last date the Kronos data covers (v21)
 ' v27 (briefs/v27-kronos.md): the Kronos report "Employee Transactions and Totals" - its TOTALS block (one row per person per

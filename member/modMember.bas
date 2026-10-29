@@ -25,7 +25,7 @@ Option Explicit
 '  Everything else is a button or a picker cell.
 ' ====================================================================
 
-Public Const MEM_VERSION As String = "Members M6 (Oct 27)"     ' v29 (M6): the status word "Booking voided", My history's PDF to the user's Downloads; v28 (M5, item 1): members' requests - ask for time off or a switch, the partner's Agree, My requests (the template is rebuilt); v27 (M4): me first, the tiles, since you last looked, the header band, How it works
+Public Const MEM_VERSION As String = "Members M6.1 (Oct 28)"     ' v29.0.3 (M6.1, the alpha only): Act as for the admins' logins only (the template is rebuilt by the panel); v29 (M6): the status word "Booking voided", My history's PDF to the user's Downloads; v28 (M5, item 1): members' requests - ask for time off or a switch, the partner's Agree, My requests (the template is rebuilt); v27 (M4): me first, the tiles, since you last looked, the header band, How it works
 Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in the master
 ' v29.0.2 (the alpha only; removed in the release after): Act as - MemberLogin() stands in for the PC's login in every file
 ' name and login= line while a chair is stored in this file (Alt+F8 > MemberActAs with MEM_CHAIR_PASSWORD; MemberActAsClear);
@@ -33,6 +33,9 @@ Private Const PW As String = "members"            ' same as MEMBER_PASSWORD in t
 Private Const MEM_CHAIR_PASSWORD As String = "alpha2026"   ' the same word as CHAIR_PASSWORD in the master
 Private Const MEM_ALPHA_END_ISO As String = "2026-11-20"
 Private Const ACTAS_NAME As String = "ActAsChair"
+' v29.0.3 (review 1.5): the Windows logins that may set or use a chair in this file - the roster's admins. Any other login
+' is itself whatever name the file holds (a member could add the name in Name Manager, or read the password in the code)
+Private Const MEM_ACTAS_USERS As String = "piercyg,lanthierr"
 
 Private Const SH_HOME As String = "Home"
 Private Const SH_ROSTER As String = "Roster"
@@ -3402,9 +3405,11 @@ End Function
 '  ACT AS (v29.0.2, the alpha only - removed in the release after the alpha)
 ' ====================================================================
 ' The login this file sends as: the stored chair while the alpha runs, else the PC's login. Never raises.
+' v29.0.3 (review 1.5): the chair counts only for a login on MEM_ACTAS_USERS (the admins running the test)
 Public Function MemberLogin() As String
     On Error Resume Next
     MemberLogin = Environ$("USERNAME")
+    If Not MemberMayActAs() Then Exit Function
     Dim nmObj As Name
     Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
     If nmObj Is Nothing Then Exit Function
@@ -3415,8 +3420,16 @@ End Function
 
 ' Alt+F8: the password, then any login name (letters, digits, . _ -), e.g. tester2 - so one tester can send a switch request as
 ' one member and Agree as another (the Agree must come from a login other than the request's)
+' v29.0.3 (review 1.5): True for a Windows login on MEM_ACTAS_USERS (lower case, spaces dropped)
+Private Function MemberMayActAs() As Boolean
+    Dim r As String: r = LCase$(Replace(Environ$("USERNAME"), " ", ""))
+    If r = "" Then Exit Function
+    MemberMayActAs = (InStr(1, "," & LCase$(Replace(MEM_ACTAS_USERS, " ", "")) & ",", "," & r & ",", vbBinaryCompare) > 0)
+End Function
+
 Public Sub MemberActAs()
     On Error GoTo Failed
+    If Not MemberMayActAs() Then MsgBox "Act as is for the roster's admins' own logins only (yours is " & Environ$("USERNAME") & ").", vbExclamation, "Act as (alpha test)": Exit Sub
     Dim typed As String: typed = InputBox("Act as another member login for the alpha test. Password:", "Act as (alpha test)")
     If typed = "" Then Exit Sub
     If StrComp(typed, MEM_CHAIR_PASSWORD, vbBinaryCompare) <> 0 Then MsgBox "Wrong password. Nothing changed.", vbExclamation, "Act as (alpha test)": Exit Sub

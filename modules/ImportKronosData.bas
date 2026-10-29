@@ -1332,7 +1332,7 @@ Private Function IngestReport(ByRef rep As KronosReport, ByVal srcName As String
                IIf(rep.ToD <= KronosCumThrough(), " (inside the Totals through " & Format$(KronosCumThrough(), "mmm d") & ": kept, not added)", "") & _
                IIf(nChanges > 0, "; " & nChanges & " figure(s) differed from the day as first imported (Worked Changes)", "")
     Else
-        nChanges = WriteCumulative(rep, tot, payOf, srcName, stamp)
+        nChanges = WriteCumulative(rep, tot, payOf, rosterSet, srcName, stamp)     ' v29.0.3 (review 1.11): removed people stay out of the expected map
         line = "the year to date " & span & ": " & nPeople & " roster people into the Kronos Totals"
         If mGapNote <> "" Then                        ' v27.5 (item 2): a missed morning is named, its differences are gap rows
             line = line & "; NO one-day report for " & mGapMsg & " - " & IIf(nChanges > 0, nChanges & " figure(s) differed from what the ledger expected: " & _
@@ -1527,7 +1527,11 @@ End Function
 ' number of change rows written. The first cumulative ever (no snapshot) logs nothing: it is the baseline.
 ' v27.5 (item 2): when a day between the old Through and this one has no one-day report, every difference is a "gap"
 ' row instead - dated at this Through, its Note naming the missed days (mGapNote for the message).
-Private Function WriteCumulative(ByRef rep As KronosReport, ByVal tot As Object, ByVal payOf As Object, ByVal srcName As String, ByVal stamp As Date) As Long
+' v29.0.3 (review 1.11): rosterSet = the roster's names - the old snapshot and the ledger keep people removed since the last
+' year-to-date, while the report's rows are taken for roster people only, so each removed person logged false "lost hours"
+' rows (Lane Wexford: three gap rows at the close-out); names not on the roster stay out of what the ledger expected
+Private Function WriteCumulative(ByRef rep As KronosReport, ByVal tot As Object, ByVal payOf As Object, ByVal rosterSet As Object, _
+                                 ByVal srcName As String, ByVal stamp As Date) As Long
     Dim lo As ListObject: Set lo = KronosTotalsTable(True)
     If lo Is Nothing Then Err.Raise vbObjectError + 791, , "the Kronos Totals sheet couldn't be made"
     Dim oldThrough As Date: oldThrough = KronosCumThrough()
@@ -1537,7 +1541,7 @@ Private Function WriteCumulative(ByRef rep As KronosReport, ByVal tot As Object,
     Dim expected As Object: Set expected = CreateObject("Scripting.Dictionary"): expected.CompareMode = 1
     If IsArray(v) Then
         For i = 1 To UBound(v, 1)
-            If Trim$(SafeStr(v(i, 2))) <> "" Then
+            If Trim$(SafeStr(v(i, 2))) <> "" And rosterSet.Exists(Trim$(SafeStr(v(i, 2)))) Then
                 key = Trim$(SafeStr(v(i, 2))) & "|" & Trim$(SafeStr(v(i, 3)))
                 If expected.Exists(key) Then expected(key) = expected(key) + NumOr0(v(i, 4)) Else expected.Add key, NumOr0(v(i, 4))
                 If Not payOf.Exists(Trim$(SafeStr(v(i, 2)))) Then payOf.Add Trim$(SafeStr(v(i, 2))), SafeStr(v(i, 1))   ' (review) the Payroll # for a person only in the old snapshot
@@ -1550,7 +1554,7 @@ Private Function WriteCumulative(ByRef rep As KronosReport, ByVal tot As Object,
         For i = 1 To UBound(lv, 1)
             If IsDate(lv(i, 3)) Then
                 held(CLng(Int(CDbl(CDate(lv(i, 3)))))) = True
-                If CDate(lv(i, 3)) > oldThrough And CDate(lv(i, 3)) <= rep.ToD And Trim$(SafeStr(lv(i, 2))) <> "" Then
+                If CDate(lv(i, 3)) > oldThrough And CDate(lv(i, 3)) <= rep.ToD And Trim$(SafeStr(lv(i, 2))) <> "" And rosterSet.Exists(Trim$(SafeStr(lv(i, 2)))) Then
                     key = Trim$(SafeStr(lv(i, 2))) & "|" & Trim$(SafeStr(lv(i, 4)))
                     If expected.Exists(key) Then expected(key) = expected(key) + NumOr0(lv(i, 5)) Else expected.Add key, NumOr0(lv(i, 5))
                 End If

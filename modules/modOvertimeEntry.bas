@@ -85,7 +85,11 @@ Public Const FATIGUE_MAX_HOURS As Double = 16
 Public Const FATIGUE_MIN_REST As Double = 11
 
 ' {YEAR} is replaced by the roster year (v23), so reports follow the rollover: use ReportFolder()
-Public Const REPORT_FOLDER As String = "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\{YEAR}\"
+' v29.0.3 (review 1.12, THE ALPHA ONLY - on the MOCK file): a subfolder beside the roster, so no mock PDF reaches the real
+' P: union folder (the posting PDFs, "Calendar <group> 2026-11.pdf" - the same name the real November PDF takes - the Board).
+' ReportFolder() resolves ".\" against the roster's folder and makes the folders. The release after the alpha puts back
+'   "P:\INDIVIDUAL FOLDERS\Union\Local 21-O-02 Production\Production Overtime Roster\{YEAR}\"
+Public Const REPORT_FOLDER As String = ".\Alpha reports\{YEAR}\"
 ' Where Member View saves the members' file. "." = the folder the roster is in (for now: Oct 12, 2026).
 ' v26.5.5 (A13): at the install Graeme names the MEMBERS' folder and this constant takes its absolute
 ' path (the sign-up inbox below follows it: ".\Signups" = beside the members' file); the master stays in
@@ -1199,7 +1203,21 @@ Public Function ReportFolder() As String
     y = RosterYear()
     On Error GoTo 0
     If y < 2000 Then y = Year(Date)
-    ReportFolder = Replace(REPORT_FOLDER, "{YEAR}", CStr(y))
+    Dim p As String: p = Replace(REPORT_FOLDER, "{YEAR}", CStr(y))
+    ' v29.0.3 (review 1.12): a relative setting (".\sub\{YEAR}\") resolves against the roster's own folder as every other
+    ' folder setting does (ResolveFolder), and its two levels are made on first use - quietly: a folder that cannot be
+    ' made leaves the callers' own "beside the workbook" fall-back (they test FolderExists)
+    If p = "." Or Left$(p, 2) = ".\" Then
+        p = ResolveFolder(p)
+        On Error Resume Next
+        Dim parent As String: parent = Left$(p, InStrRev(p, "\", Len(p) - 1))
+        If Len(parent) > 3 Then
+            If Not FolderExists(parent) Then MkDir Left$(parent, Len(parent) - 1)
+        End If
+        If Not FolderExists(p) Then MkDir Left$(p, Len(p) - 1)
+        On Error GoTo 0
+    End If
+    ReportFolder = p
 End Function
 
 ' A folder setting with "." / ".\sub" resolved against the roster's own folder ("" stays "")

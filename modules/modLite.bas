@@ -339,16 +339,21 @@ Public Function FixEntryFacts(ByVal ref As String) As FixFacts
                         f.Rows = f.Rows + 1
                         If f.Rows = 1 Then
                             f.Unit = SafeStr(v(i, L_DEPT)): f.ShiftDate = AsDate(v(i, L_DATE)): f.ShiftLbl = SafeStr(v(i, L_SHIFTLBL))
-                            f.Hours = Val(SafeStr(v(i, L_BASEHRS))): f.Emp = SafeStr(v(i, L_EMP))
+                            f.Emp = SafeStr(v(i, L_EMP))
                             t = SafeStr(v(i, L_TYPE)) & " " & f.Ref & "  -  " & Format$(f.ShiftDate, "ddd mmm d") & "  " & f.Unit & "  " & f.ShiftLbl & _
-                                IIf(f.Hours > 0, "  " & Format$(f.Hours, "0.##") & " h", "") & IIf(SafeStr(v(i, L_TASK)) <> "", "  (" & SafeStr(v(i, L_TASK)) & ")", "") & vbNewLine
+                                "{HOURS}" & IIf(SafeStr(v(i, L_TASK)) <> "", "  (" & SafeStr(v(i, L_TASK)) & ")", "") & vbNewLine
                         End If
+                        ' v29.0.3 (review HIGH 1.3): the SESSION's hours on offer = the most any live row shows, reading the "of M h" a
+                        ' partial or capped row's Note names (modStats.OfferedOnRow) - the first row's Hours is ONE person's figure (the
+                        ' hours a partial acceptor took, a 16 h cap, 0 below a partial), and a re-entry pre-filled with it charged wrong
+                        If OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_TASK))) > f.Hours Then f.Hours = OfferedOnRow(v(i, L_BASEHRS), SafeStr(v(i, L_TASK)))
                         If f.Rows <= 25 Then t = t & "  " & SafeStr(v(i, L_EMP)) & "  " & SafeStr(v(i, L_OUTCOME)) & _
                                                 IIf(Val(SafeStr(v(i, L_CHARGED))) <> 0, "  " & SignedHours(Val(SafeStr(v(i, L_CHARGED)))) & " charged", "") & vbNewLine
                         who(SafeStr(v(i, L_EMP))) = who(SafeStr(v(i, L_EMP))) + Val(SafeStr(v(i, L_CHARGED)))
                     End If
                 Next i
                 If f.Rows > 25 Then t = t & "  ...and " & (f.Rows - 25) & " more" & vbNewLine
+                t = Replace(t, "{HOURS}", IIf(f.Hours > 0, "  " & HoursText(f.Hours) & " h on offer", ""))     ' v29.0.3: the session's offer, known once every row is read
                 f.Found = (f.Rows > 0)
                 If f.Found Then
                     t = t & "What it changed (Total Hours; the void takes it back):" & vbNewLine

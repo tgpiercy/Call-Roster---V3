@@ -237,8 +237,9 @@ Private Sub CountCallouts(ByVal yearFrom As Date, ByVal yearTo As Date)
 End Sub
 
 ' The hours a call-out row says were on offer: the row's Hours, or the M in a Note that reads "Took N of M h" /
-' "Offered N of M h" (a partial acceptance or a 16 h cap wrote the smaller N into Hours)
-Private Function OfferedOnRow(ByVal hrs As Variant, ByVal note As String) As Double
+' "Offered N of M h" (a partial acceptance or a 16 h cap wrote the smaller N into Hours). v29.0.3 (review 1.3):
+' Public - Fix an entry pre-fills a re-entry with the session's offer read the same way (modLite.FixEntryFacts)
+Public Function OfferedOnRow(ByVal hrs As Variant, ByVal note As String) As Double
     OfferedOnRow = NumOr0(hrs)
     Dim p As Long: p = InStr(1, note, " of ", vbTextCompare)
     If p = 0 Then Exit Function

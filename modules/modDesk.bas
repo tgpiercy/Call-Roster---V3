@@ -628,8 +628,11 @@ Private Function DrawLiteDesk(ByVal ws As Worksheet, ByVal x0 As Double, ByVal b
     End If
     DeskTile ws, "dk_lite_req", n, txt, "modDesk.DeskRequests", x0, yy, tw, IIf(n > 0, dkGreen(), 0), IIf(n = 0, "", "Decide in Needs Attention")
     n = PostingExceptionCount(id, what)
-    DeskTile ws, "dk_lite_post", n, IIf(n = 0, "Nothing waiting - posting exceptions", IIf(n = 1, "posting", "postings") & " with no member sign-up" & IIf(id <> "", ": " & id & " (" & what & ")", "")), _
-             "modDesk.DeskLiteAward", x0 + (tw + GAP), yy, tw, IIf(n > 0, dkOrange(), 0), IIf(n = 0, "", "No takers / Cancel / Out of dept")
+    ' v29.0.3 (review 1.8): the card counts ELECTRONIC sign-ups only - a paper sign-up (paper governs in the alpha) or an
+    ' unreachable share reads the same as nobody - so it never says "no takers": that is the paper sheet's call
+    If what = "no takers" Then what = "no electronic sign-up - check the paper sheet before No takers"
+    DeskTile ws, "dk_lite_post", n, IIf(n = 0, "Nothing waiting - posting exceptions", IIf(n = 1, "posting", "postings") & " with no electronic sign-up" & IIf(id <> "", ": " & id & " (" & what & ")", "")), _
+             "modDesk.DeskLiteAward", x0 + (tw + GAP), yy, tw, IIf(n > 0, dkOrange(), 0), IIf(n = 0, "", "Check the paper sheet, then award")
     n = UnresolvedNoCount(): n2 = 0: txt = OpenDisputesText(n2)
     txt = IIf(n > 0, n & " receipt " & IIf(n = 1, "answer", "answers") & " of No / Not sure", "") & IIf(n > 0 And n2 > 0, "; ", "") & _
           IIf(n2 > 0, n2 & " open dispute" & IIf(n2 = 1, "", "s"), "")
@@ -744,7 +747,7 @@ Public Function LiteHelpText(ByVal key As String) As String
     Select Case LCase$(key)
         Case "decide"
             LiteHelpText = "Member requests: time off or a switch a member asked for from the members' file - book it (double-click) or decline it (right-click) in Needs Attention." & vbNewLine & _
-                           "Posting exceptions: an open posting with no member sign-up, closed or closing within 24 h - the Award pop-up offers No takers, Cancel or Award Out of Dept." & vbNewLine & _
+                           "Posting exceptions: an open posting with no ELECTRONIC sign-up, closed or closing within 24 h - check the paper sign-up sheet first (a paper sign-up is ticked by hand in the Award pop-up); only when nobody signed up on paper either does the pop-up's No takers apply (or Cancel, or Award Out of Dept)." & vbNewLine & _
                            "Corrections asked for: a receipt answered No or Not sure, or an open dispute - Fix an entry voids the entry (a reason is required) and re-enters it." & vbNewLine & _
                            "Returning from leave: a leave that ends in the next " & DESK_AHEAD_DAYS & " days, or an open-ended one - Leave > Returning books the return and the top-up."
         Case "book"

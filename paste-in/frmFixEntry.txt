@@ -1,5 +1,5 @@
 Option Explicit
-' @version v29 (Oct 28)
+' @version v29.0.3 (Oct 28)
 
 ' ================================================================
 ' FIX AN ENTRY (v29, item 4; briefs/admin-lite.md): the guided correction
@@ -171,7 +171,7 @@ End Sub
 Private Sub mReenter_Click()
     On Error GoTo Oops
     If Not mVoided Then Exit Sub
-    Dim msg As String, newRef As String
+    Dim msg As String, newRef As String, emR As String
     Dim f As FixFacts: f = mFacts                    ' (review LOW-18) a copy: the re-entry pop-up's error handler may unload this form
     mResolved = True                                 ' whatever happens next, QueryClose must not resolve it a second time
     Me.Hide
@@ -183,10 +183,17 @@ Private Sub mReenter_Click()
     Unload Me
     Exit Sub
 Oops:
-    On Error Resume Next                             ' (re-review LOW-4 / LOW-5) the pop-up raised: the request id must not ride on, and the voided entry is still resolved
+    emR = Err.Description
+    On Error Resume Next                             ' (re-review LOW-4 / LOW-5) the pop-up raised: the request id must not ride on
     gRequestId = ""
-    If f.Ref <> "" Then FixEntryDone f.Ref, ""
     ReportError "frmFixEntry.Reenter"
+    ' v29.0.3 (review 1.9): the feedback is NOT resolved on this path (the entry is void and nothing replaced it: the
+    ' Corrections card keeps it until it is re-entered or looked at again), and the box names the voided Ref
+    If f.Ref <> "" Then
+        MsgBox f.Ref & " is VOID and was NOT re-entered - the re-entry stopped (" & emR & ")." & vbNewLine & vbNewLine & _
+               "Enter it again from its own button (Log Call-Out, Book Time Off, the Shift Switch pop-up ...). " & _
+               "Its receipt answer stays on the Corrections card until then.", vbExclamation, "Fix an entry"
+    End If
 End Sub
 
 ' the entry on screen when the card moves on or closes: a voided one nobody re-entered is resolved as "void"; one looked

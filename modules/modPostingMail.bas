@@ -11,6 +11,10 @@ Public Const PMAIL_VERSION As String = "Posting mail v29.0.2 (Oct 28)"
 Private Function AwardCC(ByVal unit As String, ByRef missingGroups As String) As String
     Dim cc As String
     missingGroups = ""
+    ' v29.0.3 (review 1.14, THE ALPHA ONLY): no CC until the alpha ends (ALPHA_END_ISO) - every mock award opened an Outlook
+    ' draft CC'ing the REAL superintendent and supervisors; the draft is still never sent by the roster. The release after
+    ' the alpha removes this line with the Act-as block.
+    If Int(Date) <= Int(AlphaEnd()) Then Exit Function
     Select Case unit
         Case "Cypure", "Material Handler"              ' Material Handler = Fumigation (gases)
             AddCC cc, missingGroups, CC_GASES_SUPS, "Gases supervisors"

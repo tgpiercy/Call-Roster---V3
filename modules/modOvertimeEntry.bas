@@ -1708,7 +1708,8 @@ Public Function RealUser() As String
     RealUser = Environ$("USERNAME")
 End Function
 
-Private Function AlphaEnd() As Date
+' v29.0.3: Public - the award email's CCs stay blank until the alpha ends (modPostingMail.AwardCC, review 1.14)
+Public Function AlphaEnd() As Date
     AlphaEnd = DateSerial(CLng(Left$(ALPHA_END_ISO, 4)), CLng(Mid$(ALPHA_END_ISO, 6, 2)), CLng(Mid$(ALPHA_END_ISO, 9, 2)))
 End Function
 

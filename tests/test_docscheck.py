@@ -48,3 +48,4 @@ def test_an_old_alpha_build_left_in_the_plan_is_found():
     facts = dict(FACTS, release="v29.1")
     out = docscheck.alpha_problems("renamed v29.1 from v29.0.3; v29 on the real file; v28.1 later", "fixture", facts)
     assert [p.split()[0] for p in out] == ["ALPHA"] and "v29.0.3" in out[0], out
+    assert docscheck.alpha_problems("the next bundle on it is v29.1.5", "fixture", facts) == []      # the bundle on this release is named freely

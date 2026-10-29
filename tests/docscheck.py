@@ -64,7 +64,8 @@ def alpha_problems(text: str, name: str, facts: dict) -> list[str]:
         return []
     out = []
     for m in re.finditer(r"\bv\d+\.\d+(?:\.\d+)?\b", text):
-        if m.group(0).split(".")[0] == parts[0] and m.group(0) != rel:
+        tok = m.group(0)
+        if tok.split(".")[0] == parts[0] and tok != rel and not tok.startswith(rel + "."):     # the NEXT bundle on this release (v29.1.5) may be named
             out.append(f"ALPHA {name}: '{m.group(0)}' - the alpha build is {rel}")
     return out
 

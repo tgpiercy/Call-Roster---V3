@@ -177,6 +177,8 @@ def evaluate(row: dict) -> str:
         return rules.partial_hours_value(i1, float(i2))
     if suite == "postclosed":                    # closing date, as-of -> open / closed (v25)
         return "closed" if rules.posting_closed(d(i1), d(i2)) else "open"
+    if suite == "closeson":                      # shift date, today, close days -> the default closing date (v29.0.3, review 1.2)
+        return iso(rules.default_closes_on(d(i1), d(i2), int(i3)))
     if suite == "crewsoff":                      # date -> the crews off that day, e.g. C/D (v25)
         return rules.crews_off(d(i1))
     if suite == "shifthours":                    # date, day|night -> the default hours (v25)

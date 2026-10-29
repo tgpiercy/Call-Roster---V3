@@ -501,6 +501,13 @@ calloffer,whole-shift-acceptance-by-call-back-closes-nothing,12,Refused:0:1;Acce
 postclosed,day-before,2026-10-20,2026-10-19,,,,open
 postclosed,closing-day-still-open,2026-10-20,2026-10-20,,,,open
 postclosed,day-after,2026-10-20,2026-10-21,,,,closed
+closeson,three-weeks-out,2026-11-25,2026-11-04,14,,,2026-11-11
+closeson,exactly-fourteen-days-out,2026-11-18,2026-11-04,14,,,2026-11-04
+closeson,inside-fourteen-days-closes-the-day-before,2026-11-12,2026-11-04,14,,,2026-11-11
+closeson,tomorrow-closes-today,2026-11-05,2026-11-04,14,,,2026-11-04
+closeson,today,2026-11-04,2026-11-04,14,,,2026-11-04
+closeson,a-past-shift-never-before-today,2026-11-01,2026-11-04,14,,,2026-11-04
+closeson,a-seven-day-setting,2026-11-25,2026-11-04,7,,,2026-11-18
 backupdate,daily-backup,Call Out Roster 2026-10-12.xlsm,,,,,2026-10-12
 backupdate,live-master,V2 - Call Out Roster.xlsm,,,,,none
 backupdate,final-is-not-dated,Call Out Roster 2026 FINAL.xlsm,,,,,none

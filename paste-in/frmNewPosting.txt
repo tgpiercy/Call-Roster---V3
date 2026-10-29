@@ -1,5 +1,5 @@
 Option Explicit
-' @version v27.1 (Oct 22)
+' @version v29.0.3 (Oct 28)
 
 ' ================================================================
 ' NEW OVERTIME POSTING  /  LOAD POSTING
@@ -284,9 +284,7 @@ Private Sub AutoCloses()
     Dim d As Date
     If Not ParseTypedDate(mDate.Text, d) Then Exit Sub
     If Trim$(mCloses.Text) <> "" And Trim$(mCloses.Text) <> mAutoCloses Then Exit Sub   ' typed by hand
-    Dim cl As Date: cl = d - PostingCloseDays()
-    If cl < Date Then cl = d - 1
-    If cl < Date Then cl = Date
+    Dim cl As Date: cl = DefaultClosesOn(d, Date, PostingCloseDays())    ' v29.0.3 (review 1.2): the one rule (modPostings), shared with Post all lines and Edit posting
     mAutoCloses = DateText(cl)
     mCloses.Text = mAutoCloses
 End Sub

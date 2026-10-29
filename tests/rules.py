@@ -1910,6 +1910,18 @@ def posting_closed(closes_on: date, as_of: date | datetime) -> bool:
     return at >= datetime(closes_on.year, closes_on.month, closes_on.day, POSTING_CLOSE_HOUR)
 
 
+def default_closes_on(d: date, today: date, close_days: int = 14) -> date:
+    """v29.0.3 modPostings.DefaultClosesOn (review 1.2): the closing date a posting gets when nobody types one -
+    close_days before the shift; when that day has passed, the day before the shift; never before today. The one
+    rule for New Posting, Post all lines and Edit posting."""
+    cl = d - timedelta(days=close_days)
+    if cl < today:
+        cl = d - timedelta(days=1)
+    if cl < today:
+        cl = today
+    return cl
+
+
 # ---------------------------------------------------------------- the Kronos report (v27, ImportKronosData)
 def premium_multiplier(code: str, codes: str = PREMIUM_CODES, mults: str = PREMIUM_MULTIPLIERS) -> float:
     """ImportKronosData.PremiumMultiplier: the code without its 'CA ' prefix, any case, against the parallel

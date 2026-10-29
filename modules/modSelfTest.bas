@@ -2356,5 +2356,11 @@ Private Sub LoadCases6()
     AddCase "actas,not-a-chair,piercyg,piercyg,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,not a chair"
     AddCase "actas,case-and-spaces, Sheltond ,PIERCYG,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,ok"
     AddCase "actas,blank-chair,,piercyg,piercyg;lanthierr,lanthierr,2026-11-10;2026-11-20,not a chair"
+    AddCase "actas,setter-is-the-real-login,lanthierr|piercyg,piercyg,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-10;2026-11-20,ok"
+    AddCase "actas,setter-is-another-admin,lanthierr|piercyg,lanthierr,piercyg;lanthierr,lanthierr;mihaychukc,2026-11-10;2026-11-20,not the setter"
+    AddCase "actas,setter-stored-but-real-login-not-an-admin,lanthierr|piercyg,sheltond,piercyg;lanthierr,lanthierr;sheltond,2026-11-10;2026-11-20,not an admin"
+    AddCase "actas,setter-case-and-spaces,Lanthierr | PIERCYG,piercyg,piercyg;lanthierr,lanthierr,2026-11-10;2026-11-20,ok"
+    AddCase "actas,setter-matches-but-not-a-chair,sheltond|piercyg,piercyg,piercyg;lanthierr,lanthierr,2026-11-10;2026-11-20,not a chair"
+    AddCase "actas,setter-matches-but-expired,lanthierr|piercyg,piercyg,piercyg;lanthierr,lanthierr,2026-11-21;2026-11-20,expired"
 ' <<< CASES
 End Sub

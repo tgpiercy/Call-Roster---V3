@@ -1698,26 +1698,35 @@ Private Function RealIsAdmin() As Boolean
     RealIsAdmin = (ActAsCheck("", Environ$("USERNAME"), ADMIN_USERS, "", Date, AlphaEnd()) <> "not an admin")
 End Function
 
-' The stored chair while it is allowed (the real login an admin, the chair on the lists, the alpha not over), else "".
-' Never raises: CurrentUser runs inside every gate and every open step.
+' The stored chair while it is allowed (the real login an admin AND the one who set it, the chair on the lists, the alpha
+' not over), else "". v29.0.3 (review 1.4): the name holds "chair|setter" and is honoured only by the setter's own Windows
+' login - before, Graeme's chair saved into the file made Ray (another admin) silently that chair the next morning, with
+' a supervisor's Desk, no admin rights and the wrong Logged By. A value with no setter (none exist: v29.0.2 was never
+' installed) is ignored. Never raises: CurrentUser runs inside every gate and every open step.
 Public Function ActAsChair() As String
     On Error Resume Next
     Dim nmObj As Name
     Set nmObj = ThisWorkbook.Names(ACTAS_NAME)
     If nmObj Is Nothing Then Exit Function
     Dim s As String: s = Trim$(Replace(Replace(nmObj.RefersTo, "=", ""), """", ""))
+    If InStr(s, "|") = 0 Then Exit Function
     If ActAsCheck(s, Environ$("USERNAME"), ADMIN_USERS, LITE_DESK_USERS & "," & SUPERVISOR_USERS, Date, AlphaEnd()) <> "" Then Exit Function
-    ActAsChair = LCase$(s)
+    ActAsChair = LCase$(Trim$(Left$(s, InStr(s, "|") - 1)))
 End Function
 
 ' PURE (SelfTest "actas"; mirrored in tests/rules.py): "" when realLogin (an admin on adminList) may act as chair (a login on
-' chairList) on today, else why: expired (today after endDay, the alpha's end) / not an admin / not a chair. Lower case, spaces dropped.
+' chairList) on today, else why: expired (today after endDay, the alpha's end) / not an admin / not the setter / not a chair.
+' v29.0.3 (review 1.4): chair may read "chair|setter" - the login that set it; another login, admin or not, gets "not the
+' setter" (a bare chair, as the pop-up types it, has no setter to test). Lower case, spaces dropped.
 Public Function ActAsCheck(ByVal chair As String, ByVal realLogin As String, ByVal adminList As String, ByVal chairList As String, _
                            ByVal today As Date, ByVal endDay As Date) As String
     Dim c As String: c = LCase$(Replace(chair, " ", ""))
+    Dim setter As String
+    If InStr(c, "|") > 0 Then setter = Mid$(c, InStr(c, "|") + 1): c = Left$(c, InStr(c, "|") - 1)
     Dim r As String: r = LCase$(Replace(realLogin, " ", ""))
     If Int(today) > Int(endDay) Then ActAsCheck = "expired": Exit Function
     If r = "" Or InStr(1, "," & LCase$(Replace(adminList, " ", "")) & ",", "," & r & ",", vbBinaryCompare) = 0 Then ActAsCheck = "not an admin": Exit Function
+    If setter <> "" And setter <> r Then ActAsCheck = "not the setter": Exit Function
     If c = "" Or InStr(1, "," & LCase$(Replace(chairList, " ", "")) & ",", "," & c & ",", vbBinaryCompare) = 0 Then ActAsCheck = "not a chair": Exit Function
 End Function
 
@@ -1734,9 +1743,9 @@ Public Sub ActAs()
     If chair = "" Then Exit Sub
     Dim why As String: why = ActAsCheck(chair, Environ$("USERNAME"), ADMIN_USERS, chairs, Date, AlphaEnd())
     If why <> "" Then MsgBox "Not set: " & why & ".", vbExclamation, "Act as (alpha test)": Exit Sub
-    SetActAsName LCase$(chair)
+    SetActAsName LCase$(chair) & "|" & LCase$(Environ$("USERNAME"))     ' v29.0.3 (review 1.4): the setter rides with the chair
     SaveIfWritable
-    MsgBox "Acting as " & LCase$(chair) & " (Windows still knows you as " & Environ$("USERNAME") & ")." & vbNewLine & vbNewLine & _
+    MsgBox "Acting as " & LCase$(chair) & " (Windows still knows you as " & Environ$("USERNAME") & "; only YOUR login is this chair - another admin opening the file is themselves)." & vbNewLine & vbNewLine & _
            "Close and reopen the roster: it lands on that chair's Desk with that chair's rights, and every row logged says that login. " & _
            "Alt+F8 > ActAsClear, then reopen, puts you back. SystemCheck names the chair while it is set.", vbInformation, "Act as (alpha test)"
     Exit Sub
@@ -1757,6 +1766,7 @@ Oops:
     ReportError "ActAsClear"
 End Sub
 
+' chair = "chair|setter" (v29.0.3): the login that set it is stored with it, and ActAsChair honours only that login
 Private Sub SetActAsName(ByVal chair As String)
     Dim nmObj As Name
     On Error Resume Next

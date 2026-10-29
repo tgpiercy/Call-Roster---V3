@@ -2124,15 +2124,19 @@ def lite_login_problems(lite_list: str, admin_list: str) -> str:
 
 def act_as_check(chair: str, real_login: str, admin_list: str, chair_list: str, today: date, alpha_end: date) -> str:
     """v29.0.2 modOvertimeEntry.ActAsCheck (the alpha only): '' when real_login (an admin on admin_list) may act as chair
-    (a login on chair_list) on today, else 'expired' (today after alpha_end) / 'not an admin' / 'not a chair'.
+    (a login on chair_list) on today, else 'expired' (today after alpha_end) / 'not an admin' / 'not the setter' /
+    'not a chair'. v29.0.3 (review 1.4): chair may read 'chair|setter' - only the login that set it is honoured.
     Lower case, spaces dropped."""
     def norm(x: str) -> str:
         return x.replace(" ", "").lower()
+    chair, _, setter = norm(chair).partition("|")
     if today > alpha_end:
         return "expired"
     admins = [x for x in norm(admin_list).split(",") if x]
     if not norm(real_login) or norm(real_login) not in admins:
         return "not an admin"
+    if setter and setter != norm(real_login):
+        return "not the setter"
     chairs = [x for x in norm(chair_list).split(",") if x]
     if not norm(chair) or norm(chair) not in chairs:
         return "not a chair"

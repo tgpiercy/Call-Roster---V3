@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -20,11 +21,13 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 import rules  # noqa: E402
-from plant import (CREW_ALL, LOG_HEADERS, UNITS, YEAR_FROM, Person, Plant, hours_text, iso, pdate, period_start,  # noqa: E402
+from plant import (CREW_ALL, LOG_HEADERS, UNITS, YEAR_FROM, Person, Plant, crew_filter, hours_text, iso, pdate, period_start,  # noqa: E402
                    read_csv, write_csv)
 
 ROOT = HERE.parent.parent
 PLAN = ROOT / "docs" / "alpha-test-plan.md"
+# v29.0.3 (review 2.7): the release the plan names is the code's, never typed here
+RELEASE = re.search(r'EXPECTED_RELEASE As String = "([^"]+)"', (ROOT / "modules" / "modSystem.bas").read_text(encoding="ascii")).group(1)
 DAY0 = date(2026, 10, 31)
 LOAD_THROUGH = date(2026, 10, 17)          # KronosDataThrough as the loader leaves it (the Oct 18 snapshot)
 MIN_STAFF = {"Phosphine": (2, 2), "Derivatives": (3, 3), "Cypure": (1, 1), "Material Handler": (1, 1),
@@ -326,6 +329,8 @@ class Runner:
             n_sign = len({f["emp"] for f in self.signup_files if f["pid"] == pid and f["newest_signup"]})
             close_at = datetime.combine(p["closes"], datetime.min.time()) + timedelta(hours=8)
             what = rules.posting_exception("Open", now >= close_at, (close_at - now).total_seconds() / 3600, n_sign)
+            if what == "no takers":       # v29.0.3 (review 1.8): the card counts electronic sign-ups only, so it never says "no takers"
+                what = "no electronic sign-up - check the paper sheet before No takers"
             if what:
                 exc.append(f"{pid} ({what})")
         corr = sum(1 for f in self.feedback if f["answer"] != "Yes" and not f["resolved"])
@@ -427,10 +432,17 @@ class Runner:
         self.say(sid, "after ActAsClear + reopen", "your own admin Desk; no ACTING AS line")
 
     def do_systemcheck(self, sid, d, now, a, login, st):
-        self.say(sid, "modules line (the real file, v29)", "Modules: 45 of 45 on v29 - the mock file reads v29.0.1 after D0.1's install")
+        self.say(sid, "modules line (the real file, v29)", f"Modules: 45 of 45 on v29 - the mock file reads {RELEASE} after D0.1's install")
         self.say(sid, "logins line", "Logins: admins piercyg, lanthierr; Lite lanthierr (Ray); supervisors mihaychukc, sheltond, campeauc")
-        self.say(sid, "modules line on the MOCK file after v29.0.1", "Modules: 45 of 45 on v29.0.1")
-        self.say(sid, "Kronos reports path", "C:\\Users\\piercyg\\Desktop\\Kronos mock\\ - reachable (v29.0.1's one change)")
+        self.say(sid, f"modules line on the MOCK file after {RELEASE}", f"Modules: 45 of 45 on {RELEASE}")
+        self.say(sid, "Kronos reports path", "C:\\Users\\piercyg\\Desktop\\Kronos mock\\ - reachable (the alpha build's KRONOS_PATH: the folder exists on Graeme's PC only)")
+        self.say(sid, "reports path", "<the roster's folder>\\Alpha reports\\2026\\ - reachable (the alpha build's REPORT_FOLDER: every PDF stays beside the mock file)")
+        self.say(sid, "ACTING AS line", "none (no chair set yet)")
+
+    # v29.0.3 (review 2.10): the loader keeps the real file's Settings and Holidays sheets, and the plan's figures rest on them
+    def do_settings_check(self, sid, d, now, a, login, st):
+        self.say(sid, "SystemCheck's settings line", "Settings overrides: none (the plan's figures use the defaults: a payback warned at 42 days, a posting closing 14 days before the shift, Kronos stale after 7 days)")
+        self.say(sid, "Holidays sheet (the pop-up)", "the 2026 rows present; Remembrance Day Wed Nov 11 needs no Observed on (a weekday); Boxing Day Sat Dec 26 with Observed on EMPTY - clear it through the pop-up if the real file carried one (D11.2 expects the HOLIDAYS TO CONFIRM line)")
 
     def do_integrity(self, sid, d, now, a, login, st):
         pl = self.pl
@@ -441,7 +453,7 @@ class Runner:
         checks = []
         owed = [s for s in pl.switches if s["status"] != "VOID" and s["payfor"] == "" and s["paidby"] == "" and (d - s["date"]).days > PAYBACK_WARN_DAYS]
         if owed:
-            checks.append(f"Check 7 Paybacks: {len(owed)} shift-switch payback(s) owed for more than 42 days: " + "; ".join(f"{s['id']} {dtxt(s['date'])}" for s in owed))
+            checks.append(f"Check 7 Paybacks: {len(owed)} shift-switch payback(s) owed for more than 42 days: " + "; ".join(f"{s['id']} {s['date']:%b} {s['date'].day}" for s in owed))   # v29.0.3 (review 2.8): the code writes "Sep 12", no weekday
         if pl.kronos_cum_through:
             checks.append("Check 8 Kronos: Kronos code not counted: Bryn Hartwell LIEU TKN 8 h")
         self.say(sid, "PROBLEM lines", 0)
@@ -506,6 +518,10 @@ class Runner:
         self.say(sid, "files read", "; ".join(files))
         self.say(sid, "Data Through", dtxt(pl.kronos_through))
         changed = [nm for nm in pl.people if abs(pl.worked[nm] - before.get(nm, 0)) > 0.001]
+        # v29.0.3 (review 2.5): the sanity confirm names anyone whose Worked FALLS (or rises over 60 h) before H is written -
+        # No is its default, so the step must answer Yes (a re-pulled day with fewer hours is the one case in the plan)
+        fell = [nm for nm in pl.people if pl.worked[nm] < before.get(nm, 0) - 0.001]
+        self.say(sid, "the sanity confirm before H is written", "; ".join(f"{nm} FALLS {fmt(before[nm])} -> {fmt(pl.worked[nm])}" for nm in fell) + " - answer YES (No is the default; Enter would block the save)" if fell else "none (no fall, no rise over 60 h)")
         self.say(sid, "people whose H changed", len(changed))
         named = changed[:3] if changed else []
         for nm in named:
@@ -729,21 +745,42 @@ class Runner:
         self.events.append((now, login, "switch", ssid))
         return {"id": ssid, "stop": stop}
 
+    def listed_for_works(self, name: str, d: date, shift: str) -> bool:
+        """v29.0.3 (review 2.2): the switch pop-up's Works drop-down (modCalendar.SwitchPickList through NotFreeReason):
+        free by rotation (a shift given up in a switch relieves the rest rule), not booked off for that shift, no switch
+        that day, not already on OT for that shift - someone the 16 h rule only CAPS is listed (the stop comes at Save)."""
+        pl = self.pl
+        if pl.absent_for_shift(name, d, shift):
+            return False
+        night = rules.is_night_shift(shift)
+        why = rules.rotation_free_reason3(pl.crew_on(name, d - timedelta(days=1)), pl.crew_on(name, d), pl.crew_on(name, d + timedelta(days=1)), d, shift)
+        if why == "rest":
+            if not night and pl.switch_off_on(name, d - timedelta(days=1), "Nights"):
+                why = ""
+            if night and pl.switch_off_on(name, d + timedelta(days=1), "Days"):
+                why = ""
+        if why or pl.switch_working_on(name, d) or pl.switch_off_on(name, d):
+            return False
+        if not night and pl.switch_working_on(name, d - timedelta(days=1), "Nights"):
+            return False
+        if night and pl.switch_working_on(name, d + timedelta(days=1), "Days"):
+            return False
+        return pl.ot_worked_on(name, d, night) == 0
+
     def do_switch_try(self, sid, d, now, a, login, st):
         pl = self.pl
         sd, shift, works = pdate(a["date"]), a["shift"], a["works"]
-        if a.get("payback"):
-            pd_, psh = pdate(a["payback"]), a["payback_shift"]
-            # the payback half: the one giving up today works the payback shift; a same-day pair is exempt only for a
-            # sister swap of both shifts - here it is the OTHER person's own scheduled shift beside the one worked
-            wb, htn = pl.fatigue_inputs(works, pd_, rules.is_night_shift(psh))
-            # the works person takes the day shift today (pending): worked before the payback night = that day shift
-            stop = "16 h rule" if (shift == "Days" and psh == "Nights" and pd_ == sd) else pl.fatigue_shift_reason(works, pd_, psh)
-            self.say(sid, "the hard stop", f"{works} can't work {dtxt(pd_)} {psh} under the 16 h rule (days then nights the same day = 24 h; the payback half is stopped)")
-        else:
-            stop = pl.fatigue_shift_reason(works, sd, shift)
-            wb, htn = pl.fatigue_inputs(works, sd, rules.is_night_shift(shift))
-            self.say(sid, "the hard stop", f"{works}: {stop or 'fits'} (worked before {fmt(wb)} h, hours to the next work {fmt(htn) if htn < 99 else 'none'}, max {fmt(rules.fatigue_max_hours(wb, htn))} h)")
+        # v29.0.3 (review 2.1 / 2.2): the worker must be LISTED in the Works drop-down and the save's own 16 h arithmetic
+        # (modCalendar.FatigueShiftReason: the shift worked before the one on offer plus the whole shift) must stop it -
+        # no hand-written rule (the old D7.5 expected a stop on the same-day sister swap, which is EXEMPT; the old D3.5
+        # named a worker the rotation's rest rule keeps out of the drop-down)
+        if not self.listed_for_works(works, sd, shift):
+            raise SystemExit(f"{sid}: {works} is not in the Works drop-down for {sd} {shift}")
+        stop = pl.fatigue_shift_reason(works, sd, shift)
+        night = rules.is_night_shift(shift)
+        wb, htn = pl.fatigue_inputs(works, sd, night)
+        self.say(sid, "the Works list", f"{works} is listed (free by rotation; the 16 h rule only caps them at {fmt(rules.fatigue_max_hours(wb, htn))} h)")
+        self.say(sid, "the hard stop at Save", f"{works}: {stop or 'fits'} (worked before this shift {fmt(wb)} h, the whole shift {fmt(rules.default_shift_hours(sd, night))} h, hours to the next work {fmt(htn) if htn < 99 else 'none'})")
         if not stop:
             raise SystemExit(f"{sid}: expected a 16 h stop for {works}")
         self.say(sid, "saved", "nothing")
@@ -805,11 +842,24 @@ class Runner:
         p = pl.postings[pid]
         old_date = p["date"]
         p["hours"] = float(a["hours"])
-        ln = self.line_of(pid)
-        p["date"] = pdate(a["date"])
-        if ln is not None:
-            ln["date"] = p["date"]
-        self.say(sid, "after the edits", f"{pid}: {fmt(p['hours'])} h, {dtxt(p['date'])} {p['shift']} (was {dtxt(old_date)}); the list unchanged: " + "; ".join(f"#{r['rank']} {r['name']} {fmt(r['total'])}" for r in pl.posting_lists[pid]))
+        self.say(sid, "after the hours edit", f"{pid}: {fmt(p['hours'])} h, {dtxt(p['date'])} {p['shift']}; the list unchanged: " + "; ".join(f"#{r['rank']} {r['name']} {fmt(r['total'])}" for r in pl.posting_lists[pid]))
+        # v29.0.3 (review 2.3): a date change goes through only when the SAME people are free on the new date - the list is
+        # frozen (modPostings.SameListOn, review H1 of v27); otherwise the box names who would drop off / come on and refuses
+        new_date = pdate(a["date"])
+        kept, _ = pl.filter_not_free(pl.load_eligible(p["unit"], crew_filter(p["crew"]), new_date), new_date, p["shift"])
+        want = {r.name for r in kept}
+        have = {r["name"] for r in pl.posting_lists[pid] if not r["result"].startswith("Exempt")}
+        not_now, new_free = sorted(have - want), sorted(want - have)
+        if not_now or new_free:
+            self.say(sid, f"the date change to {dtxt(new_date)}", "REFUSED - the list would not be the same people (a posting's list is frozen): " +
+                     (f"on the list, not free that day: {', '.join(not_now)}" if not_now else "") + ("; " if not_now and new_free else "") +
+                     (f"free that day, not on the list: {', '.join(new_free)}" if new_free else "") + f". {pid} stays {dtxt(old_date)} at {fmt(p['hours'])} h")
+        else:
+            ln = self.line_of(pid)
+            p["date"] = new_date
+            if ln is not None:
+                ln["date"] = p["date"]
+            self.say(sid, "after the date edit", f"{pid}: {dtxt(p['date'])} {p['shift']} (was {dtxt(old_date)}); the calendar line moved, the old PDF renamed superseded")
 
     def do_withdraw_award(self, sid, d, now, a, login, st):
         pl = self.pl
@@ -1075,7 +1125,9 @@ class Runner:
         for ln in self.lines:
             ln["left"] = ln["left"].replace(old, new)
             ln["right"] = ln["right"].replace(old, new)
-        self.say(sid, "renamed in", f"the roster row; {n_log} OT Log row(s); {n_sw} switch name(s); {len(pl.crew_hist[new])} crew history row(s); the Hours History rows; the posting list rows; the calendar lines")
+        self.say(sid, "renamed in", f"the roster row; {n_log} OT Log row(s); {n_sw} switch name(s); {len(pl.crew_hist[new])} crew history row(s); the Hours History rows; the posting list rows")
+        # v29.0.3 (review 2.12): the calendar lines carry the SHORT name, the same for both spellings - nothing on them changes
+        self.say(sid, "calendar lines renamed", f"0 - the lines carry the short name {new.split()[0]} {new.split()[1][0]}, which both spellings share")
         self.say(sid, "Payroll #", f"unchanged: {p.payroll}")
         self.say(sid, f"{new} Total Hours", fmt(pl.total(new)))
 
@@ -1160,6 +1212,7 @@ class Runner:
         pl.people[p.name] = p
         self.say(sid, "roster rows after", len(pl.people))
         self.say(sid, f"{p.name} Total Hours", fmt(pl.total(p.name)))
+        self.say(sid, f"{p.name} Worked (H)", f"{fmt(pl.worked[p.name])} - restored from the Former row ({RELEASE}, review 2.4: it read 0 until the next import before)")
         self.say(sid, "Former row", "Status Returned")
 
     def do_adjustment(self, sid, d, now, a, login, st):
@@ -1198,7 +1251,8 @@ class Runner:
                 days = (d - s["date"]).days
                 lines.append(f"{s['id']} {s['off']} owes {s['works']} ({dtxt(s['date'])} {s['shift']}): " + rules.owed_status_text(days, PAYBACK_WARN_DAYS))
         self.say(sid, "owed", "; ".join(lines) or "none")
-        self.say(sid, "paid back", "; ".join(f"{s['id']} by {s['paidby']}" for s in pl.switches if s["paidby"]))
+        # v29.0.3 (review 2.8): SwitchLedger lists OWED rows only - a paid-back pair is not on it
+        self.say(sid, "NOT listed (paid back; the ledger lists owed rows only)", "; ".join(f"{s['id']} by {s['paidby']}" for s in pl.switches if s["paidby"]))
 
     def do_stats(self, sid, d, now, a, login, st):
         pl = self.pl
@@ -1250,13 +1304,29 @@ Nov 15). The clocks fall back on the night of Sat Oct 31: that night is 13 h. We
 off. The mock Kronos reports come from tests/mock/make_kronos.py: the Day-0 cumulative runs through Fri Oct 30 (a
 cumulative pulled on a Saturday morning covers through Friday), then one one-day report per morning for the day
 before, plus the re-pulled Nov 3 report on the morning of Nov 6, and the close-out cumulative through Sat Nov 14.
-They are copied into the folder v29.0.1's `KRONOS_PATH` names: `C:\\Users\\piercyg\\Desktop\\Kronos mock\\` (Graeme, Oct 28: a local path for now).
+They are copied into the folder the alpha build's `KRONOS_PATH` names: `C:\\Users\\piercyg\\Desktop\\Kronos mock\\` (Graeme, Oct 28: a
+local path for now - it exists on Graeme's PC only, so only Graeme, or Graeme acting as Ray, imports). Regenerate them from
+THIS build with `py -3.14 tests/mock/make_kronos.py` ({RELEASE} moved the Oct 31 row to Wren Fenwick).
 
-**Testing alone (Graeme, Oct 28, later).** v29.0.2's Act as lets your own login play any chair: Alt+F8 > ActAs,
+**Testing alone (Graeme, Oct 28, later).** {RELEASE}'s Act as lets your own login play any chair: Alt+F8 > ActAs,
 the password, the chair (lanthierr for Ray's steps; mihaychukc / sheltond / campeauc for a supervisor's), close and
-reopen; ActAsClear + reopen to come back. On the members' file, MemberActAs (any login text) sends as that login, so a
-switch request and its partner's Agree can both come from your PC. The plan's who column still names the chair, so it
-reads the same whether a real person or you-as-that-chair sits in it. Act as dies after Nov 20 and goes in the next release.
+reopen; ActAsClear + reopen to come back. The chair is honoured by YOUR Windows login only (another admin opening the
+file is themselves). On the members' file, MemberActAs (any login text; the admins' own Windows logins only) sends as
+that login, so a switch request and its partner's Agree can both come from your PC. The plan's who column still names
+the chair, so it reads the same whether a real person or you-as-that-chair sits in it. Act as dies after Nov 20 and goes
+in the next release.
+
+**Notes for {RELEASE} (the Oct 28 review).** (1) With a chair set, Undo last finds the newest entry of the CHAIR's login
+today - your own entries made under that chair: when in doubt use Void Entry by Ref ID. (2) The Lite Desk's daily-check
+step 2 turns green when Needs Attention is OPENED (from the tile too), not when its lines are settled - the plan's "Clear
+Needs Attention" steps mean "open it and read it". (3) The award email's CCs are blank until Nov 20 (no mock award ever
+drafts to the real superintendent and supervisors); never press Send on the draft all the same. (4) Every PDF the mock
+file makes goes to `Alpha reports\\2026\\` beside it (never the P: union folder); the reset runbook moves that folder,
+`Closed\\`, `Scans\\` and the PDFs beside the roster into Pre-alpha\\. (5) The Lite card for a closed posting with no
+electronic sign-up reads "no electronic sign-up - check the paper sheet before No takers": paper governs, so look at the
+sheet first. (6) A call-out's partial acceptance now closes the shift by the order outcomes were LOGGED (a call-back who
+takes part of the hours after refusals were logged leaves those refusals charged), and Fix an entry pre-fills a re-entry
+with the session's hours on offer.
 
 **Who does what (D7).** Ray's steps are the Lite Desk's cards end to end (the three daily checks every morning,
 request -> book, exception -> no takers, correction -> Fix an entry, returning -> leave return) and the paths box on
@@ -1278,11 +1348,11 @@ DAY_TITLES = {
     "2026-10-31": "Day 0 - Sat Oct 31: the real file set aside, the mock plant loaded, every chair opened once",
     "2026-11-01": "Day 1 - Sun Nov 1: the 13 h night - a sick call, the call-out it opens, a partial acceptance, the receipt, the draft",
     "2026-11-02": "Day 2 - Mon Nov 2: the Nov 3 posting awarded; members' requests booked; the vacation line",
-    "2026-11-03": "Day 3 - Tue Nov 3: a new hire; a switch with a payback (the 16 h stop first); Fix an entry",
-    "2026-11-04": "Day 4 - Wed Nov 4: the 16 h cap on a call-out; NO TAKERS from the Lite card; an out-of-department award",
+    "2026-11-03": "Day 3 - Tue Nov 3: a new hire; a switch with a payback; Fix an entry",
+    "2026-11-04": "Day 4 - Wed Nov 4: the 16 h cap on a call-out and the 16 h stop on a switch; NO TAKERS from the Lite card; an out-of-department award",
     "2026-11-05": "Day 5 - Thu Nov 5: Edit a posting; Withdraw an award; Cancel a posting; the weekly cap is off",
     "2026-11-06": "Day 6 - Fri Nov 6: the re-imported Kronos day; a planned move; a trimmed booking; handover; since you were last here",
-    "2026-11-07": "Day 7 - Sat Nov 7: the same-day sister swap (exempt); a payback stopped by the 16 h rule; the Board",
+    "2026-11-07": "Day 7 - Sat Nov 7: the same-day sister swap (exempt); a switch stopped by the 16 h rule (OT on the touching shift); the Board",
     "2026-11-08": "Day 8 - Sun Nov 8: the planned moves applied at the first admin open; the rest rule",
     "2026-11-09": "Day 9 - Mon Nov 9: the leave return; a rename; the OT restriction starts",
     "2026-11-10": "Day 10 - Tue Nov 10: a sign-up withdrawn and sent again; a request declined; a booking voided and re-booked",
@@ -1322,7 +1392,7 @@ RULES = {
     "reconcile": "Reconcile: the paper order against the roster's", "refused-split": "Refused by kind (call-out / posting / other)",
     "history": "Employee history (member-safe and FULL)", "integrity": "IntegrityCheck's 17 checks", "ids": "ID counters (NextRefID / IdMark)",
     "paybacks": "The Paybacks ledger (over 42 days in amber)", "stats": "The Stats report (groups A-D)",
-    "actas": "Act as - an admin plays a chair with the password (v29.0.2, the alpha only)",
+    "actas": f"Act as - an admin plays a chair with the password ({RELEASE}, the alpha only)",
 }
 NOT_IN_PLAN = ["The year-end rollover (RolloverYear) - December", "The guided move (MoveRoster) - the January cutover rehearsal",
                "The Exception outcome (plant upset) - exercised only by the loaded Oct 20 history row", "LTC / LOA top-ups other than STD (the same LV- path)",
@@ -1340,7 +1410,7 @@ Full runbook: docs/alpha-data-reset.md. On the MOCK file first:
 | C.3 | Alt+F8 > ClosePeriod > Nov 1 | The CSV, the PDF and the SHA-256 row in Closed Periods for the period starting Nov 1: Log Rows = every row with Period Start Nov 1 (void ones included, marked), Charged = their non-void sum (expected.csv row C.3) |
 | C.4 | Alt+F8 > StatsReport | As D14.7 plus the Nov 14 award rows |
 | C.5 | Needs Attention > the F: line > ShowFeedback; every plan tick done; every alpha-findings row triaged | Nothing unread |
-| C.6 | The swap (docs/alpha-data-reset.md page 2): the mock file renamed `Backup - ALPHA MOCK 2026-11-14 - V2 - Call Out Roster.xlsm` into Pre-alpha\\; the pre-alpha copy renamed back to the live name; the mock daily / hourly backups of Nov 1-14 moved into Pre-alpha\\; Signups\\ and Requests\\ restored from the Day-0 copy; the mock Kronos folder left in place (v29 on the real file reads the P: workbook, not the folder) | The real file opens as the live roster: SystemCheck 45 of 45 on v29 (NOT v29.0.1); IntegrityCheck 0 PROBLEM; the members' file is the Day-0 one |
+| C.6 | The swap (docs/alpha-data-reset.md page 2): the mock file renamed `Backup - ALPHA MOCK 2026-11-14 - V2 - Call Out Roster.xlsm` into Pre-alpha\\; the pre-alpha copy renamed back to the live name; the mock daily / hourly backups of Nov 1-14, the mock `Alpha reports\\`, `Closed\\` and `Scans\\` folders and the receipt / history / Reconcile / Stats PDFs beside the roster moved into Pre-alpha\\; Signups\\ and Requests\\ restored from the Day-0 copy; the mock Kronos folder left in place (v29 on the real file reads the P: workbook, not the folder) | The real file opens as the live roster: SystemCheck 45 of 45 on v29 (NOT {RELEASE}); IntegrityCheck 0 PROBLEM; the members' file is the Day-0 one |
 | C.7 | Catch up from paper: every real Nov 1-14 event entered as real rows dated on its day, in order - call-outs through the pop-up with the real outcomes, postings, sick calls, switches; then the real cumulative Kronos report imported (the pivot workbook path, as today); IntegrityCheck; PublishMembers | 0 PROBLEM; RolloverProblems glanced at (Alt+F8 > RolloverYear's first box, Cancel); the testers' mock sign-up files are NOT in Signups\\ |
 """
 
@@ -1354,7 +1424,7 @@ def write_plan(steps: list[dict], exp: list[list]) -> None:
     by_step: dict = {}
     for sid, what, fig in exp:
         by_step.setdefault(sid, []).append((what, fig))
-    out = [INTRO]
+    out = [INTRO.replace("{RELEASE}", RELEASE)]
     cur = None
     for st in steps:
         if st["date"] != cur:
@@ -1373,7 +1443,7 @@ def write_plan(steps: list[dict], exp: list[list]) -> None:
         ids = hits.get(tag, [])
         out.append(f"| {title} | {', '.join(ids) if ids else '**no step** (see below)'} |\n")
     out.append("\n**Not in this plan (by design):** " + "; ".join(NOT_IN_PLAN) + ".\n")
-    out.append(CLOSEOUT)
+    out.append(CLOSEOUT.replace("{RELEASE}", RELEASE))
     out.append("\n---\n*Generated by tests/mock/expected.py from tests/mock/steps.csv and tests/mock/expected.csv - edit those, not this file.*\n")
     PLAN.write_text("".join(out), encoding="utf-8", newline="\n")
 

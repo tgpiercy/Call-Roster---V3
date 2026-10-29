@@ -26,12 +26,12 @@ runbook step 3, not by this build):** a partial acceptance closes a call-out
 by the order the outcomes were LOGGED (a call-back who takes part of the hours after refusals were logged leaves those
 refusals charged); one `DefaultClosesOn` for New Posting, Post all lines and Edit posting (inside 14 days a posting now
 closes the day before the shift, never today); Fix an entry pre-fills a re-entry with the session's hours on offer and
-picks a time-off type by its code; the calendar auto-pick counts a NO TAKERS line; the Lite exceptions card says "no
-electronic sign-up - check the paper sheet before No takers"; a failed re-entry names the voided Ref and leaves the
+picks a time-off type by its code; the calendar auto-pick counts a NO TAKERS line; the Lite exceptions card reads "with no
+electronic sign-up: P-nnnn (closed - check the paper sheet)" and its button line says "Paper sheet first, then award or No takers"; a failed re-entry names the voided Ref and leaves the
 feedback unresolved; the Kronos age reads from the report's data; the year-to-date import skips removed people; Bring
 back restores Worked (H); the hourly backup is saved in the RESTRICTED view; Save As and a read-only copy's save are
-refused; a backup-named copy (a daily / hourly backup, the FINAL, a "Backup before ..." or the PRE-ALPHA copy) is frozen
-whether or not it is read-only.
+refused; a backup-named copy (a daily / hourly backup, the FINAL, a "Backup before ..." copy) is frozen whether or not it is
+read-only - once it carries this build's code; the PRE-ALPHA copy carries v29's and is frozen by its Read-only attribute.
 
 Needs **v29 installed** and **Roster Updater.xlsm v4.2**. The updater does not change. The panel's swap replaces every
 module (all 45 stamps move to v29.0.3), re-pastes **ThisWorkbook** and **four forms** (frmOvertimeEntry, frmNewPosting,

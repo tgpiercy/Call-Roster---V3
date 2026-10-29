@@ -2098,7 +2098,7 @@ Public Function KronosOkToContinue(ByVal what As String) As Boolean
               "so there's no record of how current they are."
     Else
         msg = "Worked hours come from Kronos data through " & Format$(KronosDataThrough(), "ddd mmm d") & _
-              " (imported " & a & " days ago; the age counts from the data's own end, v29.0.3)."
+              " (" & a & " days old: the age counts from the data's own end)."
     End If
     msg = msg & vbNewLine & vbNewLine & "Call order is only as current as that import. Continue with the " & what & " anyway?" & _
           vbNewLine & vbNewLine & "(No = stop here and run Import Kronos first.)"

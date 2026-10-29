@@ -173,9 +173,9 @@ Private Sub mReenter_Click()
     If Not mVoided Then Exit Sub
     Dim msg As String, newRef As String, emR As String
     Dim f As FixFacts: f = mFacts                    ' (review LOW-18) a copy: the re-entry pop-up's error handler may unload this form
+    Dim rec0 As String: rec0 = gReceipt.Recorded     ' (re-review R1) the receipt before: an error AFTER the re-entry saved must not say "NOT re-entered" (captured first, so Oops never reads an older receipt)
     mResolved = True                                 ' whatever happens next, QueryClose must not resolve it a second time
     Me.Hide
-    Dim rec0 As String: rec0 = gReceipt.Recorded     ' (re-review R1) the receipt before: an error AFTER the re-entry saved must not say "NOT re-entered"
     newRef = FixEntryReenter(f, msg)
     FixEntryDone f.Ref, newRef
     Tell IIf(newRef <> "", f.Ref & " was voided and re-entered as " & newRef & ". The receipt's answer is marked resolved with " & newRef & ".", _

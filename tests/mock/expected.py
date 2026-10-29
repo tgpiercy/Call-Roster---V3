@@ -1131,7 +1131,7 @@ class Runner:
         self.say(sid, "renamed in", f"the roster row; {n_log} OT Log row(s); {n_sw} switch name(s); {len(pl.crew_hist[new])} crew history row(s); the Hours History rows; the posting list rows")
         # v29.0.3 (review 2.12, corrected by the re-review): CalName shortens only a "Last, First" name - the mock names have no
         # comma, so the lines carry the full name and every line tied to the person is renamed (RenameEverywhere's confirm names them)
-        self.say(sid, "calendar lines renamed", f"{n_cal} ({old} -> {new} on the lines tied to the person: the confirm box lists them; CalName keeps a 'First Last' name whole)")
+        self.say(sid, "calendar lines renamed", f"{n_cal} ({old} -> {new} on the lines tied to the person: the confirm box says the calendar lines change, the finishing receipt counts them; CalName keeps a 'First Last' name whole)")
         self.say(sid, "Payroll #", f"unchanged: {p.payroll}")
         self.say(sid, f"{new} Total Hours", fmt(pl.total(new)))
 
@@ -1328,8 +1328,8 @@ drafts to the real superintendent and supervisors); never press Send on the draf
 Board PDFs go to `Alpha reports\\2026\\` beside the mock file (never the P: union folder); receipts, history, Reconcile and
 Stats PDFs go beside the roster as always; the reset runbook moves that folder, `Closed\\`, `Scans\\` and those PDFs into
 Pre-alpha\\. (5) The Lite card for a closed posting with no
-electronic sign-up reads "no electronic sign-up - check the paper sheet before No takers": paper governs, so look at the
-sheet first. (6) A call-out's partial acceptance now closes the shift by the order outcomes were LOGGED (a call-back who
+electronic sign-up reads "with no electronic sign-up: P-nnnn (closed - check the paper sheet)" with the button line "Paper
+sheet first, then award or No takers": paper governs, so look at the sheet first. (6) A call-out's partial acceptance now closes the shift by the order outcomes were LOGGED (a call-back who
 takes part of the hours after refusals were logged leaves those refusals charged), and Fix an entry pre-fills a re-entry
 with the session's hours on offer.
 

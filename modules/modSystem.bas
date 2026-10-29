@@ -35,7 +35,7 @@ Public Const WHATS_NEW As String = "v29: RAY'S ADMIN LITE DESK - an admin on the
                                    "The guided move (MoveRoster, admin, Alt+F8 - the January cutover's step, not an install step): the roster copies itself to the supervisor-only folder, moves the sign-up and request files to the members' folder, stores that folder inside the new copy and freezes the old file. SystemCheck now lists every path, reachable and writable, and the logins. My history's PDF (members) saves to the user's Downloads."
 Private Const N_MODULES As Long = 45           ' v24.4: + modSmoke; v25.3: + modDesk; v27: + modReconcile, modStats, modReceipt, modRules, modEvidence; v27.1: + the 11 split out of modCalendar / modPeople / modPostings; v28: + modRequests, modKeys; v29: + modLite, modMove
 ' ThisWorkbook and each form are checked against the release that last changed them
-Private Const THISWB_RELEASE As String = "v28"   ' v28: open step 10 (RequestsOnOpen; the later steps moved down one)
+Private Const THISWB_RELEASE As String = "v29.0.3"   ' v29.0.3: the hourly backup after the view switch, Save As / a read-only copy refused, a backup-named copy frozen (review 3.1-3.3); v28: open step 10 (RequestsOnOpen; the later steps moved down one)
 Public Const OP_SHEET As String = "Opens"         ' v27 (item 32): one row per open (tblOpens); admin-only, never published
 Private Const OP_TABLE As String = "tblOpens"
 Private Const OP_N As Long = 7

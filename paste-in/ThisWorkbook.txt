@@ -1,5 +1,5 @@
 Option Explicit
-' @version v28 (Oct 25)
+' @version v29.0.3 (Oct 28)
 
 Private mRestoreAdmin As Boolean
 Private mWasActive As Object
@@ -61,7 +61,7 @@ End Sub
 
 ' SystemCheck reads this to confirm ThisWorkbook was re-pasted
 Public Function CodeVersion() As String
-    CodeVersion = "ThisWorkbook v28 (Oct 25)"
+    CodeVersion = "ThisWorkbook v29.0.3 (Oct 28)"
 End Function
 
 ' Every save (manual, after a form submit, or on close) stores the
@@ -85,7 +85,6 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
     End If
     On Error Resume Next
     HideCalloutPhonesForSave                       ' v27 (item 16): a supervisor's printed roster loses its phone column before the file is saved (review L8: before the backup copy too)
-    BackupBeforeSave                               ' v27 (item 12): an hourly backup when the newest is older than BACKUP_SAVE_HOURS (quiet)
     mRestoreAdmin = gAdminUnlocked
     mRestoreDesk = gDeskMode                       ' v25.3
     If mRestoreAdmin Then
@@ -93,6 +92,10 @@ Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
         Application.ScreenUpdating = False          ' restored by Workbook_AfterSave (the admin view comes back there)
         ApplyView False
     End If
+    ' v29.0.3 (review HIGH 3.1): the hourly backup is taken AFTER the view switch, so it is saved in the RESTRICTED view
+    ' like the daily backup and every copy - before, an admin's save wrote a backup with phones, emails, Payroll #,
+    ' Absences and the admin sheets visible into the roster's folder, which today is also the members' folder
+    BackupBeforeSave                               ' v27 (item 12): an hourly backup when the newest is older than BACKUP_SAVE_HOURS (quiet)
     On Error GoTo 0
 End Sub
 
